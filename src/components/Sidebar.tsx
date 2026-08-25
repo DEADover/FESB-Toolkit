@@ -34,22 +34,38 @@ interface Props {
   onScreen: (screen: ScreenId) => void
   info: AppInfo | null
   isMac: boolean
+  collapsed: boolean
+  onCollapse: () => void
   themeMode: ThemeMode
   onThemeMode: (mode: ThemeMode) => void
 }
 
-export function Sidebar({ screen, onScreen, info, isMac, themeMode, onThemeMode }: Props) {
+export function Sidebar({ screen, onScreen, info, isMac, collapsed, onCollapse, themeMode, onThemeMode }: Props) {
   const { t, language, setLanguage } = useI18n()
 
   return (
+    // Ширина анимируется, а содержимое остаётся в своих 240 px и просто
+    // обрезается — иначе текст на время анимации переносился бы по словам.
     <aside
-      data-tauri-drag-region
-      className={cx('flex w-60 shrink-0 flex-col border-r border-line bg-surface', isMac ? 'pt-9' : 'pt-4')}
+      className={cx(
+        'shrink-0 overflow-hidden bg-surface transition-[width] duration-300 ease-out',
+        collapsed ? 'w-0' : 'w-60 border-r border-line',
+      )}
     >
+    <div data-tauri-drag-region className={cx('flex h-full w-60 flex-col', isMac ? 'pt-9' : 'pt-4')}>
       <div className="px-4 pb-5">
         <div className="flex items-center gap-2.5">
           <Logo />
           <div className="whitespace-nowrap text-[13px] font-semibold">{t('app.name')}</div>
+          <button
+            type="button"
+            onClick={onCollapse}
+            aria-label={t('action.hideSidebar')}
+            title={t('action.hideSidebar')}
+            className="ml-auto grid size-6 shrink-0 place-items-center rounded-md text-[13px] text-content-subtle transition hover:bg-surface-3 hover:text-content"
+          >
+            ‹
+          </button>
         </div>
       </div>
 
@@ -120,6 +136,7 @@ export function Sidebar({ screen, onScreen, info, isMac, themeMode, onThemeMode 
           {info ? `v${info.version} · Tauri ${info.tauri} · ${info.platform}` : '—'}
         </div>
       </div>
+    </div>
     </aside>
   )
 }

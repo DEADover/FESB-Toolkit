@@ -11,6 +11,8 @@ import {
 import { applyThemeMode, readThemeMode, storeThemeMode, type ThemeMode } from './lib/theme'
 import type { AppInfo, ArchiveProgress, ScanProgress, ScanResult } from './types'
 
+const SIDEBAR_KEY = 'fesb.sidebar'
+
 /** Откуда взята конфигурация: из папки или из распакованного архива. */
 interface Source {
   kind: 'folder' | 'archive'
@@ -23,6 +25,7 @@ export default function App() {
   const [info, setInfo] = useState<AppInfo | null>(null)
   const [screen, setScreen] = useState<ScreenId>('files.trace')
   const [themeMode, setThemeMode] = useState<ThemeMode>(readThemeMode)
+  const [sidebarHidden, setSidebarHidden] = useState(() => localStorage.getItem(SIDEBAR_KEY) === 'hidden')
 
   const [source, setSource] = useState<Source | null>(null)
   const [root, setRoot] = useState<string | null>(null)
@@ -57,6 +60,13 @@ export default function App() {
     media.addEventListener('change', onChange)
     return () => media.removeEventListener('change', onChange)
   }, [themeMode])
+
+  const toggleSidebar = useCallback(() => {
+    setSidebarHidden((prev) => {
+      localStorage.setItem(SIDEBAR_KEY, prev ? 'shown' : 'hidden')
+      return !prev
+    })
+  }, [])
 
   const changeTheme = useCallback((mode: ThemeMode) => {
     storeThemeMode(mode)
@@ -149,12 +159,25 @@ export default function App() {
         onScreen={setScreen}
         info={info}
         isMac={isMac}
+        collapsed={sidebarHidden}
+        onCollapse={toggleSidebar}
         themeMode={themeMode}
         onThemeMode={changeTheme}
       />
 
       <main className="flex min-w-0 flex-1 flex-col">
         <header data-tauri-drag-region className={cx('flex items-center gap-3 px-6 pb-4', isMac ? 'pt-9' : 'pt-4')}>
+          {sidebarHidden && (
+            <Button
+              variant="ghost"
+              onClick={toggleSidebar}
+              aria-label={t('action.showSidebar')}
+              title={t('action.showSidebar')}
+              className="size-9 shrink-0 px-0"
+            >
+              ›
+            </Button>
+          )}
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
               <h1 className="text-[15px] font-semibold leading-tight">

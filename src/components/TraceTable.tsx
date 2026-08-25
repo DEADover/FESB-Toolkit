@@ -57,7 +57,7 @@ export function TraceTable({
         {/* Домен и маршруты получают всё свободное место, брокеру хватает узкой колонки. */}
         <colgroup>
           <col className="w-9" />
-          <col className="w-20" />
+          <col className="w-10" />
           <col />
           <col className="w-36" />
           <col className="w-36" />
@@ -78,7 +78,9 @@ export function TraceTable({
                 aria-label={t('filter.all')}
               />
             </th>
-            <th className="border-b border-line px-2 py-2.5 text-center font-medium">{t('table.changedColumn')}</th>
+            <th className="border-b border-line px-2 py-2.5 text-center font-medium" title={t('table.changed')}>
+              <PencilIcon />
+            </th>
             <SortHead label={t('table.domain')} sortKey="domain" active={sortKey} dir={sortDir} onSort={onSort} />
             <SortHead label={t('table.traceBean')} sortKey="bean" active={sortKey} dir={sortDir} onSort={onSort} />
             <SortHead label={t('table.broker')} sortKey="broker" active={sortKey} dir={sortDir} onSort={onSort} />
@@ -417,6 +419,15 @@ function GroupCheckbox({ total, selected, label, onToggle }: {
       onClick={(event) => { event.stopPropagation(); if (total > 0) onToggle() }}
       aria-label={label}
     />
+  )
+}
+
+/** Заголовок колонки правок: карандаш понятнее слова и занимает вчетверо меньше места. */
+function PencilIcon() {
+  return (
+    <svg viewBox="0 0 16 16" className="mx-auto size-3.5 text-content-subtle" fill="currentColor" aria-hidden>
+      <path d="M11.1 1.2a1 1 0 0 1 1.4 0l2.3 2.3a1 1 0 0 1 0 1.4l-1 1-3.7-3.7zM9.2 3.1l3.7 3.7-7 7a1 1 0 0 1-.5.3l-3.6.9a.5.5 0 0 1-.6-.6l.9-3.6a1 1 0 0 1 .3-.5z" />
+    </svg>
   )
 }
 
