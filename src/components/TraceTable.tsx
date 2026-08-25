@@ -246,8 +246,14 @@ export function TraceTable({
 /* ------------------------------ Строки таблицы ------------------------------ */
 
 function Cell({ children, className, colSpanRest }: { children?: ReactNode; className?: string; colSpanRest?: boolean }) {
+  // Отступ по умолчанию задаётся только если вызывающий не задал свой: иначе
+  // `py-2` из базового класса перебивает `py-1.5` — в CSS оно идёт позже.
+  const ownPadding = className?.includes('py-')
   return (
-    <td colSpan={colSpanRest ? COLUMN_COUNT - 2 : undefined} className={cx('border-b border-line px-3 py-2 align-top', className)}>
+    <td
+      colSpan={colSpanRest ? COLUMN_COUNT - 2 : undefined}
+      className={cx('border-b border-line px-3 align-top', !ownPadding && 'py-2', className)}
+    >
       {children}
     </td>
   )
@@ -432,16 +438,19 @@ function PencilIcon() {
 }
 
 /**
- * Колонка-сигнал: запись изменена в текущей сессии. Точка живёт в собственной
- * колонке фиксированной ширины, поэтому на выравнивание остальных не влияет.
+ * Колонка-сигнал: запись изменена в текущей сессии.
+ *
+ * Точка живёт в собственной колонке фиксированной ширины, поэтому по горизонтали
+ * ни на что не влияет. По вертикали центрируется не по высоте строки, а по первой
+ * строке текста — как и содержимое соседних колонок, выровненных по верху.
  */
 function ChangedCell({ changed, compact }: { changed: boolean; compact?: boolean }) {
   const { t } = useI18n()
   return (
-    <td className={cx('border-b border-line px-2 text-center align-middle', compact ? 'py-1.5' : 'py-2')}>
-      {changed && (
-        <span title={t('table.changed')} className="inline-block size-1.5 rounded-full bg-positive align-middle" />
-      )}
+    <td className={cx('border-b border-line px-2 align-top', compact ? 'py-1.5' : 'py-2')}>
+      <span className={cx('flex h-[1.5em] items-center justify-center', compact ? 'text-[11.5px]' : 'text-[12.5px]')}>
+        {changed && <span title={t('table.changed')} className="size-1.5 rounded-full bg-positive" />}
+      </span>
     </td>
   )
 }
