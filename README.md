@@ -132,16 +132,26 @@ npm run test:rust    # тесты бэкенда
 Кросс-компиляция Windows-инсталлятора с macOS у Tauri штатно не поддерживается,
 поэтому сборка идёт на Windows-раннере GitHub Actions:
 [`.github/workflows/build.yml`](.github/workflows/build.yml). Workflow запускается
-на каждый push в `main` и вручную, прогоняет тесты бэкенда и выкладывает
-`.exe` (NSIS) и `.msi` артефактом `fesb-settings-editor-windows`.
+на каждый push в `main` и вручную, прогоняет тесты бэкенда и выкладывает два артефакта:
+
+| Артефакт | Что внутри |
+| --- | --- |
+| `fesb-settings-editor-windows-installer` | `.exe` (NSIS) и `.msi` |
+| `fesb-settings-editor-windows-portable` | один `fesb-settings-editor.exe`, без установки |
 
 ```bash
 gh workflow run build.yml          # запустить вручную
-gh run download --name fesb-settings-editor-windows
+gh run download --name fesb-settings-editor-windows-portable
 ```
 
 Установщик ставится в профиль пользователя, без прав администратора;
 язык интерфейса установщика — английский или русский на выбор.
+
+Portable-версия — это обычный собранный `exe`: он самодостаточен, настройки
+(тема и язык) хранит в профиле пользователя. Единственная внешняя зависимость —
+**WebView2 Runtime**, который встроен в Windows 10 (сборка 2004 и новее) и Windows 11.
+На более старых системах его ставят один раз
+[отдельным установщиком от Microsoft](https://developer.microsoft.com/microsoft-edge/webview2/).
 
 То же самое на своей Windows-машине:
 

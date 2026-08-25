@@ -32,10 +32,20 @@ jobs:
       - name: Build installer
         run: npm run build
 
-      - uses: actions/upload-artifact@v4
+      - name: Upload installers
+        uses: actions/upload-artifact@v4
         with:
-          name: fesb-settings-editor-windows
+          name: fesb-settings-editor-windows-installer
           if-no-files-found: error
           path: |
             src-tauri/target/release/bundle/nsis/*.exe
             src-tauri/target/release/bundle/msi/*.msi
+
+      # Собранный exe самодостаточен: установка не нужна, из зависимостей —
+      # только WebView2 Runtime, который есть в Windows 10/11 из коробки.
+      - name: Upload portable build
+        uses: actions/upload-artifact@v4
+        with:
+          name: fesb-settings-editor-windows-portable
+          if-no-files-found: error
+          path: src-tauri/target/release/fesb-settings-editor.exe
