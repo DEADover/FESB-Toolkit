@@ -3,7 +3,11 @@ name: build
 on:
   push:
     branches: [main]
+    tags: ['v*']
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   windows:
@@ -49,3 +53,18 @@ jobs:
           name: fesb-settings-editor-windows-portable
           if-no-files-found: error
           path: src-tauri/target/release/fesb-settings-editor.exe
+
+      # Push тега вида v0.1.0 сразу выкладывает сборки в Releases —
+      # артефакты запуска живут 90 дней и лежат неочевидно, релиз виден всем.
+      - name: Attach builds to the release
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          mkdir -p release
+          cp "src-tauri/target/release/fesb-settings-editor.exe" "release/FESB-Settings-Editor-$version-x64-portable.exe"
+          cp src-tauri/target/release/bundle/nsis/*-setup.exe "release/FESB-Settings-Editor-$version-x64-setup.exe"
+          cp src-tauri/target/release/bundle/msi/*.msi "release/FESB-Settings-Editor-$version-x64.msi"
+          gh release upload "$GITHUB_REF_NAME" release/* --clobber
+        env:
+          GH_TOKEN: ${{ github.token }}
