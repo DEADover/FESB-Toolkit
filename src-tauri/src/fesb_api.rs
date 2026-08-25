@@ -22,6 +22,9 @@ use zip::{CompressionMethod, ZipArchive, ZipWriter};
 /// Разделы выгрузки, без которых архив легче на порядок: журналы запусков
 /// СОПС и скомпилированные модели для правки трассировки не нужны.
 const EXPORT_EXCLUDE: &str = "history,models";
+/// Сколько идентификаторов помещается в один запрос: guid весит около
+/// пятидесяти байт, а строку запроса сервер ограничивает восемью килобайтами.
+const GUIDS_PER_REQUEST: usize = 100;
 const MANIFEST_FILE: &str = "meta.json";
 const EXPORT_DIR: &str = "export";
 const DOMAINS_DIR: &str = "domains";
@@ -89,12 +92,34 @@ fn api_message(body: &str) -> String {
             }
         }
     }
-    let trimmed = body.trim();
+    let trimmed = strip_markup(body.trim());
     if trimmed.is_empty() {
         "empty response".to_string()
     } else {
         trimmed.chars().take(400).collect()
     }
+}
+
+/// Не все ошибки приходят от FESB: сервлет-контейнер отвечает страницей на HTML,
+/// и показывать её пользователю вместе с тегами незачем.
+fn strip_markup(body: &str) -> String {
+    if !body.starts_with('<') {
+        return body.to_string();
+    }
+    let mut text = String::with_capacity(body.len());
+    let mut inside = false;
+    for symbol in body.chars() {
+        match symbol {
+            '<' => inside = true,
+            '>' => {
+                inside = false;
+                text.push(' ');
+            }
+            _ if !inside => text.push(symbol),
+            _ => {}
+        }
+    }
+    text.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
 async fn ensure_ok(response: reqwest::Response, what: &str) -> Result<reqwest::Response, String> {
@@ -353,22 +378,11 @@ pub async fn pull<F: FnMut(ApiProgress)>(
     guids: Option<&[String]>,
     mut on_progress: F,
 ) -> Result<PullResult, String> {
-    let client = connection.client()?;
-
-    let mut request = connection
-        .get(&client, "/api/domains/export/archive")
-        .query(&[("exclude", EXPORT_EXCLUDE)]);
-    if let Some(list) = guids {
-        if list.is_empty() {
-            return Err("No domains selected".into());
-        }
-        for guid in list {
-            request = request.query(&[("domains", guid.as_str())]);
-        }
+    if guids.is_some_and(|list| list.is_empty()) {
+        return Err("No domains selected".into());
     }
 
-    let response = request.send().await.map_err(transport_error)?;
-    let mut response = ensure_ok(response, "Cannot export domains").await?;
+    let client = connection.client()?;
 
     let workspace = workspace_root();
     let _ = fs::remove_dir_all(&workspace);
@@ -376,42 +390,75 @@ pub async fn pull<F: FnMut(ApiProgress)>(
     let root = session.join(EXPORT_DIR);
     fs::create_dir_all(root.join(DOMAINS_DIR)).map_err(|err| format!("Cannot create a workspace: {err}"))?;
 
-    let total = response.content_length().unwrap_or(0);
-    let archive_path = session.join("download.zip");
+    // Идентификаторы уходят в строку запроса, а её длину сервер ограничивает:
+    // 256 доменов — это двенадцать килобайт и HTTP 414. Поэтому забираем пачками.
+    let batches: Vec<Option<&[String]>> = match guids {
+        None => vec![None],
+        Some(list) => list.chunks(GUIDS_PER_REQUEST).map(Some).collect(),
+    };
+
+    let mut domains: Vec<ManifestDomain> = Vec::new();
+    let mut files = 0usize;
     let mut downloaded = 0u64;
-    {
-        let mut file = BufWriter::new(
-            File::create(&archive_path).map_err(|err| format!("Cannot write the download: {err}"))?,
-        );
-        while let Some(chunk) = response.chunk().await.map_err(transport_error)? {
-            file.write_all(&chunk).map_err(|err| format!("Cannot write the download: {err}"))?;
-            downloaded += chunk.len() as u64;
-            on_progress(ApiProgress { phase: "download", current: downloaded, total });
+    let mut has_version = false;
+
+    for (index, batch) in batches.iter().enumerate() {
+        let mut request = connection
+            .get(&client, "/api/domains/export/archive")
+            .query(&[("exclude", EXPORT_EXCLUDE)]);
+        if let Some(list) = batch {
+            for guid in *list {
+                request = request.query(&[("domains", guid.as_str())]);
+            }
         }
-        file.flush().map_err(|err| format!("Cannot write the download: {err}"))?;
+
+        let response = request.send().await.map_err(transport_error)?;
+        let mut response = ensure_ok(response, "Cannot export domains").await?;
+
+        let total = response.content_length().map(|size| size + downloaded).unwrap_or(0);
+        let archive_path = session.join(format!("download-{index}.zip"));
+        {
+            let mut file = BufWriter::new(
+                File::create(&archive_path).map_err(|err| format!("Cannot write the download: {err}"))?,
+            );
+            while let Some(chunk) = response.chunk().await.map_err(transport_error)? {
+                file.write_all(&chunk).map_err(|err| format!("Cannot write the download: {err}"))?;
+                downloaded += chunk.len() as u64;
+                on_progress(ApiProgress { phase: "download", current: downloaded, total });
+            }
+            file.flush().map_err(|err| format!("Cannot write the download: {err}"))?;
+        }
+
+        let unpacked = unpack_domains(&archive_path, &root, |progress| on_progress(progress))?;
+        let _ = fs::remove_file(&archive_path);
+
+        domains.extend(unpacked.domains);
+        files += unpacked.files;
+        has_version = has_version || unpacked.has_version;
     }
 
-    let unpacked = unpack_domains(&archive_path, &root, connection.base(), |progress| on_progress(progress))?;
-    let _ = fs::remove_file(&archive_path);
+    if domains.is_empty() {
+        return Err(format!("{} returned no domains", connection.base()));
+    }
+    domains.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
 
-    let manifest_path = session.join(MANIFEST_FILE);
     let manifest = Manifest {
         base_url: connection.base(),
         pulled_at: chrono::Local::now().to_rfc3339(),
-        domains: unpacked.domains.clone(),
+        domains: domains.clone(),
     };
     fs::write(
-        &manifest_path,
+        session.join(MANIFEST_FILE),
         serde_json::to_vec_pretty(&manifest).map_err(|err| err.to_string())?,
     )
     .map_err(|err| format!("Cannot write the manifest: {err}"))?;
 
     Ok(PullResult {
         root: root.to_string_lossy().to_string(),
-        domains: unpacked.domains.len(),
-        files: unpacked.files,
+        domains: domains.len(),
+        files,
         bytes: downloaded,
-        has_version: unpacked.has_version,
+        has_version,
     })
 }
 
@@ -425,7 +472,6 @@ struct Unpacked {
 fn unpack_domains<F: FnMut(ApiProgress)>(
     archive: &Path,
     root: &Path,
-    base_url: String,
     mut on_progress: F,
 ) -> Result<Unpacked, String> {
     let file = File::open(archive).map_err(|err| format!("Cannot open the download: {err}"))?;
@@ -496,10 +542,6 @@ fn unpack_domains<F: FnMut(ApiProgress)>(
         }));
     }
 
-    if domains.is_empty() {
-        return Err(format!("{base_url} returned no domains"));
-    }
-    domains.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
     Ok(Unpacked { domains, files, has_version })
 }
 
@@ -736,6 +778,11 @@ mod tests {
         assert_eq!(api_message(r#"{"code":100,"message":"Ошибка анализа"}"#), "Ошибка анализа");
         assert_eq!(api_message(r#"{"status":404,"error":"Not Found"}"#), "Not Found");
         assert_eq!(api_message("   "), "empty response");
+        // так отвечает сам сервлет-контейнер, а не шина
+        assert_eq!(
+            api_message("<h1>Bad Message 414</h1><pre>reason: URI Too Long</pre>"),
+            "Bad Message 414 reason: URI Too Long",
+        );
     }
 
     #[test]
@@ -790,7 +837,7 @@ mod tests {
 
         let root = dir.join("export");
         fs::create_dir_all(root.join(DOMAINS_DIR)).unwrap();
-        let result = unpack_domains(&archive, &root, "http://test".into(), |_| {}).unwrap();
+        let result = unpack_domains(&archive, &root, |_| {}).unwrap();
 
         assert_eq!(result.domains.len(), 1);
         assert_eq!(result.domains[0].name, "Alpha");

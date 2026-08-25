@@ -168,3 +168,24 @@ fn round_trip_changes_the_broker_and_puts_it_back() {
     assert_eq!(restored, original, "исходное значение не восстановлено");
     println!("значение вернулось: {restored}");
 }
+
+/// Идентификаторы не помещаются в один запрос — выгрузка должна идти пачками.
+#[test]
+#[ignore]
+fn pulls_more_domains_than_fit_in_one_query() {
+    let Some(connection) = connection() else {
+        eprintln!("FESB_URL не задан — пропускаем");
+        return;
+    };
+
+    let list = tauri::async_runtime::block_on(domains(&connection)).expect("список доменов");
+    // Одна пачка — сто идентификаторов, поэтому берём заведомо больше.
+    let guids: Vec<String> = list.iter().take(150).map(|item| item.guid.clone()).collect();
+    assert!(guids.len() > 100, "на стенде слишком мало доменов для этой проверки");
+
+    let pulled = tauri::async_runtime::block_on(pull(&connection, Some(&guids), |_| {}))
+        .expect("выгрузка пачками");
+    println!("забрано {} доменов, {} файлов, {} байт", pulled.domains, pulled.files, pulled.bytes);
+    assert_eq!(pulled.domains, guids.len(), "часть доменов потерялась между пачками");
+    assert!(pulled.has_version);
+}

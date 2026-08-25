@@ -223,7 +223,8 @@ export function DomainsScreen({ connection, server, pulling, progress, error: pu
           </Button>
           <Button
             variant="primary"
-            onClick={() => onPull([...selected])}
+            // Выбраны все домены — это и есть «забрать всё»: перечислять их незачем.
+            onClick={() => onPull(selected.size === domains?.length ? null : [...selected])}
             disabled={pulling || selected.size === 0}
           >
             {pulling
