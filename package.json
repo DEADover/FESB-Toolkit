@@ -1,7 +1,7 @@
 {
   "name": "fesb-settings-editor",
   "productName": "FESB Settings Editor",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Инструмент для массового редактирования конфигурации интеграционной шины FESB",
   "private": true,
   "type": "module",

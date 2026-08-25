@@ -1,6 +1,6 @@
 [package]
 name = "fesb-settings-editor"
-version = "0.1.0"
+version = "0.1.1"
 description = "Инструмент для массового редактирования конфигурации FESB"
 edition = "2021"
 rust-version = "1.77"

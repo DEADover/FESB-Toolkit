@@ -65,6 +65,7 @@ jobs:
           cp "src-tauri/target/release/fesb-settings-editor.exe" "release/FESB-Settings-Editor-$version-x64-portable.exe"
           cp src-tauri/target/release/bundle/nsis/*-setup.exe "release/FESB-Settings-Editor-$version-x64-setup.exe"
           cp src-tauri/target/release/bundle/msi/*.msi "release/FESB-Settings-Editor-$version-x64.msi"
+          gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 || gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --generate-notes
           gh release upload "$GITHUB_REF_NAME" release/* --clobber
         env:
           GH_TOKEN: ${{ github.token }}
