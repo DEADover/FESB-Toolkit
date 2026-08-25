@@ -70,6 +70,7 @@ export function TraceTable({
         <thead className="sticky top-0 z-10">
           <tr className="bg-surface-2 text-left text-[11.5px] text-content-subtle">
             <th className="border-b border-line px-3 py-2.5">
+              <LineBox>
               <Checkbox
                 ref={headCheckbox}
                 checked={selectable.length > 0 && selectedCount === selectable.length}
@@ -77,6 +78,7 @@ export function TraceTable({
                 disabled={selectable.length === 0}
                 aria-label={t('filter.all')}
               />
+              </LineBox>
             </th>
             <th className="border-b border-line px-2 py-2.5 text-center font-medium" title={t('table.changed')}>
               <PencilIcon />
@@ -113,12 +115,14 @@ export function TraceTable({
                 )}
               >
                 <Cell>
-                  <GroupCheckbox
-                    total={groupKeys.length}
-                    selected={groupSelected}
-                    label={domain.domainName}
-                    onToggle={() => onToggleGroup(group)}
-                  />
+                  <LineBox>
+                    <GroupCheckbox
+                      total={groupKeys.length}
+                      selected={groupSelected}
+                      label={domain.domainName}
+                      onToggle={() => onToggleGroup(group)}
+                    />
+                  </LineBox>
                 </Cell>
 
                 <ChangedCell changed={domainChanged} />
@@ -307,13 +311,15 @@ function BeanRow({ entry, number, changed, domain, selected, update, onToggle }:
       onClick={entry.editable ? (event) => { if (!hasTextSelection()) onToggle(entry.key, event) } : undefined}
     >
       <Cell className="py-1.5">
-        <Checkbox
-          checked={selected}
-          disabled={!entry.editable}
-          onChange={() => { /* обрабатывается кликом по строке */ }}
-          onClick={(event) => { event.stopPropagation(); if (entry.editable) onToggle(entry.key, event) }}
-          aria-label={entry.trace.beanId ?? ''}
-        />
+        <LineBox compact>
+          <Checkbox
+            checked={selected}
+            disabled={!entry.editable}
+            onChange={() => { /* обрабатывается кликом по строке */ }}
+            onClick={(event) => { event.stopPropagation(); if (entry.editable) onToggle(entry.key, event) }}
+            aria-label={entry.trace.beanId ?? ''}
+          />
+        </LineBox>
       </Cell>
       <ChangedCell changed={changed} compact />
       <Cell className="py-1.5">
@@ -438,6 +444,19 @@ function PencilIcon() {
 }
 
 /**
+ * Коробка высотой в одну строку текста. Всё, что в неё попадает — чекбокс,
+ * точка, — центрируется по первой строке ячейки, а не по высоте всей строки:
+ * соседние колонки выровнены по верху, и центрирование по строке их бы не совпало.
+ */
+function LineBox({ compact, className, children }: { compact?: boolean; className?: string; children?: ReactNode }) {
+  return (
+    <span className={cx('flex h-[1.5em] items-center', compact ? 'text-[11.5px]' : 'text-[12.5px]', className)}>
+      {children}
+    </span>
+  )
+}
+
+/**
  * Колонка-сигнал: запись изменена в текущей сессии.
  *
  * Точка живёт в собственной колонке фиксированной ширины, поэтому по горизонтали
@@ -448,9 +467,9 @@ function ChangedCell({ changed, compact }: { changed: boolean; compact?: boolean
   const { t } = useI18n()
   return (
     <td className={cx('border-b border-line px-2 align-top', compact ? 'py-1.5' : 'py-2')}>
-      <span className={cx('flex h-[1.5em] items-center justify-center', compact ? 'text-[11.5px]' : 'text-[12.5px]')}>
+      <LineBox compact={compact} className="justify-center">
         {changed && <span title={t('table.changed')} className="size-1.5 rounded-full bg-positive" />}
-      </span>
+      </LineBox>
     </td>
   )
 }
