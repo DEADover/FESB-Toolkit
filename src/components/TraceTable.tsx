@@ -364,7 +364,7 @@ function RouteRow({ route, onReveal }: { route: RouteInfo; onReveal: () => void 
         <button
           type="button"
           onClick={(event) => { event.stopPropagation(); onReveal() }}
-          className="rounded px-1.5 py-0.5 text-[11px] text-content-subtle transition hover:bg-surface-3 hover:text-accent-content"
+          className="-ml-1.5 rounded px-1.5 py-0.5 text-[11px] text-content-subtle transition hover:bg-surface-3 hover:text-accent-content"
           title={route.file}
         >
           {t('action.show')}
@@ -382,7 +382,7 @@ function RevealButton({ path, onReveal }: { path: string; onReveal: (path: strin
     <button
       type="button"
       onClick={(event) => { event.stopPropagation(); onReveal(path) }}
-      className="rounded px-1.5 py-0.5 text-[11.5px] text-content-subtle transition hover:bg-surface-3 hover:text-accent-content"
+      className="-ml-1.5 rounded px-1.5 py-0.5 text-[11.5px] text-content-subtle transition hover:bg-surface-3 hover:text-accent-content"
       title={path}
     >
       {t('action.show')}

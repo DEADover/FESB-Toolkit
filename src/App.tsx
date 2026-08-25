@@ -167,17 +167,6 @@ export default function App() {
 
       <main className="flex min-w-0 flex-1 flex-col">
         <header data-tauri-drag-region className={cx('flex items-center gap-3 px-6 pb-4', isMac ? 'pt-9' : 'pt-4')}>
-          {sidebarHidden && (
-            <Button
-              variant="ghost"
-              onClick={toggleSidebar}
-              aria-label={t('action.showSidebar')}
-              title={t('action.showSidebar')}
-              className="size-9 shrink-0 px-0"
-            >
-              ›
-            </Button>
-          )}
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
               <h1 className="text-[15px] font-semibold leading-tight">
