@@ -56,7 +56,7 @@ export function TraceTable({
       <table className="w-full table-fixed border-separate border-spacing-0 text-[12.5px]">
         {/* Домен и маршруты получают всё свободное место, брокеру хватает узкой колонки. */}
         <colgroup>
-          <col className="w-9" />
+          <col className="w-12" />
           <col />
           <col className="w-40" />
           <col className="w-36" />
@@ -108,14 +108,16 @@ export function TraceTable({
                   groupSelected > 0 ? 'bg-accent/10' : 'hover:bg-surface-2',
                 )}
               >
-                <Cell className="relative">
-                  {domainChanged && <ChangedDot />}
-                  <GroupCheckbox
-                    total={groupKeys.length}
-                    selected={groupSelected}
-                    label={domain.domainName}
-                    onToggle={() => onToggleGroup(group)}
-                  />
+                <Cell>
+                  <span className="flex items-center gap-2">
+                    <GroupCheckbox
+                      total={groupKeys.length}
+                      selected={groupSelected}
+                      label={domain.domainName}
+                      onToggle={() => onToggleGroup(group)}
+                    />
+                    {domainChanged && <ChangedDot />}
+                  </span>
                 </Cell>
 
                 <Cell>
@@ -291,15 +293,17 @@ function BeanRow({ entry, number, changed, domain, selected, update, onToggle }:
       selected={selected}
       onClick={entry.editable ? (event) => { if (!hasTextSelection()) onToggle(entry.key, event) } : undefined}
     >
-      <Cell className="relative py-1.5">
-        {changed && <ChangedDot />}
-        <Checkbox
-          checked={selected}
-          disabled={!entry.editable}
-          onChange={() => { /* обрабатывается кликом по строке */ }}
-          onClick={(event) => { event.stopPropagation(); if (entry.editable) onToggle(entry.key, event) }}
-          aria-label={entry.trace.beanId ?? ''}
-        />
+      <Cell className="py-1.5">
+        <span className="flex items-center gap-2">
+          <Checkbox
+            checked={selected}
+            disabled={!entry.editable}
+            onChange={() => { /* обрабатывается кликом по строке */ }}
+            onClick={(event) => { event.stopPropagation(); if (entry.editable) onToggle(entry.key, event) }}
+            aria-label={entry.trace.beanId ?? ''}
+          />
+          {changed && <ChangedDot />}
+        </span>
       </Cell>
       <Cell className="py-1.5">
         <span className="ml-5 block border-l border-line-strong pl-3 text-[11.5px] tabular-nums text-content-subtle">{number}</span>
@@ -413,17 +417,12 @@ function GroupCheckbox({ total, selected, label, onToggle }: {
 }
 
 /**
- * Точка-сигнал: запись изменена в текущей сессии.
- * Живёт в левом поле строки, поэтому не сдвигает ни одну колонку.
+ * Точка-сигнал: запись изменена в текущей сессии. Стоит справа от чекбокса,
+ * в колонке фиксированной ширины, поэтому остальные колонки не сдвигаются.
  */
 function ChangedDot() {
   const { t } = useI18n()
-  return (
-    <span
-      title={t('table.changed')}
-      className="absolute left-1 top-1/2 size-1.5 -translate-y-1/2 rounded-full bg-positive"
-    />
-  )
+  return <span title={t('table.changed')} className="size-1.5 shrink-0 rounded-full bg-positive" />
 }
 
 function ValueCell({ current, editable, next }: { current: string | null; editable: boolean; next: string | null }) {
