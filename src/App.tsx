@@ -1,22 +1,33 @@
 import { useCallback, useEffect, useState } from 'react'
 
+import { ConnectionScreen } from './components/ConnectionScreen'
+import { DomainsScreen } from './components/DomainsScreen'
 import { Sidebar, type ScreenId } from './components/Sidebar'
 import { TraceScreen } from './components/TraceScreen'
 import { Badge, Button, Spinner, cx } from './components/ui'
 import { useI18n } from './i18n'
 import {
-  appInfo, errorText, onExtractProgress, onFileDrop, onScanProgress,
+  apiPull, appInfo, errorText, onApiProgress, onExtractProgress, onFileDrop, onScanProgress,
   openArchive, scanDirectory, selectArchive, selectFolder,
 } from './lib/api'
+import { readConnection, type StoredConnection } from './lib/connection'
 import { applyThemeMode, readThemeMode, storeThemeMode, type ThemeMode } from './lib/theme'
-import type { AppInfo, ArchiveProgress, ScanProgress, ScanResult } from './types'
+import type {
+  ApiProgress, AppInfo, ArchiveProgress, Connection, ScanProgress, ScanResult, ServerInfo,
+} from './types'
 
 const SIDEBAR_KEY = 'fesb.sidebar'
 
-/** Откуда взята конфигурация: из папки или из распакованного архива. */
+/** Откуда взята конфигурация: папка, распакованный архив или сервер. */
 interface Source {
-  kind: 'folder' | 'archive'
+  kind: 'folder' | 'archive' | 'server'
   path: string
+}
+
+/** Подтверждённое подключение: сервер и параметры, которыми он открыт. */
+interface Session {
+  server: ServerInfo
+  connection: Connection
 }
 
 export default function App() {
@@ -37,6 +48,12 @@ export default function App() {
   const [dragging, setDragging] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  const [form, setForm] = useState<StoredConnection>(readConnection)
+  const [session, setSession] = useState<Session | null>(null)
+  const [pulling, setPulling] = useState(false)
+  const [apiProgress, setApiProgress] = useState<ApiProgress | null>(null)
+  const [pullError, setPullError] = useState<string | null>(null)
+
   const isMac = info?.platform === 'macos'
   const busy = scanning || unpacking
 
@@ -45,9 +62,11 @@ export default function App() {
   useEffect(() => {
     const scanUnlisten = onScanProgress(setProgress)
     const extractUnlisten = onExtractProgress(setExtractProgress)
+    const apiUnlisten = onApiProgress(setApiProgress)
     return () => {
       scanUnlisten.then((off) => off())
       extractUnlisten.then((off) => off())
+      apiUnlisten.then((off) => off())
     }
   }, [])
 
@@ -123,6 +142,29 @@ export default function App() {
 
   const rescan = useCallback(async () => { if (root) await runScan(root) }, [root, runScan])
 
+  const setServer = useCallback((server: ServerInfo | null, connection: Connection | null) => {
+    setSession(server && connection ? { server, connection } : null)
+  }, [])
+
+  /** Забирает домены с сервера и передаёт их обычному редактору. */
+  const pull = useCallback(async (guids: string[] | null) => {
+    if (!session) return
+    setPulling(true)
+    setPullError(null)
+    setApiProgress(null)
+    try {
+      const result = await apiPull(session.connection, guids)
+      setSource({ kind: 'server', path: session.server.baseUrl })
+      await runScan(result.root)
+      setScreen('files.trace')
+    } catch (err) {
+      setPullError(errorText(err))
+    } finally {
+      setPulling(false)
+      setApiProgress(null)
+    }
+  }, [session, runScan])
+
   // Перетаскивание работает на любом экране: папка или архив открываются сразу.
   useEffect(() => {
     const unlisten = onFileDrop((paths) => {
@@ -150,7 +192,12 @@ export default function App() {
   }, [pickFolder, rescan, root])
 
   const isApiScreen = screen.startsWith('api.')
-  const sourceLabel = source?.kind === 'archive' ? t('header.archive') : t('header.folder')
+  const sourceLabel = source?.kind === 'archive'
+    ? t('header.archive')
+    : source?.kind === 'server' ? t('header.server') : t('header.folder')
+  const screenTitle = screen === 'api.connection'
+    ? t('nav.api.connection.title')
+    : screen === 'api.domains' ? t('nav.api.domains.title') : t('header.trace')
 
   return (
     <div className="relative flex h-full">
@@ -169,18 +216,21 @@ export default function App() {
         <header data-tauri-drag-region className={cx('flex items-center gap-3 px-6 pb-4', isMac ? 'pt-9' : 'pt-4')}>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
-              <h1 className="text-[15px] font-semibold leading-tight">
-                {isApiScreen ? t('nav.api') : t('header.trace')}
-              </h1>
+              <h1 className="text-[15px] font-semibold leading-tight">{screenTitle}</h1>
               {scan?.fesbVersion && (
                 <Badge tone="accent" className="font-mono">
                   <span title={t('header.fesbVersion')}>FESB {scan.fesbVersion}</span>
                 </Badge>
               )}
             </div>
-            <p className="truncate text-[11.5px] text-content-subtle" title={source?.path}>
-              {source ? `${sourceLabel}: ${source.path}` : t('header.noFolder')}
-              {scan && ` · ${t('stats.domains')}: ${scan.domains.length}`}
+            <p className="truncate text-[11.5px] text-content-subtle" title={isApiScreen ? session?.server.baseUrl : source?.path}>
+              {isApiScreen
+                ? session
+                  ? `${t('header.server')}: ${session.server.baseUrl} · ${t('api.info.user')}: ${session.server.user}`
+                  : t('api.header.noServer')
+                : source
+                  ? `${sourceLabel}: ${source.path}${scan ? ` · ${t('stats.domains')}: ${scan.domains.length}` : ''}`
+                  : t('header.noFolder')}
             </p>
           </div>
           {!isApiScreen && root && (
@@ -196,8 +246,23 @@ export default function App() {
           )}
         </header>
 
-        {isApiScreen ? (
-          <Placeholder />
+        {screen === 'api.connection' ? (
+          <ConnectionScreen
+            form={form}
+            onForm={setForm}
+            server={session?.server ?? null}
+            onServer={setServer}
+          />
+        ) : screen === 'api.domains' ? (
+          <DomainsScreen
+            connection={session?.connection ?? null}
+            server={session?.server ?? null}
+            pulling={pulling}
+            progress={apiProgress}
+            error={pullError}
+            onPull={pull}
+            onGoToConnection={() => setScreen('api.connection')}
+          />
         ) : !scan ? (
           <EmptyState
             busy={busy}
@@ -209,7 +274,13 @@ export default function App() {
             error={error}
           />
         ) : (
-          <TraceScreen scan={scan} isMac={isMac} sourcePath={source?.path ?? null} onRescan={rescan} />
+          <TraceScreen
+            scan={scan}
+            isMac={isMac}
+            sourcePath={source?.path ?? null}
+            server={source?.kind === 'server' ? session : null}
+            onRescan={rescan}
+          />
         )}
       </main>
 
@@ -279,19 +350,6 @@ function EmptyState({ busy, unpacking, progress, extractProgress, onPickFolder, 
             {error && <p className="mt-4 rounded-lg border border-negative/40 bg-negative/10 px-3 py-2 text-negative">{error}</p>}
           </>
         )}
-      </div>
-    </div>
-  )
-}
-
-function Placeholder() {
-  const { t } = useI18n()
-  return (
-    <div className="flex flex-1 items-center justify-center px-6 pb-10">
-      <div className="max-w-md text-center">
-        <div className="mx-auto grid size-14 place-items-center rounded-2xl bg-surface-2 text-[22px] text-accent-content">⇄</div>
-        <h2 className="mt-4 text-[15px] font-semibold">{t('soon.title')}</h2>
-        <p className="mt-2 text-content-subtle">{t('soon.text')}</p>
       </div>
     </div>
   )

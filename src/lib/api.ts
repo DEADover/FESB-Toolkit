@@ -5,8 +5,9 @@ import { open, save } from '@tauri-apps/plugin-dialog'
 import { revealItemInDir } from '@tauri-apps/plugin-opener'
 
 import type {
-  AppInfo, ApplyProgress, ApplyReport, ApplyTarget, ArchiveProgress, ArchiveResult,
-  ExtractResult, ScanProgress, ScanResult, TraceUpdate,
+  ApiDomain, ApiProgress, AppInfo, ApplyProgress, ApplyReport, ApplyTarget, ArchiveProgress,
+  ArchiveResult, Connection, ExtractResult, PullResult, PushResult, ScanProgress, ScanResult,
+  ServerInfo, TraceUpdate,
 } from '../types'
 
 /** Единственная точка соприкосновения интерфейса с бэкендом на Rust. */
@@ -94,6 +95,35 @@ export function onFileDrop(handler: (paths: string[]) => void, onDragging: (acti
     onDragging(false)
     if (event.payload.type === 'drop') handler(event.payload.paths)
   })
+}
+
+// ───────────────────────────── режим API ─────────────────────────────
+
+/** Проверяет доступность шины и права пользователя. */
+export function apiConnect(connection: Connection): Promise<ServerInfo> {
+  return invoke<ServerInfo>('api_connect', { connection })
+}
+
+export function apiDomains(connection: Connection): Promise<ApiDomain[]> {
+  return invoke<ApiDomain[]>('api_domains', { connection })
+}
+
+/** Забирает домены с сервера во временную папку; `null` — все домены сразу. */
+export function apiPull(connection: Connection, guids: string[] | null): Promise<PullResult> {
+  return invoke<PullResult>('api_pull', { connection, guids })
+}
+
+/** Отправляет отредактированные домены обратно в шину. */
+export function apiPush(connection: Connection, root: string, guids: string[], reload: boolean): Promise<PushResult> {
+  return invoke<PushResult>('api_push', { connection, root, guids, reload })
+}
+
+export function apiRestartModule(connection: Connection, module: string): Promise<void> {
+  return invoke<void>('api_restart_module', { connection, module })
+}
+
+export function onApiProgress(handler: (progress: ApiProgress) => void): Promise<UnlistenFn> {
+  return listen<ApiProgress>('api:progress', (event) => handler(event.payload))
 }
 
 /** Понятный текст для ошибки, прилетевшей из команды Tauri. */

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent, typ
 
 import { useI18n } from '../i18n'
 import {
-  applyTrace, buildArchive, errorText, onApplyProgress, onArchiveProgress,
+  apiPush, applyTrace, buildArchive, errorText, onApiProgress, onApplyProgress, onArchiveProgress,
   revealPath, saveZipAs,
 } from '../lib/api'
 import {
@@ -11,7 +11,8 @@ import {
   type DomainGroup, type Filters, type SortDir, type SortKey,
 } from '../lib/rows'
 import type {
-  ApplyProgress, ApplyReport, ApplyTarget, ArchiveProgress, ArchiveResult, ScanResult, TraceUpdate,
+  ApiProgress, ApplyProgress, ApplyReport, ApplyTarget, ArchiveProgress, ArchiveResult,
+  Connection, PushResult, ScanResult, ServerInfo, TraceUpdate,
 } from '../types'
 import { ReportDialog } from './ReportDialog'
 import { TraceTable } from './TraceTable'
@@ -22,6 +23,8 @@ interface Props {
   isMac: boolean
   /** Папка или архив, откуда взята конфигурация — рядом предлагается сохранить zip. */
   sourcePath: string | null
+  /** Заполнено, когда конфигурация забрана с сервера: тогда её можно вернуть туда же. */
+  server: { server: ServerInfo; connection: Connection } | null
   onRescan: () => Promise<void>
 }
 
@@ -29,7 +32,7 @@ interface Props {
  * Единый экран: домены, их СОПС и объекты трассировки с правкой
  * имени брокера, имени очереди и режима трассировки.
  */
-export function TraceScreen({ scan, isMac, sourcePath, onRescan }: Props) {
+export function TraceScreen({ scan, isMac, sourcePath, server, onRescan }: Props) {
   const { t } = useI18n()
 
   const [filters, setFilters] = useState<Filters>({
@@ -62,6 +65,12 @@ export function TraceScreen({ scan, isMac, sourcePath, onRescan }: Props) {
   const [archiveProgress, setArchiveProgress] = useState<ArchiveProgress | null>(null)
   const [archive, setArchive] = useState<ArchiveResult | null>(null)
 
+  const [pushOpen, setPushOpen] = useState(false)
+  const [pushing, setPushing] = useState(false)
+  const [pushProgress, setPushProgress] = useState<ApiProgress | null>(null)
+  const [pushResult, setPushResult] = useState<PushResult | null>(null)
+  const [reload, setReload] = useState(true)
+
   const searchRef = useRef<HTMLInputElement>(null)
   const lastClicked = useRef<string | null>(null)
 
@@ -72,6 +81,11 @@ export function TraceScreen({ scan, isMac, sourcePath, onRescan }: Props) {
 
   useEffect(() => {
     const unlisten = onArchiveProgress(setArchiveProgress)
+    return () => { unlisten.then((off) => off()) }
+  }, [])
+
+  useEffect(() => {
+    const unlisten = onApiProgress(setPushProgress)
     return () => { unlisten.then((off) => off()) }
   }, [])
 
@@ -289,6 +303,33 @@ export function TraceScreen({ scan, isMac, sourcePath, onRescan }: Props) {
     return [...paths]
   }, [selectedEntries])
 
+  /** Идентификаторы доменов для отправки: имя папки в выгрузке и есть guid. */
+  const guidsOf = useCallback((paths: string[]) => {
+    const wanted = new Set(paths)
+    return groups
+      .filter((group) => wanted.has(group.domain.dirPath))
+      .map((group) => group.domain.dirName)
+  }, [groups])
+
+  const pushToServer = useCallback(async (paths: string[] | null) => {
+    if (!server) return
+    setPushOpen(false)
+    const guids = paths === null ? groups.map((group) => group.domain.dirName) : guidsOf(paths)
+    if (guids.length === 0) return
+
+    setPushing(true)
+    setPushProgress(null)
+    setError(null)
+    try {
+      setPushResult(await apiPush(server.connection, scan.root, guids, reload))
+    } catch (err) {
+      setError(errorText(err))
+    } finally {
+      setPushing(false)
+      setPushProgress(null)
+    }
+  }, [server, groups, guidsOf, scan.root, reload])
+
   /** Собирает архив в структуре исходной выгрузки — его можно залить обратно в шину. */
   const buildZip = useCallback(async (domains: string[] | null) => {
     setScopeOpen(false)
@@ -417,6 +458,13 @@ export function TraceScreen({ scan, isMac, sourcePath, onRescan }: Props) {
               )}
               <Button variant="ghost" size="sm" onClick={() => setSelected(new Set())}>{t('action.deselect')}</Button>
             </>
+          )}
+          {server && (
+            <Button size="sm" variant="primary" onClick={() => setPushOpen(true)} disabled={pushing}>
+              {pushing
+                ? <><Spinner className="size-3.5" /> {pushProgress?.phase === 'upload' ? t('push.uploading') : t('push.running')}</>
+                : t('action.push')}
+            </Button>
           )}
           <Button size="sm" onClick={startBuild} disabled={archiving}>
             {archiving
@@ -573,6 +621,70 @@ export function TraceScreen({ scan, isMac, sourcePath, onRescan }: Props) {
           </Button>
           <p className="pt-1 text-[11.5px] text-content-subtle">{t('zip.scope.hint')}</p>
         </div>
+      </Modal>
+
+      <Modal
+        open={pushOpen}
+        onClose={() => setPushOpen(false)}
+        closeLabel={t('action.close')}
+        title={t('push.scope.title')}
+        footer={<Button variant="ghost" onClick={() => setPushOpen(false)}>{t('action.cancel')}</Button>}
+      >
+        <div className="space-y-2">
+          {changedDomains.length > 0 && (
+            <Button variant="primary" className="w-full justify-start" onClick={() => void pushToServer(changedDomains)}>
+              {t('zip.scope.changed', { count: changedDomains.length })}
+            </Button>
+          )}
+          {selectedDomains.length > 0 && (
+            <Button
+              variant={changedDomains.length > 0 ? 'secondary' : 'primary'}
+              className="w-full justify-start"
+              onClick={() => void pushToServer(selectedDomains)}
+            >
+              {t('zip.scope.selected', { count: selectedDomains.length })}
+            </Button>
+          )}
+          <Button className="w-full justify-start" onClick={() => void pushToServer(null)}>
+            {t('zip.scope.all', { count: scan.domains.length })}
+          </Button>
+          <div className="pt-1">
+            <Toggle checked={reload} onChange={setReload} label={t('push.reload')} />
+          </div>
+          <p className="text-[11.5px] leading-relaxed text-content-subtle">{t('push.scope.hint')}</p>
+        </div>
+      </Modal>
+
+      <Modal
+        open={pushResult !== null}
+        onClose={() => setPushResult(null)}
+        closeLabel={t('action.close')}
+        title={t('push.title')}
+        footer={<Button variant="primary" onClick={() => setPushResult(null)}>{t('action.close')}</Button>}
+      >
+        {pushResult && (
+          <div className="space-y-3 text-[13px] leading-relaxed">
+            <div className="flex flex-wrap gap-8">
+              <Stat label={t('zip.domains')} value={pushResult.domains.length} tone="accent" />
+              <Stat label={t('zip.files')} value={pushResult.files} />
+              <Stat label={t('zip.size')} value={formatBytes(pushResult.bytes)} />
+            </div>
+            <div className="max-h-40 overflow-y-auto rounded-lg border border-line bg-surface-2 px-3 py-2">
+              {pushResult.domains.map((name) => (
+                <div key={name} className="truncate text-[12.5px] text-content-muted">{name}</div>
+              ))}
+            </div>
+            {pushResult.message && (
+              <p className="rounded-lg border border-line px-3 py-2 text-content-muted">{pushResult.message}</p>
+            )}
+            <p className={cx('rounded-lg border px-3 py-2',
+              pushResult.reloaded
+                ? 'border-positive/35 bg-positive/10 text-positive'
+                : 'border-caution/35 bg-caution/10 text-caution')}>
+              {pushResult.reloaded ? t('push.reloadedOn') : t('push.reloadedOff')}
+            </p>
+          </div>
+        )}
       </Modal>
 
       <Modal

@@ -164,3 +164,69 @@ export interface AppInfo {
   tauri: string
   platform: string
 }
+
+// ───────────────────────────── режим API ─────────────────────────────
+
+export interface Connection {
+  url: string
+  username: string
+  password: string
+  /** Принимать самоподписанные сертификаты. */
+  insecure: boolean
+}
+
+export interface ModuleState {
+  name: string
+  label: string
+  active: boolean
+  running: boolean
+}
+
+export interface ServerInfo {
+  /** Адрес в том виде, в котором к нему обращается приложение. */
+  baseUrl: string
+  user: string
+  roles: string[]
+  permissions: number
+  /** Права, которых не хватает для цикла «забрать → отправить». */
+  missingPermissions: string[]
+  apiVersion: string | null
+  domains: number
+  activeDomains: number
+  modules: ModuleState[]
+  checkedAt: string
+}
+
+export interface ApiDomain {
+  guid: string
+  name: string
+  active: boolean
+  leader: boolean
+  clustered: boolean
+  group: string | null
+  tags: string[]
+}
+
+export interface PullResult {
+  root: string
+  domains: number
+  files: number
+  bytes: number
+  hasVersion: boolean
+}
+
+export interface PushResult {
+  domains: string[]
+  files: number
+  bytes: number
+  reloaded: boolean
+  message: string | null
+  finishedAt: string
+}
+
+export interface ApiProgress {
+  phase: 'download' | 'unpack' | 'pack' | 'upload'
+  current: number
+  /** Ноль означает «размер заранее неизвестен». */
+  total: number
+}

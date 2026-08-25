@@ -6,6 +6,7 @@
 mod applier;
 mod archive;
 mod domain_xml;
+mod fesb_api;
 mod properties;
 mod route_xml;
 mod scanner;
@@ -18,12 +19,14 @@ use tauri::{AppHandle, Emitter};
 
 use applier::{apply_trace_change, ApplyReport, ApplyRequest};
 use archive::{create_archive, extract_archive, ArchiveResult, ExtractResult};
+use fesb_api::{ApiDomain, Connection, PullResult, PushResult, ServerInfo};
 use scanner::{scan_root, ScanResult};
 
 const SCAN_PROGRESS_EVENT: &str = "scan:progress";
 const APPLY_PROGRESS_EVENT: &str = "apply:progress";
 const ARCHIVE_PROGRESS_EVENT: &str = "archive:progress";
 const EXTRACT_PROGRESS_EVENT: &str = "extract:progress";
+const API_PROGRESS_EVENT: &str = "api:progress";
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -108,6 +111,53 @@ async fn build_archive(
     .map_err(|err| format!("Archiving interrupted: {err}"))?
 }
 
+/// Проверяет доступность шины и права пользователя.
+#[tauri::command]
+async fn api_connect(connection: Connection) -> Result<ServerInfo, String> {
+    fesb_api::connect(&connection).await
+}
+
+/// Список доменов сервера — по нему выбирают, что забирать.
+#[tauri::command]
+async fn api_domains(connection: Connection) -> Result<Vec<ApiDomain>, String> {
+    fesb_api::domains(&connection).await
+}
+
+/// Забирает домены с сервера во временную папку в структуре выгрузки.
+#[tauri::command]
+async fn api_pull(
+    app: AppHandle,
+    connection: Connection,
+    guids: Option<Vec<String>>,
+) -> Result<PullResult, String> {
+    fesb_api::pull(&connection, guids.as_deref(), |progress| {
+        let _ = app.emit(API_PROGRESS_EVENT, progress);
+    })
+    .await
+}
+
+/// Отправляет отредактированные домены обратно в шину.
+#[tauri::command]
+async fn api_push(
+    app: AppHandle,
+    connection: Connection,
+    root: String,
+    guids: Vec<String>,
+    reload: bool,
+) -> Result<PushResult, String> {
+    let root = PathBuf::from(root);
+    fesb_api::push(&connection, &root, &guids, reload, |progress| {
+        let _ = app.emit(API_PROGRESS_EVENT, progress);
+    })
+    .await
+}
+
+/// Перезапуск модуля: без него брокер не перечитывает изменённую конфигурацию.
+#[tauri::command]
+async fn api_restart_module(connection: Connection, module: String) -> Result<(), String> {
+    fesb_api::restart_module(&connection, &module).await
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -118,7 +168,12 @@ pub fn run() {
             scan_directory,
             apply_trace,
             open_archive,
-            build_archive
+            build_archive,
+            api_connect,
+            api_domains,
+            api_pull,
+            api_push,
+            api_restart_module
         ])
         .run(tauri::generate_context!())
         .expect("failed to start the application");
@@ -128,6 +183,7 @@ pub fn run() {
 #[doc(hidden)]
 pub mod testing {
     pub use crate::applier::{apply_trace_change, ApplyRequest, ApplyTarget};
+    pub use crate::fesb_api::{connect, domains, pull, push, Connection};
     pub use crate::archive::create_archive;
     pub use crate::domain_xml::{parse_domain_xml, BeanTarget, TraceUpdate};
     pub use crate::scanner::scan_root;
