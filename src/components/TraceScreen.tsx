@@ -32,7 +32,9 @@ interface Props {
 export function TraceScreen({ scan, isMac, sourcePath, onRescan }: Props) {
   const { t } = useI18n()
 
-  const [filters, setFilters] = useState<Filters>({ query: '', broker: 'all', onlyEditable: false, untracedRoutes: false })
+  const [filters, setFilters] = useState<Filters>({
+    query: '', broker: 'all', onlyEditable: false, onlyChanged: false, untracedRoutes: false,
+  })
   const [sortKey, setSortKey] = useState<SortKey>('domain')
   const [sortDir, setSortDir] = useState<SortDir>('asc')
   const [selected, setSelected] = useState<Set<string>>(new Set())
@@ -87,6 +89,11 @@ export function TraceScreen({ scan, isMac, sourcePath, onRescan }: Props) {
   // Новое сканирование приходит с новыми данными — снимаем выделение.
   useEffect(() => { setSelected(new Set()) }, [scan])
 
+  // Фильтр «только изменённые» бессмыслен, пока изменений нет.
+  useEffect(() => {
+    if (changedBeans.size === 0) setFilters((prev) => (prev.onlyChanged ? { ...prev, onlyChanged: false } : prev))
+  }, [changedBeans])
+
   const groups = useMemo(() => buildGroups(scan), [scan])
   const stats = useMemo(() => brokerStats(groups), [groups])
   const brokerValues = useMemo(() => stats.map((item) => item.value), [stats])
@@ -94,8 +101,8 @@ export function TraceScreen({ scan, isMac, sourcePath, onRescan }: Props) {
   const modes = useMemo(() => traceModeValues(groups), [groups])
   const summary = useMemo(() => domainSummary(scan.domains), [scan])
   const visible = useMemo(
-    () => sortGroups(filterGroups(groups, filters), sortKey, sortDir),
-    [groups, filters, sortKey, sortDir],
+    () => sortGroups(filterGroups(groups, filters, changedBeans), sortKey, sortDir),
+    [groups, filters, changedBeans, sortKey, sortDir],
   )
 
   const flatVisible = useMemo(() => visible.flatMap((group) => group.entries), [visible])
@@ -381,6 +388,13 @@ export function TraceScreen({ scan, isMac, sourcePath, onRescan }: Props) {
           label={t('filter.onlyEditable')}
         />
         <Toggle
+          checked={filters.onlyChanged}
+          onChange={(value) => setFilters((prev) => ({ ...prev, onlyChanged: value }))}
+          label={t('filter.onlyChanged')}
+          disabled={changedBeans.size === 0}
+          title={changedBeans.size === 0 ? t('filter.onlyChangedHint') : undefined}
+        />
+        <Toggle
           checked={filters.untracedRoutes}
           onChange={(value) => setFilters((prev) => ({ ...prev, untracedRoutes: value }))}
           label={t('filter.untracedRoutes')}
@@ -649,10 +663,22 @@ function Field({ label, htmlFor, className, children }: {
   )
 }
 
-function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (value: boolean) => void; label: string }) {
+function Toggle({ checked, onChange, label, disabled, title }: {
+  checked: boolean
+  onChange: (value: boolean) => void
+  label: string
+  disabled?: boolean
+  title?: string
+}) {
   return (
-    <label className="flex h-9 cursor-pointer items-center gap-2 rounded-lg border border-line-strong bg-surface px-3 text-content-muted">
-      <Checkbox checked={checked} onChange={(event) => onChange(event.target.checked)} />
+    <label
+      title={title}
+      className={cx(
+        'flex h-9 items-center gap-2 rounded-lg border border-line-strong bg-surface px-3 text-content-muted',
+        disabled ? 'cursor-not-allowed opacity-45' : 'cursor-pointer',
+      )}
+    >
+      <Checkbox checked={checked} disabled={disabled} onChange={(event) => onChange(event.target.checked)} />
       {label}
     </label>
   )

@@ -2,7 +2,7 @@ import { useEffect, useRef, type MouseEvent, type ReactNode } from 'react'
 
 import { useI18n } from '../i18n'
 import type { DomainGroup, SortDir, SortKey, TraceEntry } from '../lib/rows'
-import { routeSummary, routesUsingBean, selectableKeys } from '../lib/rows'
+import { changeKey, routeSummary, routesUsingBean, selectableKeys } from '../lib/rows'
 import type { DomainRecord, RouteInfo, TraceBean, TraceUpdate } from '../types'
 import { Badge, Checkbox, SortHead, cx } from './ui'
 
@@ -24,11 +24,6 @@ interface Props {
 }
 
 const COLUMN_COUNT = 8
-
-/** Ключ отметки «изменено»: не зависит от порядка сканирования. */
-function changeKey(domain: DomainRecord, beanId: string | null): string {
-  return `${domain.domainXmlPath}::${beanId ?? ''}`
-}
 
 /** Клик, завершающий выделение текста, не должен сворачивать строку. */
 function hasTextSelection(): boolean {
@@ -113,7 +108,8 @@ export function TraceTable({
                   groupSelected > 0 ? 'bg-accent/10' : 'hover:bg-surface-2',
                 )}
               >
-                <Cell>
+                <Cell className="relative">
+                  {domainChanged && <ChangedDot />}
                   <GroupCheckbox
                     total={groupKeys.length}
                     selected={groupSelected}
@@ -125,7 +121,6 @@ export function TraceTable({
                 <Cell>
                   <div className="flex items-center gap-2">
                     <span className={cx('w-3 shrink-0 text-[10px] text-content-subtle transition-transform', isOpen && 'rotate-90')}>▶</span>
-                    {domainChanged && <ChangedDot />}
                     <span className="select-text truncate font-medium text-content">{domain.domainName}</span>
                     {domain.errors.length > 0 && <Badge tone="danger">{t('table.readError')}</Badge>}
                   </div>
@@ -296,7 +291,8 @@ function BeanRow({ entry, number, changed, domain, selected, update, onToggle }:
       selected={selected}
       onClick={entry.editable ? (event) => { if (!hasTextSelection()) onToggle(entry.key, event) } : undefined}
     >
-      <Cell className="py-1.5">
+      <Cell className="relative py-1.5">
+        {changed && <ChangedDot />}
         <Checkbox
           checked={selected}
           disabled={!entry.editable}
@@ -308,12 +304,7 @@ function BeanRow({ entry, number, changed, domain, selected, update, onToggle }:
       <Cell className="py-1.5">
         <span className="ml-5 block border-l border-line-strong pl-3 text-[11.5px] tabular-nums text-content-subtle">{number}</span>
       </Cell>
-      <Cell className="py-1.5">
-        <span className="flex items-center gap-1.5">
-          {changed && <ChangedDot />}
-          <span className="select-text font-mono text-[11.5px] text-content">{entry.trace.beanId ?? '—'}</span>
-        </span>
-      </Cell>
+      <Cell className="select-text py-1.5 font-mono text-[11.5px] text-content">{entry.trace.beanId ?? '—'}</Cell>
       <Cell className="py-1.5"><ValueCell current={entry.trace.broker} editable={entry.trace.brokerEditable} next={selected ? update.broker : null} /></Cell>
       <Cell className="py-1.5"><ValueCell current={entry.trace.queue} editable={entry.trace.queueEditable} next={selected ? update.queue : null} /></Cell>
       <Cell className="py-1.5"><ValueCell current={entry.trace.traceMode} editable={entry.trace.traceModeEditable} next={selected ? update.traceMode : null} /></Cell>
@@ -421,10 +412,18 @@ function GroupCheckbox({ total, selected, label, onToggle }: {
   )
 }
 
-/** Точка-сигнал: запись изменена в текущей сессии работы. */
+/**
+ * Точка-сигнал: запись изменена в текущей сессии.
+ * Живёт в левом поле строки, поэтому не сдвигает ни одну колонку.
+ */
 function ChangedDot() {
   const { t } = useI18n()
-  return <span className="size-1.5 shrink-0 rounded-full bg-positive" title={t('table.changed')} />
+  return (
+    <span
+      title={t('table.changed')}
+      className="absolute left-1 top-1/2 size-1.5 -translate-y-1/2 rounded-full bg-positive"
+    />
+  )
 }
 
 function ValueCell({ current, editable, next }: { current: string | null; editable: boolean; next: string | null }) {

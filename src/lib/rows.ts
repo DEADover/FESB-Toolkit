@@ -34,8 +34,18 @@ export interface Filters {
   query: string
   broker: string | 'all' | 'none'
   onlyEditable: boolean
+  /** Только записи, изменённые в текущей сессии. */
+  onlyChanged: boolean
   /** Только домены, где есть СОПС с выключенной трассировкой. */
   untracedRoutes: boolean
+}
+
+/**
+ * Ключ отметки «изменено в этой сессии». Строится из пути файла и имени bean-а,
+ * поэтому не зависит от порядка сканирования и переживает повторное чтение папки.
+ */
+export function changeKey(domain: DomainRecord, beanId: string | null): string {
+  return `${domain.domainXmlPath}::${beanId ?? ''}`
 }
 
 const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' })
@@ -64,7 +74,7 @@ export function routesUsingBean(domain: DomainRecord, beanId: string | null): nu
  * Фильтрует объекты трассировки внутри доменов и убирает домены, где ничего
  * не осталось. Поиск охватывает и СОПС: домен виден, если совпало имя маршрута.
  */
-export function filterGroups(groups: DomainGroup[], filters: Filters): DomainGroup[] {
+export function filterGroups(groups: DomainGroup[], filters: Filters, changedBeans: Set<string>): DomainGroup[] {
   const query = filters.query.trim().toLowerCase()
   const result: DomainGroup[] = []
 
@@ -81,7 +91,7 @@ export function filterGroups(groups: DomainGroup[], filters: Filters): DomainGro
 
     if (group.entries.length === 0) {
       const brokerFilterOff = filters.broker === 'all' || filters.broker === 'none'
-      if (brokerFilterOff && !filters.onlyEditable && domainMatches) result.push(group)
+      if (brokerFilterOff && !filters.onlyEditable && !filters.onlyChanged && domainMatches) result.push(group)
       continue
     }
 
@@ -90,6 +100,7 @@ export function filterGroups(groups: DomainGroup[], filters: Filters): DomainGro
       if (filters.broker === 'none' && broker !== null) return false
       if (filters.broker !== 'all' && filters.broker !== 'none' && broker !== filters.broker) return false
       if (filters.onlyEditable && !entry.editable) return false
+      if (filters.onlyChanged && !changedBeans.has(changeKey(group.domain, entry.trace.beanId))) return false
       if (!query) return true
       return domainMatches
         || matchesQuery([entry.trace.beanId, entry.trace.queue, entry.trace.traceMode, broker], query)

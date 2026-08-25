@@ -66,6 +66,8 @@ export const ru: Record<keyof typeof en, string> = {
 
   'filter.all': 'Все',
   'filter.onlyEditable': 'Только изменяемые',
+  'filter.onlyChanged': 'Только изменённые',
+  'filter.onlyChangedHint': 'В этой сессии пока ничего не менялось',
   'filter.chipHint': 'Клик — фильтр, двойной клик — выделить все такие строки',
   'filter.shown': 'Показано {visible} из {total} доменов',
   'filter.selected': 'Выбрано: {count} bean-ов',

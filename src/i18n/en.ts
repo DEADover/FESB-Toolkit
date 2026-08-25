@@ -65,6 +65,8 @@ export const en = {
 
   'filter.all': 'All',
   'filter.onlyEditable': 'Only Editable',
+  'filter.onlyChanged': 'Only Changed',
+  'filter.onlyChangedHint': 'Nothing Has Been Changed In This Session Yet',
   'filter.chipHint': 'Click To Filter, Double Click To Select Every Matching Row',
   'filter.shown': 'Shown {visible} Of {total} Domains',
   'filter.selected': 'Selected: {count} Beans',
