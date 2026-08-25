@@ -180,12 +180,22 @@ fn pulls_more_domains_than_fit_in_one_query() {
 
     let list = tauri::async_runtime::block_on(domains(&connection)).expect("список доменов");
     // Одна пачка — сто идентификаторов, поэтому берём заведомо больше.
-    let guids: Vec<String> = list.iter().take(150).map(|item| item.guid.clone()).collect();
+    let count: usize = std::env::var("FESB_PULL_COUNT")
+        .ok()
+        .and_then(|value| value.parse().ok())
+        .unwrap_or(150);
+    let guids: Vec<String> = list.iter().take(count).map(|item| item.guid.clone()).collect();
     assert!(guids.len() > 100, "на стенде слишком мало доменов для этой проверки");
 
-    let pulled = tauri::async_runtime::block_on(pull(&connection, Some(&guids), |_| {}))
-        .expect("выгрузка пачками");
+    let started = std::time::Instant::now();
+    let mut steps = 0usize;
+    let pulled = tauri::async_runtime::block_on(pull(&connection, Some(&guids), |progress| {
+        steps += 1;
+        println!("  {:>6.1}s  {} {} / {}", started.elapsed().as_secs_f32(), progress.phase, progress.current, progress.total);
+    }))
+    .expect("выгрузка пачками");
     println!("забрано {} доменов, {} файлов, {} байт", pulled.domains, pulled.files, pulled.bytes);
+    assert!(steps > 2, "счётчик должен двигаться по ходу выгрузки, а не один раз в конце");
     assert_eq!(pulled.domains, guids.len(), "часть доменов потерялась между пачками");
     assert!(pulled.has_version);
 }

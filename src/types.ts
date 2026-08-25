@@ -225,8 +225,8 @@ export interface PushResult {
 }
 
 export interface ApiProgress {
-  phase: 'download' | 'unpack' | 'pack' | 'upload'
+  /** `domains` при выгрузке, `pack` и `upload` при отправке. */
+  phase: 'domains' | 'pack' | 'upload'
   current: number
-  /** Ноль означает «размер заранее неизвестен». */
   total: number
 }

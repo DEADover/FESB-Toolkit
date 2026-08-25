@@ -208,10 +208,8 @@ export function DomainsScreen({ connection, server, pulling, progress, error: pu
 
         <div className="ml-auto flex items-center gap-2">
           {pulling && (
-            <span className="text-[11.5px] text-content-subtle">
-              {progress?.phase === 'unpack'
-                ? t('api.pull.unpacking', { current: progress.current, total: progress.total })
-                : t('api.pull.downloading', { size: formatBytes(progress?.current ?? 0) })}
+            <span className="text-[11.5px] text-content-subtle" title={t('api.pull.hint')}>
+              {t('api.pull.progress', { current: progress?.current ?? 0, total: progress?.total ?? selected.size })}
             </span>
           )}
           <Button
@@ -235,16 +233,4 @@ export function DomainsScreen({ connection, server, pulling, progress, error: pu
       </div>
     </div>
   )
-}
-
-function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`
-  const units = ['KB', 'MB', 'GB']
-  let value = bytes / 1024
-  let unit = 0
-  while (value >= 1024 && unit < units.length - 1) {
-    value /= 1024
-    unit++
-  }
-  return `${value.toFixed(value >= 100 ? 0 : 1)} ${units[unit]}`
 }

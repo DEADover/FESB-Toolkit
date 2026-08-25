@@ -22,9 +22,17 @@ use zip::{CompressionMethod, ZipArchive, ZipWriter};
 /// Разделы выгрузки, без которых архив легче на порядок: журналы запусков
 /// СОПС и скомпилированные модели для правки трассировки не нужны.
 const EXPORT_EXCLUDE: &str = "history,models";
-/// Сколько идентификаторов помещается в один запрос: guid весит около
-/// пятидесяти байт, а строку запроса сервер ограничивает восемью килобайтами.
-const GUIDS_PER_REQUEST: usize = 100;
+/// Сколько доменов уходит в один запрос.
+///
+/// Ограничений тут два. Идентификаторы уходят в строку запроса, а её длину
+/// сервер режет на восьми килобайтах — это около полутора сотен guid. И второе,
+/// более важное: сервер собирает архив целиком до отправки, у 256 доменов
+/// первый байт приходит через две с половиной минуты. Мелкая пачка — это
+/// и движущийся счётчик, и возможность вести несколько выгрузок разом.
+const GUIDS_PER_REQUEST: usize = 10;
+/// Сколько пачек забирается одновременно: сервер спокойно обслуживает
+/// параллельные выгрузки, и на 150 доменах это 26 секунд вместо 64.
+const BATCH_CONCURRENCY: usize = 4;
 const MANIFEST_FILE: &str = "meta.json";
 const EXPORT_DIR: &str = "export";
 const DOMAINS_DIR: &str = "domains";
@@ -329,7 +337,7 @@ pub async fn restart_module(connection: &Connection, module: &str) -> Result<(),
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ApiProgress {
-    /// `download`, `unpack`, `pack` или `upload`.
+    /// `domains` при выгрузке, `pack` и `upload` при отправке.
     pub phase: &'static str,
     pub current: u64,
     /// Ноль означает «размер заранее неизвестен».
@@ -378,11 +386,23 @@ pub async fn pull<F: FnMut(ApiProgress)>(
     guids: Option<&[String]>,
     mut on_progress: F,
 ) -> Result<PullResult, String> {
-    if guids.is_some_and(|list| list.is_empty()) {
-        return Err("No domains selected".into());
+    // Без списка доменов забрать всё можно одним запросом, но тогда сервер молчит
+    // две с половиной минуты. Спрашиваем список и идём пачками — так видно движение.
+    let wanted: Vec<String> = match guids {
+        Some(list) if !list.is_empty() => list.to_vec(),
+        Some(_) => return Err("No domains selected".into()),
+        None => domains(connection)
+            .await?
+            .into_iter()
+            .map(|item| item.guid)
+            .collect(),
+    };
+    if wanted.is_empty() {
+        return Err(format!("{} returned no domains", connection.base()));
     }
 
     let client = connection.client()?;
+    let expected = wanted.len() as u64;
 
     let workspace = workspace_root();
     let _ = fs::remove_dir_all(&workspace);
@@ -390,51 +410,42 @@ pub async fn pull<F: FnMut(ApiProgress)>(
     let root = session.join(EXPORT_DIR);
     fs::create_dir_all(root.join(DOMAINS_DIR)).map_err(|err| format!("Cannot create a workspace: {err}"))?;
 
-    // Идентификаторы уходят в строку запроса, а её длину сервер ограничивает:
-    // 256 доменов — это двенадцать килобайт и HTTP 414. Поэтому забираем пачками.
-    let batches: Vec<Option<&[String]>> = match guids {
-        None => vec![None],
-        Some(list) => list.chunks(GUIDS_PER_REQUEST).map(Some).collect(),
-    };
+    let batches: Vec<Vec<String>> = wanted.chunks(GUIDS_PER_REQUEST).map(<[String]>::to_vec).collect();
 
     let mut domains: Vec<ManifestDomain> = Vec::new();
     let mut files = 0usize;
     let mut downloaded = 0u64;
     let mut has_version = false;
 
-    for (index, batch) in batches.iter().enumerate() {
-        let mut request = connection
-            .get(&client, "/api/domains/export/archive")
-            .query(&[("exclude", EXPORT_EXCLUDE)]);
-        if let Some(list) = batch {
-            for guid in *list {
-                request = request.query(&[("domains", guid.as_str())]);
-            }
+    on_progress(ApiProgress { phase: "domains", current: 0, total: expected });
+
+    for (wave, group) in batches.chunks(BATCH_CONCURRENCY).enumerate() {
+        let mut running = Vec::with_capacity(group.len());
+        for (offset, batch) in group.iter().enumerate() {
+            let index = wave * BATCH_CONCURRENCY + offset;
+            let path = session.join(format!("download-{index}.zip"));
+            let connection = connection.clone();
+            let client = client.clone();
+            let batch = batch.clone();
+            running.push(tauri::async_runtime::spawn(async move {
+                download_batch(&connection, &client, &batch, &path).await.map(|bytes| (path, bytes))
+            }));
         }
 
-        let response = request.send().await.map_err(transport_error)?;
-        let mut response = ensure_ok(response, "Cannot export domains").await?;
+        for handle in running {
+            let (path, bytes) = handle
+                .await
+                .map_err(|err| format!("Download interrupted: {err}"))??;
+            downloaded += bytes;
 
-        let total = response.content_length().map(|size| size + downloaded).unwrap_or(0);
-        let archive_path = session.join(format!("download-{index}.zip"));
-        {
-            let mut file = BufWriter::new(
-                File::create(&archive_path).map_err(|err| format!("Cannot write the download: {err}"))?,
-            );
-            while let Some(chunk) = response.chunk().await.map_err(transport_error)? {
-                file.write_all(&chunk).map_err(|err| format!("Cannot write the download: {err}"))?;
-                downloaded += chunk.len() as u64;
-                on_progress(ApiProgress { phase: "download", current: downloaded, total });
-            }
-            file.flush().map_err(|err| format!("Cannot write the download: {err}"))?;
+            let unpacked = unpack_domains(&path, &root)?;
+            let _ = fs::remove_file(&path);
+
+            files += unpacked.files;
+            has_version = has_version || unpacked.has_version;
+            domains.extend(unpacked.domains);
+            on_progress(ApiProgress { phase: "domains", current: domains.len() as u64, total: expected });
         }
-
-        let unpacked = unpack_domains(&archive_path, &root, |progress| on_progress(progress))?;
-        let _ = fs::remove_file(&archive_path);
-
-        domains.extend(unpacked.domains);
-        files += unpacked.files;
-        has_version = has_version || unpacked.has_version;
     }
 
     if domains.is_empty() {
@@ -462,6 +473,35 @@ pub async fn pull<F: FnMut(ApiProgress)>(
     })
 }
 
+/// Забирает одну пачку доменов в отдельный файл и возвращает его размер.
+async fn download_batch(
+    connection: &Connection,
+    client: &reqwest::Client,
+    guids: &[String],
+    path: &Path,
+) -> Result<u64, String> {
+    let mut request = connection
+        .get(client, "/api/domains/export/archive")
+        .query(&[("exclude", EXPORT_EXCLUDE)]);
+    for guid in guids {
+        request = request.query(&[("domains", guid.as_str())]);
+    }
+
+    let response = request.send().await.map_err(transport_error)?;
+    let mut response = ensure_ok(response, "Cannot export domains").await?;
+
+    let mut file = BufWriter::new(
+        File::create(path).map_err(|err| format!("Cannot write the download: {err}"))?,
+    );
+    let mut bytes = 0u64;
+    while let Some(chunk) = response.chunk().await.map_err(transport_error)? {
+        file.write_all(&chunk).map_err(|err| format!("Cannot write the download: {err}"))?;
+        bytes += chunk.len() as u64;
+    }
+    file.flush().map_err(|err| format!("Cannot write the download: {err}"))?;
+    Ok(bytes)
+}
+
 struct Unpacked {
     domains: Vec<ManifestDomain>,
     files: usize,
@@ -469,11 +509,7 @@ struct Unpacked {
 }
 
 /// Разбирает архив выгрузки: снаружи опись и по вложенному архиву на домен.
-fn unpack_domains<F: FnMut(ApiProgress)>(
-    archive: &Path,
-    root: &Path,
-    mut on_progress: F,
-) -> Result<Unpacked, String> {
+fn unpack_domains(archive: &Path, root: &Path) -> Result<Unpacked, String> {
     let file = File::open(archive).map_err(|err| format!("Cannot open the download: {err}"))?;
     let mut outer = ZipArchive::new(file).map_err(|err| format!("The server did not return a zip: {err}"))?;
 
@@ -500,14 +536,11 @@ fn unpack_domains<F: FnMut(ApiProgress)>(
         }
     }
 
-    let total = outer.len() as u64;
     let mut domains: Vec<ManifestDomain> = Vec::new();
     let mut files = 0usize;
     let mut has_version = false;
 
     for index in 0..outer.len() {
-        on_progress(ApiProgress { phase: "unpack", current: index as u64 + 1, total });
-
         let mut entry = outer.by_index(index).map_err(|err| err.to_string())?;
         let Some(path) = entry.enclosed_name() else { continue };
         let name = path.to_string_lossy().replace('\\', "/");
@@ -837,7 +870,7 @@ mod tests {
 
         let root = dir.join("export");
         fs::create_dir_all(root.join(DOMAINS_DIR)).unwrap();
-        let result = unpack_domains(&archive, &root, |_| {}).unwrap();
+        let result = unpack_domains(&archive, &root).unwrap();
 
         assert_eq!(result.domains.len(), 1);
         assert_eq!(result.domains[0].name, "Alpha");

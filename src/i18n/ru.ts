@@ -229,8 +229,8 @@ export const ru: Record<keyof typeof en, string> = {
   'api.pull.allHint': 'Выгрузка всего сервера занимает несколько минут',
   'api.pull.selected': 'Забрать выбранные ({count})',
   'api.pull.running': 'Загрузка…',
-  'api.pull.downloading': 'Загружено: {size}',
-  'api.pull.unpacking': 'Распаковка: {current} из {total}',
+  'api.pull.progress': 'Домены: {current} из {total}',
+  'api.pull.hint': 'Сервер собирает каждую пачку целиком перед отправкой, поэтому счётчик идёт ступеньками',
 
   'action.push': 'Отправить на сервер',
   'push.running': 'Упаковка…',

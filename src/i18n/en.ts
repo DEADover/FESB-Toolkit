@@ -229,8 +229,8 @@ export const en = {
   'api.pull.allHint': 'The Whole Server Takes Several Minutes To Export',
   'api.pull.selected': 'Download Selected ({count})',
   'api.pull.running': 'Downloading…',
-  'api.pull.downloading': 'Downloaded: {size}',
-  'api.pull.unpacking': 'Unpacking: {current} Of {total}',
+  'api.pull.progress': 'Domains: {current} Of {total}',
+  'api.pull.hint': 'The Server Builds Each Batch Before Sending It, So The Counter Moves In Steps',
 
   'action.push': 'Send To Server',
   'push.running': 'Packing…',
