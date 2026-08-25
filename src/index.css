@@ -1,0 +1,82 @@
+@import "tailwindcss";
+
+/* Тёмная тема — значения по умолчанию. Светлая переопределяет те же переменные,
+   поэтому ни одна утилита Tailwind не знает о существовании тем. */
+@theme {
+  --color-canvas: #0b0f17;
+  --color-surface: #10151f;
+  --color-surface-2: #161d29;
+  --color-surface-3: #1e2634;
+  --color-line: #222b3b;
+  --color-line-strong: #2e3a4d;
+  --color-content: #e8ecf3;
+  --color-content-muted: #97a2b4;
+  --color-content-subtle: #6d7889;
+  --color-accent: #5b7cfa;
+  --color-accent-strong: #4361e8;
+  --color-accent-content: #8fa5fb;
+  --color-positive: #34d399;
+  --color-caution: #fbbf24;
+  --color-negative: #fb7185;
+
+  --font-sans: "Inter", "SF Pro Text", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", "SF Mono", "Cascadia Code", ui-monospace, monospace;
+}
+
+:root[data-theme="light"] {
+  --color-canvas: #eef1f6;
+  --color-surface: #ffffff;
+  --color-surface-2: #f4f6fa;
+  --color-surface-3: #e7ecf4;
+  --color-line: #dde3ec;
+  --color-line-strong: #c5cedd;
+  --color-content: #16202f;
+  --color-content-muted: #5a6779;
+  --color-content-subtle: #838f9f;
+  --color-accent: #4361e8;
+  --color-accent-strong: #3350d6;
+  --color-accent-content: #3350d6;
+  --color-positive: #0f9d70;
+  --color-caution: #b45309;
+  --color-negative: #dc2626;
+}
+
+@layer base {
+  :root { color-scheme: dark; }
+  :root[data-theme="light"] { color-scheme: light; }
+
+  html, body, #root { height: 100%; }
+
+  body {
+    margin: 0;
+    /* Десктопное приложение: выделять мышью можно значения, а не весь интерфейс. */
+    user-select: none;
+    -webkit-user-select: none;
+    background: var(--color-canvas);
+    color: var(--color-content);
+    font-family: var(--font-sans);
+    font-size: 13px;
+    -webkit-font-smoothing: antialiased;
+    overflow: hidden;
+  }
+
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-line-strong);
+    border: 2px solid transparent;
+    background-clip: content-box;
+    border-radius: 6px;
+  }
+  ::-webkit-scrollbar-thumb:hover { background-color: var(--color-content-subtle); background-clip: content-box; }
+
+  code, input, textarea, [data-selectable] {
+    user-select: text;
+    -webkit-user-select: text;
+  }
+
+  input, select, button, textarea { font: inherit; }
+  input::placeholder { color: var(--color-content-subtle); }
+
+  ::selection { background: color-mix(in oklab, var(--color-accent) 40%, transparent); }
+}

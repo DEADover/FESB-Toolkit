@@ -1,0 +1,1 @@
+{"default":{"identifier":"default","description":"Права главного окна приложения","local":true,"windows":["main"],"permissions":["core:default","core:window:allow-set-background-color","dialog:allow-open","dialog:allow-save","opener:allow-reveal-item-in-dir"]}}
