@@ -9,6 +9,8 @@ import { Badge, Checkbox, SortHead, cx } from './ui'
 interface Props {
   groups: DomainGroup[]
   selected: Set<string>
+  /** Ключи вида `путь::beanId` — что уже изменено в этой сессии. */
+  changedBeans: Set<string>
   expanded: Set<string>
   sortKey: SortKey
   sortDir: SortDir
@@ -23,6 +25,11 @@ interface Props {
 
 const COLUMN_COUNT = 8
 
+/** Ключ отметки «изменено»: не зависит от порядка сканирования. */
+function changeKey(domain: DomainRecord, beanId: string | null): string {
+  return `${domain.domainXmlPath}::${beanId ?? ''}`
+}
+
 /** Клик, завершающий выделение текста, не должен сворачивать строку. */
 function hasTextSelection(): boolean {
   return (window.getSelection()?.toString().length ?? 0) > 0
@@ -34,7 +41,7 @@ function hasTextSelection(): boolean {
  * на месте: то, что стоит под «Broker», всегда брокер.
  */
 export function TraceTable({
-  groups, selected, expanded, sortKey, sortDir, update,
+  groups, selected, changedBeans, expanded, sortKey, sortDir, update,
   onToggleEntry, onToggleGroup, onToggleAll, onToggleExpand, onSort, onReveal,
 }: Props) {
   const { t } = useI18n()
@@ -92,6 +99,7 @@ export function TraceTable({
           const single = group.entries.length === 1 ? group.entries[0] : null
           const isOpen = expanded.has(domain.id)
           const routes = routeSummary(domain)
+          const domainChanged = group.entries.some((entry) => changedBeans.has(changeKey(domain, entry.trace.beanId)))
 
           return (
             <tbody key={domain.id}>
@@ -117,6 +125,7 @@ export function TraceTable({
                 <Cell>
                   <div className="flex items-center gap-2">
                     <span className={cx('w-3 shrink-0 text-[10px] text-content-subtle transition-transform', isOpen && 'rotate-90')}>▶</span>
+                    {domainChanged && <ChangedDot />}
                     <span className="select-text truncate font-medium text-content">{domain.domainName}</span>
                     {domain.errors.length > 0 && <Badge tone="danger">{t('table.readError')}</Badge>}
                   </div>
@@ -185,6 +194,7 @@ export function TraceTable({
                         key={entry.key}
                         entry={entry}
                         number={index + 1}
+                        changed={changedBeans.has(changeKey(domain, entry.trace.beanId))}
                         domain={domain}
                         selected={selected.has(entry.key)}
                         update={update}
@@ -271,9 +281,10 @@ function SectionRow({ label, count, note }: { label: string; count: number; note
   )
 }
 
-function BeanRow({ entry, number, domain, selected, update, onToggle }: {
+function BeanRow({ entry, number, changed, domain, selected, update, onToggle }: {
   entry: TraceEntry
   number: number
+  changed: boolean
   domain: DomainRecord
   selected: boolean
   update: TraceUpdate
@@ -297,7 +308,12 @@ function BeanRow({ entry, number, domain, selected, update, onToggle }: {
       <Cell className="py-1.5">
         <span className="ml-5 block border-l border-line-strong pl-3 text-[11.5px] tabular-nums text-content-subtle">{number}</span>
       </Cell>
-      <Cell className="select-text py-1.5 font-mono text-[11.5px] text-content">{entry.trace.beanId ?? '—'}</Cell>
+      <Cell className="py-1.5">
+        <span className="flex items-center gap-1.5">
+          {changed && <ChangedDot />}
+          <span className="select-text font-mono text-[11.5px] text-content">{entry.trace.beanId ?? '—'}</span>
+        </span>
+      </Cell>
       <Cell className="py-1.5"><ValueCell current={entry.trace.broker} editable={entry.trace.brokerEditable} next={selected ? update.broker : null} /></Cell>
       <Cell className="py-1.5"><ValueCell current={entry.trace.queue} editable={entry.trace.queueEditable} next={selected ? update.queue : null} /></Cell>
       <Cell className="py-1.5"><ValueCell current={entry.trace.traceMode} editable={entry.trace.traceModeEditable} next={selected ? update.traceMode : null} /></Cell>
@@ -403,6 +419,12 @@ function GroupCheckbox({ total, selected, label, onToggle }: {
       aria-label={label}
     />
   )
+}
+
+/** Точка-сигнал: запись изменена в текущей сессии работы. */
+function ChangedDot() {
+  const { t } = useI18n()
+  return <span className="size-1.5 shrink-0 rounded-full bg-positive" title={t('table.changed')} />
 }
 
 function ValueCell({ current, editable, next }: { current: string | null; editable: boolean; next: string | null }) {

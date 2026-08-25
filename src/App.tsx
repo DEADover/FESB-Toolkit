@@ -4,9 +4,18 @@ import { Sidebar, type ScreenId } from './components/Sidebar'
 import { TraceScreen } from './components/TraceScreen'
 import { Badge, Button, Spinner, cx } from './components/ui'
 import { useI18n } from './i18n'
-import { appInfo, errorText, onScanProgress, scanDirectory, selectFolder } from './lib/api'
+import {
+  appInfo, errorText, onExtractProgress, onFileDrop, onScanProgress,
+  openArchive, scanDirectory, selectArchive, selectFolder,
+} from './lib/api'
 import { applyThemeMode, readThemeMode, storeThemeMode, type ThemeMode } from './lib/theme'
-import type { AppInfo, ScanProgress, ScanResult } from './types'
+import type { AppInfo, ArchiveProgress, ScanProgress, ScanResult } from './types'
+
+/** Откуда взята конфигурация: из папки или из распакованного архива. */
+interface Source {
+  kind: 'folder' | 'archive'
+  path: string
+}
 
 export default function App() {
   const { t } = useI18n()
@@ -15,19 +24,28 @@ export default function App() {
   const [screen, setScreen] = useState<ScreenId>('files.trace')
   const [themeMode, setThemeMode] = useState<ThemeMode>(readThemeMode)
 
+  const [source, setSource] = useState<Source | null>(null)
   const [root, setRoot] = useState<string | null>(null)
   const [scan, setScan] = useState<ScanResult | null>(null)
   const [scanning, setScanning] = useState(false)
+  const [unpacking, setUnpacking] = useState(false)
   const [progress, setProgress] = useState<ScanProgress | null>(null)
+  const [extractProgress, setExtractProgress] = useState<ArchiveProgress | null>(null)
+  const [dragging, setDragging] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const isMac = info?.platform === 'macos'
+  const busy = scanning || unpacking
 
   useEffect(() => { appInfo().then(setInfo).catch(() => setInfo(null)) }, [])
 
   useEffect(() => {
-    const unlisten = onScanProgress(setProgress)
-    return () => { unlisten.then((off) => off()) }
+    const scanUnlisten = onScanProgress(setProgress)
+    const extractUnlisten = onExtractProgress(setExtractProgress)
+    return () => {
+      scanUnlisten.then((off) => off())
+      extractUnlisten.then((off) => off())
+    }
   }, [])
 
   // Режим «системная тема» должен следовать за настройкой ОС на лету.
@@ -61,12 +79,48 @@ export default function App() {
     }
   }, [])
 
+  /** Открывает путь: архив сначала распаковывается во временную папку. */
+  const openPath = useCallback(async (path: string) => {
+    if (path.toLowerCase().endsWith('.zip')) {
+      setUnpacking(true)
+      setError(null)
+      setExtractProgress(null)
+      try {
+        const extracted = await openArchive(path)
+        setSource({ kind: 'archive', path })
+        await runScan(extracted.root)
+      } catch (err) {
+        setError(errorText(err))
+      } finally {
+        setUnpacking(false)
+        setExtractProgress(null)
+      }
+      return
+    }
+    setSource({ kind: 'folder', path })
+    await runScan(path)
+  }, [runScan])
+
   const pickFolder = useCallback(async () => {
     const path = await selectFolder(t('dialog.selectFolder'))
-    if (path) await runScan(path)
-  }, [runScan, t])
+    if (path) await openPath(path)
+  }, [openPath, t])
+
+  const pickArchive = useCallback(async () => {
+    const path = await selectArchive(t('dialog.openArchive'))
+    if (path) await openPath(path)
+  }, [openPath, t])
 
   const rescan = useCallback(async () => { if (root) await runScan(root) }, [root, runScan])
+
+  // Перетаскивание работает на любом экране: папка или архив открываются сразу.
+  useEffect(() => {
+    const unlisten = onFileDrop((paths) => {
+      const path = paths[0]
+      if (path) void openPath(path)
+    }, setDragging)
+    return () => { unlisten.then((off) => off()) }
+  }, [openPath])
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -86,9 +140,10 @@ export default function App() {
   }, [pickFolder, rescan, root])
 
   const isApiScreen = screen.startsWith('api.')
+  const sourceLabel = source?.kind === 'archive' ? t('header.archive') : t('header.folder')
 
   return (
-    <div className="flex h-full">
+    <div className="relative flex h-full">
       <Sidebar
         screen={screen}
         onScreen={setScreen}
@@ -106,64 +161,109 @@ export default function App() {
                 {isApiScreen ? t('nav.api') : t('header.trace')}
               </h1>
               {scan?.fesbVersion && (
-                <Badge tone="accent" className="font-mono" >
+                <Badge tone="accent" className="font-mono">
                   <span title={t('header.fesbVersion')}>FESB {scan.fesbVersion}</span>
                 </Badge>
               )}
             </div>
-            <p className="truncate text-[11.5px] text-content-subtle" title={root ?? undefined}>
-              {root ? `${t('header.folder')}: ${root}` : t('header.noFolder')}
+            <p className="truncate text-[11.5px] text-content-subtle" title={source?.path}>
+              {source ? `${sourceLabel}: ${source.path}` : t('header.noFolder')}
               {scan && ` · ${t('stats.domains')}: ${scan.domains.length}`}
             </p>
           </div>
           {!isApiScreen && root && (
-            <Button onClick={rescan} disabled={scanning}>
+            <Button onClick={rescan} disabled={busy}>
               {scanning ? <Spinner className="size-4" /> : '↻'} {t('action.refresh')}
             </Button>
           )}
           {!isApiScreen && (
-            <Button variant="primary" onClick={pickFolder} disabled={scanning}>{t('action.selectFolder')}</Button>
+            <>
+              <Button onClick={pickArchive} disabled={busy}>{t('action.openArchive')}</Button>
+              <Button variant="primary" onClick={pickFolder} disabled={busy}>{t('action.selectFolder')}</Button>
+            </>
           )}
         </header>
 
         {isApiScreen ? (
           <Placeholder />
         ) : !scan ? (
-          <EmptyState scanning={scanning} progress={progress} onPick={pickFolder} error={error} />
+          <EmptyState
+            busy={busy}
+            unpacking={unpacking}
+            progress={progress}
+            extractProgress={extractProgress}
+            onPickFolder={pickFolder}
+            onPickArchive={pickArchive}
+            error={error}
+          />
         ) : (
-          <TraceScreen scan={scan} isMac={isMac} onRescan={rescan} />
+          <TraceScreen scan={scan} isMac={isMac} sourcePath={source?.path ?? null} onRescan={rescan} />
         )}
       </main>
+
+      {dragging && <DropOverlay />}
     </div>
   )
 }
 
-function EmptyState({ scanning, progress, onPick, error }: {
-  scanning: boolean
+/** Подсказка поверх окна, пока над ним держат файл. */
+function DropOverlay() {
+  const { t } = useI18n()
+  return (
+    <div className="pointer-events-none absolute inset-0 z-50 flex items-center justify-center bg-canvas/80 backdrop-blur-sm">
+      <div className="rounded-2xl border-2 border-dashed border-accent bg-surface px-10 py-8 text-center shadow-2xl">
+        <div className="text-[28px]">⤓</div>
+        <div className="mt-2 text-[15px] font-semibold">{t('empty.dropHere')}</div>
+      </div>
+    </div>
+  )
+}
+
+function EmptyState({ busy, unpacking, progress, extractProgress, onPickFolder, onPickArchive, error }: {
+  busy: boolean
+  unpacking: boolean
   progress: ScanProgress | null
-  onPick: () => void
+  extractProgress: ArchiveProgress | null
+  onPickFolder: () => void
+  onPickArchive: () => void
   error: string | null
 }) {
   const { t } = useI18n()
   return (
     <div className="flex flex-1 items-center justify-center px-6 pb-10">
-      <div className="w-full max-w-lg rounded-2xl border border-dashed border-line-strong bg-surface/60 px-8 py-12 text-center">
-        {scanning ? (
+      <div className="w-full max-w-xl rounded-2xl border border-dashed border-line-strong bg-surface/60 px-8 py-10 text-center">
+        {busy ? (
           <>
             <Spinner className="mx-auto size-8 text-accent-content" />
-            <h2 className="mt-4 text-[15px] font-semibold">{t('empty.scanning')}</h2>
+            <h2 className="mt-4 text-[15px] font-semibold">
+              {unpacking ? t('empty.unpacking') : t('empty.scanning')}
+            </h2>
             <p className="mt-1 text-content-subtle">
-              {progress?.phase === 'read'
-                ? t('empty.progress.read', { current: progress.current, total: progress.total })
-                : t('empty.progress.walk', { visited: progress?.visited ?? 0, found: progress?.found ?? 0 })}
+              {unpacking
+                ? t('empty.progress.files', { current: extractProgress?.current ?? 0, total: extractProgress?.total ?? 0 })
+                : progress?.phase === 'read'
+                  ? t('empty.progress.read', { current: progress.current, total: progress.total })
+                  : t('empty.progress.walk', { visited: progress?.visited ?? 0, found: progress?.found ?? 0 })}
             </p>
           </>
         ) : (
           <>
-            <div className="mx-auto grid size-14 place-items-center rounded-2xl bg-surface-2 text-[22px] text-accent-content">▤</div>
+            <div className="mx-auto grid size-14 place-items-center rounded-2xl bg-surface-2 text-[22px] text-accent-content">⤓</div>
             <h2 className="mt-4 text-[15px] font-semibold">{t('empty.title')}</h2>
-            <p className="mx-auto mt-2 max-w-sm text-content-subtle">{t('empty.text')}</p>
-            <Button variant="primary" className="mt-6" onClick={onPick}>{t('action.selectFolder')}</Button>
+            <p className="mx-auto mt-2 max-w-md text-content-subtle">{t('empty.text')}</p>
+
+            {/* Самая частая ошибка — выбрать саму папку domains, поэтому показываем структуру. */}
+            <div className="mx-auto mt-5 max-w-md rounded-xl border border-caution/30 bg-caution/8 px-4 py-3 text-left">
+              <p className="text-[11.5px] text-caution">{t('empty.layout')}</p>
+              <pre className="mt-2 font-mono text-[11.5px] leading-relaxed text-content-muted">{`config-2026-08-24T20-58 (8.6)
+├── domains/
+└── version`}</pre>
+            </div>
+
+            <div className="mt-6 flex items-center justify-center gap-2">
+              <Button variant="primary" onClick={onPickFolder}>{t('action.selectFolder')}</Button>
+              <Button onClick={onPickArchive}>{t('action.openArchive')}</Button>
+            </div>
             {error && <p className="mt-4 rounded-lg border border-negative/40 bg-negative/10 px-3 py-2 text-negative">{error}</p>}
           </>
         )}

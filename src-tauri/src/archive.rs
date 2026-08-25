@@ -12,7 +12,7 @@ use std::path::{Path, PathBuf};
 
 use serde::Serialize;
 use zip::write::SimpleFileOptions;
-use zip::{CompressionMethod, ZipWriter};
+use zip::{CompressionMethod, ZipArchive, ZipWriter};
 
 const DOMAINS_DIR: &str = "domains";
 const VERSION_FILE: &str = "version";
@@ -28,6 +28,15 @@ pub struct ArchiveResult {
     pub bytes: u64,
     /// Сколько файлов `.bak` намеренно не попало в архив.
     pub skipped_backups: usize,
+    pub has_version: bool,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExtractResult {
+    /// Папка, из которой дальше работает приложение.
+    pub root: String,
+    pub files: usize,
     pub has_version: bool,
 }
 
@@ -179,6 +188,82 @@ pub fn create_archive<F: FnMut(ArchiveProgress)>(
     })
 }
 
+/// Рабочая папка, куда распаковываются архивы. Одна на запуск приложения.
+fn workspace_root() -> PathBuf {
+    std::env::temp_dir().join("fesb-settings-editor")
+}
+
+/// Распаковывает zip с выгрузкой конфигурации во временную папку.
+///
+/// Внутри архива ожидается та же структура, что и в выгрузке из шины:
+/// папка `domains` и файл `version` в корне. Предыдущая распаковка удаляется —
+/// иначе временные папки копились бы по сотне мегабайт за открытие.
+pub fn extract_archive<F: FnMut(ArchiveProgress)>(
+    archive: &Path,
+    mut on_progress: F,
+) -> Result<ExtractResult, String> {
+    let file = File::open(archive).map_err(|err| format!("cannot open archive: {err}"))?;
+    let mut zip = ZipArchive::new(BufReader::new(file)).map_err(|err| format!("not a valid zip: {err}"))?;
+
+    let total = zip.len();
+    let mut has_domains = false;
+    let mut has_version = false;
+    for index in 0..total {
+        let entry = zip.by_index(index).map_err(|err| err.to_string())?;
+        let Some(name) = entry.enclosed_name() else { continue };
+        let name = name.to_string_lossy().replace('\\', "/");
+        if name.starts_with("domains/") {
+            has_domains = true;
+        }
+        if name == VERSION_FILE {
+            has_version = true;
+        }
+    }
+    if !has_domains {
+        return Err("The archive has no domains folder at its root".into());
+    }
+
+    let workspace = workspace_root();
+    let _ = fs::remove_dir_all(&workspace);
+    let stem = archive.file_stem().map(|s| s.to_string_lossy().to_string()).unwrap_or_else(|| "config".into());
+    let unique = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_nanos())
+        .unwrap_or(0);
+    let root = workspace.join(format!("{stem}-{unique}"));
+    fs::create_dir_all(&root).map_err(|err| format!("cannot create workspace: {err}"))?;
+
+    let mut written = 0usize;
+    for index in 0..total {
+        let mut entry = zip.by_index(index).map_err(|err| err.to_string())?;
+        // enclosed_name отсекает `..` и абсолютные пути — архив не должен писать мимо папки.
+        let Some(relative) = entry.enclosed_name() else { continue };
+        let target = root.join(relative);
+
+        if entry.is_dir() {
+            fs::create_dir_all(&target).map_err(|err| format!("{}: {err}", target.display()))?;
+        } else {
+            if let Some(parent) = target.parent() {
+                fs::create_dir_all(parent).map_err(|err| format!("{}: {err}", parent.display()))?;
+            }
+            let mut out = BufWriter::new(File::create(&target).map_err(|err| format!("{}: {err}", target.display()))?);
+            std::io::copy(&mut entry, &mut out).map_err(|err| format!("{}: {err}", target.display()))?;
+            out.flush().map_err(|err| format!("{}: {err}", target.display()))?;
+            written += 1;
+        }
+
+        if index % 200 == 0 || index + 1 == total {
+            on_progress(ArchiveProgress { current: index + 1, total });
+        }
+    }
+
+    Ok(ExtractResult {
+        root: root.to_string_lossy().to_string(),
+        files: written,
+        has_version,
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -227,6 +312,37 @@ mod tests {
         let names = entries(&output);
         assert!(!names.iter().any(|name| name.ends_with("out.zip")));
         assert_eq!(result.files, 5);
+    }
+
+    #[test]
+    fn extracts_archive_into_a_workspace() {
+        let dir = TempDir::new("extract");
+        sample(&dir.0);
+        let output = dir.0.join("out.zip");
+        create_archive(&dir.0, &output, None, |_| {}).unwrap();
+
+        let extracted = extract_archive(&output, |_| {}).unwrap();
+        let root = PathBuf::from(&extracted.root);
+        assert!(extracted.has_version);
+        assert!(root.join("version").is_file());
+        assert!(root.join("domains/domain-1/domain.xml").is_file());
+        assert!(root.join("domains/domain-1/.history/routes/route-1/log.json").is_file());
+        assert_eq!(fs::read_to_string(root.join("version")).unwrap(), "V8.6.461");
+
+        let _ = fs::remove_dir_all(workspace_root());
+    }
+
+    #[test]
+    fn rejects_an_archive_without_domains() {
+        let dir = TempDir::new("bad");
+        let output = dir.0.join("bad.zip");
+        {
+            let mut zip = ZipWriter::new(File::create(&output).unwrap());
+            zip.start_file("readme.txt", SimpleFileOptions::default()).unwrap();
+            zip.write_all(b"nothing here").unwrap();
+            zip.finish().unwrap();
+        }
+        assert!(extract_archive(&output, |_| {}).is_err());
     }
 
     #[test]

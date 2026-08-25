@@ -17,12 +17,13 @@ use serde::Serialize;
 use tauri::{AppHandle, Emitter};
 
 use applier::{apply_trace_change, ApplyReport, ApplyRequest};
-use archive::{create_archive, ArchiveResult};
+use archive::{create_archive, extract_archive, ArchiveResult, ExtractResult};
 use scanner::{scan_root, ScanResult};
 
 const SCAN_PROGRESS_EVENT: &str = "scan:progress";
 const APPLY_PROGRESS_EVENT: &str = "apply:progress";
 const ARCHIVE_PROGRESS_EVENT: &str = "archive:progress";
+const EXTRACT_PROGRESS_EVENT: &str = "extract:progress";
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -70,6 +71,23 @@ async fn apply_trace(app: AppHandle, request: ApplyRequest) -> Result<ApplyRepor
     .map_err(|err| format!("Apply interrupted: {err}"))?
 }
 
+/// Распаковывает zip с выгрузкой во временную папку и возвращает путь к ней.
+#[tauri::command]
+async fn open_archive(app: AppHandle, path: String) -> Result<ExtractResult, String> {
+    let archive = PathBuf::from(&path);
+    if !archive.is_file() {
+        return Err(format!("File is not accessible: {path}"));
+    }
+
+    tauri::async_runtime::spawn_blocking(move || {
+        extract_archive(&archive, |progress| {
+            let _ = app.emit(EXTRACT_PROGRESS_EVENT, progress);
+        })
+    })
+    .await
+    .map_err(|err| format!("Extraction interrupted: {err}"))?
+}
+
 /// Собирает zip-архив конфигурации для обратной загрузки в шину.
 #[tauri::command]
 async fn build_archive(
@@ -99,6 +117,7 @@ pub fn run() {
             app_info,
             scan_directory,
             apply_trace,
+            open_archive,
             build_archive
         ])
         .run(tauri::generate_context!())

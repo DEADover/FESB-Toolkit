@@ -20,6 +20,8 @@ import { Badge, Button, Checkbox, Modal, ScrollStrip, Spinner, Stat, SuggestInpu
 interface Props {
   scan: ScanResult
   isMac: boolean
+  /** Папка или архив, откуда взята конфигурация — рядом предлагается сохранить zip. */
+  sourcePath: string | null
   onRescan: () => Promise<void>
 }
 
@@ -27,7 +29,7 @@ interface Props {
  * Единый экран: домены, их СОПС и объекты трассировки с правкой
  * имени брокера, имени очереди и режима трассировки.
  */
-export function TraceScreen({ scan, isMac, onRescan }: Props) {
+export function TraceScreen({ scan, isMac, sourcePath, onRescan }: Props) {
   const { t } = useI18n()
 
   const [filters, setFilters] = useState<Filters>({ query: '', broker: 'all', onlyEditable: false, untracedRoutes: false })
@@ -46,6 +48,11 @@ export function TraceScreen({ scan, isMac, onRescan }: Props) {
   const [applying, setApplying] = useState(false)
   const [progress, setProgress] = useState<ApplyProgress | null>(null)
   const [report, setReport] = useState<ApplyReport | null>(null)
+  /**
+   * Что уже изменено в этой сессии. Ключ не зависит от порядка сканирования,
+   * поэтому отметки переживают повторное чтение папки.
+   */
+  const [changedBeans, setChangedBeans] = useState<Set<string>>(new Set())
   const [error, setError] = useState<string | null>(null)
 
   const [scopeOpen, setScopeOpen] = useState(false)
@@ -237,7 +244,18 @@ export function TraceScreen({ scan, isMac, onRescan }: Props) {
     try {
       const result = await applyTrace({ update, targets, makeBackup, dryRun })
       setReport(result)
-      if (!dryRun) await onRescan()
+      if (!dryRun) {
+        setChangedBeans((prev) => {
+          const next = new Set(prev)
+          for (const file of result.results) {
+            for (const change of file.changed) {
+              if (change.beanId) next.add(`${file.domainXmlPath}::${change.beanId}`)
+            }
+          }
+          return next
+        })
+        await onRescan()
+      }
     } catch (err) {
       setError(errorText(err))
     } finally {
@@ -245,6 +263,17 @@ export function TraceScreen({ scan, isMac, onRescan }: Props) {
       setProgress(null)
     }
   }, [update, targets, makeBackup, dryRun, onRescan])
+
+  /** Папки доменов, в которых что-то изменено в этой сессии. */
+  const changedDomains = useMemo(() => {
+    const paths = new Set<string>()
+    for (const group of groups) {
+      const touched = group.entries.some((entry) =>
+        entry.trace.beanId && changedBeans.has(`${group.domain.domainXmlPath}::${entry.trace.beanId}`))
+      if (touched) paths.add(group.domain.dirPath)
+    }
+    return [...paths]
+  }, [groups, changedBeans])
 
   /** Папки доменов, в которых есть хотя бы один выбранный объект трассировки. */
   const selectedDomains = useMemo(() => {
@@ -257,7 +286,7 @@ export function TraceScreen({ scan, isMac, onRescan }: Props) {
   const buildZip = useCallback(async (domains: string[] | null) => {
     setScopeOpen(false)
     // Кладём рядом с папкой конфигурации, а не внутрь неё: иначе архив попадёт в следующий архив.
-    const suggested = `${folderBesideExport(scan.root)}config-${localStamp()}.zip`
+    const suggested = `${folderBesideExport(sourcePath ?? scan.root)}config-${localStamp()}.zip`
     const output = await saveZipAs(t('dialog.saveZip'), suggested)
     if (!output) return
 
@@ -272,13 +301,13 @@ export function TraceScreen({ scan, isMac, onRescan }: Props) {
       setArchiving(false)
       setArchiveProgress(null)
     }
-  }, [scan.root, t])
+  }, [scan.root, sourcePath, t])
 
-  // Спрашиваем про охват только когда есть выбор — иначе он однозначен.
+  // Спрашиваем про охват, когда есть из чего выбирать: выделение или правки сессии.
   const startBuild = useCallback(() => {
-    if (selectedDomains.length > 0) setScopeOpen(true)
+    if (selectedDomains.length > 0 || changedDomains.length > 0) setScopeOpen(true)
     else void buildZip(null)
-  }, [buildZip, selectedDomains.length])
+  }, [buildZip, selectedDomains.length, changedDomains.length])
 
   const shortcut = isMac ? '⌘' : 'Ctrl'
 
@@ -388,6 +417,7 @@ export function TraceScreen({ scan, isMac, onRescan }: Props) {
       <TraceTable
         groups={visible}
         selected={selected}
+        changedBeans={changedBeans}
         expanded={expanded}
         sortKey={sortKey}
         sortDir={sortDir}
@@ -510,9 +540,20 @@ export function TraceScreen({ scan, isMac, onRescan }: Props) {
         footer={<Button variant="ghost" onClick={() => setScopeOpen(false)}>{t('action.cancel')}</Button>}
       >
         <div className="space-y-2">
-          <Button variant="primary" className="w-full justify-start" onClick={() => buildZip(selectedDomains)}>
-            {t('zip.scope.selected', { count: selectedDomains.length })}
-          </Button>
+          {changedDomains.length > 0 && (
+            <Button variant="primary" className="w-full justify-start" onClick={() => buildZip(changedDomains)}>
+              {t('zip.scope.changed', { count: changedDomains.length })}
+            </Button>
+          )}
+          {selectedDomains.length > 0 && (
+            <Button
+              variant={changedDomains.length > 0 ? 'secondary' : 'primary'}
+              className="w-full justify-start"
+              onClick={() => buildZip(selectedDomains)}
+            >
+              {t('zip.scope.selected', { count: selectedDomains.length })}
+            </Button>
+          )}
           <Button className="w-full justify-start" onClick={() => buildZip(null)}>
             {t('zip.scope.all', { count: scan.domains.length })}
           </Button>
@@ -564,15 +605,17 @@ function localStamp(): string {
 }
 
 /**
- * Папка, соседняя с выгрузкой: если выбрана `…/config-X/domains`, вернёт `…/`,
- * то есть каталог, в котором лежит сама папка конфигурации.
+ * Папка, в которую логично положить новый архив: рядом с исходной выгрузкой.
+ * Для `…/config-X/domains` это `…/`, для `…/config-X.zip` — тоже `…/`.
  */
-function folderBesideExport(root: string): string {
-  const separator = root.includes('\\') && !root.includes('/') ? '\\' : '/'
-  const parts = root.split(/[/\\]/).filter(Boolean)
-  const up = parts[parts.length - 1] === 'domains' ? 2 : 1
+function folderBesideExport(source: string): string {
+  const separator = source.includes('\\') && !source.includes('/') ? '\\' : '/'
+  const parts = source.split(/[/\\]/).filter(Boolean)
+  const last = parts[parts.length - 1] ?? ''
+  // Файл архива и папка конфигурации лежат на одном уровне, папка domains — на уровень глубже.
+  const up = last === 'domains' ? 2 : 1
   const kept = parts.slice(0, Math.max(parts.length - up, 0))
-  const prefix = root.startsWith('/') ? '/' : ''
+  const prefix = source.startsWith('/') ? '/' : ''
   return kept.length > 0 ? `${prefix}${kept.join(separator)}${separator}` : prefix
 }
 

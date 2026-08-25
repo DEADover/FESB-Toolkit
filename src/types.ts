@@ -133,6 +133,13 @@ export interface ArchiveResult {
   hasVersion: boolean
 }
 
+export interface ExtractResult {
+  /** Папка, из которой дальше работает приложение. */
+  root: string
+  files: number
+  hasVersion: boolean
+}
+
 export interface ArchiveProgress {
   current: number
   total: number

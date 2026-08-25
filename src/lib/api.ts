@@ -1,11 +1,12 @@
 import { invoke } from '@tauri-apps/api/core'
 import { listen, type UnlistenFn } from '@tauri-apps/api/event'
+import { getCurrentWebview } from '@tauri-apps/api/webview'
 import { open, save } from '@tauri-apps/plugin-dialog'
 import { revealItemInDir } from '@tauri-apps/plugin-opener'
 
 import type {
   AppInfo, ApplyProgress, ApplyReport, ApplyTarget, ArchiveProgress, ArchiveResult,
-  ScanProgress, ScanResult, TraceUpdate,
+  ExtractResult, ScanProgress, ScanResult, TraceUpdate,
 } from '../types'
 
 /** Единственная точка соприкосновения интерфейса с бэкендом на Rust. */
@@ -13,6 +14,21 @@ import type {
 export async function selectFolder(title: string): Promise<string | null> {
   const result = await open({ directory: true, multiple: false, title })
   return typeof result === 'string' ? result : null
+}
+
+export async function selectArchive(title: string): Promise<string | null> {
+  const result = await open({
+    directory: false,
+    multiple: false,
+    title,
+    filters: [{ name: 'ZIP', extensions: ['zip'] }],
+  })
+  return typeof result === 'string' ? result : null
+}
+
+/** Распаковывает архив во временную папку и возвращает путь к ней. */
+export function openArchive(path: string): Promise<ExtractResult> {
+  return invoke<ExtractResult>('open_archive', { path })
 }
 
 export function scanDirectory(root: string): Promise<ScanResult> {
@@ -62,6 +78,22 @@ export function onApplyProgress(handler: (progress: ApplyProgress) => void): Pro
 
 export function onArchiveProgress(handler: (progress: ArchiveProgress) => void): Promise<UnlistenFn> {
   return listen<ArchiveProgress>('archive:progress', (event) => handler(event.payload))
+}
+
+export function onExtractProgress(handler: (progress: ArchiveProgress) => void): Promise<UnlistenFn> {
+  return listen<ArchiveProgress>('extract:progress', (event) => handler(event.payload))
+}
+
+/** Перетаскивание папки или архива в окно приложения. */
+export function onFileDrop(handler: (paths: string[]) => void, onDragging: (active: boolean) => void): Promise<UnlistenFn> {
+  return getCurrentWebview().onDragDropEvent((event) => {
+    if (event.payload.type === 'over') {
+      onDragging(true)
+      return
+    }
+    onDragging(false)
+    if (event.payload.type === 'drop') handler(event.payload.paths)
+  })
 }
 
 /** Понятный текст для ошибки, прилетевшей из команды Tauri. */
