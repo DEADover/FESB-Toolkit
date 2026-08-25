@@ -127,6 +127,28 @@ npm run build        # сборка установщика под текущую
 npm run test:rust    # тесты бэкенда
 ```
 
+### Сборка под Windows
+
+Кросс-компиляция Windows-инсталлятора с macOS у Tauri штатно не поддерживается,
+поэтому сборка идёт на Windows-раннере GitHub Actions:
+[`.github/workflows/build.yml`](.github/workflows/build.yml). Workflow запускается
+на каждый push в `main` и вручную, прогоняет тесты бэкенда и выкладывает
+`.exe` (NSIS) и `.msi` артефактом `fesb-settings-editor-windows`.
+
+```bash
+gh workflow run build.yml          # запустить вручную
+gh run download --name fesb-settings-editor-windows
+```
+
+Установщик ставится в профиль пользователя, без прав администратора;
+язык интерфейса установщика — английский или русский на выбор.
+
+То же самое на своей Windows-машине:
+
+```bash
+npm ci && npm run build
+```
+
 Проверка парсера на настоящей выгрузке конфигурации:
 
 ```bash
