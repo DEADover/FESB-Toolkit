@@ -103,6 +103,7 @@ export const ru: Record<keyof typeof en, string> = {
   'table.stopped': 'Остановлен',
   'table.stoppedHint': 'Домен остановлен',
   'table.changed': 'Изменено в этой сессии',
+  'table.changedColumn': 'Изменено',
   'table.multi': 'MULTI',
   'table.multiHint': 'Значения различаются у {count} объектов трассировки',
   'table.multiBeans': 'Объектов трассировки: {count}',

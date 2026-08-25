@@ -102,6 +102,7 @@ export const en = {
   'table.stopped': 'Stopped',
   'table.stoppedHint': 'The Domain Is Stopped',
   'table.changed': 'Changed In This Session',
+  'table.changedColumn': 'Changed',
   'table.multi': 'MULTI',
   'table.multiHint': 'Different Values Across {count} Trace Beans',
   'table.multiBeans': '{count} Trace Beans',

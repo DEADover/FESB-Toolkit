@@ -23,7 +23,7 @@ interface Props {
   onReveal: (path: string) => void
 }
 
-const COLUMN_COUNT = 8
+const COLUMN_COUNT = 9
 
 /** Клик, завершающий выделение текста, не должен сворачивать строку. */
 function hasTextSelection(): boolean {
@@ -56,11 +56,12 @@ export function TraceTable({
       <table className="w-full table-fixed border-separate border-spacing-0 text-[12.5px]">
         {/* Домен и маршруты получают всё свободное место, брокеру хватает узкой колонки. */}
         <colgroup>
-          <col className="w-12" />
+          <col className="w-9" />
+          <col className="w-20" />
           <col />
-          <col className="w-40" />
           <col className="w-36" />
-          <col className="w-44" />
+          <col className="w-36" />
+          <col className="w-40" />
           <col className="w-24" />
           <col className="w-20" />
           <col className="w-16" />
@@ -77,6 +78,7 @@ export function TraceTable({
                 aria-label={t('filter.all')}
               />
             </th>
+            <th className="border-b border-line px-2 py-2.5 text-center font-medium">{t('table.changedColumn')}</th>
             <SortHead label={t('table.domain')} sortKey="domain" active={sortKey} dir={sortDir} onSort={onSort} />
             <SortHead label={t('table.traceBean')} sortKey="bean" active={sortKey} dir={sortDir} onSort={onSort} />
             <SortHead label={t('table.broker')} sortKey="broker" active={sortKey} dir={sortDir} onSort={onSort} />
@@ -109,16 +111,15 @@ export function TraceTable({
                 )}
               >
                 <Cell>
-                  <span className="flex items-center gap-2">
-                    <GroupCheckbox
-                      total={groupKeys.length}
-                      selected={groupSelected}
-                      label={domain.domainName}
-                      onToggle={() => onToggleGroup(group)}
-                    />
-                    {domainChanged && <ChangedDot />}
-                  </span>
+                  <GroupCheckbox
+                    total={groupKeys.length}
+                    selected={groupSelected}
+                    label={domain.domainName}
+                    onToggle={() => onToggleGroup(group)}
+                  />
                 </Cell>
+
+                <ChangedCell changed={domainChanged} />
 
                 <Cell>
                   <div className="flex items-center gap-2">
@@ -159,6 +160,7 @@ export function TraceTable({
                 <>
                   <SubRow>
                     <Cell />
+                    <Cell />
                     <Cell colSpanRest>
                       <div className="flex flex-col gap-1 pl-5 text-[11.5px] text-content-subtle">
                         {domain.description && <Fact label={t('table.description')} value={domain.description} />}
@@ -182,6 +184,7 @@ export function TraceTable({
                   <SectionRow label={t('panel.traceBeans')} count={group.entries.length} />
                   {group.entries.length === 0 ? (
                     <SubRow>
+                      <Cell />
                       <Cell />
                       <Cell colSpanRest className="pl-9 text-[11.5px] text-content-subtle">{t('panel.noTraceBeans')}</Cell>
                     </SubRow>
@@ -207,6 +210,7 @@ export function TraceTable({
                   />
                   {domain.routes.length === 0 ? (
                     <SubRow>
+                      <Cell />
                       <Cell />
                       <Cell colSpanRest className="pl-9 text-[11.5px] text-content-subtle">{t('panel.noRoutes')}</Cell>
                     </SubRow>
@@ -241,7 +245,7 @@ export function TraceTable({
 
 function Cell({ children, className, colSpanRest }: { children?: ReactNode; className?: string; colSpanRest?: boolean }) {
   return (
-    <td colSpan={colSpanRest ? COLUMN_COUNT - 1 : undefined} className={cx('border-b border-line px-3 py-2 align-top', className)}>
+    <td colSpan={colSpanRest ? COLUMN_COUNT - 2 : undefined} className={cx('border-b border-line px-3 py-2 align-top', className)}>
       {children}
     </td>
   )
@@ -266,6 +270,7 @@ function SubRow({ children, className, onClick, selected }: {
 function SectionRow({ label, count, note }: { label: string; count: number; note?: string }) {
   return (
     <SubRow>
+      <Cell />
       <Cell />
       <Cell colSpanRest className="py-1.5">
         <div className="flex items-center gap-2 pl-5">
@@ -294,17 +299,15 @@ function BeanRow({ entry, number, changed, domain, selected, update, onToggle }:
       onClick={entry.editable ? (event) => { if (!hasTextSelection()) onToggle(entry.key, event) } : undefined}
     >
       <Cell className="py-1.5">
-        <span className="flex items-center gap-2">
-          <Checkbox
-            checked={selected}
-            disabled={!entry.editable}
-            onChange={() => { /* обрабатывается кликом по строке */ }}
-            onClick={(event) => { event.stopPropagation(); if (entry.editable) onToggle(entry.key, event) }}
-            aria-label={entry.trace.beanId ?? ''}
-          />
-          {changed && <ChangedDot />}
-        </span>
+        <Checkbox
+          checked={selected}
+          disabled={!entry.editable}
+          onChange={() => { /* обрабатывается кликом по строке */ }}
+          onClick={(event) => { event.stopPropagation(); if (entry.editable) onToggle(entry.key, event) }}
+          aria-label={entry.trace.beanId ?? ''}
+        />
       </Cell>
+      <ChangedCell changed={changed} compact />
       <Cell className="py-1.5">
         <span className="ml-5 block border-l border-line-strong pl-3 text-[11.5px] tabular-nums text-content-subtle">{number}</span>
       </Cell>
@@ -324,6 +327,7 @@ function RouteRow({ route, onReveal }: { route: RouteInfo; onReveal: () => void 
   const { t } = useI18n()
   return (
     <SubRow>
+      <Cell className="py-1.5" />
       <Cell className="py-1.5" />
       <Cell className="py-1.5">
         <div className="ml-5 min-w-0 border-l border-line-strong pl-3">
@@ -417,12 +421,18 @@ function GroupCheckbox({ total, selected, label, onToggle }: {
 }
 
 /**
- * Точка-сигнал: запись изменена в текущей сессии. Стоит справа от чекбокса,
- * в колонке фиксированной ширины, поэтому остальные колонки не сдвигаются.
+ * Колонка-сигнал: запись изменена в текущей сессии. Точка живёт в собственной
+ * колонке фиксированной ширины, поэтому на выравнивание остальных не влияет.
  */
-function ChangedDot() {
+function ChangedCell({ changed, compact }: { changed: boolean; compact?: boolean }) {
   const { t } = useI18n()
-  return <span title={t('table.changed')} className="size-1.5 shrink-0 rounded-full bg-positive" />
+  return (
+    <td className={cx('border-b border-line px-2 text-center align-middle', compact ? 'py-1.5' : 'py-2')}>
+      {changed && (
+        <span title={t('table.changed')} className="inline-block size-1.5 rounded-full bg-positive align-middle" />
+      )}
+    </td>
+  )
 }
 
 function ValueCell({ current, editable, next }: { current: string | null; editable: boolean; next: string | null }) {
