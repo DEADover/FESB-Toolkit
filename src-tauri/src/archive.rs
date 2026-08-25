@@ -4,6 +4,11 @@
 //! и файл `version`, никакой обёртывающей папки. Служебные файлы —
 //! резервные копии `.bak`, которые создаёт само приложение, и `.DS_Store` —
 //! в архив не попадают: в шине им делать нечего.
+//!
+//! Выгрузка через API отдаёт больше, чем веб-интерфейс: рядом с `domains`
+//! лежат `conf`, `data`, `messages`, `resources`. Если открыт корень такой
+//! выгрузки, всё это переносится в новый архив как есть — иначе обратная
+//! загрузка потеряла бы часть конфигурации.
 
 use std::collections::HashSet;
 use std::fs::{self, File};
@@ -48,13 +53,17 @@ pub struct ArchiveProgress {
 }
 
 /// Определяет корень выгрузки: пользователь мог выбрать и `config-…`, и `domains`.
-fn layout(root: &Path) -> Result<(PathBuf, PathBuf), String> {
+///
+/// Третье значение отвечает на вопрос, знаем ли мы корень наверняка. Если выбрана
+/// сама папка `domains`, её сосед по каталогу — что угодно (хоть «Загрузки»),
+/// и переносить оттуда всё подряд нельзя: берём только `version`.
+fn layout(root: &Path) -> Result<(PathBuf, PathBuf, bool), String> {
     let nested = root.join(DOMAINS_DIR);
     if nested.is_dir() {
-        return Ok((root.to_path_buf(), nested));
+        return Ok((root.to_path_buf(), nested, true));
     }
     match root.parent() {
-        Some(parent) => Ok((parent.to_path_buf(), root.to_path_buf())),
+        Some(parent) => Ok((parent.to_path_buf(), root.to_path_buf(), false)),
         None => Err("Cannot determine the configuration root".into()),
     }
 }
@@ -104,7 +113,7 @@ pub fn create_archive<F: FnMut(ArchiveProgress)>(
     domains: Option<&[String]>,
     mut on_progress: F,
 ) -> Result<ArchiveResult, String> {
-    let (config_root, domains_dir) = layout(root)?;
+    let (config_root, domains_dir, root_is_known) = layout(root)?;
     if !domains_dir.is_dir() {
         return Err(format!("Folder is not accessible: {}", domains_dir.display()));
     }
@@ -145,6 +154,29 @@ pub fn create_archive<F: FnMut(ArchiveProgress)>(
     let has_version = version_path.is_file();
     if has_version {
         files.push((version_path, VERSION_FILE.to_string()));
+    }
+
+    // Остальное содержимое корня выгрузки — conf, data, messages, resources
+    // и прочее из API-экспорта — переносим как есть.
+    if root_is_known {
+        let mut siblings: Vec<fs::DirEntry> = fs::read_dir(&config_root)
+            .map_err(|err| format!("cannot read {}: {err}", config_root.display()))?
+            .flatten()
+            .collect();
+        siblings.sort_by_key(|entry| entry.file_name());
+
+        for entry in siblings {
+            let name = entry.file_name().to_string_lossy().to_string();
+            if name == DOMAINS_DIR || name == VERSION_FILE || is_junk(&name) {
+                continue;
+            }
+            let path = entry.path();
+            if path.is_dir() {
+                collect(&path, &name, output, &mut files, &mut skipped_backups);
+            } else if path != output {
+                files.push((path, name));
+            }
+        }
     }
     if files.is_empty() {
         return Err("Nothing to archive".into());
@@ -312,6 +344,43 @@ mod tests {
         let names = entries(&output);
         assert!(!names.iter().any(|name| name.ends_with("out.zip")));
         assert_eq!(result.files, 5);
+    }
+
+    #[test]
+    fn keeps_everything_else_from_the_export_root() {
+        let dir = TempDir::new("full");
+        sample(&dir.0);
+        // так выглядит выгрузка через API: рядом с domains лежат другие разделы
+        fs::create_dir_all(dir.0.join("conf/security")).unwrap();
+        fs::write(dir.0.join("conf/security/users.json"), "{}").unwrap();
+        fs::create_dir_all(dir.0.join("data/qme")).unwrap();
+        fs::write(dir.0.join("data/qme/queue.json"), "{}").unwrap();
+        fs::write(dir.0.join("domains/common.properties"), "").unwrap();
+
+        let output = dir.0.join("out.zip");
+        create_archive(&dir.0, &output, None, |_| {}).unwrap();
+        let names = entries(&output);
+
+        assert!(names.contains(&"conf/security/users.json".to_string()));
+        assert!(names.contains(&"data/qme/queue.json".to_string()));
+        assert!(names.contains(&"domains/common.properties".to_string()));
+        assert!(names.contains(&"version".to_string()));
+    }
+
+    #[test]
+    fn does_not_reach_outside_when_only_domains_is_selected() {
+        let dir = TempDir::new("narrow");
+        sample(&dir.0);
+        // сосед папки domains, которого в архиве быть не должно
+        fs::create_dir_all(dir.0.join("unrelated")).unwrap();
+        fs::write(dir.0.join("unrelated/secret.txt"), "no").unwrap();
+
+        let output = dir.0.join("out.zip");
+        create_archive(&dir.0.join("domains"), &output, None, |_| {}).unwrap();
+        let names = entries(&output);
+
+        assert!(names.iter().all(|n| n == "version" || n.starts_with("domains/")));
+        assert!(names.contains(&"version".to_string()));
     }
 
     #[test]
