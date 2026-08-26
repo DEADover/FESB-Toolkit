@@ -6,7 +6,7 @@
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 
-use fesb_settings_editor_lib::testing::{create_archive, parse_domain_xml, scan_root};
+use fesb_settings_editor_lib::testing::{create_archive, parse_domain_xml, parse_route_graphs, scan_root};
 
 #[test]
 #[ignore]
@@ -262,4 +262,88 @@ fn builds_archive_from_real_export() {
     assert!(!names.iter().any(|n| n.ends_with(".bak")));
 
     std::fs::remove_file(&output).unwrap();
+}
+
+/// Схемы СОПС на всём корпусе: разбор не должен ни падать, ни терять шаги.
+#[test]
+#[ignore]
+fn parses_every_route_into_a_graph() {
+    let Ok(root) = std::env::var("FESB_CORPUS") else {
+        eprintln!("FESB_CORPUS не задан — пропускаем");
+        return;
+    };
+
+    let mut files = Vec::new();
+    collect_routes(&PathBuf::from(root), &mut files);
+    assert!(files.len() > 2000, "в корпусе должно быть больше двух тысяч СОПС, найдено {}", files.len());
+
+    let mut graphs = 0usize;
+    let mut steps = 0usize;
+    let mut without_from = Vec::new();
+    let mut kinds: BTreeMap<String, usize> = BTreeMap::new();
+
+    for file in &files {
+        let xml = std::fs::read_to_string(file).unwrap();
+        let parsed = parse_route_graphs(&xml);
+        assert!(!parsed.is_empty(), "маршрут не разобрался: {}", file.display());
+
+        for graph in parsed {
+            graphs += 1;
+            steps += graph.steps;
+            // Любая схема начинается с точки входа — иначе разбор потерял начало.
+            match graph.nodes.first() {
+                Some(node) if node.kind == "from" => {}
+                _ => without_from.push(file.clone()),
+            }
+            walk(&graph.nodes, &mut kinds);
+        }
+    }
+
+    println!("схем {graphs}, шагов {steps}");
+    println!("частые шаги:");
+    let mut top: Vec<_> = kinds.iter().collect();
+    top.sort_by(|a, b| b.1.cmp(a.1));
+    for (kind, count) in top.iter().take(15) {
+        println!("  {kind:20} {count}");
+    }
+
+    assert!(without_from.is_empty(), "схемы без точки входа: {:?}", &without_from[..without_from.len().min(3)]);
+    // Ни один язык выражений не должен остаться отдельным шагом.
+    for language in ["simple", "groovy", "xpath", "spel", "constant", "jaxb", "json", "description", "exception"] {
+        assert_eq!(kinds.get(language), None, "{language} должен сворачиваться в шаг, а не быть шагом");
+    }
+    assert!(steps > 10_000, "шагов подозрительно мало: {steps}");
+}
+
+fn walk(nodes: &[fesb_settings_editor_lib::testing::RouteNode], kinds: &mut BTreeMap<String, usize>) {
+    for node in nodes {
+        *kinds.entry(node.kind.clone()).or_default() += 1;
+        walk(&node.children, kinds);
+    }
+}
+
+fn collect_routes(dir: &PathBuf, files: &mut Vec<PathBuf>) {
+    let Ok(entries) = std::fs::read_dir(dir) else { return };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.is_dir() {
+            collect_routes(&path, files);
+        } else if path
+            .file_name()
+            .and_then(|name| name.to_str())
+            .is_some_and(|name| name.starts_with("route-") && name.ends_with(".xml"))
+        {
+            files.push(path);
+        }
+    }
+}
+
+/// Служебный прогон: печатает разбор одного файла в JSON.
+/// `FESB_ROUTE=/путь/route-….xml cargo test --test corpus dump_route -- --ignored --nocapture`
+#[test]
+#[ignore]
+fn dump_route() {
+    let Ok(file) = std::env::var("FESB_ROUTE") else { return };
+    let xml = std::fs::read_to_string(file).unwrap();
+    println!("{}", serde_json::to_string(&parse_route_graphs(&xml)).unwrap());
 }

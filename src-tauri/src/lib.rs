@@ -9,6 +9,7 @@ mod domain_xml;
 mod fesb_api;
 mod fesb_ops;
 mod properties;
+mod route_graph;
 mod route_xml;
 mod scanner;
 mod xml;
@@ -25,6 +26,7 @@ use fesb_ops::{
     DomainActionResult, LogEntry, LogFileRow, LogRequest, ManagerKind, ModuleRow, PropertyRow,
     PropertyScope, QueueManager, QueueRow,
 };
+use route_graph::{parse_route_graphs, RouteGraph};
 use scanner::{scan_root, ScanResult};
 
 const SCAN_PROGRESS_EVENT: &str = "scan:progress";
@@ -157,6 +159,17 @@ async fn api_push(
     .await
 }
 
+/// Разбирает файл СОПС в дерево шагов — из него рисуется схема.
+#[tauri::command]
+async fn read_route(path: String) -> Result<Vec<RouteGraph>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let xml = std::fs::read_to_string(&path).map_err(|err| format!("{path}: {err}"))?;
+        Ok(parse_route_graphs(&xml))
+    })
+    .await
+    .map_err(|err| format!("Reading interrupted: {err}"))?
+}
+
 /// Забирает домены заново и сверяет трассировку с локальными файлами.
 #[tauri::command]
 async fn api_verify(
@@ -260,6 +273,7 @@ pub fn run() {
             apply_trace,
             open_archive,
             build_archive,
+            read_route,
             api_connect,
             api_domains,
             api_pull,
@@ -292,5 +306,6 @@ pub mod testing {
     };
     pub use crate::archive::create_archive;
     pub use crate::domain_xml::{parse_domain_xml, BeanTarget, TraceUpdate};
+    pub use crate::route_graph::{parse_route_graphs, RouteNode};
     pub use crate::scanner::scan_root;
 }

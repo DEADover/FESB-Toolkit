@@ -15,6 +15,7 @@ import type {
   Connection, PushResult, QueueManager, ScanResult, ServerInfo, TraceUpdate, VerifyResult,
 } from '../types'
 import { ReportDialog } from './ReportDialog'
+import { RouteViewer } from './RouteViewer'
 import { TraceTable } from './TraceTable'
 import { Badge, Button, Checkbox, Modal, ScrollStrip, Spinner, Stat, SuggestInput, TextInput, cx } from './ui'
 
@@ -66,6 +67,8 @@ export function TraceScreen({ scan, isMac, sourcePath, server, onRescan }: Props
   const [archive, setArchive] = useState<ArchiveResult | null>(null)
 
   /** Одно окно выбора охвата на два действия: отправку и сверку. */
+  /** Открытая схема СОПС: путь к файлу и домен, которому он принадлежит. */
+  const [route, setRoute] = useState<{ path: string; domain: string } | null>(null)
   const [scopeMode, setScopeMode] = useState<'push' | 'verify' | null>(null)
   const [pushing, setPushing] = useState(false)
   const [pushProgress, setPushProgress] = useState<ApiProgress | null>(null)
@@ -582,6 +585,7 @@ export function TraceScreen({ scan, isMac, sourcePath, server, onRescan }: Props
         onToggleExpand={toggleExpand}
         onSort={handleSort}
         onReveal={revealPath}
+        onOpenRoute={(path, domain) => setRoute({ path, domain })}
       />
 
       <div className="rounded-xl border border-line bg-surface">
@@ -652,6 +656,12 @@ export function TraceScreen({ scan, isMac, sourcePath, server, onRescan }: Props
           </div>
         </div>
       </div>
+
+      <RouteViewer
+        path={route?.path ?? null}
+        domainName={route?.domain ?? null}
+        onClose={() => setRoute(null)}
+      />
 
       <Modal
         open={confirmOpen}

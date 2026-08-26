@@ -335,3 +335,44 @@ export interface LogRequest {
   search: string | null
   limit: number
 }
+
+// ─────────────────────────── схема СОПС ───────────────────────────
+
+export interface RouteExpression {
+  language: string
+  text: string
+}
+
+export interface RouteAttribute {
+  name: string
+  value: string
+}
+
+export interface RouteNode {
+  /** Имя элемента Camel: `to`, `choice`, `doTry`, `setHeader`… */
+  kind: string
+  /** Подпись из редактора схем FESB. */
+  label: string | null
+  /** Блок редактора, которым поставлен шаг. */
+  component: string | null
+  uri: string | null
+  expression: RouteExpression | null
+  description: string | null
+  format: string | null
+  exceptions: string[]
+  attributes: RouteAttribute[]
+  children: RouteNode[]
+  line: number
+}
+
+export interface RouteGraph {
+  id: string | null
+  name: string | null
+  description: string | null
+  traceEnabled: boolean
+  traceConfig: string | null
+  /** Сколько шагов в схеме, включая вложенные ветки. */
+  steps: number
+  nodes: RouteNode[]
+  line: number
+}

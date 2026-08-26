@@ -21,6 +21,8 @@ interface Props {
   onToggleExpand: (id: string) => void
   onSort: (key: SortKey) => void
   onReveal: (path: string) => void
+  /** Открывает схему СОПС: путь к файлу маршрута и имя домена. */
+  onOpenRoute: (path: string, domainName: string) => void
 }
 
 const COLUMN_COUNT = 9
@@ -37,7 +39,7 @@ function hasTextSelection(): boolean {
  */
 export function TraceTable({
   groups, selected, changedBeans, expanded, sortKey, sortDir, update,
-  onToggleEntry, onToggleGroup, onToggleAll, onToggleExpand, onSort, onReveal,
+  onToggleEntry, onToggleGroup, onToggleAll, onToggleExpand, onSort, onReveal, onOpenRoute,
 }: Props) {
   const { t } = useI18n()
   const headCheckbox = useRef<HTMLInputElement>(null)
@@ -226,6 +228,7 @@ export function TraceTable({
                         key={`${route.file}-${route.id ?? index}`}
                         route={route}
                         onReveal={() => onReveal(`${domain.dirPath}/routes/${route.file}`)}
+                        onOpen={() => onOpenRoute(`${domain.dirPath}/routes/${route.file}`, domain.domainName)}
                       />
                     ))
                   )}
@@ -337,7 +340,7 @@ function BeanRow({ entry, number, changed, domain, selected, update, onToggle }:
   )
 }
 
-function RouteRow({ route, onReveal }: { route: RouteInfo; onReveal: () => void }) {
+function RouteRow({ route, onReveal, onOpen }: { route: RouteInfo; onReveal: () => void; onOpen: () => void }) {
   const { t } = useI18n()
   return (
     <SubRow>
@@ -345,9 +348,17 @@ function RouteRow({ route, onReveal }: { route: RouteInfo; onReveal: () => void 
       <Cell className="py-1.5" />
       <Cell className="py-1.5">
         <div className="ml-5 min-w-0 border-l border-line-strong pl-3">
-          <div className={cx('select-text truncate', !route.name && 'text-content-subtle')} title={route.name ?? undefined}>
+          <button
+            type="button"
+            onClick={(event) => { event.stopPropagation(); onOpen() }}
+            title={t('route.openHint')}
+            className={cx(
+              'block w-full truncate text-left transition hover:text-accent-content hover:underline',
+              !route.name && 'text-content-subtle',
+            )}
+          >
             {route.name ?? t('routes.unknownName')}
-          </div>
+          </button>
           <div className="select-text font-mono text-[10px] text-content-subtle">{route.id}</div>
         </div>
       </Cell>

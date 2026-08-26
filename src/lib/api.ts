@@ -9,7 +9,7 @@ import type {
   ArchiveResult, Connection, DomainAction, DomainActionResult, ExtractResult, LogEntry,
   LogFileRow, LogRequest, ManagerKind,
   ModuleAction, ModuleRow, PropertyRow, PropertyScope, PullResult, PushResult, QueueManager,
-  QueueRow, ScanProgress, ScanResult, ServerInfo, TraceUpdate, VerifyResult,
+  QueueRow, RouteGraph, ScanProgress, ScanResult, ServerInfo, TraceUpdate, VerifyResult,
 } from '../types'
 
 /** Единственная точка соприкосновения интерфейса с бэкендом на Rust. */
@@ -57,6 +57,11 @@ export function buildArchive(root: string, output: string, domains: string[] | n
 
 export function saveZipAs(title: string, defaultName: string): Promise<string | null> {
   return save({ title, defaultPath: defaultName, filters: [{ name: 'ZIP', extensions: ['zip'] }] })
+}
+
+/** Разбирает файл СОПС в дерево шагов — из него рисуется схема. */
+export function readRoute(path: string): Promise<RouteGraph[]> {
+  return invoke<RouteGraph[]>('read_route', { path })
 }
 
 export function appInfo(): Promise<AppInfo> {
