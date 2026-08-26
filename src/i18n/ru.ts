@@ -399,6 +399,20 @@ export const ru: Record<keyof typeof en, string> = {
   'nav.api.routes.hint': 'Состояние и схемы',
   'nav.api.routes.title': 'СОПС сервера',
 
+  'nav.api.audit': 'Аудит',
+  'nav.api.audit.title': 'Журнал аудита',
+
+  'audit.search': 'Поиск по аудиту',
+  'audit.ip': 'Адрес',
+  'audit.action': 'Действие',
+  'audit.result': 'Результат',
+  'audit.filter.action': 'Действия',
+  'audit.filter.login': 'Входы',
+  'audit.filter.session': 'Сессии',
+  'audit.failed': 'Неудач: {count}',
+  'audit.failed.hint': 'Неудачные входы и ответы с кодом ошибки',
+  'audit.empty': 'Под эти фильтры ничего не попало',
+
   'map.domains': 'Домены',
   'map.domains.hint': 'активных из всех',
   'map.routes': 'СОПС',

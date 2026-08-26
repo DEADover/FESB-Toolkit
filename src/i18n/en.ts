@@ -399,6 +399,20 @@ export const en = {
   'nav.api.routes.hint': 'Live State And Diagrams',
   'nav.api.routes.title': 'Server Routes',
 
+  'nav.api.audit': 'Audit',
+  'nav.api.audit.title': 'Audit Trail',
+
+  'audit.search': 'Search In The Audit Trail',
+  'audit.ip': 'Address',
+  'audit.action': 'Action',
+  'audit.result': 'Result',
+  'audit.filter.action': 'Actions',
+  'audit.filter.login': 'Logins',
+  'audit.filter.session': 'Sessions',
+  'audit.failed': 'Failures: {count}',
+  'audit.failed.hint': 'Failed Logins And Answers With An Error Code',
+  'audit.empty': 'Nothing Matches These Filters',
+
   'map.domains': 'Domains',
   'map.domains.hint': 'Active Of Total',
   'map.routes': 'Routes',

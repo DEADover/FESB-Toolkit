@@ -527,6 +527,66 @@ mod tests {
     }
 
     /// Фронтенд присылает уровень как есть, поэтому форма ответа зафиксирована.
+    const ACTION: &str = "Пользователь: root [ip=172.20.0.1], Действие: BROKER_DOMAINS_IMPORT \n\nАргументы: [domain-047],null,true, \n\nРезультат: <200 OK OK,[Content-Type:\"application/json\"]>;";
+
+    #[test]
+    fn reads_who_did_what_from_the_audit_log() {
+        let entry = parse_audit(Some("2026-08-27T00:06:10.488".into()), ACTION);
+        assert_eq!(entry.kind, "action");
+        assert_eq!(entry.user.as_deref(), Some("root"));
+        assert_eq!(entry.ip.as_deref(), Some("172.20.0.1"));
+        assert_eq!(entry.action.as_deref(), Some("BROKER_DOMAINS_IMPORT"));
+        // Хвостовая запятая — часть разделителя, а не аргумент.
+        assert_eq!(entry.arguments.as_deref(), Some("[domain-047],null,true"));
+        assert_eq!(entry.status, Some(200));
+    }
+
+    #[test]
+    fn reads_session_events_too() {
+        let text = "Закрытие сессии WebSessionInfo{ user=root, ip=172.20.0.1, created=2026-08-25T18:45:24.378, lastAccessed=2026-08-25T20:42:08.297}";
+        let entry = parse_audit(None, text);
+        assert_eq!(entry.kind, "session");
+        assert_eq!(entry.user.as_deref(), Some("root"));
+        assert_eq!(entry.ip.as_deref(), Some("172.20.0.1"));
+        assert_eq!(entry.action.as_deref(), Some("Закрытие сессии"));
+
+        // Анонимная сессия помечена прочерком — это не имя пользователя.
+        let anonymous = parse_audit(None, "Закрытие сессии WebSessionInfo{ user=-, ip=10.0.0.1, created=x}");
+        assert_eq!(anonymous.user, None);
+        assert_eq!(anonymous.ip.as_deref(), Some("10.0.0.1"));
+    }
+
+    #[test]
+    fn reads_logins_and_failed_attempts() {
+        let ok = parse_audit(None, "Login: Local user - root [ip=172.20.0.1]");
+        assert_eq!(ok.kind, "login");
+        assert_eq!(ok.action.as_deref(), Some("Login"));
+        assert_eq!(ok.user.as_deref(), Some("root"));
+        assert_eq!(ok.ip.as_deref(), Some("172.20.0.1"));
+
+        let failed = parse_audit(None, "Login failed: Bad credentials: user -  root [ip=172.20.0.1]");
+        assert_eq!(failed.action.as_deref(), Some("Login failed"));
+        assert_eq!(failed.user.as_deref(), Some("root"));
+        assert_eq!(failed.ip.as_deref(), Some("172.20.0.1"));
+    }
+
+    #[test]
+    fn keeps_a_line_it_does_not_understand() {
+        let entry = parse_audit(None, "что-то своё");
+        assert_eq!(entry.kind, "other");
+        assert_eq!(entry.text, "что-то своё");
+        assert!(entry.action.is_none());
+    }
+
+    #[test]
+    fn survives_an_action_without_a_result() {
+        // У асинхронных вызовов «Результат» в строку не попадает.
+        let entry = parse_audit(None, "Пользователь: root [ip=1.2.3.4], Действие: MANAGER_MODULE_RESTART \n\nАргументы: [factor-broker], ");
+        assert_eq!(entry.action.as_deref(), Some("MANAGER_MODULE_RESTART"));
+        assert_eq!(entry.arguments.as_deref(), Some("[factor-broker]"));
+        assert_eq!(entry.status, None);
+    }
+
     #[test]
     fn decodes_the_message_body_the_bus_sends() {
         // именно так шина отдала «проверка просмотра сообщений»
@@ -1002,4 +1062,120 @@ pub async fn queue_message(
         .await
         .map_err(|err| format!("Unexpected answer: {err}"))?;
     message_from(&item).ok_or_else(|| "The bus returned a message without an id".to_string())
+}
+
+// ───────────────────────────── аудит ─────────────────────────────
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AuditEntry {
+    pub timestamp: Option<String>,
+    /// `action` — действие пользователя, `session` — вход или выход, `other` — прочее.
+    pub kind: String,
+    pub user: Option<String>,
+    pub ip: Option<String>,
+    /// Код действия шины: `BROKER_DOMAINS_IMPORT`, `MANAGER_MODULE_RESTART`…
+    pub action: Option<String>,
+    pub arguments: Option<String>,
+    /// Код ответа из «Результат: <200 OK …>», если он там был.
+    pub status: Option<i64>,
+    pub text: String,
+}
+
+/// Забирает текст между двумя метками, не падая, если второй нет.
+fn slice_between<'a>(text: &'a str, from: &str, to: &str) -> Option<&'a str> {
+    let start = text.find(from)? + from.len();
+    let rest = &text[start..];
+    let end = rest.find(to).unwrap_or(rest.len());
+    Some(rest[..end].trim())
+}
+
+/// Разбирает строку журнала аудита.
+///
+/// В файле два вида записей: действия пользователя от `AuditAspect`
+/// («Пользователь: … Действие: … Аргументы: … Результат: …») и события сессий
+/// от `SecurityAudit` («… WebSessionInfo{ user=…, ip=… }»). Всё остальное
+/// остаётся как есть — терять строки аудита нельзя.
+fn parse_audit(timestamp: Option<String>, text: &str) -> AuditEntry {
+    let mut entry = AuditEntry {
+        timestamp,
+        kind: "other".into(),
+        user: None,
+        ip: None,
+        action: None,
+        arguments: None,
+        status: None,
+        text: text.to_string(),
+    };
+
+    if text.contains("Пользователь:") {
+        entry.kind = "action".into();
+        if let Some(head) = slice_between(text, "Пользователь:", ", Действие:") {
+            let (user, ip) = match head.split_once("[ip=") {
+                Some((user, rest)) => (user.trim(), Some(rest.trim_end_matches(']').trim().to_string())),
+                None => (head, None),
+            };
+            entry.user = Some(user.trim().to_string()).filter(|value| !value.is_empty());
+            entry.ip = ip.filter(|value| !value.is_empty());
+        }
+        entry.action = slice_between(text, "Действие:", "\n").map(|value| value.trim().to_string());
+        entry.arguments = slice_between(text, "Аргументы:", "Результат:")
+            .map(|value| value.trim().trim_end_matches(',').to_string())
+            .filter(|value| !value.is_empty());
+        entry.status = slice_between(text, "Результат: <", " ")
+            .and_then(|value| value.trim().parse().ok());
+        return entry;
+    }
+
+    // Вход и особенно неудачная попытка входа — то, ради чего аудит и читают.
+    if text.starts_with("Login") {
+        entry.kind = "login".into();
+        entry.action = text.split(':').next().map(|value| value.trim().to_string());
+        if let Some(head) = text.split("[ip=").nth(1) {
+            entry.ip = Some(head.trim_end_matches(']').trim().to_string()).filter(|value| !value.is_empty());
+        }
+        entry.user = text
+            .split("[ip=")
+            .next()
+            .and_then(|head| head.rsplit('-').next())
+            .map(|value| value.trim().to_string())
+            .filter(|value| !value.is_empty() && value != "-");
+        return entry;
+    }
+
+    if let Some(info) = slice_between(text, "WebSessionInfo{", "}") {
+        entry.kind = "session".into();
+        // «Закрытие сессии WebSessionInfo{…}» — действие стоит перед скобкой.
+        entry.action = text.split("WebSessionInfo").next().map(|value| value.trim().to_string());
+        for part in info.split(',') {
+            let Some((name, value)) = part.split_once('=') else { continue };
+            let value = value.trim();
+            match name.trim() {
+                "user" if value != "-" => entry.user = Some(value.to_string()),
+                "ip" => entry.ip = Some(value.to_string()),
+                _ => {}
+            }
+        }
+    }
+
+    entry
+}
+
+/// Журнал аудита, разобранный по записям.
+pub async fn audit(connection: &Connection, request: LogRequest) -> Result<Vec<AuditEntry>, String> {
+    let entries = log_entries(
+        connection,
+        LogRequest {
+            logs: vec!["audit.log".into()],
+            levels: Vec::new(),
+            search: request.search,
+            limit: request.limit,
+        },
+    )
+    .await?;
+
+    Ok(entries
+        .into_iter()
+        .map(|entry| parse_audit(entry.timestamp, entry.message.as_deref().unwrap_or_default()))
+        .collect())
 }

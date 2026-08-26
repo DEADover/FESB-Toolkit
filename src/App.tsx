@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
+import { AuditScreen } from './components/AuditScreen'
 import { ConnectionScreen } from './components/ConnectionScreen'
 import { DomainLinksScreen } from './components/DomainLinksScreen'
 import { ENVIRONMENT_LABEL, ENVIRONMENT_TONE, ServerSwitch } from './components/HeaderBar'
@@ -260,6 +261,7 @@ export default function App() {
     'api.connection': 'nav.api.connection.title',
     'api.domains': 'nav.api.domains.title',
     'files.links': 'nav.files.links.title',
+    'api.audit': 'nav.api.audit.title',
     'api.map': 'nav.api.map.title',
     'api.routes': 'nav.api.routes.title',
     'api.queues': 'nav.api.queues.title',
@@ -371,6 +373,8 @@ export default function App() {
           <PropertiesScreen {...apiScreenProps} />
         ) : screen === 'api.logs' ? (
           <LogsScreen {...apiScreenProps} />
+        ) : screen === 'api.audit' ? (
+          <AuditScreen {...apiScreenProps} />
         ) : isLinksScreen ? (
           <DomainLinksScreen scan={scan} isMac={isMac} />
         ) : !scan ? (

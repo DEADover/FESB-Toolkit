@@ -14,6 +14,7 @@ export type ScreenId =
   | 'api.modules'
   | 'api.properties'
   | 'api.logs'
+  | 'api.audit'
 
 interface Section {
   title: MessageKey
@@ -41,6 +42,7 @@ const SECTIONS: Section[] = [
       { id: 'api.modules', label: 'nav.api.modules', icon: '⬒' },
       { id: 'api.properties', label: 'nav.api.properties', icon: '◈' },
       { id: 'api.logs', label: 'nav.api.logs', icon: '☰' },
+      { id: 'api.audit', label: 'nav.api.audit', icon: '✓' },
     ],
   },
 ]

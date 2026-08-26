@@ -6,7 +6,8 @@ import { revealItemInDir } from '@tauri-apps/plugin-opener'
 
 import type {
   ApiDomain, ApiProgress, AppInfo, ApplyProgress, ApplyReport, ApplyTarget, ArchiveProgress,
-  ArchiveResult, Connection, DomainAction, DomainActionResult, DomainRoutes, DomainStat,
+  ArchiveResult, AuditEntry, Connection, DomainAction, DomainActionResult, DomainRoutes,
+  DomainStat,
   ExtractResult, LinkGraph, LogEntry,
   LogFileRow, LogRequest, ManagerKind,
   ModuleAction, ModuleRow, PropertyRow, PropertyScope, PullResult, PushResult, QueueManager,
@@ -255,6 +256,11 @@ export function apiLogFiles(connection: Connection): Promise<LogFileRow[]> {
 
 export function apiLog(connection: Connection, request: LogRequest): Promise<LogEntry[]> {
   return invoke<LogEntry[]>('api_log', { connection, request })
+}
+
+/** Журнал аудита, разобранный на пользователя, действие и результат. */
+export function apiAudit(connection: Connection, request: LogRequest): Promise<AuditEntry[]> {
+  return invoke<AuditEntry[]>('api_audit', { connection, request })
 }
 
 /** Понятный текст для ошибки, прилетевшей из команды Tauri. */

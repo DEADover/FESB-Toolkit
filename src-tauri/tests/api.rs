@@ -13,7 +13,7 @@ use std::path::PathBuf;
 use fesb_settings_editor_lib::testing::{
     apply_trace_change, connect, domains, log_entries, log_files, modules, properties, pull, push,
     queue_managers, queues, save_property, delete_property, verify, domain_statistics,
-    fetch_domain_routes, queue_message, queue_messages, route_state, ApplyRequest, ApplyTarget,
+    audit, fetch_domain_routes, queue_message, queue_messages, route_state, ApplyRequest, ApplyTarget,
     BeanTarget, Connection, LogRequest, ManagerKind, PropertyRow, PropertyScope, TraceUpdate,
 };
 
@@ -470,5 +470,49 @@ fn reads_messages_of_a_queue() {
     assert!(
         full.properties.iter().any(|item| !item.name.is_empty()),
         "свойства сообщения потерялись",
+    );
+}
+
+/// Журнал аудита на живом стенде: он должен разбираться, а не оставаться текстом.
+#[test]
+#[ignore]
+fn reads_the_audit_trail() {
+    let Some(connection) = connection() else {
+        eprintln!("FESB_URL не задан — пропускаем");
+        return;
+    };
+    let entries = block(audit(
+        &connection,
+        LogRequest { logs: Vec::new(), levels: Vec::new(), search: None, limit: Some(500) },
+    ))
+    .expect("аудит");
+
+    let actions: Vec<_> = entries.iter().filter(|item| item.kind == "action").collect();
+    let sessions = entries.iter().filter(|item| item.kind == "session").count();
+    let unknown = entries.iter().filter(|item| item.kind == "other").count();
+
+    println!("записей {}, действий {}, сессий {sessions}, неразобранных {unknown}", entries.len(), actions.len());
+    let mut kinds: std::collections::BTreeMap<&str, usize> = std::collections::BTreeMap::new();
+    for item in &actions {
+        *kinds.entry(item.action.as_deref().unwrap_or("—")).or_default() += 1;
+    }
+    for (name, count) in kinds.iter().take(8) {
+        println!("  {name:38} {count}");
+    }
+
+    assert!(!entries.is_empty(), "аудит пуст");
+    assert!(!actions.is_empty(), "ни одного действия не разобралось");
+    assert!(
+        actions.iter().all(|item| item.user.is_some()),
+        "у действия должен быть пользователь",
+    );
+    assert!(
+        actions.iter().any(|item| item.status == Some(200)),
+        "ни у одного действия не разобрался код ответа",
+    );
+    // Инструмент сам ходит в шину, и его выгрузки обязаны быть в аудите.
+    assert!(
+        kinds.contains_key("BROKER_DOMAINS_EXPORT"),
+        "не видно выгрузок доменов, которые делает само приложение",
     );
 }

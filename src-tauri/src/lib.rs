@@ -24,7 +24,7 @@ use applier::{apply_trace_change, ApplyReport, ApplyRequest};
 use archive::{create_archive, extract_archive, ArchiveResult, ExtractResult};
 use fesb_api::{ApiDomain, Connection, DomainRoutes, PullResult, PushResult, ServerInfo, VerifyResult};
 use fesb_ops::{
-    DomainActionResult, DomainStat, LogEntry, LogFileRow, LogRequest, ManagerKind, ModuleRow,
+    AuditEntry, DomainActionResult, DomainStat, LogEntry, LogFileRow, LogRequest, ManagerKind, ModuleRow,
     PropertyRow, PropertyScope, QueueManager, QueueMessage, QueueRow, RouteState, SavePoint,
 };
 use route_graph::{parse_route_graphs, RouteGraph};
@@ -344,6 +344,12 @@ async fn api_log_files(connection: Connection) -> Result<Vec<LogFileRow>, String
     fesb_ops::log_files(&connection).await
 }
 
+/// Журнал аудита: кто и что делал на стенде.
+#[tauri::command]
+async fn api_audit(connection: Connection, request: LogRequest) -> Result<Vec<AuditEntry>, String> {
+    fesb_ops::audit(&connection, request).await
+}
+
 /// Записи журнала, свежие сверху.
 #[tauri::command]
 async fn api_log(connection: Connection, request: LogRequest) -> Result<Vec<LogEntry>, String> {
@@ -388,7 +394,8 @@ pub fn run() {
             api_save_property,
             api_delete_property,
             api_log_files,
-            api_log
+            api_log,
+            api_audit
         ])
         .run(tauri::generate_context!())
         .expect("failed to start the application");
@@ -402,7 +409,7 @@ pub mod testing {
     pub use crate::fesb_api::fetch_domain_routes;
     pub use crate::fesb_ops::{
         delete_property, domain_statistics, log_entries, log_files, modules, properties,
-        queue_managers, queue_message, queue_messages, queues, route_state, save_property,
+        audit, queue_managers, queue_message, queue_messages, queues, route_state, save_property,
         LogRequest, ManagerKind, PropertyRow,
         PropertyScope,
     };

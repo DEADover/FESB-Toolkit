@@ -494,3 +494,15 @@ export interface RouteNeighbours {
   incoming: RouteNeighbour[]
   outgoing: RouteNeighbour[]
 }
+
+export interface AuditEntry {
+  timestamp: string | null
+  /** `action` — действие, `login` — вход, `session` — сессия, `other` — прочее. */
+  kind: string
+  user: string | null
+  ip: string | null
+  action: string | null
+  arguments: string | null
+  status: number | null
+  text: string
+}
