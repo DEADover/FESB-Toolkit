@@ -114,6 +114,7 @@ export const en = {
   'panel.noRoutes': 'This Domain Has No Routes',
   'filter.untracedRoutes': 'With Untraced Routes',
 
+  'links.chipMany': '{count} Routes',
   'links.incoming': 'Called By ({count})',
   'links.outgoing': 'Calls ({count})',
   'links.none': 'This Route Is Not Linked To Any Other',

@@ -115,6 +115,7 @@ export const ru: Record<keyof typeof en, string> = {
   'panel.noRoutes': 'В домене нет СОПС',
   'filter.untracedRoutes': 'Есть СОПС без трассировки',
 
+  'links.chipMany': 'схем: {count}',
   'links.incoming': 'Вызывают ({count})',
   'links.outgoing': 'Вызывает ({count})',
   'links.none': 'Эта схема не связана с другими',

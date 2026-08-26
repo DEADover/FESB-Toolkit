@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 
 import { useI18n, type MessageKey, type Translate } from '../i18n'
-import type { RouteNode } from '../types'
+import { normalizeUri } from '../lib/links'
+import type { RouteNeighbour, RouteNode } from '../types'
 import { cx } from './ui'
 
 /**
@@ -18,7 +19,7 @@ import { cx } from './ui'
 const EVENT = 56
 const EVENT_LABEL = 30
 const TASK_W = 178
-const TASK_H = 92
+const TASK_H = 100
 const GATE = 54
 const CHIP_W = 152
 const CHIP_H = 46
@@ -377,6 +378,10 @@ interface Props {
   nodes: RouteNode[]
   selected: RouteNode | null
   onSelect: (node: RouteNode | null) => void
+  /** Соседи по адресу: `to direct://X` показывает, в какую схему ведёт. */
+  outgoing?: Map<string, RouteNeighbour[]>
+  incoming?: RouteNeighbour[]
+  onOpenRoute?: (path: string) => void
 }
 
 // Длинные схемы идут в одну линию на несколько тысяч точек, поэтому «вписать»
@@ -384,7 +389,7 @@ interface Props {
 const MIN_SCALE = 0.1
 const MAX_SCALE = 2.5
 
-export function RouteDiagram({ nodes, selected, onSelect }: Props) {
+export function RouteDiagram({ nodes, selected, onSelect, outgoing, incoming, onOpenRoute }: Props) {
   const { t } = useI18n()
   const viewport = useRef<HTMLDivElement>(null)
   const layout = useMemo(() => layoutRoute(nodes), [nodes])
@@ -511,6 +516,8 @@ export function RouteDiagram({ nodes, selected, onSelect }: Props) {
             box={box}
             selected={box.node !== null && box.node === selected}
             onSelect={onSelect}
+            neighbours={neighboursFor(box.node, outgoing, incoming)}
+            onOpenRoute={onOpenRoute}
             t={t}
           />
         ))}
@@ -558,10 +565,57 @@ const TONE_BORDER: Record<Box['tone'], string> = {
   error: 'border-negative/45 bg-negative/10',
 }
 
-function BoxView({ box, selected, onSelect, t }: {
+/** Связи, относящиеся к конкретному шагу: вход знает вызывающих, отправка — куда ведёт. */
+function neighboursFor(
+  node: RouteNode | null,
+  outgoing?: Map<string, RouteNeighbour[]>,
+  incoming?: RouteNeighbour[],
+): RouteNeighbour[] {
+  if (!node) return []
+  if (node.kind === 'from') return incoming ?? []
+  if (!node.uri || !outgoing) return []
+  const key = normalizeUri(node.uri)
+  return key ? outgoing.get(key) ?? [] : []
+}
+
+/** Чип со связью: сколько схем и куда ведёт шаг. */
+function LinkChip({ neighbours, onOpen, t }: {
+  neighbours: RouteNeighbour[]
+  onOpen?: (path: string) => void
+  t: Translate
+}) {
+  if (neighbours.length === 0) return null
+  const first = neighbours[0]
+  const label = neighbours.length > 1
+    ? t('links.chipMany', { count: neighbours.length })
+    : first.name ?? t('routes.unknownName')
+
+  return (
+    <span
+      role={onOpen ? 'button' : undefined}
+      title={neighbours.map((item) => `${item.domain} · ${item.name ?? ''}`).join('\n')}
+      onClick={(event) => {
+        if (!onOpen) return
+        event.stopPropagation()
+        onOpen(first.path)
+      }}
+      className={cx(
+        'mt-1 flex items-center gap-1 truncate rounded bg-accent/12 px-1 text-[9.5px] text-accent-content',
+        onOpen && 'cursor-pointer hover:bg-accent/25',
+      )}
+    >
+      <span className="shrink-0">⇢</span>
+      <span className="truncate">{label}</span>
+    </span>
+  )
+}
+
+function BoxView({ box, selected, onSelect, neighbours, onOpenRoute, t }: {
   box: Box
   selected: boolean
   onSelect: (node: RouteNode | null) => void
+  neighbours: RouteNeighbour[]
+  onOpenRoute?: (path: string) => void
   t: Translate
 }) {
   const style = { left: box.x, top: box.y, width: box.w, height: box.h } as const
@@ -633,6 +687,9 @@ function BoxView({ box, selected, onSelect, t }: {
           className="pointer-events-none absolute left-1/2 top-full mt-1 w-44 -translate-x-1/2 truncate text-center text-[11px] font-medium text-content"
         >
           {node.label ?? kindLabel(node.kind, t)}
+          {box.shape === 'start' && neighbours.length > 0 && (
+            <span className="ml-1 text-accent-content">← {neighbours.length}</span>
+          )}
         </span>
       </button>
     )
@@ -717,6 +774,7 @@ function BoxView({ box, selected, onSelect, t }: {
         {node.label ?? kindLabel(node.kind, t)}
       </span>
       {note && <span className="mt-auto truncate font-mono text-[10px] text-content-subtle">{note}</span>}
+      <LinkChip neighbours={neighbours} onOpen={onOpenRoute} t={t} />
     </button>
   )
 }

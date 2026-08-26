@@ -130,8 +130,13 @@ export function ServerSwitch({ store, active, server, connecting, onConnect, onD
   )
 }
 
-/** Журнал событий приложения: что сделано и что сломалось. */
-export function StatusLog() {
+/**
+ * Журнал событий приложения: что сделано и что сломалось.
+ *
+ * Живёт внизу боковой панели, поэтому раскрывается вверх; в свёрнутой полосе
+ * от него остаётся только точка состояния.
+ */
+export function StatusLog({ compact }: { compact?: boolean }) {
   const { t } = useI18n()
   const { events, clear, unseen, markSeen, latest } = useStatus()
   const [open, setOpen] = useState(false)
@@ -152,19 +157,24 @@ export function StatusLog() {
         type="button"
         onClick={toggle}
         title={latest ? latest.text : t('status.empty')}
-        className="flex h-9 items-center gap-2 rounded-lg border border-line-strong bg-surface px-2.5 text-[12.5px] transition hover:bg-surface-2"
+        className={cx(
+          'flex items-center gap-2 rounded-lg border border-line-strong bg-surface transition hover:bg-surface-2',
+          compact ? 'size-9 justify-center px-0' : 'h-9 w-full px-2.5 text-[12.5px]',
+        )}
       >
         <StatusDot kind={latest?.kind ?? 'info'} />
-        <span className="max-w-40 truncate text-content-muted">
-          {latest ? latest.text : t('status.empty')}
-        </span>
+        {!compact && (
+          <span className="min-w-0 flex-1 truncate text-left text-content-muted">
+            {latest ? latest.text : t('status.empty')}
+          </span>
+        )}
         {unseen > 0 && (
           <span className="shrink-0 rounded-full bg-accent-strong px-1.5 text-[10px] font-medium text-white">{unseen}</span>
         )}
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full z-40 mt-1.5 w-[420px] overflow-hidden rounded-xl border border-line-strong bg-surface shadow-2xl">
+        <div className="absolute bottom-full left-0 z-40 mb-1.5 w-[420px] overflow-hidden rounded-xl border border-line-strong bg-surface shadow-2xl">
           <div className="flex items-center gap-2 border-b border-line bg-surface-2 px-3 py-2">
             <span className="text-[11px] tracking-wide text-content-subtle">{t('status.title')}</span>
             <Button size="sm" variant="ghost" className="ml-auto" onClick={clear} disabled={events.length === 0}>

@@ -1,6 +1,32 @@
 import type { LinkGraph, RouteNeighbour, RouteNeighbours } from '../types'
 
 /**
+ * `direct://Name?x=1` → `direct:Name`.
+ *
+ * Повторяет правило бэкенда: связи там считаются по нормализованному адресу,
+ * и чтобы найти шаг схемы, ведущий к соседу, сравнивать надо так же.
+ */
+export function normalizeUri(uri: string): string | null {
+  const head = uri.split('?')[0]?.trim()
+  if (!head) return null
+  const colon = head.indexOf(':')
+  if (colon <= 0) return null
+  const scheme = head.slice(0, colon).toLowerCase()
+  return `${scheme}:${head.slice(colon + 1).replace(/^\/\//, '')}`
+}
+
+/** Соседи, разложенные по адресу: по нему шаг схемы находит свою связь. */
+export function byUri(items: RouteNeighbour[]): Map<string, RouteNeighbour[]> {
+  const map = new Map<string, RouteNeighbour[]>()
+  for (const item of items) {
+    const list = map.get(item.uri)
+    if (list) list.push(item)
+    else map.set(item.uri, [item])
+  }
+  return map
+}
+
+/**
  * Связи одной схемы: кто её вызывает и кого вызывает она.
  *
  * Граф приходит списком рёбер по всей выгрузке — здесь он сужается до одного

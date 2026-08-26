@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useI18n } from '../i18n'
 import { errorText, readRoute, revealPath } from '../lib/api'
 import type { RouteGraph, RouteNeighbours, RouteNode, RouteState } from '../types'
+import { byUri } from '../lib/links'
 import { kindLabel, RouteDiagram, scheme, shortUri } from './RouteDiagram'
 import { Badge, Button, Spinner, cx } from './ui'
 
@@ -132,7 +133,14 @@ export function RouteViewer({ path, domainName, isMac, live, links, onOpenRoute,
             <div className="m-5 rounded-lg border border-negative/40 bg-negative/10 px-3 py-2 text-negative">{error}</div>
           )}
           {!loading && !error && graph && (
-            <RouteDiagram nodes={graph.nodes} selected={selected} onSelect={setSelected} />
+            <RouteDiagram
+              nodes={graph.nodes}
+              selected={selected}
+              onSelect={setSelected}
+              outgoing={links ? byUri(links.outgoing) : undefined}
+              incoming={links?.incoming}
+              onOpenRoute={onOpenRoute}
+            />
           )}
           {!loading && !error && graphs?.length === 0 && (
             <div className="flex h-full items-center justify-center text-content-subtle">{t('route.noGraph')}</div>

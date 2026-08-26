@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { ConnectionScreen } from './components/ConnectionScreen'
-import { ENVIRONMENT_LABEL, ENVIRONMENT_TONE, ServerSwitch, StatusLog } from './components/HeaderBar'
+import { ENVIRONMENT_LABEL, ENVIRONMENT_TONE, ServerSwitch } from './components/HeaderBar'
 import { DomainsScreen } from './components/DomainsScreen'
 import { LogsScreen } from './components/LogsScreen'
 import { MapScreen } from './components/MapScreen'
@@ -313,15 +313,20 @@ export default function App() {
                 </span>
               )}
             </div>
-            <p className="truncate text-[11.5px] text-content-subtle" title={isApiScreen ? session?.server.baseUrl : source?.path}>
-              {isApiScreen
-                ? session
-                  ? `${session.profile.name} · ${session.server.baseUrl} · ${t('api.info.user')}: ${session.server.user}`
-                  : t('api.header.noServer')
-                : source
-                  ? `${sourceLabel}: ${source.path}${scan ? ` · ${t('stats.domains')}: ${scan.domains.length}` : ''}`
+            {/*
+              Имя стенда, адрес и пользователь живут в пилюле подключения справа —
+              в подзаголовке остаётся только то, чего там нет: откуда взята
+              конфигурация в файловом режиме.
+            */}
+            {!isApiScreen && (
+              <p className="truncate text-[11.5px] text-content-subtle" title={source?.path}>
+                {source
+                  ? source.kind === 'server'
+                    ? `${sourceLabel}${scan ? ` · ${t('stats.domains')}: ${scan.domains.length}` : ''}`
+                    : `${sourceLabel}: ${source.path}${scan ? ` · ${t('stats.domains')}: ${scan.domains.length}` : ''}`
                   : t('header.noFolder')}
-            </p>
+              </p>
+            )}
           </div>
           <ServerSwitch
             store={connections}
@@ -332,8 +337,6 @@ export default function App() {
             onDisconnect={disconnect}
             onConfigure={configure}
           />
-          <StatusLog />
-
           {!isApiScreen && root && (
             <Button onClick={rescan} disabled={busy}>
               {scanning ? <Spinner className="size-4" /> : '↻'} {t('action.refresh')}
