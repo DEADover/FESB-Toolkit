@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { useI18n } from '../i18n'
 import { apiLog, apiLogFiles, errorText } from '../lib/api'
@@ -38,6 +38,27 @@ export function LogsScreen({ connection, server, onGoToConnection }: Props) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [expanded, setExpanded] = useState<Set<number>>(new Set())
+  const [copied, setCopied] = useState<number | null>(null)
+
+  const toggle = useCallback((index: number) => {
+    setExpanded((prev) => {
+      const next = new Set(prev)
+      if (next.has(index)) next.delete(index)
+      else next.add(index)
+      return next
+    })
+  }, [])
+
+  /** Стектрейс чаще всего нужен не глазам, а тикету. */
+  const copy = useCallback(async (text: string, index: number) => {
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopied(index)
+      setTimeout(() => setCopied((value) => (value === index ? null : value)), 1500)
+    } catch {
+      // Буфер может быть недоступен — молча остаёмся без копии.
+    }
+  }, [])
 
   // Автообновление не должно перезапускаться от каждой смены фильтра,
   // поэтому таймер дёргает всегда актуальную версию запроса.
@@ -206,15 +227,14 @@ export function LogsScreen({ connection, server, onGoToConnection }: Props) {
               const multiline = message.includes('\n')
               const open = expanded.has(index)
               return (
+                <Fragment key={`${entry.timestamp ?? ''}-${index}`}>
                 <tr
-                  key={`${entry.timestamp ?? ''}-${index}`}
-                  onClick={() => multiline && setExpanded((prev) => {
-                    const next = new Set(prev)
-                    if (next.has(index)) next.delete(index)
-                    else next.add(index)
-                    return next
-                  })}
-                  className={cx('border-b border-line/60 align-top', multiline && 'cursor-pointer hover:bg-surface-2')}
+                  onClick={() => multiline && toggle(index)}
+                  className={cx(
+                    'align-top',
+                    open ? 'bg-surface-2/60' : 'border-b border-line/60',
+                    multiline && 'cursor-pointer hover:bg-surface-2',
+                  )}
                 >
                   <td className="px-3 py-1.5 font-mono text-[11px] text-content-subtle">
                     {formatTime(entry.timestamp)}
@@ -233,20 +253,39 @@ export function LogsScreen({ connection, server, onGoToConnection }: Props) {
                     </div>
                   </td>
                   <td className="px-3 py-1.5">
-                    {open ? (
-                      <pre className="whitespace-pre-wrap break-all font-mono text-[11px] leading-relaxed text-content-muted">
-                        {message}
-                      </pre>
-                    ) : (
-                      <div className="flex items-start gap-2">
-                        <span className="min-w-0 flex-1 truncate font-mono text-[11.5px]">
-                          {message.split('\n')[0] || '—'}
-                        </span>
-                        {multiline && <Badge title={t('logs.expandHint')}>{t('logs.expand')}</Badge>}
-                      </div>
-                    )}
+                    <div className="flex items-start gap-2">
+                      <span className="min-w-0 flex-1 truncate font-mono text-[11.5px]">
+                        {message.split('\n')[0] || '—'}
+                      </span>
+                      {multiline && (
+                        <Badge tone={open ? 'accent' : 'neutral'} title={t('logs.expandHint')}>
+                          {open ? t('logs.collapse') : t('logs.expand')}
+                        </Badge>
+                      )}
+                    </div>
                   </td>
                 </tr>
+
+                {/*
+                  Стектрейс разворачивается отдельной строкой во всю ширину:
+                  внутри колонки сообщений ему достаётся половина экрана,
+                  и каждая строка трейса ломается по два-три раза.
+                */}
+                {open && (
+                  <tr className="border-b border-line/60 bg-surface-2/60">
+                    <td colSpan={4} className="px-3 pb-3">
+                      <div className="flex items-start gap-2">
+                        <pre className="min-w-0 flex-1 whitespace-pre-wrap break-all font-mono text-[11px] leading-relaxed text-content-muted">
+                          {message}
+                        </pre>
+                        <Button size="sm" variant="ghost" onClick={(event) => { event.stopPropagation(); void copy(message, index) }}>
+                          {copied === index ? t('logs.copied') : t('logs.copy')}
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+                </Fragment>
               )
             })}
             {rows.length === 0 && (
