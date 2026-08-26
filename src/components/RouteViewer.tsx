@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useI18n } from '../i18n'
 import { errorText, readRoute, revealPath } from '../lib/api'
 import type { RouteGraph, RouteNode } from '../types'
-import { kindLabel, RouteDiagram, shortUri } from './RouteDiagram'
+import { kindLabel, RouteDiagram, scheme, shortUri } from './RouteDiagram'
 import { Badge, Button, Spinner, cx } from './ui'
 
 interface Props {
@@ -27,8 +27,6 @@ export function RouteViewer({ path, domainName, onClose }: Props) {
   const [selected, setSelected] = useState<RouteNode | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  /** Масштаб схемы: у больших СОПС сотня шагов, целиком они в экран не входят. */
-  const [scale, setScale] = useState(1)
 
   useEffect(() => {
     if (!path) {
@@ -100,19 +98,6 @@ export function RouteViewer({ path, domainName, onClose }: Props) {
           </div>
         )}
 
-        <div className="flex items-center gap-1">
-          <Button size="sm" onClick={() => setScale((value) => Math.max(0.5, Math.round((value - 0.1) * 10) / 10))} aria-label={t('route.zoomOut')}>−</Button>
-          <button
-            type="button"
-            onClick={() => setScale(1)}
-            title={t('route.zoomReset')}
-            className="w-12 rounded-md px-1 py-1 text-center font-mono text-[11px] text-content-subtle transition hover:bg-surface-3 hover:text-content"
-          >
-            {Math.round(scale * 100)}%
-          </button>
-          <Button size="sm" onClick={() => setScale((value) => Math.min(1.6, Math.round((value + 0.1) * 10) / 10))} aria-label={t('route.zoomIn')}>+</Button>
-        </div>
-
         <Button onClick={() => void revealPath(path)}>{t('action.reveal')}</Button>
         <Button variant="primary" onClick={close}>{t('action.close')}</Button>
       </header>
@@ -124,7 +109,7 @@ export function RouteViewer({ path, domainName, onClose }: Props) {
       )}
 
       <div className="flex min-h-0 flex-1">
-        <div className="min-h-0 min-w-0 flex-1 overflow-auto">
+        <div className="relative min-h-0 min-w-0 flex-1">
           {loading && (
             <div className="flex h-full items-center justify-center gap-2 text-content-subtle">
               <Spinner className="size-5" /> {t('empty.scanning')}
@@ -134,10 +119,7 @@ export function RouteViewer({ path, domainName, onClose }: Props) {
             <div className="m-5 rounded-lg border border-negative/40 bg-negative/10 px-3 py-2 text-negative">{error}</div>
           )}
           {!loading && !error && graph && (
-            // zoom, а не transform: при масштабировании должна меняться и область прокрутки.
-            <div style={{ zoom: scale }}>
-              <RouteDiagram nodes={graph.nodes} selected={selected} onSelect={setSelected} />
-            </div>
+            <RouteDiagram nodes={graph.nodes} selected={selected} onSelect={setSelected} />
           )}
           {!loading && !error && graphs?.length === 0 && (
             <div className="flex h-full items-center justify-center text-content-subtle">{t('route.noGraph')}</div>
@@ -154,27 +136,67 @@ export function RouteViewer({ path, domainName, onClose }: Props) {
   )
 }
 
+/** Подробности шага: сводка таблицей, длинные тексты — блоками под ней. */
 function Details({ node }: { node: RouteNode }) {
   const { t } = useI18n()
+  const adapter = node.uri ? scheme(node.uri) : null
+
+  const rows: Array<{ label: string; value: string; mono?: boolean }> = []
+  rows.push({ label: t('route.row.kind'), value: kindLabel(node.kind, t) })
+  if (node.component) rows.push({ label: t('route.row.component'), value: node.component, mono: true })
+  if (adapter) rows.push({ label: t('route.row.adapter'), value: adapter, mono: true })
+  if (node.format) rows.push({ label: t('route.format'), value: node.format, mono: true })
+  for (const exception of node.exceptions) {
+    rows.push({ label: t('route.row.exception'), value: exception, mono: true })
+  }
+  for (const attribute of node.attributes) {
+    rows.push({ label: attribute.name, value: attribute.value || '—', mono: true })
+  }
+
   return (
-    <div className="space-y-4 px-5 py-4">
-      <div>
-        <div className="text-[11px] tracking-wide text-content-subtle">{kindLabel(node.kind, t)}</div>
-        <div className="text-[14px] font-semibold">{node.label ?? kindLabel(node.kind, t)}</div>
-        {node.component && (
-          <div className="mt-0.5 font-mono text-[11px] text-content-subtle">{node.component}</div>
-        )}
+    <div className="flex flex-col">
+      <div className="flex items-start gap-3 border-b border-line px-5 py-4">
+        <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-surface-2 text-[16px] text-content-muted">
+          {STEP_ICON[node.kind] ?? '▪'}
+        </span>
+        <span className="min-w-0">
+          <span className="block text-[10.5px] uppercase tracking-wide text-content-subtle">
+            {kindLabel(node.kind, t)}
+          </span>
+          <span className="block text-[14px] font-semibold leading-tight">
+            {node.label ?? kindLabel(node.kind, t)}
+          </span>
+        </span>
       </div>
+
+      <table className="w-full table-fixed border-collapse text-[11.5px]">
+        <colgroup>
+          <col className="w-28" />
+          <col />
+        </colgroup>
+        <tbody>
+          {rows.map((row, index) => (
+            <tr key={`${row.label}-${index}`} className="border-b border-line/60 align-top odd:bg-surface-2/40">
+              <td className="px-5 py-1.5 text-content-subtle">{row.label}</td>
+              <td className={cx('break-all py-1.5 pr-5 text-content-muted', row.mono && 'font-mono text-[11px]')}>
+                {row.value}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
 
       {node.uri && (
         <Block label={t('route.uri')}>
-          <code className="block break-all font-mono text-[11.5px] text-content-muted">{node.uri}</code>
+          <code className="block break-all rounded-lg bg-surface-2 px-3 py-2 font-mono text-[11px] leading-relaxed text-content-muted">
+            {node.uri}
+          </code>
         </Block>
       )}
 
       {node.expression && (
         <Block label={t('route.expression', { language: node.expression.language })}>
-          <pre className="max-h-72 overflow-auto whitespace-pre-wrap break-all rounded-lg bg-surface-2 px-3 py-2 font-mono text-[11px] leading-relaxed text-content-muted">
+          <pre className="max-h-80 overflow-auto whitespace-pre-wrap break-all rounded-lg bg-surface-2 px-3 py-2 font-mono text-[11px] leading-relaxed text-content-muted">
             {node.expression.text}
           </pre>
         </Block>
@@ -187,45 +209,29 @@ function Details({ node }: { node: RouteNode }) {
           </pre>
         </Block>
       )}
-
-      {node.format && (
-        <Block label={t('route.format')}>
-          <code className="font-mono text-[11.5px] text-content-muted">{node.format}</code>
-        </Block>
-      )}
-
-      {node.exceptions.length > 0 && (
-        <Block label={t('route.exceptions')}>
-          <div className="flex flex-col gap-1">
-            {node.exceptions.map((item) => (
-              <code key={item} className="break-all font-mono text-[11.5px] text-negative">{item}</code>
-            ))}
-          </div>
-        </Block>
-      )}
-
-      {node.attributes.length > 0 && (
-        <Block label={t('route.attributes')}>
-          <dl className="flex flex-col gap-1.5">
-            {node.attributes.map((attribute) => (
-              <div key={attribute.name} className="min-w-0">
-                <dt className="text-[10.5px] text-content-subtle">{attribute.name}</dt>
-                <dd className="break-all font-mono text-[11.5px] text-content-muted">{attribute.value || '—'}</dd>
-              </div>
-            ))}
-          </dl>
-        </Block>
-      )}
-
-      <div className="text-[10.5px] text-content-subtle">{t('table.line')}: {node.line}</div>
     </div>
   )
 }
 
+/** Те же значки, что и на схеме: панель должна узнаваться с одного взгляда. */
+const STEP_ICON: Record<string, string> = {
+  from: '▶', to: '➔', toD: '➔', log: '✎',
+  setHeader: '⊞', setProperty: '⊞', setBody: '⊞',
+  removeHeaders: '⌫', removeHeader: '⌫', removeProperties: '⌫',
+  transform: 'ƒ', bean: '⚙', process: '⚙',
+  marshal: '⇄', unmarshal: '⇄', convertBodyTo: '⇄',
+  choice: '◈', when: '◈', otherwise: '◈', filter: '▽',
+  split: '⑂', loop: '↻',
+  doTry: '⛊', doCatch: '⚠', doFinally: '⤓', onException: '⚠',
+  throwException: '✖', stop: '■',
+  wireTap: '⑃', recipientList: '⋔', pollEnrich: '⇤', enrich: '⇤',
+  aggregate: '⊕', transacted: '⛁',
+}
+
 function Block({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className={cx('min-w-0')}>
-      <div className="mb-1 text-[11px] tracking-wide text-content-subtle">{label}</div>
+    <div className="border-t border-line px-5 py-3">
+      <div className="mb-1.5 text-[10.5px] uppercase tracking-wide text-content-subtle">{label}</div>
       {children}
     </div>
   )
