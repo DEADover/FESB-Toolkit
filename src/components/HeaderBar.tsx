@@ -1,18 +1,19 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import { useI18n, type MessageKey } from '../i18n'
 import { byEnvironment, type ConnectionProfile, type ConnectionStore, type Environment } from '../lib/connection'
-import { useStatus, type StatusEvent, type StatusKind } from '../lib/status'
 import type { ServerInfo } from '../types'
 import { Button, cx } from './ui'
 
 /**
- * Правая часть шапки: к какому стенду мы подключены и что вообще происходит.
+ * Переключатель стенда в шапке.
  *
- * Оба элемента живут на всех экранах, а не только в разделе API: переключиться
- * на другой стенд или посмотреть, чем закончилась долгая операция, нужно
- * ровно тогда, когда занимаешься чем-то другим.
+ * Живёт на всех экранах, а не только в разделе API: сменить стенд нужно ровно
+ * тогда, когда занимаешься чем-то другим.
  */
+
+/** Состояние точки: подключено, идёт подключение или ничего нет. */
+type DotKind = 'info' | 'ok' | 'warn' | 'error'
 
 export const ENVIRONMENT_TONE: Record<Environment, string> = {
   dev: 'border-line-strong bg-surface-3 text-content-muted',
@@ -45,7 +46,7 @@ export function ServerSwitch({ store, active, server, connecting, onConnect, onD
   useClickAway(holder, () => setOpen(false))
 
   const groups = byEnvironment(store.profiles)
-  const state: StatusKind = connecting ? 'warn' : server ? 'ok' : 'info'
+  const state: DotKind = connecting ? 'warn' : server ? 'ok' : 'info'
 
   return (
     <div ref={holder} className="relative">
@@ -130,97 +131,14 @@ export function ServerSwitch({ store, active, server, connecting, onConnect, onD
   )
 }
 
-/**
- * Журнал событий приложения: что сделано и что сломалось.
- *
- * Живёт внизу боковой панели, поэтому раскрывается вверх; в свёрнутой полосе
- * от него остаётся только точка состояния.
- */
-export function StatusLog({ compact }: { compact?: boolean }) {
-  const { t } = useI18n()
-  const { events, clear, unseen, markSeen, latest } = useStatus()
-  const [open, setOpen] = useState(false)
-  const holder = useRef<HTMLDivElement>(null)
-
-  useClickAway(holder, () => setOpen(false))
-
-  const toggle = useCallback(() => {
-    setOpen((value) => {
-      if (!value) markSeen()
-      return !value
-    })
-  }, [markSeen])
-
-  return (
-    <div ref={holder} className="relative">
-      <button
-        type="button"
-        onClick={toggle}
-        title={latest ? latest.text : t('status.empty')}
-        className={cx(
-          'flex items-center gap-2 rounded-lg border border-line-strong bg-surface transition hover:bg-surface-2',
-          compact ? 'size-9 justify-center px-0' : 'h-9 w-full px-2.5 text-[12.5px]',
-        )}
-      >
-        <StatusDot kind={latest?.kind ?? 'info'} />
-        {!compact && (
-          <span className="min-w-0 flex-1 truncate text-left text-content-muted">
-            {latest ? latest.text : t('status.empty')}
-          </span>
-        )}
-        {unseen > 0 && (
-          <span className="shrink-0 rounded-full bg-accent-strong px-1.5 text-[10px] font-medium text-white">{unseen}</span>
-        )}
-      </button>
-
-      {open && (
-        <div className="absolute bottom-full left-0 z-40 mb-1.5 w-[420px] overflow-hidden rounded-xl border border-line-strong bg-surface shadow-2xl">
-          <div className="flex items-center gap-2 border-b border-line bg-surface-2 px-3 py-2">
-            <span className="text-[11px] tracking-wide text-content-subtle">{t('status.title')}</span>
-            <Button size="sm" variant="ghost" className="ml-auto" onClick={clear} disabled={events.length === 0}>
-              {t('status.clear')}
-            </Button>
-          </div>
-          <div className="max-h-96 overflow-y-auto">
-            {events.length === 0 ? (
-              <p className="px-3 py-6 text-center text-[11.5px] text-content-subtle">{t('status.empty')}</p>
-            ) : (
-              events.map((event) => <Row key={event.id} event={event} />)
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
-
-function Row({ event }: { event: StatusEvent }) {
-  return (
-    <div className="flex items-start gap-2.5 border-b border-line/60 px-3 py-2 last:border-b-0">
-      <StatusDot kind={event.kind} className="mt-1.5" />
-      <span className="min-w-0 flex-1">
-        <span className={cx(
-          'block break-words text-[12px] leading-snug',
-          event.kind === 'error' ? 'text-negative' : event.kind === 'warn' ? 'text-caution' : 'text-content',
-        )}>
-          {event.text}
-        </span>
-        <span className="block font-mono text-[10px] text-content-subtle">
-          {event.at.toLocaleTimeString()}
-        </span>
-      </span>
-    </div>
-  )
-}
-
-const DOT_TONE: Record<StatusKind, string> = {
+const DOT_TONE: Record<DotKind, string> = {
   info: 'bg-content-subtle/50',
   ok: 'bg-positive',
   warn: 'bg-caution',
   error: 'bg-negative',
 }
 
-function StatusDot({ kind, pulse, className }: { kind: StatusKind; pulse?: boolean; className?: string }) {
+function StatusDot({ kind, pulse, className }: { kind: DotKind; pulse?: boolean; className?: string }) {
   return (
     <span
       className={cx('size-2 shrink-0 rounded-full', DOT_TONE[kind], pulse && 'animate-pulse', className)}

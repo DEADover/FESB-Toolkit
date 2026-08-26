@@ -1,11 +1,11 @@
 import { LANGUAGES, useI18n, type Language, type MessageKey } from '../i18n'
 import type { ThemeMode } from '../lib/theme'
 import type { AppInfo } from '../types'
-import { StatusLog } from './HeaderBar'
 import { Segmented, cx } from './ui'
 
 export type ScreenId =
   | 'files.trace'
+  | 'files.links'
   | 'api.connection'
   | 'api.domains'
   | 'api.map'
@@ -27,6 +27,7 @@ const SECTIONS: Section[] = [
     title: 'nav.files',
     items: [
       { id: 'files.trace', label: 'nav.files.trace', icon: '◎' },
+      { id: 'files.links', label: 'nav.files.links', icon: '⇄' },
     ],
   },
   {
@@ -170,13 +171,8 @@ export function Sidebar({ screen, onScreen, info, isMac, collapsed, onCollapse, 
           ))}
         </nav>
 
-        {collapsed ? (
-          <div className="mt-auto flex justify-center px-2 py-4">
-            <StatusLog compact />
-          </div>
-        ) : (
+        {!collapsed && (
           <div className="mt-auto flex flex-col gap-2.5 px-4 py-4">
-            <StatusLog />
             <div className="flex items-center justify-between gap-2">
               <span className="whitespace-nowrap text-[11px] text-content-subtle">{t('settings.theme')}</span>
               <Segmented<ThemeMode>

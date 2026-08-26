@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { ConnectionScreen } from './components/ConnectionScreen'
+import { DomainLinksScreen } from './components/DomainLinksScreen'
 import { ENVIRONMENT_LABEL, ENVIRONMENT_TONE, ServerSwitch } from './components/HeaderBar'
 import { DomainsScreen } from './components/DomainsScreen'
 import { LogsScreen } from './components/LogsScreen'
@@ -21,7 +22,6 @@ import {
   autoConnectTarget, markUsed, readStore, toConnection, writeStore,
   type ConnectionProfile, type ConnectionStore,
 } from './lib/connection'
-import { useStatus } from './lib/status'
 import { applyThemeMode, readThemeMode, storeThemeMode, type ThemeMode } from './lib/theme'
 import type {
   ApiProgress, AppInfo, ArchiveProgress, Connection, ScanProgress, ScanResult, ServerInfo,
@@ -44,7 +44,6 @@ interface Session {
 
 export default function App() {
   const { t } = useI18n()
-  const status = useStatus()
 
   const [info, setInfo] = useState<AppInfo | null>(null)
   const [screen, setScreen] = useState<ScreenId>('files.trace')
@@ -118,16 +117,13 @@ export default function App() {
       const result = await scanDirectory(path)
       setScan(result)
       setRoot(result.root)
-      status.push('ok', t('status.scanned', { count: result.domains.length }))
     } catch (err) {
-      const text = errorText(err)
-      setError(text)
-      status.push('error', text)
+      setError(errorText(err))
     } finally {
       setScanning(false)
       setProgress(null)
     }
-  }, [status, t])
+  }, [])
 
   /** Открывает путь: архив сначала распаковывается во временную папку. */
   const openPath = useCallback(async (path: string) => {
@@ -175,26 +171,17 @@ export default function App() {
         writeStore(next)
         return next
       })
-      status.push('ok', t('status.connected', { name: profile.name, user: server.user }))
-    } catch (err) {
-      status.push('error', t('status.connectFailed', { name: profile.name, error: errorText(err) }))
-      throw err
     } finally {
       setConnecting(false)
     }
-  }, [status, t])
+  }, [])
 
   /** Переключение стенда из шапки: ошибка уходит в журнал, а не наверх. */
   const switchProfile = useCallback((profile: ConnectionProfile) => {
     void connectProfile(profile).catch(() => {})
   }, [connectProfile])
 
-  const disconnect = useCallback(() => {
-    setSession((current) => {
-      if (current) status.push('info', t('status.disconnected', { name: current.profile.name }))
-      return null
-    })
-  }, [status, t])
+  const disconnect = useCallback(() => setSession(null), [])
 
   const configure = useCallback((profileId: string | null) => {
     setFocusProfile(profileId)
@@ -223,18 +210,15 @@ export default function App() {
     try {
       const result = await apiPull(session.connection, guids)
       setSource({ kind: 'server', path: session.server.baseUrl })
-      status.push('ok', t('status.pulled', { count: result.domains, name: session.profile.name }))
       await runScan(result.root)
       setScreen('files.trace')
     } catch (err) {
-      const text = errorText(err)
-      setPullError(text)
-      status.push('error', text)
+      setPullError(errorText(err))
     } finally {
       setPulling(false)
       setApiProgress(null)
     }
-  }, [session, runScan, status, t])
+  }, [session, runScan])
 
   // Перетаскивание работает на любом экране: папка или архив открываются сразу.
   useEffect(() => {
@@ -263,6 +247,7 @@ export default function App() {
   }, [pickFolder, rescan, root])
 
   const isApiScreen = screen.startsWith('api.')
+  const isLinksScreen = screen === 'files.links'
   const apiScreenProps = {
     connection: session?.connection ?? null,
     server: session?.server ?? null,
@@ -274,6 +259,7 @@ export default function App() {
   const API_TITLES: Partial<Record<ScreenId, MessageKey>> = {
     'api.connection': 'nav.api.connection.title',
     'api.domains': 'nav.api.domains.title',
+    'files.links': 'nav.files.links.title',
     'api.map': 'nav.api.map.title',
     'api.routes': 'nav.api.routes.title',
     'api.queues': 'nav.api.queues.title',
@@ -318,7 +304,7 @@ export default function App() {
               в подзаголовке остаётся только то, чего там нет: откуда взята
               конфигурация в файловом режиме.
             */}
-            {!isApiScreen && (
+            {!isApiScreen && !isLinksScreen && (
               <p className="truncate text-[11.5px] text-content-subtle" title={source?.path}>
                 {source
                   ? source.kind === 'server'
@@ -337,12 +323,12 @@ export default function App() {
             onDisconnect={disconnect}
             onConfigure={configure}
           />
-          {!isApiScreen && root && (
+          {!isApiScreen && !isLinksScreen && root && (
             <Button onClick={rescan} disabled={busy}>
               {scanning ? <Spinner className="size-4" /> : '↻'} {t('action.refresh')}
             </Button>
           )}
-          {!isApiScreen && (
+          {!isApiScreen && !isLinksScreen && (
             <>
               <Button onClick={pickArchive} disabled={busy}>{t('action.openArchive')}</Button>
               <Button variant="primary" onClick={pickFolder} disabled={busy}>{t('action.selectFolder')}</Button>
@@ -385,6 +371,8 @@ export default function App() {
           <PropertiesScreen {...apiScreenProps} />
         ) : screen === 'api.logs' ? (
           <LogsScreen {...apiScreenProps} />
+        ) : isLinksScreen ? (
+          <DomainLinksScreen scan={scan} isMac={isMac} />
         ) : !scan ? (
           <EmptyState
             busy={busy}

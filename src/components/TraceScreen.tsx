@@ -16,7 +16,6 @@ import type {
   Connection, LinkGraph, PushResult, QueueManager, ScanResult, ServerInfo, TraceUpdate,
   VerifyResult,
 } from '../types'
-import { useStatus } from '../lib/status'
 import { ReportDialog } from './ReportDialog'
 import { RouteViewer } from './RouteViewer'
 import { TraceTable } from './TraceTable'
@@ -38,7 +37,6 @@ interface Props {
  */
 export function TraceScreen({ scan, isMac, sourcePath, server, onRescan }: Props) {
   const { t } = useI18n()
-  const status = useStatus()
 
   const [filters, setFilters] = useState<Filters>({
     query: '', broker: 'all', onlyEditable: false, onlyChanged: false, untracedRoutes: false,
@@ -342,9 +340,6 @@ export function TraceScreen({ scan, isMac, sourcePath, server, onRescan }: Props
       const result = await applyTrace({ update, targets, makeBackup, dryRun })
       setReport(result)
       if (!dryRun) {
-        status.push('ok', t('status.applied', { values: result.summary.valuesChanged, files: result.summary.ok }))
-      }
-      if (!dryRun) {
         setChangedBeans((prev) => {
           const next = new Set(prev)
           for (const file of result.results) {
@@ -357,14 +352,12 @@ export function TraceScreen({ scan, isMac, sourcePath, server, onRescan }: Props
         await onRescan()
       }
     } catch (err) {
-      const text = errorText(err)
-      setError(text)
-      status.push('error', text)
+      setError(errorText(err))
     } finally {
       setApplying(false)
       setProgress(null)
     }
-  }, [update, targets, makeBackup, dryRun, onRescan, status, t])
+  }, [update, targets, makeBackup, dryRun, onRescan])
 
   /** Папки доменов, в которых что-то изменено в этой сессии. */
   const changedDomains = useMemo(() => {
@@ -392,15 +385,6 @@ export function TraceScreen({ scan, isMac, sourcePath, server, onRescan }: Props
       .map((group) => group.domain.dirName)
   }, [groups])
 
-  /** Итог сверки уходит в общий журнал: расхождение важнее закрытого окна. */
-  const reportVerify = useCallback((checked: VerifyResult) => {
-    if (checked.mismatches.length === 0) {
-      status.push('ok', t('status.verified', { values: checked.values }))
-    } else {
-      status.push('warn', t('status.verifyFailed', { count: checked.mismatches.length }))
-    }
-  }, [status, t])
-
   const scopeGuids = useCallback(
     (paths: string[] | null) => (paths === null ? groups.map((group) => group.domain.dirName) : guidsOf(paths)),
     [groups, guidsOf],
@@ -418,23 +402,16 @@ export function TraceScreen({ scan, isMac, sourcePath, server, onRescan }: Props
     setVerifyResult(null)
     try {
       setPushResult(await apiPush(server.connection, scan.root, guids, reload))
-      status.push('ok', t('status.pushed', { count: guids.length }))
       // Отправка отвечает 200 и тогда, когда шина сохранила не всё:
       // единственный честный ответ — прочитать конфигурацию обратно.
-      if (verifyAfterPush) {
-        const checked = await apiVerify(server.connection, scan.root, guids)
-        setVerifyResult(checked)
-        reportVerify(checked)
-      }
+      if (verifyAfterPush) setVerifyResult(await apiVerify(server.connection, scan.root, guids))
     } catch (err) {
-      const text = errorText(err)
-      setError(text)
-      status.push('error', text)
+      setError(errorText(err))
     } finally {
       setPushing(false)
       setPushProgress(null)
     }
-  }, [server, scopeGuids, scan.root, reload, verifyAfterPush, reportVerify, status, t])
+  }, [server, scopeGuids, scan.root, reload, verifyAfterPush])
 
   /** Сверка без отправки: показать, чем сервер отличается от локальных файлов. */
   const verifyOnServer = useCallback(async (paths: string[] | null) => {
@@ -448,18 +425,14 @@ export function TraceScreen({ scan, isMac, sourcePath, server, onRescan }: Props
     setError(null)
     setPushResult(null)
     try {
-      const checked = await apiVerify(server.connection, scan.root, guids)
-      setVerifyResult(checked)
-      reportVerify(checked)
+      setVerifyResult(await apiVerify(server.connection, scan.root, guids))
     } catch (err) {
-      const text = errorText(err)
-      setError(text)
-      status.push('error', text)
+      setError(errorText(err))
     } finally {
       setPushing(false)
       setPushProgress(null)
     }
-  }, [server, scopeGuids, scan.root, reportVerify, status, t])
+  }, [server, scopeGuids, scan.root])
 
   /** Собирает архив в структуре исходной выгрузки — его можно залить обратно в шину. */
   const buildZip = useCallback(async (domains: string[] | null) => {
@@ -473,18 +446,14 @@ export function TraceScreen({ scan, isMac, sourcePath, server, onRescan }: Props
     setArchiveProgress(null)
     setError(null)
     try {
-      const built = await buildArchive(scan.root, output, domains)
-      setArchive(built)
-      status.push('ok', t('status.archived', { count: built.domains }))
+      setArchive(await buildArchive(scan.root, output, domains))
     } catch (err) {
-      const text = errorText(err)
-      setError(text)
-      status.push('error', text)
+      setError(errorText(err))
     } finally {
       setArchiving(false)
       setArchiveProgress(null)
     }
-  }, [scan.root, sourcePath, t, status])
+  }, [scan.root, sourcePath, t])
 
   // Спрашиваем про охват, когда есть из чего выбирать: выделение или правки сессии.
   const startBuild = useCallback(() => {
