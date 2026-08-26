@@ -2,8 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent, typ
 
 import { useI18n } from '../i18n'
 import {
-  apiPush, apiQueueManagers, apiQueues, applyTrace, buildArchive, errorText, onApiProgress,
-  onApplyProgress, onArchiveProgress, revealPath, saveZipAs,
+  apiPush, apiQueueManagers, apiQueues, apiVerify, applyTrace, buildArchive, errorText,
+  onApiProgress, onApplyProgress, onArchiveProgress, revealPath, saveZipAs,
 } from '../lib/api'
 import {
   brokerStats, buildGroups, domainSummary, filterGroups, queueValues,
@@ -12,7 +12,7 @@ import {
 } from '../lib/rows'
 import type {
   ApiProgress, ApplyProgress, ApplyReport, ApplyTarget, ArchiveProgress, ArchiveResult,
-  Connection, PushResult, QueueManager, ScanResult, ServerInfo, TraceUpdate,
+  Connection, PushResult, QueueManager, ScanResult, ServerInfo, TraceUpdate, VerifyResult,
 } from '../types'
 import { ReportDialog } from './ReportDialog'
 import { TraceTable } from './TraceTable'
@@ -65,11 +65,14 @@ export function TraceScreen({ scan, isMac, sourcePath, server, onRescan }: Props
   const [archiveProgress, setArchiveProgress] = useState<ArchiveProgress | null>(null)
   const [archive, setArchive] = useState<ArchiveResult | null>(null)
 
-  const [pushOpen, setPushOpen] = useState(false)
+  /** Одно окно выбора охвата на два действия: отправку и сверку. */
+  const [scopeMode, setScopeMode] = useState<'push' | 'verify' | null>(null)
   const [pushing, setPushing] = useState(false)
   const [pushProgress, setPushProgress] = useState<ApiProgress | null>(null)
   const [pushResult, setPushResult] = useState<PushResult | null>(null)
+  const [verifyResult, setVerifyResult] = useState<VerifyResult | null>(null)
   const [reload, setReload] = useState(true)
+  const [verifyAfterPush, setVerifyAfterPush] = useState(true)
 
   /**
    * Что за менеджеры очередей есть на сервере. Пока конфигурация взята из файлов,
@@ -365,24 +368,54 @@ export function TraceScreen({ scan, isMac, sourcePath, server, onRescan }: Props
       .map((group) => group.domain.dirName)
   }, [groups])
 
+  const scopeGuids = useCallback(
+    (paths: string[] | null) => (paths === null ? groups.map((group) => group.domain.dirName) : guidsOf(paths)),
+    [groups, guidsOf],
+  )
+
   const pushToServer = useCallback(async (paths: string[] | null) => {
     if (!server) return
-    setPushOpen(false)
-    const guids = paths === null ? groups.map((group) => group.domain.dirName) : guidsOf(paths)
+    setScopeMode(null)
+    const guids = scopeGuids(paths)
     if (guids.length === 0) return
 
     setPushing(true)
     setPushProgress(null)
     setError(null)
+    setVerifyResult(null)
     try {
       setPushResult(await apiPush(server.connection, scan.root, guids, reload))
+      // Отправка отвечает 200 и тогда, когда шина сохранила не всё:
+      // единственный честный ответ — прочитать конфигурацию обратно.
+      if (verifyAfterPush) setVerifyResult(await apiVerify(server.connection, scan.root, guids))
     } catch (err) {
       setError(errorText(err))
     } finally {
       setPushing(false)
       setPushProgress(null)
     }
-  }, [server, groups, guidsOf, scan.root, reload])
+  }, [server, scopeGuids, scan.root, reload, verifyAfterPush])
+
+  /** Сверка без отправки: показать, чем сервер отличается от локальных файлов. */
+  const verifyOnServer = useCallback(async (paths: string[] | null) => {
+    if (!server) return
+    setScopeMode(null)
+    const guids = scopeGuids(paths)
+    if (guids.length === 0) return
+
+    setPushing(true)
+    setPushProgress(null)
+    setError(null)
+    setPushResult(null)
+    try {
+      setVerifyResult(await apiVerify(server.connection, scan.root, guids))
+    } catch (err) {
+      setError(errorText(err))
+    } finally {
+      setPushing(false)
+      setPushProgress(null)
+    }
+  }, [server, scopeGuids, scan.root])
 
   /** Собирает архив в структуре исходной выгрузки — его можно залить обратно в шину. */
   const buildZip = useCallback(async (domains: string[] | null) => {
@@ -514,11 +547,16 @@ export function TraceScreen({ scan, isMac, sourcePath, server, onRescan }: Props
             </>
           )}
           {server && (
-            <Button size="sm" variant="primary" onClick={() => setPushOpen(true)} disabled={pushing}>
-              {pushing
-                ? <><Spinner className="size-3.5" /> {pushProgress?.phase === 'upload' ? t('push.uploading') : t('push.running')}</>
-                : t('action.push')}
-            </Button>
+            <>
+              <Button size="sm" onClick={() => setScopeMode('verify')} disabled={pushing}>
+                {t('action.verify')}
+              </Button>
+              <Button size="sm" variant="primary" onClick={() => setScopeMode('push')} disabled={pushing}>
+                {pushing
+                  ? <><Spinner className="size-3.5" /> {t(pushPhase(pushProgress?.phase))}</>
+                  : t('action.push')}
+              </Button>
+            </>
           )}
           <Button size="sm" onClick={startBuild} disabled={archiving}>
             {archiving
@@ -686,43 +724,60 @@ export function TraceScreen({ scan, isMac, sourcePath, server, onRescan }: Props
       </Modal>
 
       <Modal
-        open={pushOpen}
-        onClose={() => setPushOpen(false)}
+        open={scopeMode !== null}
+        onClose={() => setScopeMode(null)}
         closeLabel={t('action.close')}
-        title={t('push.scope.title')}
-        footer={<Button variant="ghost" onClick={() => setPushOpen(false)}>{t('action.cancel')}</Button>}
+        title={scopeMode === 'verify' ? t('verify.scope.title') : t('push.scope.title')}
+        footer={<Button variant="ghost" onClick={() => setScopeMode(null)}>{t('action.cancel')}</Button>}
       >
         <div className="space-y-2">
-          {changedDomains.length > 0 && (
-            <Button variant="primary" className="w-full justify-start" onClick={() => void pushToServer(changedDomains)}>
-              {t('zip.scope.changed', { count: changedDomains.length })}
-            </Button>
+          {(() => {
+            const run = scopeMode === 'verify' ? verifyOnServer : pushToServer
+            return (
+              <>
+                {changedDomains.length > 0 && (
+                  <Button variant="primary" className="w-full justify-start" onClick={() => void run(changedDomains)}>
+                    {t('zip.scope.changed', { count: changedDomains.length })}
+                  </Button>
+                )}
+                {selectedDomains.length > 0 && (
+                  <Button
+                    variant={changedDomains.length > 0 ? 'secondary' : 'primary'}
+                    className="w-full justify-start"
+                    onClick={() => void run(selectedDomains)}
+                  >
+                    {t('zip.scope.selected', { count: selectedDomains.length })}
+                  </Button>
+                )}
+                <Button className="w-full justify-start" onClick={() => void run(null)}>
+                  {t('zip.scope.all', { count: scan.domains.length })}
+                </Button>
+              </>
+            )
+          })()}
+          {scopeMode === 'push' && (
+            <div className="flex flex-wrap gap-2 pt-1">
+              <Toggle checked={reload} onChange={setReload} label={t('push.reload')} />
+              <Toggle checked={verifyAfterPush} onChange={setVerifyAfterPush} label={t('push.verify')} />
+            </div>
           )}
-          {selectedDomains.length > 0 && (
-            <Button
-              variant={changedDomains.length > 0 ? 'secondary' : 'primary'}
-              className="w-full justify-start"
-              onClick={() => void pushToServer(selectedDomains)}
-            >
-              {t('zip.scope.selected', { count: selectedDomains.length })}
-            </Button>
-          )}
-          <Button className="w-full justify-start" onClick={() => void pushToServer(null)}>
-            {t('zip.scope.all', { count: scan.domains.length })}
-          </Button>
-          <div className="pt-1">
-            <Toggle checked={reload} onChange={setReload} label={t('push.reload')} />
-          </div>
-          <p className="text-[11.5px] leading-relaxed text-content-subtle">{t('push.scope.hint')}</p>
+          <p className="text-[11.5px] leading-relaxed text-content-subtle">
+            {scopeMode === 'verify' ? t('verify.scope.hint') : t('push.scope.hint')}
+          </p>
         </div>
       </Modal>
 
       <Modal
-        open={pushResult !== null}
-        onClose={() => setPushResult(null)}
+        wide
+        open={pushResult !== null || verifyResult !== null}
+        onClose={() => { setPushResult(null); setVerifyResult(null) }}
         closeLabel={t('action.close')}
-        title={t('push.title')}
-        footer={<Button variant="primary" onClick={() => setPushResult(null)}>{t('action.close')}</Button>}
+        title={pushResult ? t('push.title') : t('verify.title')}
+        footer={
+          <Button variant="primary" onClick={() => { setPushResult(null); setVerifyResult(null) }}>
+            {t('action.close')}
+          </Button>
+        }
       >
         {pushResult && (
           <div className="space-y-3 text-[13px] leading-relaxed">
@@ -747,6 +802,8 @@ export function TraceScreen({ scan, isMac, sourcePath, server, onRescan }: Props
             </p>
           </div>
         )}
+
+        {verifyResult && <VerifyReport result={verifyResult} />}
       </Modal>
 
       <Modal
@@ -781,6 +838,82 @@ export function TraceScreen({ scan, isMac, sourcePath, server, onRescan }: Props
           </div>
         )}
       </Modal>
+    </div>
+  )
+}
+
+/** Что показывать на кнопке отправки: фаза приходит из бэкенда. */
+function pushPhase(phase: ApiProgress['phase'] | undefined): 'push.running' | 'push.uploading' | 'push.verifying' {
+  if (phase === 'upload') return 'push.uploading'
+  if (phase === 'verify') return 'push.verifying'
+  return 'push.running'
+}
+
+/** Что сервер отдаёт обратно и чем это отличается от локальных файлов. */
+function VerifyReport({ result }: { result: VerifyResult }) {
+  const { t } = useI18n()
+  const clean = result.mismatches.length === 0
+
+  return (
+    <div className="mt-4 space-y-3 border-t border-line pt-4 text-[13px] leading-relaxed">
+      <div className="flex flex-wrap gap-8">
+        <Stat label={t('verify.domains')} value={result.domains} />
+        <Stat label={t('verify.values')} value={result.values} tone={clean ? 'accent' : undefined} />
+        <Stat
+          label={t('verify.mismatches')}
+          value={result.mismatches.length}
+          tone={clean ? undefined : 'danger'}
+        />
+      </div>
+
+      {clean ? (
+        <p className="rounded-lg border border-positive/35 bg-positive/10 px-3 py-2 text-positive">
+          {t('verify.clean', { count: result.values })}
+        </p>
+      ) : (
+        <>
+          <p className="rounded-lg border border-negative/40 bg-negative/10 px-3 py-2 text-negative">
+            {t('verify.dirty', { count: result.mismatches.length })}
+          </p>
+          <div className="max-h-64 overflow-auto rounded-lg border border-line">
+            <table className="w-full table-fixed border-collapse text-[12px]">
+              <colgroup>
+                <col />
+                <col className="w-32" />
+                <col className="w-20" />
+                <col className="w-40" />
+                <col className="w-40" />
+              </colgroup>
+              <thead className="sticky top-0 bg-surface-2 text-[11px] tracking-wide text-content-subtle">
+                <tr className="border-b border-line">
+                  <th className="px-2 py-1.5 text-left font-medium">{t('table.domain')}</th>
+                  <th className="px-2 py-1.5 text-left font-medium">{t('table.traceBean')}</th>
+                  <th className="px-2 py-1.5 text-left font-medium">{t('verify.field')}</th>
+                  <th className="px-2 py-1.5 text-left font-medium">{t('verify.expected')}</th>
+                  <th className="px-2 py-1.5 text-left font-medium">{t('verify.actual')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {result.mismatches.map((item, index) => (
+                  <tr key={`${item.domain}-${item.bean}-${item.field}-${index}`} className="border-b border-line/60">
+                    <td className="truncate px-2 py-1.5" title={item.domain}>{item.domain}</td>
+                    <td className="truncate px-2 py-1.5 font-mono text-[11px]" title={item.bean ?? ''}>
+                      {item.bean ?? '—'}
+                    </td>
+                    <td className="px-2 py-1.5 font-mono text-[11px]">{item.field}</td>
+                    <td className="truncate px-2 py-1.5 font-mono text-[11px] text-accent-content" title={item.expected ?? ''}>
+                      {item.field === 'bean' ? t('verify.beanMissing') : item.expected ?? '—'}
+                    </td>
+                    <td className="truncate px-2 py-1.5 font-mono text-[11px] text-negative" title={item.actual ?? ''}>
+                      {item.actual ?? '—'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
     </div>
   )
 }

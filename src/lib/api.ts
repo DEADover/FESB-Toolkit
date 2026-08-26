@@ -6,9 +6,10 @@ import { revealItemInDir } from '@tauri-apps/plugin-opener'
 
 import type {
   ApiDomain, ApiProgress, AppInfo, ApplyProgress, ApplyReport, ApplyTarget, ArchiveProgress,
-  ArchiveResult, Connection, ExtractResult, LogEntry, LogFileRow, LogRequest, ManagerKind,
+  ArchiveResult, Connection, DomainAction, DomainActionResult, ExtractResult, LogEntry,
+  LogFileRow, LogRequest, ManagerKind,
   ModuleAction, ModuleRow, PropertyRow, PropertyScope, PullResult, PushResult, QueueManager,
-  QueueRow, ScanProgress, ScanResult, ServerInfo, TraceUpdate,
+  QueueRow, ScanProgress, ScanResult, ServerInfo, TraceUpdate, VerifyResult,
 } from '../types'
 
 /** Единственная точка соприкосновения интерфейса с бэкендом на Rust. */
@@ -119,6 +120,11 @@ export function apiPush(connection: Connection, root: string, guids: string[], r
   return invoke<PushResult>('api_push', { connection, root, guids, reload })
 }
 
+/** Забирает домены заново и сверяет трассировку с локальными файлами. */
+export function apiVerify(connection: Connection, root: string, guids: string[]): Promise<VerifyResult> {
+  return invoke<VerifyResult>('api_verify', { connection, root, guids })
+}
+
 export function apiRestartModule(connection: Connection, module: string): Promise<void> {
   return invoke<void>('api_restart_module', { connection, module })
 }
@@ -137,6 +143,14 @@ export function apiModuleAction(connection: Connection, module: string, action: 
   return invoke<void>('api_module_action', { connection, module, action })
 }
 
+export function apiDomainAction(
+  connection: Connection,
+  guid: string,
+  action: DomainAction,
+): Promise<DomainActionResult> {
+  return invoke<DomainActionResult>('api_domain_action', { connection, guid, action })
+}
+
 export function apiQueueManagers(connection: Connection): Promise<QueueManager[]> {
   return invoke<QueueManager[]>('api_queue_managers', { connection })
 }
@@ -145,15 +159,8 @@ export function apiQueues(connection: Connection, kind: ManagerKind, id: string)
   return invoke<QueueRow[]>('api_queues', { connection, kind, id })
 }
 
-/** Бэкенд ждёт `Application`, `Broker` или `{ Domain: guid }`. */
-function scopePayload(scope: PropertyScope): unknown {
-  if (scope === 'application') return 'Application'
-  if (scope === 'broker') return 'Broker'
-  return { Domain: scope.domain }
-}
-
 export function apiProperties(connection: Connection, scope: PropertyScope): Promise<PropertyRow[]> {
-  return invoke<PropertyRow[]>('api_properties', { connection, scope: scopePayload(scope) })
+  return invoke<PropertyRow[]>('api_properties', { connection, scope })
 }
 
 export function apiSaveProperty(
@@ -162,11 +169,11 @@ export function apiSaveProperty(
   property: PropertyRow,
   create: boolean,
 ): Promise<void> {
-  return invoke<void>('api_save_property', { connection, scope: scopePayload(scope), property, create })
+  return invoke<void>('api_save_property', { connection, scope, property, create })
 }
 
 export function apiDeleteProperty(connection: Connection, scope: PropertyScope, key: string): Promise<void> {
-  return invoke<void>('api_delete_property', { connection, scope: scopePayload(scope), key })
+  return invoke<void>('api_delete_property', { connection, scope, key })
 }
 
 export function apiLogFiles(connection: Connection): Promise<LogFileRow[]> {

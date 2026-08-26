@@ -12,8 +12,8 @@ use std::path::PathBuf;
 
 use fesb_settings_editor_lib::testing::{
     apply_trace_change, connect, domains, log_entries, log_files, modules, properties, pull, push,
-    queue_managers, queues, save_property, delete_property, ApplyRequest, ApplyTarget, BeanTarget,
-    Connection, LogRequest, PropertyRow, PropertyScope, TraceUpdate,
+    queue_managers, queues, save_property, delete_property, verify, ApplyRequest, ApplyTarget,
+    BeanTarget, Connection, LogRequest, PropertyRow, PropertyScope, TraceUpdate,
 };
 
 /// Обёртка над рантаймом: приложение вызывает те же функции из команд Tauri.
@@ -310,4 +310,76 @@ fn writes_and_removes_a_constant() {
         "константа осталась на сервере",
     );
     println!("константа создана, изменена и удалена");
+}
+
+/// Сверка с сервером: на нетронутой выгрузке расхождений быть не должно,
+/// а локальная правка без отправки обязана всплыть.
+#[test]
+#[ignore]
+fn verification_notices_what_was_not_sent() {
+    let Some(connection) = connection() else {
+        eprintln!("FESB_URL не задан — пропускаем");
+        return;
+    };
+
+    let list = block(domains(&connection)).expect("список доменов");
+    let mut chosen: Option<(String, String, String, String)> = None;
+    for candidate in list.iter().take(12) {
+        let guids = vec![candidate.guid.clone()];
+        let pulled = block(pull(&connection, Some(&guids), |_| {})).expect("выгрузка");
+        let root = PathBuf::from(&pulled.root);
+        let scan = fesb_settings_editor_lib::testing::scan_root(&root, |_| {});
+        let Some(domain) = scan.domains.first() else { continue };
+        let Some(trace) = domain.traces.iter().find(|item| item.broker.is_some()) else { continue };
+        chosen = Some((
+            candidate.guid.clone(),
+            pulled.root.clone(),
+            trace.bean_id.clone().unwrap_or_default(),
+            trace.broker.clone().unwrap(),
+        ));
+        break;
+    }
+    let (guid, root, bean_id, original) = chosen.expect("не нашлось домена с broker");
+    let root_path = PathBuf::from(&root);
+    let guids = vec![guid.clone()];
+
+    let clean = block(verify(&connection, &root_path, &guids, |_| {})).expect("сверка");
+    println!("сверено доменов {}, значений {}", clean.domains, clean.values);
+    assert!(clean.values > 0, "нечего было сверять");
+    assert!(clean.mismatches.is_empty(), "расхождения на нетронутой выгрузке: {:?}", clean.mismatches);
+
+    // Правим локально и НЕ отправляем: сверка должна это заметить.
+    let scan = fesb_settings_editor_lib::testing::scan_root(&root_path, |_| {});
+    let domain = scan.domains.first().unwrap().clone();
+    let request = ApplyRequest {
+        update: TraceUpdate {
+            broker: Some(format!("{original}.NOTSENT")),
+            queue: None,
+            trace_mode: None,
+        },
+        targets: vec![ApplyTarget {
+            domain_xml_path: domain.domain_xml_path.clone(),
+            domain_name: Some(domain.domain_name.clone()),
+            beans: vec![BeanTarget {
+                bean_id: Some(bean_id.clone()),
+                bean_name: None,
+                expected_broker: Some(original.clone()),
+                expected_queue: None,
+                expected_trace_mode: None,
+            }],
+        }],
+        make_backup: false,
+        dry_run: false,
+    };
+    apply_trace_change(&request, |_| {}).expect("правка файла");
+
+    let dirty = block(verify(&connection, &root_path, &guids, |_| {})).expect("сверка после правки");
+    let found = dirty
+        .mismatches
+        .iter()
+        .find(|item| item.field == "broker")
+        .expect("сверка не заметила неотправленную правку");
+    assert_eq!(found.expected.as_deref(), Some(format!("{original}.NOTSENT").as_str()));
+    assert_eq!(found.actual.as_deref(), Some(original.as_str()));
+    println!("расхождение поймано: {} → {:?} вместо {:?}", found.domain, found.actual, found.expected);
 }

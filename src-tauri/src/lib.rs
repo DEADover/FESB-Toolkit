@@ -20,10 +20,10 @@ use tauri::{AppHandle, Emitter};
 
 use applier::{apply_trace_change, ApplyReport, ApplyRequest};
 use archive::{create_archive, extract_archive, ArchiveResult, ExtractResult};
-use fesb_api::{ApiDomain, Connection, PullResult, PushResult, ServerInfo};
+use fesb_api::{ApiDomain, Connection, PullResult, PushResult, ServerInfo, VerifyResult};
 use fesb_ops::{
-    LogEntry, LogFileRow, LogRequest, ManagerKind, ModuleRow, PropertyRow, PropertyScope,
-    QueueManager, QueueRow,
+    DomainActionResult, LogEntry, LogFileRow, LogRequest, ManagerKind, ModuleRow, PropertyRow,
+    PropertyScope, QueueManager, QueueRow,
 };
 use scanner::{scan_root, ScanResult};
 
@@ -157,6 +157,21 @@ async fn api_push(
     .await
 }
 
+/// Забирает домены заново и сверяет трассировку с локальными файлами.
+#[tauri::command]
+async fn api_verify(
+    app: AppHandle,
+    connection: Connection,
+    root: String,
+    guids: Vec<String>,
+) -> Result<VerifyResult, String> {
+    let root = PathBuf::from(root);
+    fesb_api::verify(&connection, &root, &guids, |progress| {
+        let _ = app.emit(API_PROGRESS_EVENT, progress);
+    })
+    .await
+}
+
 /// Перезапуск модуля: без него брокер не перечитывает изменённую конфигурацию.
 #[tauri::command]
 async fn api_restart_module(connection: Connection, module: String) -> Result<(), String> {
@@ -173,6 +188,16 @@ async fn api_modules(connection: Connection) -> Result<Vec<ModuleRow>, String> {
 #[tauri::command]
 async fn api_module_action(connection: Connection, module: String, action: String) -> Result<(), String> {
     fesb_ops::module_action(&connection, &module, &action).await
+}
+
+/// Запуск, остановка или перезапуск домена.
+#[tauri::command]
+async fn api_domain_action(
+    connection: Connection,
+    guid: String,
+    action: String,
+) -> Result<DomainActionResult, String> {
+    fesb_ops::domain_action(&connection, &guid, &action).await
 }
 
 /// Менеджеры очередей всех трёх видов.
@@ -239,9 +264,11 @@ pub fn run() {
             api_domains,
             api_pull,
             api_push,
+            api_verify,
             api_restart_module,
             api_modules,
             api_module_action,
+            api_domain_action,
             api_queue_managers,
             api_queues,
             api_properties,
@@ -258,7 +285,7 @@ pub fn run() {
 #[doc(hidden)]
 pub mod testing {
     pub use crate::applier::{apply_trace_change, ApplyRequest, ApplyTarget};
-    pub use crate::fesb_api::{connect, domains, pull, push, Connection};
+    pub use crate::fesb_api::{connect, domains, pull, push, verify, Connection};
     pub use crate::fesb_ops::{
         delete_property, log_entries, log_files, modules, properties, queue_managers, queues,
         save_property, LogRequest, ManagerKind, PropertyRow, PropertyScope,

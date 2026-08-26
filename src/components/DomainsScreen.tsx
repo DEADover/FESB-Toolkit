@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import { useI18n } from '../i18n'
-import { apiDomains, errorText } from '../lib/api'
-import type { ApiDomain, ApiProgress, Connection, ServerInfo } from '../types'
-import { Badge, Button, Checkbox, Spinner, TextInput, cx } from './ui'
+import { apiDomainAction, apiDomains, errorText } from '../lib/api'
+import type { ApiDomain, ApiProgress, Connection, DomainAction, ServerInfo } from '../types'
+import { Badge, Button, Checkbox, Modal, Spinner, TextInput, cx } from './ui'
 
 interface Props {
   connection: Connection | null
@@ -30,6 +30,10 @@ export function DomainsScreen({ connection, server, pulling, progress, error: pu
   const [query, setQuery] = useState('')
   const [onlyActive, setOnlyActive] = useState(false)
   const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [pending, setPending] = useState<string | null>(null)
+  const [confirm, setConfirm] = useState<{ domain: ApiDomain; action: DomainAction } | null>(null)
+  /** Домен, который шина отказалась запускать: причина остаётся в журнале. */
+  const [refused, setRefused] = useState<ApiDomain | null>(null)
 
   const load = useCallback(async () => {
     if (!connection) return
@@ -64,6 +68,29 @@ export function DomainsScreen({ connection, server, pulling, progress, error: pu
       )
     })
   }, [domains, query, onlyActive])
+
+  const act = useCallback(async (domain: ApiDomain, action: DomainAction) => {
+    if (!connection) return
+    setConfirm(null)
+    setRefused(null)
+    setPending(`${domain.guid}:${action}`)
+    setListError(null)
+    try {
+      const result = await apiDomainAction(connection, domain.guid, action)
+      if (!result.done) setRefused(domain)
+      await load()
+    } catch (err) {
+      setListError(errorText(err))
+    } finally {
+      setPending(null)
+    }
+  }, [connection, load])
+
+  /** Запуск безобиден, остановка и перезапуск рвут обработку — спрашиваем. */
+  const startAction = useCallback((domain: ApiDomain, action: DomainAction) => {
+    if (action === 'start') void act(domain, action)
+    else setConfirm({ domain, action })
+  }, [act])
 
   const toggle = useCallback((guid: string) => {
     setSelected((prev) => {
@@ -123,6 +150,12 @@ export function DomainsScreen({ connection, server, pulling, progress, error: pu
         </Button>
       </div>
 
+      {refused && (
+        <div className="rounded-lg border border-caution/40 bg-caution/10 px-3 py-2 text-caution">
+          {t('domains.refused', { name: refused.name })}
+        </div>
+      )}
+
       {(listError ?? pullError) && (
         <div className="rounded-lg border border-negative/40 bg-negative/10 px-3 py-2 text-negative">
           {listError ?? pullError}
@@ -134,9 +167,10 @@ export function DomainsScreen({ connection, server, pulling, progress, error: pu
           <colgroup>
             <col className="w-9" />
             <col />
-            <col className="w-40" />
+            <col className="w-36" />
             <col className="w-24" />
-            <col className="w-64" />
+            <col className="w-52" />
+            <col className="w-56" />
           </colgroup>
           <thead className="sticky top-0 z-10 bg-surface-2 text-[11px] tracking-wide text-content-subtle">
             <tr className="border-b border-line">
@@ -151,6 +185,7 @@ export function DomainsScreen({ connection, server, pulling, progress, error: pu
               <th className="px-2 py-2 text-left font-medium">{t('api.domains.group')}</th>
               <th className="px-2 py-2 text-left font-medium">{t('table.state')}</th>
               <th className="px-2 py-2 text-left font-medium">{t('table.guid')}</th>
+              <th className="px-2 py-2 text-left font-medium">{t('modules.actions')}</th>
             </tr>
           </thead>
           <tbody>
@@ -186,10 +221,32 @@ export function DomainsScreen({ connection, server, pulling, progress, error: pu
                 <td className="truncate px-2 py-1.5 font-mono text-[11px] text-content-subtle" title={domain.guid}>
                   {domain.guid}
                 </td>
+                <td className="px-2 py-1.5" onClick={(event) => event.stopPropagation()}>
+                  <div className="flex items-center gap-1.5">
+                    <RowAction
+                      label={t('modules.start')}
+                      busy={pending === `${domain.guid}:start`}
+                      disabled={pending !== null || pulling || domain.active}
+                      onClick={() => startAction(domain, 'start')}
+                    />
+                    <RowAction
+                      label={t('modules.stop')}
+                      busy={pending === `${domain.guid}:stop`}
+                      disabled={pending !== null || pulling || !domain.active}
+                      onClick={() => startAction(domain, 'stop')}
+                    />
+                    <RowAction
+                      label={t('modules.restart')}
+                      busy={pending === `${domain.guid}:restart`}
+                      disabled={pending !== null || pulling || !domain.active}
+                      onClick={() => startAction(domain, 'restart')}
+                    />
+                  </div>
+                </td>
               </tr>
             ))}
             {visible.length === 0 && !loading && (
-              <tr><td colSpan={5} className="px-3 py-10 text-center text-content-subtle">{t('table.empty')}</td></tr>
+              <tr><td colSpan={6} className="px-3 py-10 text-center text-content-subtle">{t('table.empty')}</td></tr>
             )}
           </tbody>
         </table>
@@ -231,6 +288,42 @@ export function DomainsScreen({ connection, server, pulling, progress, error: pu
           </Button>
         </div>
       </div>
+      <Modal
+        open={confirm !== null}
+        onClose={() => setConfirm(null)}
+        closeLabel={t('action.close')}
+        title={confirm?.action === 'stop' ? t('domains.confirm.stop') : t('domains.confirm.restart')}
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setConfirm(null)}>{t('action.cancel')}</Button>
+            <Button variant="primary" onClick={() => confirm && void act(confirm.domain, confirm.action)}>
+              {confirm?.action === 'stop' ? t('modules.stop') : t('modules.restart')}
+            </Button>
+          </>
+        }
+      >
+        {confirm && (
+          <div className="space-y-3 text-[13px] leading-relaxed">
+            <code className="block break-all rounded bg-accent/12 px-2 py-1 font-mono text-accent-content">
+              {confirm.domain.name}
+            </code>
+            <p className="text-content-muted">{t('domains.confirm.text')}</p>
+          </div>
+        )}
+      </Modal>
     </div>
+  )
+}
+
+function RowAction({ label, busy, disabled, onClick }: {
+  label: string
+  busy: boolean
+  disabled: boolean
+  onClick: () => void
+}) {
+  return (
+    <Button size="sm" onClick={onClick} disabled={disabled || busy}>
+      {busy ? <Spinner className="size-3.5" /> : label}
+    </Button>
   )
 }

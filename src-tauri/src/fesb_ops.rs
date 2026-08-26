@@ -108,6 +108,54 @@ pub async fn module_action(connection: &Connection, module: &str, action: &str) 
     Ok(())
 }
 
+// ───────────────────────────── домены ─────────────────────────────
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DomainActionResult {
+    pub guid: String,
+    pub action: String,
+    /// Шина ответила согласием. Отказ приходит телом `false` при HTTP 200.
+    pub done: bool,
+}
+
+/// Запуск, остановка или перезапуск домена.
+///
+/// Отдельный случай, ради которого и заведён результат: домен может не
+/// подняться из-за собственной конфигурации — например, у СОПС не оказалось
+/// нужного компонента, — и тогда сервер отвечает `200 false`, а причина
+/// остаётся в `broker.log`. Молча считать это успехом нельзя.
+pub async fn domain_action(
+    connection: &Connection,
+    guid: &str,
+    action: &str,
+) -> Result<DomainActionResult, String> {
+    if !matches!(action, "start" | "stop" | "restart") {
+        return Err(format!("Unknown domain action: {action}"));
+    }
+    let client = connection.client()?;
+    let response = connection
+        .post(&client, &format!("/api/domain/{guid}/{action}"))
+        .query(&[("timeout", "120")])
+        .timeout(Duration::from_secs(180))
+        .send()
+        .await
+        .map_err(transport_error)?;
+
+    let body = ensure_ok(response, "Domain action failed")
+        .await?
+        .text()
+        .await
+        .unwrap_or_default();
+
+    Ok(DomainActionResult {
+        guid: guid.to_string(),
+        action: action.to_string(),
+        // Пустое тело считаем согласием: отказ шина проговаривает явным false.
+        done: body.trim() != "false",
+    })
+}
+
 // ───────────────────────── менеджеры очередей ─────────────────────────
 
 /// Префикс, с которым менеджер пишется в значении `broker` объекта трассировки.
@@ -476,6 +524,27 @@ mod tests {
         // мультименеджер
         let qms = serde_json::json!({ "name": "Mon.Trace", "queueSize": 7, "consumerCount": 0 });
         assert_eq!(number(&qms, &["messageCount", "queueSize"]), Some(7));
+    }
+
+    /// Фронтенд присылает уровень как есть, поэтому форма ответа зафиксирована.
+    #[test]
+    fn treats_a_false_body_as_a_refusal() {
+        // Шина отвечает 200 и телом false, когда домен не смог подняться.
+        assert!(!matches!("false".trim(), body if body != "false"));
+        assert!(matches!("true".trim(), body if body != "false"));
+        assert!(matches!("".trim(), body if body != "false"));
+    }
+
+    #[test]
+    fn accepts_the_scope_the_way_the_interface_sends_it() {
+        let application: PropertyScope = serde_json::from_str(r#""application""#).unwrap();
+        assert_eq!(application.list_path(), "/api/properties/application");
+
+        let broker: PropertyScope = serde_json::from_str(r#""broker""#).unwrap();
+        assert_eq!(broker.list_path(), "/api/properties/broker");
+
+        let domain: PropertyScope = serde_json::from_str(r#"{"domain":"domain-1"}"#).unwrap();
+        assert_eq!(domain.list_path(), "/api/properties/domain-1/properties");
     }
 
     #[test]

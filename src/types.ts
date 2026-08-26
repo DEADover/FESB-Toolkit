@@ -224,9 +224,27 @@ export interface PushResult {
   finishedAt: string
 }
 
+export interface VerifyMismatch {
+  domain: string
+  bean: string | null
+  /** `broker`, `queue`, `traceMode` или `bean` — объекта нет на сервере. */
+  field: string
+  expected: string | null
+  actual: string | null
+}
+
+export interface VerifyResult {
+  domains: number
+  beans: number
+  /** Сколько значений совпало с локальными файлами. */
+  values: number
+  mismatches: VerifyMismatch[]
+  checkedAt: string
+}
+
 export interface ApiProgress {
-  /** `domains` при выгрузке, `pack` и `upload` при отправке. */
-  phase: 'domains' | 'pack' | 'upload'
+  /** `domains` при выгрузке, `pack` и `upload` при отправке, `verify` при сверке. */
+  phase: 'domains' | 'pack' | 'upload' | 'verify'
   current: number
   total: number
 }
@@ -247,6 +265,16 @@ export interface ModuleRow {
 }
 
 export type ModuleAction = 'start' | 'stop' | 'restart'
+
+/** Домены управляются теми же тремя действиями, что и модули. */
+export type DomainAction = ModuleAction
+
+export interface DomainActionResult {
+  guid: string
+  action: string
+  /** Шина ответила согласием. Отказ приходит телом `false` при HTTP 200. */
+  done: boolean
+}
 
 export type ManagerKind = 'QMS' | 'QME' | 'RQMS'
 

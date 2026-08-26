@@ -621,6 +621,160 @@ fn extract_into(bytes: &[u8], target: &Path) -> Result<(usize, Option<Vec<u8>>),
     Ok((written, version))
 }
 
+// ───────────────────────────── сверить с сервером ─────────────────────────────
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VerifyMismatch {
+    pub domain: String,
+    pub bean: Option<String>,
+    /// `broker`, `queue`, `traceMode` или `bean` — последнее означает,
+    /// что объекта трассировки на сервере вовсе нет.
+    pub field: String,
+    pub expected: Option<String>,
+    pub actual: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VerifyResult {
+    pub domains: usize,
+    pub beans: usize,
+    /// Сколько значений совпало с тем, что лежит в локальных файлах.
+    pub values: usize,
+    pub mismatches: Vec<VerifyMismatch>,
+    pub checked_at: String,
+}
+
+/// Забирает домены заново и сверяет трассировку с локальными файлами.
+///
+/// Отправка возвращает `200` даже тогда, когда шина сохранила не всё, что мы
+/// послали, поэтому единственный честный ответ на вопрос «легло ли» — прочитать
+/// конфигурацию обратно. Рабочая папка при этом не трогается: сверка живёт
+/// в отдельном каталоге и убирается за собой.
+pub async fn verify<F: FnMut(ApiProgress)>(
+    connection: &Connection,
+    root: &Path,
+    guids: &[String],
+    mut on_progress: F,
+) -> Result<VerifyResult, String> {
+    if guids.is_empty() {
+        return Err("No domains selected".into());
+    }
+    let manifest = read_manifest(root)?;
+    let names: std::collections::HashMap<&str, &str> = manifest
+        .domains
+        .iter()
+        .map(|item| (item.guid.as_str(), item.name.as_str()))
+        .collect();
+
+    let client = connection.client()?;
+    let scratch = root
+        .parent()
+        .ok_or_else(|| "Cannot locate the workspace".to_string())?
+        .join(format!("verify-{}", stamp()));
+    let fresh = scratch.join(EXPORT_DIR);
+    fs::create_dir_all(fresh.join(DOMAINS_DIR)).map_err(|err| format!("Cannot create a workspace: {err}"))?;
+
+    let expected = guids.len() as u64;
+    let batches: Vec<Vec<String>> = guids.chunks(GUIDS_PER_REQUEST).map(<[String]>::to_vec).collect();
+    let mut done = 0u64;
+    on_progress(ApiProgress { phase: "verify", current: 0, total: expected });
+
+    let outcome = async {
+        for (wave, group) in batches.chunks(BATCH_CONCURRENCY).enumerate() {
+            let mut running = Vec::with_capacity(group.len());
+            for (offset, batch) in group.iter().enumerate() {
+                let index = wave * BATCH_CONCURRENCY + offset;
+                let path = scratch.join(format!("check-{index}.zip"));
+                let connection = connection.clone();
+                let client = client.clone();
+                let batch = batch.clone();
+                running.push(tauri::async_runtime::spawn(async move {
+                    download_batch(&connection, &client, &batch, &path).await.map(|_| path)
+                }));
+            }
+            for handle in running {
+                let path = handle
+                    .await
+                    .map_err(|err| format!("Verification interrupted: {err}"))??;
+                let unpacked = unpack_domains(&path, &fresh)?;
+                let _ = fs::remove_file(&path);
+                done += unpacked.domains.len() as u64;
+                on_progress(ApiProgress { phase: "verify", current: done, total: expected });
+            }
+        }
+
+        let mut mismatches = Vec::new();
+        let mut beans = 0usize;
+        let mut values = 0usize;
+
+        for guid in guids {
+            let domain = names.get(guid.as_str()).copied().unwrap_or(guid.as_str()).to_string();
+            let local = read_traces(&root.join(DOMAINS_DIR).join(guid))?;
+            let remote = read_traces(&fresh.join(DOMAINS_DIR).join(guid))?;
+
+            for bean in &local {
+                beans += 1;
+                let key = bean.bean_id.clone().or_else(|| bean.bean_name.clone());
+                let found = remote.iter().find(|item| {
+                    item.bean_id.clone().or_else(|| item.bean_name.clone()) == key
+                });
+                let Some(found) = found else {
+                    mismatches.push(VerifyMismatch {
+                        domain: domain.clone(),
+                        bean: key,
+                        field: "bean".into(),
+                        expected: None,
+                        actual: None,
+                    });
+                    continue;
+                };
+
+                for (field, expected, actual) in [
+                    ("broker", &bean.broker, &found.broker),
+                    ("queue", &bean.queue, &found.queue),
+                    ("traceMode", &bean.trace_mode, &found.trace_mode),
+                ] {
+                    if expected.is_none() {
+                        continue;
+                    }
+                    if expected == actual {
+                        values += 1;
+                    } else {
+                        mismatches.push(VerifyMismatch {
+                            domain: domain.clone(),
+                            bean: key.clone(),
+                            field: field.into(),
+                            expected: expected.clone(),
+                            actual: actual.clone(),
+                        });
+                    }
+                }
+            }
+        }
+
+        Ok(VerifyResult {
+            domains: guids.len(),
+            beans,
+            values,
+            mismatches,
+            checked_at: chrono::Local::now().to_rfc3339(),
+        })
+    }
+    .await;
+
+    let _ = fs::remove_dir_all(&scratch);
+    outcome
+}
+
+/// Объекты трассировки одного домена из его `domain.xml`.
+fn read_traces(dir: &Path) -> Result<Vec<crate::domain_xml::TraceBean>, String> {
+    let path = dir.join("domain.xml");
+    let xml = fs::read_to_string(&path).map_err(|err| format!("{}: {err}", path.display()))?;
+    Ok(crate::domain_xml::parse_domain_xml(&xml).traces)
+}
+
 // ───────────────────────────── отправить обратно ─────────────────────────────
 
 #[derive(Debug, Clone, Serialize)]
