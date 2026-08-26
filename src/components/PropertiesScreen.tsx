@@ -1,7 +1,8 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import { useI18n } from '../i18n'
-import { apiDeleteProperty, apiDomains, apiProperties, apiSaveProperty, errorText } from '../lib/api'
+import { apiDomains, apiProperties, apiSaveProperty, errorText } from '../lib/api'
+import { humanizeKey } from '../lib/propertyName'
 import type { ApiDomain, Connection, PropertyRow, PropertyScope, ServerInfo } from '../types'
 import { ErrorBar, NotConnected, Panel, TableMessage, useApiData } from './ApiShell'
 import { Badge, Button, Checkbox, Modal, Segmented, Spinner, SuggestInput, TextInput, cx } from './ui'
@@ -29,9 +30,10 @@ export function PropertiesScreen({ connection, server, onGoToConnection }: Props
   const [scopeId, setScopeId] = useState<ScopeId>('application')
   const [domainGuid, setDomainGuid] = useState<string | null>(null)
   const [query, setQuery] = useState('')
-  const [editing, setEditing] = useState<{ property: PropertyRow; create: boolean } | null>(null)
-  const [removing, setRemoving] = useState<PropertyRow | null>(null)
+  const [adding, setAdding] = useState<PropertyRow | null>(null)
   const [saving, setSaving] = useState(false)
+  /** Ключ константы, которая сейчас сохраняется: строка ждёт ответа. */
+  const [pending, setPending] = useState<string | null>(null)
 
   const loadDomains = useCallback((connection: Connection) => apiDomains(connection), [])
   const domains = useApiData<ApiDomain[]>(connection, loadDomains)
@@ -58,35 +60,40 @@ export function PropertiesScreen({ connection, server, onGoToConnection }: Props
       (row.description ?? '').toLowerCase().includes(needle))
   }, [data, query])
 
-  const save = useCallback(async () => {
-    if (!connection || !scope || !editing) return
+  const create = useCallback(async () => {
+    if (!connection || !scope || !adding) return
     setSaving(true)
     setError(null)
     try {
-      await apiSaveProperty(connection, scope, editing.property, editing.create)
-      setEditing(null)
+      await apiSaveProperty(connection, scope, adding, true)
+      setAdding(null)
       await reload()
     } catch (err) {
       setError(errorText(err))
     } finally {
       setSaving(false)
     }
-  }, [connection, scope, editing, reload, setError])
+  }, [connection, scope, adding, reload, setError])
 
-  const remove = useCallback(async () => {
-    if (!connection || !scope || !removing) return
-    setSaving(true)
+  /**
+   * Сохранение прямо из таблицы.
+   *
+   * Диалог ради одного поля — лишний шаг: константы правят по одному значению
+   * и сразу видят соседние. Строка сохраняется по Enter или уходу фокуса.
+   */
+  const saveField = useCallback(async (row: PropertyRow, patch: Partial<PropertyRow>) => {
+    if (!connection || !scope) return
+    setPending(row.key)
     setError(null)
     try {
-      await apiDeleteProperty(connection, scope, removing.key)
-      setRemoving(null)
+      await apiSaveProperty(connection, scope, { ...row, ...patch }, false)
       await reload()
     } catch (err) {
       setError(errorText(err))
     } finally {
-      setSaving(false)
+      setPending(null)
     }
-  }, [connection, scope, removing, reload, setError])
+  }, [connection, scope, reload, setError])
 
   if (!connection || !server) return <NotConnected onGoToConnection={onGoToConnection} />
 
@@ -133,11 +140,7 @@ export function PropertiesScreen({ connection, server, onGoToConnection }: Props
           <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-content-subtle">⌕</span>
         </div>
 
-        <Button
-          variant="primary"
-          disabled={!scope}
-          onClick={() => setEditing({ property: { ...EMPTY }, create: true })}
-        >
+        <Button variant="primary" disabled={!scope} onClick={() => setAdding({ ...EMPTY })}>
           {t('properties.add')}
         </Button>
         <Button onClick={() => void reload()} disabled={loading || !scope}>
@@ -150,53 +153,53 @@ export function PropertiesScreen({ connection, server, onGoToConnection }: Props
       <Panel className="flex-1">
         <table className="w-full table-fixed border-collapse text-[12.5px]">
           <colgroup>
-            <col className="w-80" />
+            <col className="w-96" />
             <col />
-            <col className="w-56" />
-            <col className="w-32" />
+            <col className="w-72" />
           </colgroup>
           <thead className="sticky top-0 z-10 bg-surface-2 text-[11px] tracking-wide text-content-subtle">
             <tr className="border-b border-line">
               <th className="px-3 py-2 text-left font-medium">{t('properties.key')}</th>
               <th className="px-3 py-2 text-left font-medium">{t('properties.value')}</th>
-              <th className="px-3 py-2 text-left font-medium">{t('table.description')}</th>
-              <th className="px-3 py-2 text-left font-medium">{t('modules.actions')}</th>
+              <th className="px-3 py-2 text-left font-medium">{t('properties.comment')}</th>
             </tr>
           </thead>
           <tbody>
             {visible.map((property) => (
-              <tr key={property.key} className="border-b border-line/60 hover:bg-surface-2">
+              <tr key={property.key} className="border-b border-line/60 align-top hover:bg-surface-2">
                 <td className="px-3 py-1.5">
-                  <div className="truncate font-mono text-[12px]" title={property.key}>{property.key}</div>
+                  <div className="truncate text-[12.5px] font-medium" title={property.key}>
+                    {humanizeKey(property.key, t)}
+                  </div>
+                  <div className="truncate font-mono text-[10.5px] text-content-subtle" title={property.key}>
+                    {property.key}
+                  </div>
                 </td>
-                <td className="px-3 py-1.5">
+                <td className="px-3 py-1">
                   <div className="flex items-center gap-1.5">
-                    <span
-                      className={cx('min-w-0 flex-1 truncate font-mono text-[12px]', property.secured && 'text-content-subtle')}
+                    <InlineEdit
+                      value={property.secured ? '' : property.value ?? ''}
+                      mono
+                      placeholder={property.secured ? '••••••••' : '—'}
                       title={property.secured ? t('properties.securedHint') : property.value ?? ''}
-                    >
-                      {property.secured ? '••••••••' : property.value || '—'}
-                    </span>
+                      busy={pending === property.key}
+                      onSave={(value) => void saveField(property, { value })}
+                    />
                     {property.vault && <Badge tone="accent">{t('properties.vault')}</Badge>}
                   </div>
                 </td>
-                <td className="truncate px-3 py-1.5 text-content-muted" title={property.description ?? ''}>
-                  {property.description || '—'}
-                </td>
-                <td className="px-3 py-1.5">
-                  <div className="flex items-center gap-1.5">
-                    <Button size="sm" onClick={() => setEditing({ property: { ...property }, create: false })}>
-                      {t('properties.edit')}
-                    </Button>
-                    <Button size="sm" variant="ghost" onClick={() => setRemoving(property)}>
-                      {t('properties.delete')}
-                    </Button>
-                  </div>
+                <td className="px-3 py-1">
+                  <InlineEdit
+                    value={property.description ?? ''}
+                    placeholder={t('properties.commentPlaceholder')}
+                    busy={pending === property.key}
+                    onSave={(description) => void saveField(property, { description })}
+                  />
                 </td>
               </tr>
             ))}
             {visible.length === 0 && (
-              <TableMessage colSpan={4}>
+              <TableMessage colSpan={3}>
                 {loading
                   ? t('empty.scanning')
                   : scopeId === 'domain' && !domainGuid
@@ -209,57 +212,52 @@ export function PropertiesScreen({ connection, server, onGoToConnection }: Props
       </Panel>
 
       <Modal
-        open={editing !== null}
-        onClose={() => setEditing(null)}
+        open={adding !== null}
+        onClose={() => setAdding(null)}
         closeLabel={t('action.close')}
-        title={editing?.create ? t('properties.add') : t('properties.edit')}
+        title={t('properties.add')}
         footer={
           <>
-            <Button variant="ghost" onClick={() => setEditing(null)}>{t('action.cancel')}</Button>
-            <Button
-              variant="primary"
-              disabled={saving || !editing?.property.key.trim()}
-              onClick={() => void save()}
-            >
+            <Button variant="ghost" onClick={() => setAdding(null)}>{t('action.cancel')}</Button>
+            <Button variant="primary" disabled={saving || !adding?.key.trim()} onClick={() => void create()}>
               {saving ? <Spinner className="size-4" /> : t('properties.save')}
             </Button>
           </>
         }
       >
-        {editing && (
+        {adding && (
           <div className="space-y-3">
             <Field label={t('properties.key')} htmlFor="property-key">
               <TextInput
                 id="property-key"
-                value={editing.property.key}
-                disabled={!editing.create}
+                value={adding.key}
                 className="font-mono"
-                onChange={(event) => setEditing({ ...editing, property: { ...editing.property, key: event.target.value } })}
+                onChange={(event) => setAdding({ ...adding, key: event.target.value })}
               />
             </Field>
             <Field label={t('properties.value')} htmlFor="property-value">
               <TextInput
                 id="property-value"
-                value={editing.property.value ?? ''}
+                value={adding.value ?? ''}
                 className="font-mono"
-                onChange={(event) => setEditing({ ...editing, property: { ...editing.property, value: event.target.value } })}
+                onChange={(event) => setAdding({ ...adding, value: event.target.value })}
               />
             </Field>
-            <Field label={t('table.description')} htmlFor="property-description">
+            <Field label={t('properties.comment')} htmlFor="property-description">
               <TextInput
                 id="property-description"
-                value={editing.property.description ?? ''}
-                onChange={(event) => setEditing({ ...editing, property: { ...editing.property, description: event.target.value } })}
+                value={adding.description ?? ''}
+                onChange={(event) => setAdding({ ...adding, description: event.target.value })}
               />
             </Field>
             <label className="flex cursor-pointer items-center gap-2 text-[12.5px] text-content-muted">
               <Checkbox
-                checked={editing.property.secured}
-                onChange={(event) => setEditing({ ...editing, property: { ...editing.property, secured: event.target.checked } })}
+                checked={adding.secured}
+                onChange={(event) => setAdding({ ...adding, secured: event.target.checked })}
               />
               {t('properties.secured')}
             </label>
-            {editing.property.secured && (
+            {adding.secured && (
               <p className="rounded-lg border border-caution/35 bg-caution/10 px-3 py-2 text-[11.5px] text-caution">
                 {t('properties.securedHint')}
               </p>
@@ -268,27 +266,60 @@ export function PropertiesScreen({ connection, server, onGoToConnection }: Props
         )}
       </Modal>
 
-      <Modal
-        open={removing !== null}
-        onClose={() => setRemoving(null)}
-        closeLabel={t('action.close')}
-        title={t('properties.confirmDelete')}
-        footer={
-          <>
-            <Button variant="ghost" onClick={() => setRemoving(null)}>{t('action.cancel')}</Button>
-            <Button variant="primary" disabled={saving} onClick={() => void remove()}>
-              {saving ? <Spinner className="size-4" /> : t('properties.delete')}
-            </Button>
-          </>
-        }
-      >
-        {removing && (
-          <div className="space-y-3 text-[13px] leading-relaxed">
-            <code className="block break-all rounded bg-accent/12 px-2 py-1 font-mono text-accent-content">{removing.key}</code>
-            <p className="text-content-muted">{t('properties.confirmDeleteText')}</p>
-          </div>
+    </div>
+  )
+}
+
+/**
+ * Поле, которое правится на месте: выглядит текстом, пока в него не встали.
+ *
+ * Enter сохраняет, Esc возвращает прежнее значение, уход фокуса сохраняет
+ * молча — так правка сотни констант не превращается в сотню диалогов.
+ */
+function InlineEdit({ value, placeholder, title, mono, busy, onSave }: {
+  value: string
+  placeholder?: string
+  title?: string
+  mono?: boolean
+  busy?: boolean
+  onSave: (value: string) => void
+}) {
+  const [draft, setDraft] = useState(value)
+  const [editing, setEditing] = useState(false)
+
+  // Пока строку не правят, она следует за данными с сервера.
+  useEffect(() => { if (!editing) setDraft(value) }, [value, editing])
+
+  const commit = () => {
+    setEditing(false)
+    if (draft !== value) onSave(draft)
+  }
+
+  return (
+    <div className="flex min-w-0 flex-1 items-center gap-1.5">
+      <input
+        value={draft}
+        placeholder={placeholder}
+        title={title}
+        spellCheck={false}
+        onFocus={() => setEditing(true)}
+        onChange={(event) => setDraft(event.target.value)}
+        onBlur={commit}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter') event.currentTarget.blur()
+          if (event.key === 'Escape') {
+            setDraft(value)
+            setEditing(false)
+            event.currentTarget.blur()
+          }
+        }}
+        className={cx(
+          'min-w-0 flex-1 rounded border border-transparent bg-transparent px-1.5 py-1 text-[12px] outline-none transition',
+          'hover:border-line-strong focus:border-accent focus:bg-surface',
+          mono && 'font-mono',
         )}
-      </Modal>
+      />
+      {busy && <Spinner className="size-3.5 shrink-0" />}
     </div>
   )
 }

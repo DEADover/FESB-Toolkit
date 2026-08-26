@@ -54,6 +54,8 @@ export function ModulesScreen({ connection, server, onGoToConnection }: Props) {
 
   const modules = data ?? []
   const running = modules.filter((module) => module.running).length
+  // В зависимостях шина называет модули техническими кодами — показываем имена.
+  const labels = new Map(modules.map((module) => [module.name, module.label]))
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-6 pb-4">
@@ -75,13 +77,16 @@ export function ModulesScreen({ connection, server, onGoToConnection }: Props) {
         <table className="w-full table-fixed border-collapse text-[12.5px]">
           <colgroup>
             <col />
-            <col className="w-56" />
-            <col className="w-44" />
-            <col className="w-64" />
+            <col className="w-48" />
+            <col className="w-48" />
+            <col className="w-40" />
+            {/* «Запустить · Остановить · Перезапустить» по-русски шире, чем кажется. */}
+            <col className="w-[304px]" />
           </colgroup>
           <thead className="sticky top-0 z-10 bg-surface-2 text-[11px] tracking-wide text-content-subtle">
             <tr className="border-b border-line">
               <th className="px-3 py-2 text-left font-medium">{t('modules.module')}</th>
+              <th className="px-3 py-2 text-left font-medium">{t('modules.code')}</th>
               <th className="px-3 py-2 text-left font-medium">{t('modules.dependencies')}</th>
               <th className="px-3 py-2 text-left font-medium">{t('table.state')}</th>
               <th className="px-3 py-2 text-left font-medium">{t('modules.actions')}</th>
@@ -90,12 +95,14 @@ export function ModulesScreen({ connection, server, onGoToConnection }: Props) {
           <tbody>
             {modules.map((module) => (
               <tr key={module.name} className={cx('border-b border-line/60', !module.active && 'text-content-subtle')}>
-                <td className="px-3 py-2">
-                  <div className="truncate font-medium" title={module.label}>{module.label}</div>
-                  <div className="truncate font-mono text-[11px] text-content-subtle">{module.name}</div>
+                <td className="truncate px-3 py-2 font-medium" title={module.label}>{module.label}</td>
+                <td className="truncate px-3 py-2 font-mono text-[11px] text-content-subtle" title={module.name}>
+                  {module.name}
                 </td>
-                <td className="truncate px-3 py-2 font-mono text-[11px] text-content-subtle" title={module.dependencies.join(', ')}>
-                  {module.dependencies.length > 0 ? module.dependencies.join(', ') : '—'}
+                <td className="truncate px-3 py-2" title={module.dependencies.join(', ')}>
+                  {module.dependencies.length > 0
+                    ? module.dependencies.map((name) => labels.get(name) ?? name).join(', ')
+                    : '—'}
                 </td>
                 <td className="px-3 py-2">
                   <div className="flex flex-wrap items-center gap-1">
@@ -133,7 +140,7 @@ export function ModulesScreen({ connection, server, onGoToConnection }: Props) {
               </tr>
             ))}
             {modules.length === 0 && (
-              <TableMessage colSpan={4}>{loading ? t('empty.scanning') : t('table.empty')}</TableMessage>
+              <TableMessage colSpan={5}>{loading ? t('empty.scanning') : t('table.empty')}</TableMessage>
             )}
           </tbody>
         </table>
