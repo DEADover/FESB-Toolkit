@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 
 import { useI18n } from '../i18n'
 import { errorText } from '../lib/api'
 import type { Connection } from '../types'
-import { Button, cx } from './ui'
+import { Button, Checkbox, cx } from './ui'
 
 /**
  * Общая обвязка для экранов раздела API: все они читают что-то с сервера,
@@ -84,4 +84,36 @@ export function useApiData<T>(
   useEffect(() => { void reload() }, [reload])
 
   return { data, loading, error, reload, setError }
+}
+
+/** Период автообновления: чаще смысла нет, счётчики шина считает не мгновенно. */
+const REFRESH_MS = 10_000
+
+/**
+ * Повторяет чтение, пока включено. Действие берётся через ref, поэтому таймер
+ * не перезапускается от каждой смены фильтров — иначе он бы никогда не срабатывал.
+ */
+export function useAutoRefresh(enabled: boolean, action: () => unknown) {
+  const latest = useRef(action)
+  latest.current = action
+
+  useEffect(() => {
+    if (!enabled) return
+    const timer = setInterval(() => { void latest.current() }, REFRESH_MS)
+    return () => clearInterval(timer)
+  }, [enabled])
+}
+
+/** Переключатель автообновления — один и тот же на всех живых экранах. */
+export function AutoRefreshToggle({ checked, onChange }: { checked: boolean; onChange: (value: boolean) => void }) {
+  const { t } = useI18n()
+  return (
+    <label
+      title={t('logs.autoHint')}
+      className="flex h-9 cursor-pointer items-center gap-2 rounded-lg border border-line-strong bg-surface px-3 text-[12.5px] text-content-muted"
+    >
+      <Checkbox checked={checked} onChange={(event) => onChange(event.target.checked)} />
+      {t('logs.auto')}
+    </label>
+  )
 }

@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react'
 
 import { useI18n } from '../i18n'
-import { apiQueueManagers, apiQueues, errorText } from '../lib/api'
-import type { Connection, QueueManager, QueueRow, ServerInfo } from '../types'
-import { ErrorBar, NotConnected, Panel, TableMessage, useApiData } from './ApiShell'
+import { apiQueueManagers, apiQueueMessage, apiQueueMessages, apiQueues, errorText } from '../lib/api'
+import type { Connection, QueueManager, QueueMessage, QueueRow, ServerInfo } from '../types'
+import { AutoRefreshToggle, ErrorBar, NotConnected, Panel, TableMessage, useApiData, useAutoRefresh } from './ApiShell'
 import { Badge, Button, Checkbox, Spinner, TextInput, cx } from './ui'
 
 interface Props {
@@ -31,6 +31,8 @@ export function QueuesScreen({ connection, server, onGoToConnection }: Props) {
   const [query, setQuery] = useState('')
   const [hideInternal, setHideInternal] = useState(true)
   const [copied, setCopied] = useState<string | null>(null)
+  /** Очередь, сообщения которой сейчас смотрят. */
+  const [inbox, setInbox] = useState<QueueRow | null>(null)
 
   // По умолчанию открываем работающий менеджер: у остановленного очередей нет.
   useEffect(() => {
@@ -63,6 +65,9 @@ export function QueuesScreen({ connection, server, onGoToConnection }: Props) {
   }, [connection])
 
   useEffect(() => { void openQueues(selected) }, [openQueues, selected])
+
+  // Смена менеджера закрывает открытую очередь: сообщения были из другой.
+  useEffect(() => { setInbox(null) }, [selected])
 
   const visible = useMemo(() => {
     if (!queues) return []
@@ -167,6 +172,14 @@ export function QueuesScreen({ connection, server, onGoToConnection }: Props) {
             </p>
           )}
 
+          {inbox && selected ? (
+            <Messages
+              connection={connection}
+              manager={selected}
+              queue={inbox}
+              onBack={() => setInbox(null)}
+            />
+          ) : (
           <Panel className="flex-1">
             <table className="w-full table-fixed border-collapse text-[12.5px]">
               <colgroup>
@@ -189,9 +202,13 @@ export function QueuesScreen({ connection, server, onGoToConnection }: Props) {
               </thead>
               <tbody>
                 {visible.map((queue) => (
-                  <tr key={`${queue.address ?? ''}/${queue.name}`} className="border-b border-line/60 hover:bg-surface-2">
+                  <tr
+                    key={`${queue.address ?? ''}/${queue.name}`}
+                    onClick={() => setInbox(queue)}
+                    className="cursor-pointer border-b border-line/60 hover:bg-surface-2"
+                  >
                     <td className="px-3 py-1.5">
-                      <div className="truncate font-mono text-[12px]" title={queue.name}>{queue.name}</div>
+                      <div className="truncate font-mono text-[12px]" title={t('queues.openMessages')}>{queue.name}</div>
                       {queue.address && queue.address !== queue.name && (
                         <div className="truncate text-[10.5px] text-content-subtle" title={queue.address}>{queue.address}</div>
                       )}
@@ -219,7 +236,183 @@ export function QueuesScreen({ connection, server, onGoToConnection }: Props) {
               </tbody>
             </table>
           </Panel>
+          )}
         </div>
+      </div>
+    </div>
+  )
+}
+
+/**
+ * Сообщения очереди.
+ *
+ * Ради этого экрана всё и затевалось: трассировку настраивают на очередь,
+ * а потом хотят увидеть, что в неё легло. Только чтение — удалять
+ * и переотправлять сообщения этот инструмент не берётся.
+ */
+function Messages({ connection, manager, queue, onBack }: {
+  connection: Connection
+  manager: QueueManager
+  queue: QueueRow
+  onBack: () => void
+}) {
+  const { t } = useI18n()
+  const [messages, setMessages] = useState<QueueMessage[]>([])
+  const [full, setFull] = useState<Record<string, QueueMessage>>({})
+  const [open, setOpen] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [auto, setAuto] = useState(false)
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      setMessages(await apiQueueMessages(connection, manager.kind, manager.id, queue.name, 200))
+    } catch (err) {
+      setError(errorText(err))
+      setMessages([])
+    } finally {
+      setLoading(false)
+    }
+  }, [connection, manager, queue.name])
+
+  useEffect(() => { void load() }, [load])
+  useAutoRefresh(auto, load)
+
+  /** Тело шина отдаёт только у отдельно запрошенного сообщения. */
+  const expand = useCallback(async (message: QueueMessage) => {
+    if (open === message.id) {
+      setOpen(null)
+      return
+    }
+    setOpen(message.id)
+    if (full[message.id]) return
+    try {
+      const loaded = await apiQueueMessage(connection, manager.kind, manager.id, queue.name, message.id)
+      setFull((prev) => ({ ...prev, [message.id]: loaded }))
+    } catch (err) {
+      setError(errorText(err))
+    }
+  }, [connection, manager, queue.name, open, full])
+
+  return (
+    <div className="flex min-h-0 flex-1 flex-col gap-3">
+      <div className="flex items-center gap-3">
+        <Button size="sm" onClick={onBack}>← {t('queues.backToQueues')}</Button>
+        <span className="min-w-0 truncate font-mono text-[12.5px] font-semibold">{queue.name}</span>
+        <span className="text-[11.5px] text-content-subtle">
+          {t('queues.messagesCount', { count: messages.length })}
+        </span>
+        <div className="ml-auto flex items-center gap-2">
+          <AutoRefreshToggle checked={auto} onChange={setAuto} />
+          <Button onClick={() => void load()} disabled={loading}>
+            {loading ? <Spinner className="size-4" /> : '↻'} {t('action.refresh')}
+          </Button>
+        </div>
+      </div>
+
+      <ErrorBar error={error} />
+
+      <Panel className="flex-1">
+        <table className="w-full table-fixed border-collapse text-[12.5px]">
+          <colgroup>
+            <col className="w-44" />
+            <col />
+            <col className="w-28" />
+            <col className="w-24" />
+            <col className="w-20" />
+          </colgroup>
+          <thead className="sticky top-0 z-10 bg-surface-2 text-[11px] tracking-wide text-content-subtle">
+            <tr className="border-b border-line">
+              <th className="px-3 py-2 text-left font-medium">{t('logs.time')}</th>
+              <th className="px-3 py-2 text-left font-medium">{t('queues.messageId')}</th>
+              <th className="px-3 py-2 text-left font-medium">{t('queues.messageType')}</th>
+              <th className="px-3 py-2 text-right font-medium">{t('zip.size')}</th>
+              <th className="px-3 py-2 text-left font-medium">{t('table.state')}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {messages.map((message) => {
+              const loaded = full[message.id]
+              const shown = open === message.id
+              return (
+                <Fragment key={message.id}>
+                  <tr
+                    onClick={() => void expand(message)}
+                    className={cx('cursor-pointer align-top', shown ? 'bg-surface-2/60' : 'border-b border-line/60 hover:bg-surface-2')}
+                  >
+                    <td className="px-3 py-1.5 font-mono text-[11px] text-content-subtle">
+                      {message.timestamp?.replace('T', ' ').slice(0, 23) ?? '—'}
+                    </td>
+                    <td className="truncate px-3 py-1.5 font-mono text-[11px]" title={message.id}>{message.id}</td>
+                    <td className="px-3 py-1.5 text-content-muted">{message.bodyType ?? '—'}</td>
+                    <td className="px-3 py-1.5 text-right tabular-nums">{message.size}</td>
+                    <td className="px-3 py-1.5">
+                      <div className="flex flex-wrap gap-1">
+                        {message.persistent && <Badge tone="accent">{t('queues.persistent')}</Badge>}
+                        {message.redelivered && <Badge tone="warn">{t('queues.redelivered')}</Badge>}
+                      </div>
+                    </td>
+                  </tr>
+
+                  {shown && (
+                    <tr className="border-b border-line/60 bg-surface-2/60">
+                      <td colSpan={5} className="px-3 pb-3">
+                        {loaded ? <MessageBody message={loaded} /> : (
+                          <span className="flex items-center gap-2 text-[11.5px] text-content-subtle">
+                            <Spinner className="size-3.5" /> {t('empty.scanning')}
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
+              )
+            })}
+            {messages.length === 0 && (
+              <TableMessage colSpan={5}>{loading ? t('empty.scanning') : t('queues.noMessages')}</TableMessage>
+            )}
+          </tbody>
+        </table>
+      </Panel>
+    </div>
+  )
+}
+
+function MessageBody({ message }: { message: QueueMessage }) {
+  const { t } = useI18n()
+  return (
+    <div className="flex flex-col gap-3">
+      {message.properties.length > 0 && (
+        <div className="overflow-hidden rounded-lg border border-line">
+          <table className="w-full table-fixed border-collapse text-[11.5px]">
+            <colgroup>
+              <col className="w-56" />
+              <col />
+            </colgroup>
+            <tbody>
+              {message.properties.map((property) => (
+                <tr key={property.name} className="border-b border-line last:border-b-0 align-top">
+                  <td className="border-r border-line bg-surface-2/70 px-3 py-1.5 font-mono text-content-subtle">
+                    {property.name}
+                  </td>
+                  <td className="break-all px-3 py-1.5 font-mono text-content-muted">{property.value}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      <div>
+        <div className="mb-1 text-[10px] uppercase tracking-wide text-content-subtle">
+          {t('queues.body')}
+          {message.truncated && ` · ${t('queues.truncated')}`}
+        </div>
+        <pre className="max-h-96 overflow-auto whitespace-pre-wrap break-all rounded-lg bg-surface px-3 py-2 font-mono text-[11px] leading-relaxed text-content-muted">
+          {message.body ?? t('queues.noBody')}
+        </pre>
       </div>
     </div>
   )

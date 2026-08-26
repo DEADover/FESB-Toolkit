@@ -433,3 +433,25 @@ export interface SavePoint {
   filename: string
   date: string | null
 }
+
+export interface MessageProperty {
+  name: string
+  value: string
+}
+
+export interface QueueMessage {
+  id: string
+  correlationId: string | null
+  timestamp: string | null
+  priority: number | null
+  size: number
+  bodySize: number
+  bodyType: string | null
+  persistent: boolean
+  redelivered: boolean
+  replyTo: string | null
+  properties: MessageProperty[]
+  /** Тело приходит только у отдельно запрошенного сообщения. */
+  body: string | null
+  truncated: boolean
+}

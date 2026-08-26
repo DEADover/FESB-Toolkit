@@ -5,7 +5,7 @@ import { apiDomainRoutes, apiDomainStatistics, apiRouteAction, apiRouteState, er
 import type {
   Connection, DomainRoutes, DomainStat, RouteAction, RouteFile, RouteState, ServerInfo,
 } from '../types'
-import { ErrorBar, NotConnected, Panel, TableMessage, useApiData } from './ApiShell'
+import { AutoRefreshToggle, ErrorBar, NotConnected, Panel, TableMessage, useApiData, useAutoRefresh } from './ApiShell'
 import { RouteViewer } from './RouteViewer'
 import { Badge, Button, Spinner, TextInput, cx } from './ui'
 
@@ -13,6 +13,8 @@ interface Props {
   connection: Connection | null
   server: ServerInfo | null
   isMac: boolean
+  /** Домен, выбранный снаружи — например, кликом на карте. */
+  initialGuid?: string | null
   onGoToConnection: () => void
 }
 
@@ -24,7 +26,7 @@ interface Props {
  * из выгрузки одного домена (доли секунды), а состояние и счётчики —
  * по каждому маршруту отдельно; так виден и остановленный.
  */
-export function RoutesScreen({ connection, server, isMac, onGoToConnection }: Props) {
+export function RoutesScreen({ connection, server, isMac, initialGuid, onGoToConnection }: Props) {
   const { t } = useI18n()
   const load = useCallback((connection: Connection) => apiDomainStatistics(connection), [])
   const stats = useApiData<DomainStat[]>(connection, load)
@@ -37,6 +39,7 @@ export function RoutesScreen({ connection, server, isMac, onGoToConnection }: Pr
   const [pending, setPending] = useState<string | null>(null)
   const [query, setQuery] = useState('')
   const [open, setOpen] = useState<RouteFile | null>(null)
+  const [auto, setAuto] = useState(false)
 
   const withRoutes = useMemo(
     () => (stats.data ?? []).filter((item) => item.routes > 0),
@@ -96,10 +99,21 @@ export function RoutesScreen({ connection, server, isMac, onGoToConnection }: Pr
   }, [connection, selected])
 
   // Первый домен со схемами открывается сам — экран не должен встречать пустотой.
+  // Если домен пришёл извне (клик на карте), открывается именно он.
   useEffect(() => {
-    if (selected || withRoutes.length === 0) return
-    void openDomain(withRoutes[0])
-  }, [selected, withRoutes, openDomain])
+    if (withRoutes.length === 0) return
+    const wanted = initialGuid ? withRoutes.find((item) => item.guid === initialGuid) : null
+    if (wanted) {
+      if (selected?.guid !== wanted.guid) void openDomain(wanted)
+      return
+    }
+    if (!selected) void openDomain(withRoutes[0])
+  }, [selected, withRoutes, openDomain, initialGuid])
+
+  /** Обновляем только состояния: состав СОПС меняется куда реже счётчиков. */
+  useAutoRefresh(auto, () => {
+    if (selected && domain) void readStates(selected.guid, domain.routes)
+  })
 
   if (!connection || !server) return <NotConnected onGoToConnection={onGoToConnection} />
 
@@ -151,13 +165,15 @@ export function RoutesScreen({ connection, server, isMac, onGoToConnection }: Pr
               {domain?.name ?? selected?.name ?? '—'}
             </span>
             <span className="text-[11.5px] text-content-subtle">{t('routes.count', { count: routes.length })}</span>
-            <Button
-              className="ml-auto"
-              onClick={() => selected && void openDomain(selected)}
-              disabled={loading || !selected}
-            >
-              {loading ? <Spinner className="size-4" /> : '↻'} {t('action.refresh')}
-            </Button>
+            <div className="ml-auto flex items-center gap-2">
+              <AutoRefreshToggle checked={auto} onChange={setAuto} />
+              <Button
+                onClick={() => selected && void openDomain(selected)}
+                disabled={loading || !selected}
+              >
+                {loading ? <Spinner className="size-4" /> : '↻'} {t('action.refresh')}
+              </Button>
+            </div>
           </div>
 
           <Panel className="flex-1">

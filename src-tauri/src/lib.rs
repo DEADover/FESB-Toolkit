@@ -24,7 +24,7 @@ use archive::{create_archive, extract_archive, ArchiveResult, ExtractResult};
 use fesb_api::{ApiDomain, Connection, DomainRoutes, PullResult, PushResult, ServerInfo, VerifyResult};
 use fesb_ops::{
     DomainActionResult, DomainStat, LogEntry, LogFileRow, LogRequest, ManagerKind, ModuleRow,
-    PropertyRow, PropertyScope, QueueManager, QueueRow, RouteState, SavePoint,
+    PropertyRow, PropertyScope, QueueManager, QueueMessage, QueueRow, RouteState, SavePoint,
 };
 use route_graph::{parse_route_graphs, RouteGraph};
 use scanner::{scan_root, ScanResult};
@@ -278,6 +278,30 @@ async fn api_queues(connection: Connection, kind: ManagerKind, id: String) -> Re
     fesb_ops::queues(&connection, kind, &id).await
 }
 
+/// Сообщения очереди — без тела: его шина отдаёт только поштучно.
+#[tauri::command]
+async fn api_queue_messages(
+    connection: Connection,
+    kind: ManagerKind,
+    id: String,
+    queue: String,
+    limit: u32,
+) -> Result<Vec<QueueMessage>, String> {
+    fesb_ops::queue_messages(&connection, kind, &id, &queue, limit).await
+}
+
+/// Одно сообщение целиком, вместе с телом.
+#[tauri::command]
+async fn api_queue_message(
+    connection: Connection,
+    kind: ManagerKind,
+    id: String,
+    queue: String,
+    message: String,
+) -> Result<QueueMessage, String> {
+    fesb_ops::queue_message(&connection, kind, &id, &queue, &message).await
+}
+
 /// Константы приложения, брокера или домена.
 #[tauri::command]
 async fn api_properties(connection: Connection, scope: PropertyScope) -> Result<Vec<PropertyRow>, String> {
@@ -346,6 +370,8 @@ pub fn run() {
             api_rollback_save_point,
             api_queue_managers,
             api_queues,
+            api_queue_messages,
+            api_queue_message,
             api_properties,
             api_save_property,
             api_delete_property,
@@ -364,7 +390,8 @@ pub mod testing {
     pub use crate::fesb_api::fetch_domain_routes;
     pub use crate::fesb_ops::{
         delete_property, domain_statistics, log_entries, log_files, modules, properties,
-        queue_managers, queues, route_state, save_property, LogRequest, ManagerKind, PropertyRow,
+        queue_managers, queue_message, queue_messages, queues, route_state, save_property,
+        LogRequest, ManagerKind, PropertyRow,
         PropertyScope,
     };
     pub use crate::archive::create_archive;

@@ -10,7 +10,8 @@ import type {
   ExtractResult, LogEntry,
   LogFileRow, LogRequest, ManagerKind,
   ModuleAction, ModuleRow, PropertyRow, PropertyScope, PullResult, PushResult, QueueManager,
-  QueueRow, RouteAction, RouteGraph, RouteState, SavePoint, ScanProgress, ScanResult,
+  QueueMessage, QueueRow, RouteAction, RouteGraph, RouteState, SavePoint, ScanProgress,
+  ScanResult,
   ServerInfo, TraceUpdate, VerifyResult,
 } from '../types'
 
@@ -203,6 +204,27 @@ export function apiQueueManagers(connection: Connection): Promise<QueueManager[]
 
 export function apiQueues(connection: Connection, kind: ManagerKind, id: string): Promise<QueueRow[]> {
   return invoke<QueueRow[]>('api_queues', { connection, kind, id })
+}
+
+/** Сообщения очереди — без тела: его шина отдаёт только поштучно. */
+export function apiQueueMessages(
+  connection: Connection,
+  kind: ManagerKind,
+  id: string,
+  queue: string,
+  limit: number,
+): Promise<QueueMessage[]> {
+  return invoke<QueueMessage[]>('api_queue_messages', { connection, kind, id, queue, limit })
+}
+
+export function apiQueueMessage(
+  connection: Connection,
+  kind: ManagerKind,
+  id: string,
+  queue: string,
+  message: string,
+): Promise<QueueMessage> {
+  return invoke<QueueMessage>('api_queue_message', { connection, kind, id, queue, message })
 }
 
 export function apiProperties(connection: Connection, scope: PropertyScope): Promise<PropertyRow[]> {

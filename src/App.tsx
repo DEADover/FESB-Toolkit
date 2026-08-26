@@ -69,6 +69,8 @@ export default function App() {
   const [connecting, setConnecting] = useState(false)
   /** Профиль, который надо раскрыть на экране подключения. */
   const [focusProfile, setFocusProfile] = useState<string | null>(null)
+  /** Домен, к СОПС которого перешли с карты. */
+  const [routesDomain, setRoutesDomain] = useState<string | null>(null)
 
   const isMac = info?.platform === 'macos'
   const busy = scanning || unpacking
@@ -366,9 +368,12 @@ export default function App() {
             onGoToConnection={() => setScreen('api.connection')}
           />
         ) : screen === 'api.map' ? (
-          <MapScreen {...apiScreenProps} />
+          <MapScreen
+            {...apiScreenProps}
+            onOpenRoutes={(guid) => { setRoutesDomain(guid); setScreen('api.routes') }}
+          />
         ) : screen === 'api.routes' ? (
-          <RoutesScreen {...apiScreenProps} isMac={isMac} />
+          <RoutesScreen {...apiScreenProps} isMac={isMac} initialGuid={routesDomain} />
         ) : screen === 'api.queues' ? (
           <QueuesScreen {...apiScreenProps} />
         ) : screen === 'api.modules' ? (

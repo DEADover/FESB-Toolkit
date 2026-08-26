@@ -528,6 +528,33 @@ mod tests {
 
     /// Фронтенд присылает уровень как есть, поэтому форма ответа зафиксирована.
     #[test]
+    fn decodes_the_message_body_the_bus_sends() {
+        // именно так шина отдала «проверка просмотра сообщений»
+        let encoded = "0L/RgNC+0LLQtdGA0LrQsCDQv9GA0L7RgdC80L7RgtGA0LAg0YHQvtC+0LHRidC10L3QuNC5";
+        assert_eq!(decode_body(Some(encoded)).as_deref(), Some("проверка просмотра сообщений"));
+        assert_eq!(decode_body(Some("")), None);
+        assert_eq!(decode_body(None), None);
+        // не UTF-8 — показывать нечего, но и падать не за что
+        assert_eq!(decode_body(Some("//79")), None);
+    }
+
+    #[test]
+    fn keeps_message_ids_usable_in_a_path() {
+        assert_eq!(encode_segment("ID:host-1:1:0:0:1"), "ID:host-1:1:0:0:1");
+        assert_eq!(encode_segment("Mon.Trace"), "Mon.Trace");
+        assert_eq!(encode_segment("a b/c"), "a%20b%2Fc");
+    }
+
+    #[test]
+    fn strips_the_wrapper_around_dates() {
+        assert_eq!(
+            clean_date(Some("/Date(2026-08-26T23:22:30.976)/".into())).as_deref(),
+            Some("2026-08-26T23:22:30.976"),
+        );
+        assert_eq!(clean_date(Some("2026-08-26T23:22:30".into())).as_deref(), Some("2026-08-26T23:22:30"));
+    }
+
+    #[test]
     fn treats_a_false_body_as_a_refusal() {
         // Шина отвечает 200 и телом false, когда домен не смог подняться.
         assert!(!matches!("false".trim(), body if body != "false"));
@@ -777,4 +804,202 @@ pub async fn rollback_save_point(connection: &Connection, point: SavePoint) -> R
         .map_err(transport_error)?;
     ensure_ok(response, "Rollback failed").await?;
     Ok(())
+}
+
+// ───────────────────────── сообщения в очереди ─────────────────────────
+
+/// Свойство сообщения: имя и значение, как их отдала шина.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MessageProperty {
+    pub name: String,
+    pub value: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct QueueMessage {
+    pub id: String,
+    pub correlation_id: Option<String>,
+    pub timestamp: Option<String>,
+    pub priority: Option<i64>,
+    pub size: i64,
+    pub body_size: i64,
+    pub body_type: Option<String>,
+    pub persistent: bool,
+    pub redelivered: bool,
+    pub reply_to: Option<String>,
+    pub properties: Vec<MessageProperty>,
+    /// Тело, если шина его отдала: она присылает его в base64.
+    pub body: Option<String>,
+    pub truncated: bool,
+}
+
+/// Дата у мультименеджера приходит как `/Date(2026-08-26T23:22:30.976)/`.
+fn clean_date(value: Option<String>) -> Option<String> {
+    value.map(|text| {
+        text.trim_start_matches("/Date(")
+            .trim_end_matches(")/")
+            .to_string()
+    })
+}
+
+/// Декодирует base64 в текст. Не текст — значит показывать нечего.
+fn decode_body(value: Option<&str>) -> Option<String> {
+    let raw = value?.trim();
+    if raw.is_empty() {
+        return None;
+    }
+    let bytes = decode_base64(raw)?;
+    String::from_utf8(bytes).ok()
+}
+
+/// Свой декодер вместо зависимости: алфавит стандартный, задача разовая.
+fn decode_base64(input: &str) -> Option<Vec<u8>> {
+    fn value(byte: u8) -> Option<u32> {
+        match byte {
+            b'A'..=b'Z' => Some((byte - b'A') as u32),
+            b'a'..=b'z' => Some((byte - b'a') as u32 + 26),
+            b'0'..=b'9' => Some((byte - b'0') as u32 + 52),
+            b'+' => Some(62),
+            b'/' => Some(63),
+            _ => None,
+        }
+    }
+
+    let mut out = Vec::with_capacity(input.len() / 4 * 3);
+    let mut buffer = 0u32;
+    let mut bits = 0u32;
+
+    for byte in input.bytes() {
+        if byte == b'=' || byte.is_ascii_whitespace() {
+            continue;
+        }
+        let digit = value(byte)?;
+        buffer = (buffer << 6) | digit;
+        bits += 6;
+        if bits >= 8 {
+            bits -= 8;
+            out.push((buffer >> bits) as u8);
+        }
+    }
+    Some(out)
+}
+
+fn message_from(item: &Value) -> Option<QueueMessage> {
+    let properties = item
+        .get("properties")
+        .and_then(Value::as_object)
+        .map(|map| {
+            map.iter()
+                .map(|(name, value)| MessageProperty {
+                    name: name.clone(),
+                    value: value.as_str().map(String::from).unwrap_or_else(|| value.to_string()),
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+
+    Some(QueueMessage {
+        id: text(item, "messageId").or_else(|| text(item, "jmsMessageId"))?,
+        correlation_id: text(item, "correlationId"),
+        timestamp: clean_date(text(item, "timestamp")),
+        priority: number(item, &["priority"]),
+        size: number(item, &["size", "persistentSize"]).unwrap_or(0),
+        body_size: number(item, &["bodySize"]).unwrap_or(0),
+        body_type: text(item, "bodyType").or_else(|| text(item, "type")),
+        persistent: flag(item, "persistent") || flag(item, "durable"),
+        redelivered: flag(item, "redelivered"),
+        reply_to: text(item, "replyTo"),
+        properties,
+        body: decode_body(item.get("bodyView").and_then(Value::as_str)),
+        truncated: flag(item, "truncatedBody"),
+    })
+}
+
+/// Часть пути может содержать что угодно — от точек до двоеточий в id.
+fn encode_segment(value: &str) -> String {
+    let mut out = String::with_capacity(value.len());
+    for byte in value.bytes() {
+        match byte {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' | b':' => {
+                out.push(byte as char)
+            }
+            _ => out.push_str(&format!("%{byte:02X}")),
+        }
+    }
+    out
+}
+
+/// Сообщения очереди. У расширенных менеджеров ответ страничный, у мультименеджера — список.
+pub async fn queue_messages(
+    connection: &Connection,
+    kind: ManagerKind,
+    id: &str,
+    queue: &str,
+    limit: u32,
+) -> Result<Vec<QueueMessage>, String> {
+    let client = connection.client()?;
+    let queue = encode_segment(queue);
+    let path = match kind {
+        ManagerKind::Qms => format!("/api/qms/brokers/{id}/queues/{queue}/messages"),
+        ManagerKind::Qme => format!("/api/qme/servers/{id}/queues/{queue}/messages"),
+        ManagerKind::Rqms => format!("/api/rqms/brokers/{id}/queues/{queue}/messages"),
+    };
+
+    let mut request = connection.get(&client, &path).timeout(Duration::from_secs(120));
+    if kind == ManagerKind::Qme {
+        // Фильтр обязателен, страница — иначе придёт только первый десяток.
+        request = request.query(&[("filter", ""), ("page", "0"), ("size", &limit.to_string())]);
+    }
+
+    let response = request.send().await.map_err(transport_error)?;
+    let body: Value = ensure_ok(response, "Cannot read messages")
+        .await?
+        .json()
+        .await
+        .map_err(|err| format!("Unexpected answer: {err}"))?;
+
+    let items = body
+        .as_array()
+        .cloned()
+        .or_else(|| body.get("content").and_then(Value::as_array).cloned())
+        .unwrap_or_default();
+
+    Ok(items
+        .iter()
+        .filter_map(message_from)
+        .take(limit as usize)
+        .collect())
+}
+
+/// Одно сообщение целиком: в списке шина тело не отдаёт.
+pub async fn queue_message(
+    connection: &Connection,
+    kind: ManagerKind,
+    id: &str,
+    queue: &str,
+    message: &str,
+) -> Result<QueueMessage, String> {
+    let client = connection.client()?;
+    let queue = encode_segment(queue);
+    let message_id = encode_segment(message);
+    let path = match kind {
+        ManagerKind::Qms => format!("/api/qms/brokers/{id}/queues/{queue}/messages/{message_id}"),
+        ManagerKind::Qme => format!("/api/qme/servers/{id}/queues/{queue}/messages/{message_id}"),
+        ManagerKind::Rqms => format!("/api/rqms/brokers/{id}/queues/{queue}/messages/{message_id}"),
+    };
+
+    let response = connection
+        .get(&client, &path)
+        .timeout(Duration::from_secs(120))
+        .send()
+        .await
+        .map_err(transport_error)?;
+    let item: Value = ensure_ok(response, "Cannot read the message")
+        .await?
+        .json()
+        .await
+        .map_err(|err| format!("Unexpected answer: {err}"))?;
+    message_from(&item).ok_or_else(|| "The bus returned a message without an id".to_string())
 }

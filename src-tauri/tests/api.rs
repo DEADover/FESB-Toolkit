@@ -13,8 +13,8 @@ use std::path::PathBuf;
 use fesb_settings_editor_lib::testing::{
     apply_trace_change, connect, domains, log_entries, log_files, modules, properties, pull, push,
     queue_managers, queues, save_property, delete_property, verify, domain_statistics,
-    fetch_domain_routes, route_state, ApplyRequest, ApplyTarget, BeanTarget, Connection,
-    LogRequest, PropertyRow, PropertyScope, TraceUpdate,
+    fetch_domain_routes, queue_message, queue_messages, route_state, ApplyRequest, ApplyTarget,
+    BeanTarget, Connection, LogRequest, ManagerKind, PropertyRow, PropertyScope, TraceUpdate,
 };
 
 /// Обёртка над рантаймом: приложение вызывает те же функции из команд Tauri.
@@ -431,4 +431,44 @@ fn reads_the_domain_map_and_live_routes() {
         state.inflight,
     );
     assert_eq!(state.id, route);
+}
+
+/// Просмотр сообщений очереди. Нужен работающий менеджер и хотя бы одно
+/// сообщение: `FESB_QUEUE=QMS:QM/SettingsEditor.Probe`.
+#[test]
+#[ignore]
+fn reads_messages_of_a_queue() {
+    let Some(connection) = connection() else {
+        eprintln!("FESB_URL не задан — пропускаем");
+        return;
+    };
+    let Ok(target) = std::env::var("FESB_QUEUE") else {
+        eprintln!("FESB_QUEUE не задан — пропускаем");
+        return;
+    };
+    let (broker, queue) = target.split_once('/').expect("ожидается вид QMS:QM/Имя.Очереди");
+    let (prefix, id) = broker.split_once(':').expect("ожидается вид QMS:QM");
+    let kind = match prefix {
+        "QMS" => ManagerKind::Qms,
+        "QME" => ManagerKind::Qme,
+        _ => ManagerKind::Rqms,
+    };
+
+    let list = block(queue_messages(&connection, kind, id, queue, 50)).expect("список сообщений");
+    println!("сообщений в {queue}: {}", list.len());
+    assert!(!list.is_empty(), "очередь пуста — положите в неё сообщение");
+
+    let first = &list[0];
+    println!("  {} · {} байт · {:?}", first.id, first.size, first.timestamp);
+    assert!(first.body.is_none(), "в списке шина тело не отдаёт");
+
+    let full = block(queue_message(&connection, kind, id, queue, &first.id)).expect("сообщение");
+    assert_eq!(full.id, first.id);
+    let body = full.body.expect("тело не пришло или не декодировалось");
+    println!("  тело: {body}");
+    assert!(!body.is_empty());
+    assert!(
+        full.properties.iter().any(|item| !item.name.is_empty()),
+        "свойства сообщения потерялись",
+    );
 }

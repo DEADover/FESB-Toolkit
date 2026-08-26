@@ -3,12 +3,14 @@ import { useCallback, useMemo, useState } from 'react'
 import { useI18n } from '../i18n'
 import { apiDomainStatistics } from '../lib/api'
 import type { Connection, DomainStat, ServerInfo } from '../types'
-import { ErrorBar, NotConnected, Panel, TableMessage, useApiData } from './ApiShell'
+import { AutoRefreshToggle, ErrorBar, NotConnected, Panel, TableMessage, useApiData, useAutoRefresh } from './ApiShell'
 import { Badge, Button, Checkbox, Spinner, TextInput, cx } from './ui'
 
 interface Props {
   connection: Connection | null
   server: ServerInfo | null
+  /** Переход к СОПС домена: карта показывает, где болит, а лечат уже там. */
+  onOpenRoutes: (guid: string) => void
   onGoToConnection: () => void
 }
 
@@ -20,7 +22,7 @@ type SortKey = 'name' | 'routes' | 'running' | 'success' | 'errors' | 'inflight'
  * При двух с половиной сотнях доменов вопрос «где сейчас болит» иначе никак
  * не задать — по умолчанию список отсортирован по ошибкам, а не по алфавиту.
  */
-export function MapScreen({ connection, server, onGoToConnection }: Props) {
+export function MapScreen({ connection, server, onOpenRoutes, onGoToConnection }: Props) {
   const { t } = useI18n()
   const load = useCallback((connection: Connection) => apiDomainStatistics(connection), [])
   const { data, loading, error, reload } = useApiData<DomainStat[]>(connection, load)
@@ -28,6 +30,9 @@ export function MapScreen({ connection, server, onGoToConnection }: Props) {
   const [query, setQuery] = useState('')
   const [onlyTrouble, setOnlyTrouble] = useState(false)
   const [sort, setSort] = useState<SortKey>('errors')
+  const [auto, setAuto] = useState(false)
+
+  useAutoRefresh(auto, reload)
 
   const stats = useMemo(() => data ?? [], [data])
 
@@ -76,9 +81,12 @@ export function MapScreen({ connection, server, onGoToConnection }: Props) {
         <Total label={t('map.success')} value={totals.success.toLocaleString()} />
         <Total label={t('map.errors')} value={totals.errors.toLocaleString()} tone={totals.errors > 0 ? 'danger' : undefined} />
         <Total label={t('map.inflight')} value={totals.inflight.toLocaleString()} tone={totals.inflight > 0 ? 'warn' : undefined} />
-        <Button className="ml-auto" onClick={() => void reload()} disabled={loading}>
-          {loading ? <Spinner className="size-4" /> : '↻'} {t('action.refresh')}
-        </Button>
+        <div className="ml-auto flex items-center gap-2">
+          <AutoRefreshToggle checked={auto} onChange={setAuto} />
+          <Button onClick={() => void reload()} disabled={loading}>
+            {loading ? <Spinner className="size-4" /> : '↻'} {t('action.refresh')}
+          </Button>
+        </div>
       </div>
 
       <div className="flex items-center gap-2">
@@ -127,14 +135,27 @@ export function MapScreen({ connection, server, onGoToConnection }: Props) {
           </thead>
           <tbody>
             {visible.map((item) => (
-              <tr key={item.guid} className={cx('border-b border-line/60 hover:bg-surface-2', !item.active && 'text-content-subtle')}>
+              <tr
+                key={item.guid}
+                onClick={() => item.routes > 0 && onOpenRoutes(item.guid)}
+                className={cx(
+                  'border-b border-line/60 hover:bg-surface-2',
+                  !item.active && 'text-content-subtle',
+                  item.routes > 0 && 'cursor-pointer',
+                )}
+              >
                 <td className="px-3 py-1.5">
                   <div className="flex items-center gap-2">
                     <span
                       className={cx('size-1.5 shrink-0 rounded-full', item.active ? 'bg-positive' : 'bg-content-subtle/40')}
                       title={item.active ? t('table.active') : t('table.stopped')}
                     />
-                    <span className="min-w-0 flex-1 truncate font-medium" title={item.guid}>{item.name}</span>
+                    <span
+                      className="min-w-0 flex-1 truncate font-medium"
+                      title={item.routes > 0 ? t('map.openRoutes') : item.guid}
+                    >
+                      {item.name}
+                    </span>
                     {item.active && item.running < item.routes && (
                       <Badge tone="warn" title={t('map.notAllRunning.hint')}>{t('map.notAllRunning')}</Badge>
                     )}
