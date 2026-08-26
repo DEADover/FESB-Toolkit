@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "fesb-ui",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "vite:dev"],
+      "port": 5173
+    }
+  ]
+}

@@ -11,10 +11,13 @@ import { TraceScreen } from './components/TraceScreen'
 import { Badge, Button, Spinner, cx } from './components/ui'
 import { useI18n, type MessageKey } from './i18n'
 import {
-  apiPull, appInfo, errorText, onApiProgress, onExtractProgress, onFileDrop, onScanProgress,
-  openArchive, scanDirectory, selectArchive, selectFolder,
+  apiConnect, apiPull, appInfo, errorText, onApiProgress, onExtractProgress, onFileDrop,
+  onScanProgress, openArchive, scanDirectory, selectArchive, selectFolder,
 } from './lib/api'
-import { readConnection, type StoredConnection } from './lib/connection'
+import {
+  autoConnectTarget, markUsed, readStore, toConnection, writeStore,
+  type ConnectionProfile, type ConnectionStore, type Environment,
+} from './lib/connection'
 import { applyThemeMode, readThemeMode, storeThemeMode, type ThemeMode } from './lib/theme'
 import type {
   ApiProgress, AppInfo, ArchiveProgress, Connection, ScanProgress, ScanResult, ServerInfo,
@@ -28,10 +31,19 @@ interface Source {
   path: string
 }
 
-/** Подтверждённое подключение: сервер и параметры, которыми он открыт. */
+/** Подтверждённое подключение: сервер, параметры и профиль, которым он открыт. */
 interface Session {
   server: ServerInfo
   connection: Connection
+  profile: ConnectionProfile
+}
+
+/** Цвет среды в шапке — тот же, что и в списке профилей. */
+const ENVIRONMENT_TONE: Record<Environment, 'neutral' | 'accent' | 'warn' | 'danger'> = {
+  dev: 'neutral',
+  test: 'accent',
+  stage: 'warn',
+  prod: 'danger',
 }
 
 export default function App() {
@@ -52,7 +64,7 @@ export default function App() {
   const [dragging, setDragging] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const [form, setForm] = useState<StoredConnection>(readConnection)
+  const [connections, setConnections] = useState<ConnectionStore>(readStore)
   const [session, setSession] = useState<Session | null>(null)
   const [pulling, setPulling] = useState(false)
   const [apiProgress, setApiProgress] = useState<ApiProgress | null>(null)
@@ -146,8 +158,38 @@ export default function App() {
 
   const rescan = useCallback(async () => { if (root) await runScan(root) }, [root, runScan])
 
-  const setServer = useCallback((server: ServerInfo | null, connection: Connection | null) => {
-    setSession(server && connection ? { server, connection } : null)
+  /** Открывает подключение по профилю; ошибку разбирает вызывающий экран. */
+  const connectProfile = useCallback(async (profile: ConnectionProfile) => {
+    const connection = toConnection(profile)
+    const server = await apiConnect(connection)
+    setSession({ server, connection, profile })
+  }, [])
+
+  const disconnect = useCallback(() => setSession(null), [])
+
+  // Автоподключение возможно только к профилю с сохранённым паролем.
+  useEffect(() => {
+    const target = autoConnectTarget(connections)
+    if (!target) return
+    let cancelled = false
+    void (async () => {
+      try {
+        const connection = toConnection(target)
+        const server = await apiConnect(connection)
+        if (cancelled) return
+        setSession({ server, connection, profile: target })
+        setConnections((prev) => {
+          const next = markUsed(prev, target.id, new Date().toISOString())
+          writeStore(next)
+          return next
+        })
+      } catch {
+        // Стенд мог быть недоступен — молча остаёмся без подключения.
+      }
+    })()
+    return () => { cancelled = true }
+    // Автоподключение — разовое действие при запуске, а не реакция на правку профилей.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   /** Забирает домены с сервера и передаёт их обычному редактору. */
@@ -232,16 +274,22 @@ export default function App() {
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
               <h1 className="text-[15px] font-semibold leading-tight">{screenTitle}</h1>
-              {scan?.fesbVersion && (
+              {scan?.fesbVersion && !isApiScreen && (
                 <Badge tone="accent" className="font-mono">
                   <span title={t('header.fesbVersion')}>FESB {scan.fesbVersion}</span>
+                </Badge>
+              )}
+              {/* Среда видна на каждом экране API: чтобы правка боевого стенда не была сюрпризом. */}
+              {session && (isApiScreen || source?.kind === 'server') && (
+                <Badge tone={ENVIRONMENT_TONE[session.profile.environment]}>
+                  {t(`env.${session.profile.environment}` as MessageKey)}
                 </Badge>
               )}
             </div>
             <p className="truncate text-[11.5px] text-content-subtle" title={isApiScreen ? session?.server.baseUrl : source?.path}>
               {isApiScreen
                 ? session
-                  ? `${t('header.server')}: ${session.server.baseUrl} · ${t('api.info.user')}: ${session.server.user}`
+                  ? `${session.profile.name} · ${session.server.baseUrl} · ${t('api.info.user')}: ${session.server.user}`
                   : t('api.header.noServer')
                 : source
                   ? `${sourceLabel}: ${source.path}${scan ? ` · ${t('stats.domains')}: ${scan.domains.length}` : ''}`
@@ -263,10 +311,12 @@ export default function App() {
 
         {screen === 'api.connection' ? (
           <ConnectionScreen
-            form={form}
-            onForm={setForm}
+            store={connections}
+            onStore={setConnections}
             server={session?.server ?? null}
-            onServer={setServer}
+            activeProfileId={session?.profile.id ?? null}
+            onConnect={connectProfile}
+            onDisconnect={disconnect}
           />
         ) : screen === 'api.domains' ? (
           <DomainsScreen
