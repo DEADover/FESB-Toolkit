@@ -347,3 +347,69 @@ fn dump_route() {
     let xml = std::fs::read_to_string(file).unwrap();
     println!("{}", serde_json::to_string(&parse_route_graphs(&xml)).unwrap());
 }
+
+/// Связи СОПС на всём корпусе: граф должен быть настоящим и без выдумок.
+#[test]
+#[ignore]
+fn links_routes_across_the_real_export() {
+    let Ok(root) = std::env::var("FESB_CORPUS") else {
+        eprintln!("FESB_CORPUS не задан — пропускаем");
+        return;
+    };
+    let graph = fesb_settings_editor_lib::testing::build_links(&PathBuf::from(root));
+
+    let mut by_kind: BTreeMap<&str, usize> = BTreeMap::new();
+    let mut cross = 0usize;
+    for link in &graph.links {
+        *by_kind.entry(link.kind.as_str()).or_default() += 1;
+        if graph.routes[link.from].domain_dir != graph.routes[link.to].domain_dir {
+            cross += 1;
+        }
+    }
+    let linked: std::collections::BTreeSet<usize> =
+        graph.links.iter().flat_map(|link| [link.from, link.to]).collect();
+
+    println!("маршрутов {}, связей {}", graph.routes.len(), graph.links.len());
+    println!("  по видам: {by_kind:?}");
+    println!("  между доменами: {cross}");
+    println!("  участвуют в связях: {} маршрутов", linked.len());
+
+    assert!(graph.routes.len() > 2000, "маршрутов подозрительно мало");
+    assert!(graph.links.len() > 1000, "связей подозрительно мало: {}", graph.links.len());
+    assert!(cross > 0, "связей между доменами не нашлось вовсе");
+
+    // Ни один маршрут не должен ссылаться сам на себя.
+    assert!(graph.links.iter().all(|link| link.from != link.to));
+
+    // `direct` не выходит за пределы домена — на этом корпусе такие адреса есть.
+    for link in &graph.links {
+        if link.uri.starts_with("direct:") && !link.uri.starts_with("direct-vm:") {
+            assert_eq!(
+                graph.routes[link.from].domain_dir, graph.routes[link.to].domain_dir,
+                "direct связал разные домены: {}", link.uri,
+            );
+        }
+    }
+}
+
+/// Служебный прогон: печатает связи одного маршрута в JSON для просмотра вёрстки.
+#[test]
+#[ignore]
+fn dump_links() {
+    let (Ok(root), Ok(file)) = (std::env::var("FESB_CORPUS"), std::env::var("FESB_ROUTE")) else { return };
+    let graph = fesb_settings_editor_lib::testing::build_links(&PathBuf::from(root));
+    let mine: Vec<usize> = graph
+        .routes
+        .iter()
+        .enumerate()
+        .filter(|(_, route)| route.path == file)
+        .map(|(index, _)| index)
+        .collect();
+    let payload: Vec<_> = graph
+        .links
+        .iter()
+        .filter(|link| mine.contains(&link.from) || mine.contains(&link.to))
+        .collect();
+    println!("LINKS {}", serde_json::to_string(&payload).unwrap());
+    println!("ROUTES {}", serde_json::to_string(&graph.routes).unwrap());
+}

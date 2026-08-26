@@ -115,6 +115,12 @@ export const ru: Record<keyof typeof en, string> = {
   'panel.noRoutes': 'В домене нет СОПС',
   'filter.untracedRoutes': 'Есть СОПС без трассировки',
 
+  'links.incoming': 'Вызывают ({count})',
+  'links.outgoing': 'Вызывает ({count})',
+  'links.none': 'Эта схема не связана с другими',
+  'links.call': 'вызов',
+  'links.queue': 'очередь',
+  'links.open': 'Открыть эту схему · {uri}',
   'route.openHint': 'Открыть схему СОПС',
   'route.steps': 'шагов: {count}',
   'route.pickStep': 'Выберите шаг на схеме, чтобы увидеть его адрес, выражение и атрибуты.',

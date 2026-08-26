@@ -403,6 +403,8 @@ export interface RouteFile {
 export interface DomainRoutes {
   guid: string
   name: string | null
+  /** Корень временной копии — по нему считаются связи между маршрутами. */
+  root: string
   routes: RouteFile[]
 }
 
@@ -454,4 +456,41 @@ export interface QueueMessage {
   /** Тело приходит только у отдельно запрошенного сообщения. */
   body: string | null
   truncated: boolean
+}
+
+// ─────────────────────────── связи СОПС ───────────────────────────
+
+export interface LinkedRoute {
+  id: string | null
+  name: string | null
+  domain: string
+  domainDir: string
+  path: string
+}
+
+export interface RouteLink {
+  from: number
+  to: number
+  uri: string
+  /** `call` — прямой вызов, `queue` — через транспорт. */
+  kind: string
+}
+
+export interface LinkGraph {
+  routes: LinkedRoute[]
+  links: RouteLink[]
+}
+
+/** Связь глазами открытой схемы: куда ведёт и каким адресом. */
+export interface RouteNeighbour {
+  name: string | null
+  domain: string
+  path: string
+  uri: string
+  kind: string
+}
+
+export interface RouteNeighbours {
+  incoming: RouteNeighbour[]
+  outgoing: RouteNeighbour[]
 }

@@ -1,9 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import { useI18n } from '../i18n'
-import { apiDomainRoutes, apiDomainStatistics, apiRouteAction, apiRouteState, errorText } from '../lib/api'
+import {
+  apiDomainRoutes, apiDomainStatistics, apiRouteAction, apiRouteState, errorText, routeLinks,
+} from '../lib/api'
+import { neighboursOf } from '../lib/links'
 import type {
-  Connection, DomainRoutes, DomainStat, RouteAction, RouteFile, RouteState, ServerInfo,
+  Connection, DomainRoutes, DomainStat, LinkGraph, RouteAction, RouteFile, RouteState, ServerInfo,
 } from '../types'
 import { AutoRefreshToggle, ErrorBar, NotConnected, Panel, TableMessage, useApiData, useAutoRefresh } from './ApiShell'
 import { RouteViewer } from './RouteViewer'
@@ -40,6 +43,8 @@ export function RoutesScreen({ connection, server, isMac, initialGuid, onGoToCon
   const [query, setQuery] = useState('')
   const [open, setOpen] = useState<RouteFile | null>(null)
   const [auto, setAuto] = useState(false)
+  /** Связи считаются по временной копии домена — значит, только внутри него. */
+  const [graph, setGraph] = useState<LinkGraph | null>(null)
 
   const withRoutes = useMemo(
     () => (stats.data ?? []).filter((item) => item.routes > 0),
@@ -75,6 +80,8 @@ export function RoutesScreen({ connection, server, isMac, initialGuid, onGoToCon
     try {
       const result = await apiDomainRoutes(connection, item.guid)
       setDomain(result)
+      setGraph(null)
+      routeLinks(result.root).then(setGraph).catch(() => setGraph(null))
       await readStates(item.guid, result.routes)
     } catch (err) {
       setError(errorText(err))
@@ -268,6 +275,11 @@ export function RoutesScreen({ connection, server, isMac, initialGuid, onGoToCon
         domainName={domain?.name ?? null}
         isMac={isMac}
         live={openState}
+        links={neighboursOf(graph, open?.path ?? null)}
+        onOpenRoute={(path) => {
+          const target = domain?.routes.find((item) => item.path === path)
+          if (target) setOpen(target)
+        }}
         onClose={() => setOpen(null)}
       />
     </div>

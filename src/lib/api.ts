@@ -7,7 +7,7 @@ import { revealItemInDir } from '@tauri-apps/plugin-opener'
 import type {
   ApiDomain, ApiProgress, AppInfo, ApplyProgress, ApplyReport, ApplyTarget, ArchiveProgress,
   ArchiveResult, Connection, DomainAction, DomainActionResult, DomainRoutes, DomainStat,
-  ExtractResult, LogEntry,
+  ExtractResult, LinkGraph, LogEntry,
   LogFileRow, LogRequest, ManagerKind,
   ModuleAction, ModuleRow, PropertyRow, PropertyScope, PullResult, PushResult, QueueManager,
   QueueMessage, QueueRow, RouteAction, RouteGraph, RouteState, SavePoint, ScanProgress,
@@ -65,6 +65,11 @@ export function saveZipAs(title: string, defaultName: string): Promise<string | 
 /** Разбирает файл СОПС в дерево шагов — из него рисуется схема. */
 export function readRoute(path: string): Promise<RouteGraph[]> {
   return invoke<RouteGraph[]>('read_route', { path })
+}
+
+/** Связи СОПС между собой: кто кого вызывает адресом. */
+export function routeLinks(root: string): Promise<LinkGraph> {
+  return invoke<LinkGraph>('route_links', { root })
 }
 
 export function appInfo(): Promise<AppInfo> {

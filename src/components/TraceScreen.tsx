@@ -3,8 +3,9 @@ import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent, typ
 import { useI18n } from '../i18n'
 import {
   apiPush, apiQueueManagers, apiQueues, apiVerify, applyTrace, buildArchive, errorText,
-  onApiProgress, onApplyProgress, onArchiveProgress, revealPath, saveZipAs,
+  onApiProgress, onApplyProgress, onArchiveProgress, revealPath, routeLinks, saveZipAs,
 } from '../lib/api'
+import { neighboursOf } from '../lib/links'
 import {
   brokerStats, buildGroups, domainSummary, filterGroups, queueValues,
   selectableKeys, sortGroups, traceModeValues,
@@ -12,7 +13,8 @@ import {
 } from '../lib/rows'
 import type {
   ApiProgress, ApplyProgress, ApplyReport, ApplyTarget, ArchiveProgress, ArchiveResult,
-  Connection, PushResult, QueueManager, ScanResult, ServerInfo, TraceUpdate, VerifyResult,
+  Connection, LinkGraph, PushResult, QueueManager, ScanResult, ServerInfo, TraceUpdate,
+  VerifyResult,
 } from '../types'
 import { useStatus } from '../lib/status'
 import { ReportDialog } from './ReportDialog'
@@ -71,6 +73,8 @@ export function TraceScreen({ scan, isMac, sourcePath, server, onRescan }: Props
   /** Одно окно выбора охвата на два действия: отправку и сверку. */
   /** Открытая схема СОПС: путь к файлу и домен, которому он принадлежит. */
   const [route, setRoute] = useState<{ path: string; domain: string } | null>(null)
+  /** Граф связей считается один раз на выгрузку — обход всех маршрутов не бесплатный. */
+  const [graph, setGraph] = useState<LinkGraph | null>(null)
   const [scopeMode, setScopeMode] = useState<'push' | 'verify' | null>(null)
   const [pushing, setPushing] = useState(false)
   const [pushProgress, setPushProgress] = useState<ApiProgress | null>(null)
@@ -130,6 +134,16 @@ export function TraceScreen({ scan, isMac, sourcePath, server, onRescan }: Props
 
   // Новое сканирование приходит с новыми данными — снимаем выделение.
   useEffect(() => { setSelected(new Set()) }, [scan])
+
+  // Связи нужны только при открытии схемы, поэтому считаются при первом открытии.
+  useEffect(() => {
+    if (!route || graph) return
+    let cancelled = false
+    routeLinks(scan.root)
+      .then((result) => { if (!cancelled) setGraph(result) })
+      .catch(() => { if (!cancelled) setGraph({ routes: [], links: [] }) })
+    return () => { cancelled = true }
+  }, [route, graph, scan.root])
 
   // Фильтр «только изменённые» бессмыслен, пока изменений нет.
   useEffect(() => {
@@ -693,6 +707,11 @@ export function TraceScreen({ scan, isMac, sourcePath, server, onRescan }: Props
         domainName={route?.domain ?? null}
         isMac={isMac}
         live={null}
+        links={neighboursOf(graph, route?.path ?? null)}
+        onOpenRoute={(path) => {
+          const target = graph?.routes.find((item) => item.path === path)
+          setRoute({ path, domain: target?.domain ?? route?.domain ?? '' })
+        }}
         onClose={() => setRoute(null)}
       />
 

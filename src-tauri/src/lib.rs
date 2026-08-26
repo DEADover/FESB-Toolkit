@@ -10,6 +10,7 @@ mod fesb_api;
 mod fesb_ops;
 mod properties;
 mod route_graph;
+mod route_links;
 mod route_xml;
 mod scanner;
 mod xml;
@@ -27,6 +28,7 @@ use fesb_ops::{
     PropertyRow, PropertyScope, QueueManager, QueueMessage, QueueRow, RouteState, SavePoint,
 };
 use route_graph::{parse_route_graphs, RouteGraph};
+use route_links::{build_links, LinkGraph};
 use scanner::{scan_root, ScanResult};
 
 const SCAN_PROGRESS_EVENT: &str = "scan:progress";
@@ -168,6 +170,15 @@ async fn read_route(path: String) -> Result<Vec<RouteGraph>, String> {
     })
     .await
     .map_err(|err| format!("Reading interrupted: {err}"))?
+}
+
+/// Связи СОПС между собой: кто кого вызывает адресом.
+#[tauri::command]
+async fn route_links(root: String) -> Result<LinkGraph, String> {
+    let root = PathBuf::from(root);
+    tauri::async_runtime::spawn_blocking(move || build_links(&root))
+        .await
+        .map_err(|err| format!("Link analysis interrupted: {err}"))
 }
 
 /// Забирает домены заново и сверяет трассировку с локальными файлами.
@@ -351,6 +362,7 @@ pub fn run() {
             open_archive,
             build_archive,
             read_route,
+            route_links,
             api_connect,
             api_domains,
             api_pull,
@@ -397,5 +409,6 @@ pub mod testing {
     pub use crate::archive::create_archive;
     pub use crate::domain_xml::{parse_domain_xml, BeanTarget, TraceUpdate};
     pub use crate::route_graph::{parse_route_graphs, RouteNode};
+    pub use crate::route_links::build_links;
     pub use crate::scanner::scan_root;
 }

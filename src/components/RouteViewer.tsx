@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 
 import { useI18n } from '../i18n'
 import { errorText, readRoute, revealPath } from '../lib/api'
-import type { RouteGraph, RouteNode, RouteState } from '../types'
+import type { RouteGraph, RouteNeighbours, RouteNode, RouteState } from '../types'
 import { kindLabel, RouteDiagram, scheme, shortUri } from './RouteDiagram'
 import { Badge, Button, Spinner, cx } from './ui'
 
@@ -14,6 +14,10 @@ interface Props {
   isMac: boolean
   /** Живые счётчики с сервера — если схема открыта из раздела API. */
   live?: RouteState | null
+  /** Кто вызывает эту схему и кого вызывает она. */
+  links?: RouteNeighbours | null
+  /** Переход к соседней схеме по связи. */
+  onOpenRoute?: (path: string) => void
   onClose: () => void
 }
 
@@ -24,7 +28,7 @@ interface Props {
  * во весь экран: под диаграмму отдаётся всё место, а подробности выбранного
  * шага живут в боковой панели, не загромождая карточки.
  */
-export function RouteViewer({ path, domainName, isMac, live, onClose }: Props) {
+export function RouteViewer({ path, domainName, isMac, live, links, onOpenRoute, onClose }: Props) {
   const { t } = useI18n()
   const [graphs, setGraphs] = useState<RouteGraph[] | null>(null)
   const [current, setCurrent] = useState(0)
@@ -135,7 +139,8 @@ export function RouteViewer({ path, domainName, isMac, live, onClose }: Props) {
           )}
         </div>
 
-        <aside className="w-96 shrink-0 overflow-y-auto border-l border-line bg-surface">
+        <aside className="flex w-96 shrink-0 flex-col overflow-y-auto border-l border-line bg-surface">
+          {links && onOpenRoute && <Links links={links} onOpen={onOpenRoute} />}
           {selected ? <Details node={selected} /> : (
             <p className="px-5 py-6 text-[11.5px] leading-relaxed text-content-subtle">{t('route.pickStep')}</p>
           )}
@@ -186,6 +191,81 @@ function Metric({ label, value, tone }: { label: string; value: string; tone?: '
         {value}
       </span>
     </span>
+  )
+}
+
+/**
+ * Связи схемы с другими.
+ *
+ * Маршруты соединяются адресом: один пишет в `direct://Name`, другой этим же
+ * адресом начинается. Без этой панели такую цепочку приходится искать
+ * поиском по всей выгрузке.
+ */
+function Links({ links, onOpen }: { links: RouteNeighbours; onOpen: (path: string) => void }) {
+  const { t } = useI18n()
+  if (links.incoming.length === 0 && links.outgoing.length === 0) {
+    return (
+      <div className="border-b border-line px-5 py-3 text-[11.5px] text-content-subtle">
+        {t('links.none')}
+      </div>
+    )
+  }
+
+  return (
+    <div className="border-b border-line">
+      <Side
+        label={t('links.incoming', { count: links.incoming.length })}
+        items={links.incoming}
+        onOpen={onOpen}
+        arrow="→"
+      />
+      <Side
+        label={t('links.outgoing', { count: links.outgoing.length })}
+        items={links.outgoing}
+        onOpen={onOpen}
+        arrow="→"
+      />
+    </div>
+  )
+}
+
+function Side({ label, items, onOpen, arrow }: {
+  label: string
+  items: RouteNeighbours['incoming']
+  onOpen: (path: string) => void
+  arrow: string
+}) {
+  const { t } = useI18n()
+  if (items.length === 0) return null
+  return (
+    <div className="px-5 py-3">
+      <div className="mb-1.5 text-[10px] uppercase tracking-wide text-content-subtle">{label}</div>
+      <div className="flex flex-col gap-1">
+        {items.map((item) => (
+          <button
+            key={`${item.path}-${item.uri}`}
+            type="button"
+            onClick={() => onOpen(item.path)}
+            title={t('links.open', { uri: item.uri })}
+            className="flex items-center gap-2 rounded-lg border border-line-strong bg-surface-2/50 px-2.5 py-1.5 text-left transition hover:border-content-subtle hover:bg-surface-3"
+          >
+            <span className="shrink-0 text-[10px] text-content-subtle">{arrow}</span>
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-[12px]">{item.name ?? t('routes.unknownName')}</span>
+              <span className="block truncate font-mono text-[10px] text-content-subtle">
+                {item.domain} · {item.uri}
+              </span>
+            </span>
+            <span className={cx(
+              'shrink-0 rounded px-1 text-[9.5px]',
+              item.kind === 'call' ? 'bg-accent/15 text-accent-content' : 'bg-surface-3 text-content-subtle',
+            )}>
+              {item.kind === 'call' ? t('links.call') : t('links.queue')}
+            </span>
+          </button>
+        ))}
+      </div>
+    </div>
   )
 }
 

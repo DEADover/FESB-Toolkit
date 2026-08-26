@@ -114,6 +114,12 @@ export const en = {
   'panel.noRoutes': 'This Domain Has No Routes',
   'filter.untracedRoutes': 'With Untraced Routes',
 
+  'links.incoming': 'Called By ({count})',
+  'links.outgoing': 'Calls ({count})',
+  'links.none': 'This Route Is Not Linked To Any Other',
+  'links.call': 'call',
+  'links.queue': 'queue',
+  'links.open': 'Open This Route · {uri}',
   'route.openHint': 'Open The Route Diagram',
   'route.steps': '{count} Steps',
   'route.pickStep': 'Pick A Step On The Diagram To See Its Address, Expression And Attributes.',

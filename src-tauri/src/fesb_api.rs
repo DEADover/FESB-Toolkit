@@ -640,6 +640,8 @@ pub struct RouteFile {
 pub struct DomainRoutes {
     pub guid: String,
     pub name: Option<String>,
+    /// Корень временной копии — по нему считаются связи между маршрутами.
+    pub root: String,
     pub routes: Vec<RouteFile>,
 }
 
@@ -697,6 +699,7 @@ pub async fn fetch_domain_routes(connection: &Connection, guid: &str) -> Result<
     Ok(DomainRoutes {
         guid: guid.to_string(),
         name: unpacked.domains.first().map(|item| item.name.clone()),
+        root: cache.to_string_lossy().to_string(),
         routes,
     })
 }
