@@ -230,3 +230,80 @@ export interface ApiProgress {
   current: number
   total: number
 }
+
+// ─────────────────────── модули, очереди, константы, журналы ───────────────────────
+
+export interface ModuleRow {
+  name: string
+  label: string
+  /** Модуль включён в конфигурации — то есть должен работать. */
+  active: boolean
+  running: boolean
+  warning: boolean
+  /** Конфигурация изменилась, но модуль ещё работает со старой. */
+  awaitRestart: boolean
+  awaitSystemRestart: boolean
+  dependencies: string[]
+}
+
+export type ModuleAction = 'start' | 'stop' | 'restart'
+
+export type ManagerKind = 'QMS' | 'QME' | 'RQMS'
+
+export interface QueueManager {
+  kind: ManagerKind
+  id: string
+  /** То, что пишется в property `broker`: например `QME:EQM_MON`. */
+  broker: string
+  status: string
+  running: boolean
+  autoStart: boolean
+}
+
+export interface QueueRow {
+  name: string
+  address: string | null
+  messages: number
+  consumers: number
+  producers: number | null
+  enqueued: number | null
+  dequeued: number | null
+  /** Служебная очередь самого менеджера. */
+  internal: boolean
+  paused: boolean
+  durable: boolean
+}
+
+export interface PropertyRow {
+  key: string
+  value: string | null
+  secured: boolean
+  vault: boolean
+  empty: boolean
+  description: string | null
+}
+
+/** Где живут константы. Для домена нужен его guid, а не имя. */
+export type PropertyScope = 'application' | 'broker' | { domain: string }
+
+export interface LogFileRow {
+  name: string
+  size: number
+  lastModified: string | null
+}
+
+export interface LogEntry {
+  timestamp: string | null
+  level: string | null
+  file: string | null
+  thread: string | null
+  className: string | null
+  message: string | null
+}
+
+export interface LogRequest {
+  logs: string[]
+  levels: string[]
+  search: string | null
+  limit: number
+}

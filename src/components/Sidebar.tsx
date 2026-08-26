@@ -3,7 +3,14 @@ import type { ThemeMode } from '../lib/theme'
 import type { AppInfo } from '../types'
 import { Badge, Segmented, cx } from './ui'
 
-export type ScreenId = 'files.trace' | 'api.connection' | 'api.domains'
+export type ScreenId =
+  | 'files.trace'
+  | 'api.connection'
+  | 'api.domains'
+  | 'api.queues'
+  | 'api.modules'
+  | 'api.properties'
+  | 'api.logs'
 
 interface Section {
   title: MessageKey
@@ -23,6 +30,10 @@ const SECTIONS: Section[] = [
     items: [
       { id: 'api.connection', label: 'nav.api.connection', hint: 'nav.api.connection.hint', icon: '⇄' },
       { id: 'api.domains', label: 'nav.api.domains', hint: 'nav.api.domains.hint', icon: '▤' },
+      { id: 'api.queues', label: 'nav.api.queues', hint: 'nav.api.queues.hint', icon: '≡' },
+      { id: 'api.modules', label: 'nav.api.modules', hint: 'nav.api.modules.hint', icon: '⬒' },
+      { id: 'api.properties', label: 'nav.api.properties', hint: 'nav.api.properties.hint', icon: '⚙' },
+      { id: 'api.logs', label: 'nav.api.logs', hint: 'nav.api.logs.hint', icon: '☰' },
     ],
   },
 ]

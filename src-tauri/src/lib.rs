@@ -7,6 +7,7 @@ mod applier;
 mod archive;
 mod domain_xml;
 mod fesb_api;
+mod fesb_ops;
 mod properties;
 mod route_xml;
 mod scanner;
@@ -20,6 +21,10 @@ use tauri::{AppHandle, Emitter};
 use applier::{apply_trace_change, ApplyReport, ApplyRequest};
 use archive::{create_archive, extract_archive, ArchiveResult, ExtractResult};
 use fesb_api::{ApiDomain, Connection, PullResult, PushResult, ServerInfo};
+use fesb_ops::{
+    LogEntry, LogFileRow, LogRequest, ManagerKind, ModuleRow, PropertyRow, PropertyScope,
+    QueueManager, QueueRow,
+};
 use scanner::{scan_root, ScanResult};
 
 const SCAN_PROGRESS_EVENT: &str = "scan:progress";
@@ -158,6 +163,67 @@ async fn api_restart_module(connection: Connection, module: String) -> Result<()
     fesb_api::restart_module(&connection, &module).await
 }
 
+/// Модули шины и их состояние.
+#[tauri::command]
+async fn api_modules(connection: Connection) -> Result<Vec<ModuleRow>, String> {
+    fesb_ops::modules(&connection).await
+}
+
+/// Запуск, остановка или перезапуск модуля.
+#[tauri::command]
+async fn api_module_action(connection: Connection, module: String, action: String) -> Result<(), String> {
+    fesb_ops::module_action(&connection, &module, &action).await
+}
+
+/// Менеджеры очередей всех трёх видов.
+#[tauri::command]
+async fn api_queue_managers(connection: Connection) -> Result<Vec<QueueManager>, String> {
+    fesb_ops::queue_managers(&connection).await
+}
+
+/// Очереди одного менеджера.
+#[tauri::command]
+async fn api_queues(connection: Connection, kind: ManagerKind, id: String) -> Result<Vec<QueueRow>, String> {
+    fesb_ops::queues(&connection, kind, &id).await
+}
+
+/// Константы приложения, брокера или домена.
+#[tauri::command]
+async fn api_properties(connection: Connection, scope: PropertyScope) -> Result<Vec<PropertyRow>, String> {
+    fesb_ops::properties(&connection, scope).await
+}
+
+#[tauri::command]
+async fn api_save_property(
+    connection: Connection,
+    scope: PropertyScope,
+    property: PropertyRow,
+    create: bool,
+) -> Result<(), String> {
+    fesb_ops::save_property(&connection, scope, property, create, None).await
+}
+
+#[tauri::command]
+async fn api_delete_property(
+    connection: Connection,
+    scope: PropertyScope,
+    key: String,
+) -> Result<(), String> {
+    fesb_ops::delete_property(&connection, scope, &key).await
+}
+
+/// Список файлов журналов сервера.
+#[tauri::command]
+async fn api_log_files(connection: Connection) -> Result<Vec<LogFileRow>, String> {
+    fesb_ops::log_files(&connection).await
+}
+
+/// Записи журнала, свежие сверху.
+#[tauri::command]
+async fn api_log(connection: Connection, request: LogRequest) -> Result<Vec<LogEntry>, String> {
+    fesb_ops::log_entries(&connection, request).await
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -173,7 +239,16 @@ pub fn run() {
             api_domains,
             api_pull,
             api_push,
-            api_restart_module
+            api_restart_module,
+            api_modules,
+            api_module_action,
+            api_queue_managers,
+            api_queues,
+            api_properties,
+            api_save_property,
+            api_delete_property,
+            api_log_files,
+            api_log
         ])
         .run(tauri::generate_context!())
         .expect("failed to start the application");
@@ -184,6 +259,10 @@ pub fn run() {
 pub mod testing {
     pub use crate::applier::{apply_trace_change, ApplyRequest, ApplyTarget};
     pub use crate::fesb_api::{connect, domains, pull, push, Connection};
+    pub use crate::fesb_ops::{
+        delete_property, log_entries, log_files, modules, properties, queue_managers, queues,
+        save_property, LogRequest, ManagerKind, PropertyRow, PropertyScope,
+    };
     pub use crate::archive::create_archive;
     pub use crate::domain_xml::{parse_domain_xml, BeanTarget, TraceUpdate};
     pub use crate::scanner::scan_root;

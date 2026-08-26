@@ -2,10 +2,14 @@ import { useCallback, useEffect, useState } from 'react'
 
 import { ConnectionScreen } from './components/ConnectionScreen'
 import { DomainsScreen } from './components/DomainsScreen'
+import { LogsScreen } from './components/LogsScreen'
+import { ModulesScreen } from './components/ModulesScreen'
+import { PropertiesScreen } from './components/PropertiesScreen'
+import { QueuesScreen } from './components/QueuesScreen'
 import { Sidebar, type ScreenId } from './components/Sidebar'
 import { TraceScreen } from './components/TraceScreen'
 import { Badge, Button, Spinner, cx } from './components/ui'
-import { useI18n } from './i18n'
+import { useI18n, type MessageKey } from './i18n'
 import {
   apiPull, appInfo, errorText, onApiProgress, onExtractProgress, onFileDrop, onScanProgress,
   openArchive, scanDirectory, selectArchive, selectFolder,
@@ -192,12 +196,23 @@ export default function App() {
   }, [pickFolder, rescan, root])
 
   const isApiScreen = screen.startsWith('api.')
+  const apiScreenProps = {
+    connection: session?.connection ?? null,
+    server: session?.server ?? null,
+    onGoToConnection: () => setScreen('api.connection'),
+  }
   const sourceLabel = source?.kind === 'archive'
     ? t('header.archive')
     : source?.kind === 'server' ? t('header.server') : t('header.folder')
-  const screenTitle = screen === 'api.connection'
-    ? t('nav.api.connection.title')
-    : screen === 'api.domains' ? t('nav.api.domains.title') : t('header.trace')
+  const API_TITLES: Partial<Record<ScreenId, MessageKey>> = {
+    'api.connection': 'nav.api.connection.title',
+    'api.domains': 'nav.api.domains.title',
+    'api.queues': 'nav.api.queues.title',
+    'api.modules': 'nav.api.modules.title',
+    'api.properties': 'nav.api.properties.title',
+    'api.logs': 'nav.api.logs.title',
+  }
+  const screenTitle = t(API_TITLES[screen] ?? 'header.trace')
 
   return (
     <div className="relative flex h-full">
@@ -263,6 +278,14 @@ export default function App() {
             onPull={pull}
             onGoToConnection={() => setScreen('api.connection')}
           />
+        ) : screen === 'api.queues' ? (
+          <QueuesScreen {...apiScreenProps} />
+        ) : screen === 'api.modules' ? (
+          <ModulesScreen {...apiScreenProps} />
+        ) : screen === 'api.properties' ? (
+          <PropertiesScreen {...apiScreenProps} />
+        ) : screen === 'api.logs' ? (
+          <LogsScreen {...apiScreenProps} />
         ) : !scan ? (
           <EmptyState
             busy={busy}

@@ -11,9 +11,15 @@
 use std::path::PathBuf;
 
 use fesb_settings_editor_lib::testing::{
-    apply_trace_change, connect, domains, pull, push, ApplyRequest, ApplyTarget, BeanTarget,
-    Connection, TraceUpdate,
+    apply_trace_change, connect, domains, log_entries, log_files, modules, properties, pull, push,
+    queue_managers, queues, save_property, delete_property, ApplyRequest, ApplyTarget, BeanTarget,
+    Connection, LogRequest, PropertyRow, PropertyScope, TraceUpdate,
 };
+
+/// Обёртка над рантаймом: приложение вызывает те же функции из команд Tauri.
+fn block<F: std::future::Future>(task: F) -> F::Output {
+    tauri::async_runtime::block_on(task)
+}
 
 fn connection() -> Option<Connection> {
     let url = std::env::var("FESB_URL").ok()?;
@@ -198,4 +204,110 @@ fn pulls_more_domains_than_fit_in_one_query() {
     assert!(steps > 2, "счётчик должен двигаться по ходу выгрузки, а не один раз в конце");
     assert_eq!(pulled.domains, guids.len(), "часть доменов потерялась между пачками");
     assert!(pulled.has_version);
+}
+
+/// Разделы, которые читаются напрямую: модули, очереди, константы, журналы.
+#[test]
+#[ignore]
+fn reads_the_side_sections() {
+    let Some(connection) = connection() else {
+        eprintln!("FESB_URL не задан — пропускаем");
+        return;
+    };
+    let list = block(modules(&connection)).expect("модули");
+    println!("модулей {}", list.len());
+    for module in list.iter().take(4) {
+        println!("  {} · {} · работает {}", module.name, module.label, module.running);
+    }
+    assert!(list.iter().any(|item| item.name == "factor-broker"), "нет модуля брокера");
+
+    let managers = block(queue_managers(&connection)).expect("менеджеры очередей");
+    println!("менеджеров {}", managers.len());
+    for manager in &managers {
+        println!("  {} · {} · {}", manager.broker, manager.status, manager.id);
+    }
+    assert!(
+        managers.iter().any(|item| item.broker == "QME:EQM"),
+        "не нашёлся менеджер, на который ссылается трассировка",
+    );
+
+    // Очереди читаются и у остановленного менеджера — просто список пустой.
+    let manager = managers.first().unwrap();
+    let rows = block(queues(&connection, manager.kind, &manager.id)).expect("очереди");
+    println!("очередей в {}: {}", manager.broker, rows.len());
+
+    let app = block(properties(&connection, PropertyScope::Application)).expect("константы приложения");
+    println!("констант приложения {}", app.len());
+    assert!(!app.is_empty(), "на стенде должны быть константы приложения");
+
+    let guid = block(domains(&connection)).expect("домены")[0].guid.clone();
+    let domain_properties =
+        block(properties(&connection, PropertyScope::Domain(guid))).expect("константы домена");
+    println!("констант первого домена {}", domain_properties.len());
+
+    let files = block(log_files(&connection)).expect("файлы журналов");
+    println!("журналов {}, самый большой — {}", files.len(), files[0].name);
+    assert!(files.iter().any(|item| item.name == "core.log"));
+
+    let entries = block(log_entries(
+        &connection,
+        LogRequest {
+            logs: vec!["core.log".into()],
+            levels: vec!["ERROR".into()],
+            search: None,
+            limit: Some(3),
+        },
+    ))
+    .expect("записи журнала");
+    println!("записей ERROR {}", entries.len());
+    for entry in entries.iter().take(2) {
+        println!(
+            "  {} {} {}",
+            entry.timestamp.as_deref().unwrap_or("—"),
+            entry.level.as_deref().unwrap_or("—"),
+            entry.message.as_deref().unwrap_or("").lines().next().unwrap_or(""),
+        );
+    }
+}
+
+/// Единственная операция записи вне трассировки — константа. Проверяем цикл
+/// «создать → изменить → удалить» и убираем за собой.
+#[test]
+#[ignore]
+fn writes_and_removes_a_constant() {
+    let Some(connection) = connection() else {
+        eprintln!("FESB_URL не задан — пропускаем");
+        return;
+    };
+    let key = "const.settings.editor.probe";
+    let scope = || PropertyScope::Broker;
+
+    let property = PropertyRow {
+        key: key.into(),
+        value: Some("first".into()),
+        secured: false,
+        vault: false,
+        empty: false,
+        description: Some("проверка из теста".into()),
+    };
+    block(save_property(&connection, scope(), property.clone(), true, None)).expect("создание");
+
+    let after_create = block(properties(&connection, scope())).expect("чтение");
+    let created = after_create.iter().find(|row| row.key == key).expect("константа не появилась");
+    assert_eq!(created.value.as_deref(), Some("first"));
+
+    let updated = PropertyRow { value: Some("second".into()), ..property };
+    block(save_property(&connection, scope(), updated, false, None)).expect("изменение");
+
+    let after_update = block(properties(&connection, scope())).expect("чтение");
+    let changed = after_update.iter().find(|row| row.key == key).expect("константа пропала");
+    assert_eq!(changed.value.as_deref(), Some("second"), "значение не изменилось");
+
+    block(delete_property(&connection, scope(), key)).expect("удаление");
+    let after_delete = block(properties(&connection, scope())).expect("чтение");
+    assert!(
+        !after_delete.iter().any(|row| row.key == key),
+        "константа осталась на сервере",
+    );
+    println!("константа создана, изменена и удалена");
 }

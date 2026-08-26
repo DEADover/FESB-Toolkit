@@ -57,7 +57,7 @@ impl Connection {
     ///
     /// Пользователю достаточно ввести `localhost:8181` — путь до менеджера
     /// подставится сам, но явно указанный путь мы не трогаем.
-    fn base(&self) -> String {
+    pub(crate) fn base(&self) -> String {
         let raw = self.url.trim().trim_end_matches('/');
         let full = if raw.contains("://") { raw.to_string() } else { format!("http://{raw}") };
         let after_scheme = full.splitn(2, "://").nth(1).unwrap_or("");
@@ -68,7 +68,7 @@ impl Connection {
         }
     }
 
-    fn client(&self) -> Result<reqwest::Client, String> {
+    pub(crate) fn client(&self) -> Result<reqwest::Client, String> {
         reqwest::Client::builder()
             .danger_accept_invalid_certs(self.insecure)
             .connect_timeout(Duration::from_secs(15))
@@ -76,21 +76,33 @@ impl Connection {
             .map_err(|err| format!("Cannot create an HTTP client: {err}"))
     }
 
-    fn get(&self, client: &reqwest::Client, path: &str) -> reqwest::RequestBuilder {
+    pub(crate) fn get(&self, client: &reqwest::Client, path: &str) -> reqwest::RequestBuilder {
         client
             .get(format!("{}{path}", self.base()))
             .basic_auth(&self.username, Some(&self.password))
     }
 
-    fn post(&self, client: &reqwest::Client, path: &str) -> reqwest::RequestBuilder {
+    pub(crate) fn post(&self, client: &reqwest::Client, path: &str) -> reqwest::RequestBuilder {
         client
             .post(format!("{}{path}", self.base()))
+            .basic_auth(&self.username, Some(&self.password))
+    }
+
+    pub(crate) fn put(&self, client: &reqwest::Client, path: &str) -> reqwest::RequestBuilder {
+        client
+            .put(format!("{}{path}", self.base()))
+            .basic_auth(&self.username, Some(&self.password))
+    }
+
+    pub(crate) fn delete(&self, client: &reqwest::Client, path: &str) -> reqwest::RequestBuilder {
+        client
+            .delete(format!("{}{path}", self.base()))
             .basic_auth(&self.username, Some(&self.password))
     }
 }
 
 /// Сообщение об ошибке в том виде, в каком его отдаёт FESB.
-fn api_message(body: &str) -> String {
+pub(crate) fn api_message(body: &str) -> String {
     if let Ok(value) = serde_json::from_str::<serde_json::Value>(body) {
         for key in ["message", "error"] {
             if let Some(text) = value.get(key).and_then(|item| item.as_str()) {
@@ -130,7 +142,7 @@ fn strip_markup(body: &str) -> String {
     text.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
-async fn ensure_ok(response: reqwest::Response, what: &str) -> Result<reqwest::Response, String> {
+pub(crate) async fn ensure_ok(response: reqwest::Response, what: &str) -> Result<reqwest::Response, String> {
     let status = response.status();
     if status.is_success() {
         return Ok(response);
@@ -145,7 +157,7 @@ async fn ensure_ok(response: reqwest::Response, what: &str) -> Result<reqwest::R
     Err(format!("{what}: HTTP {} — {}", status.as_u16(), api_message(&body)))
 }
 
-fn transport_error(err: reqwest::Error) -> String {
+pub(crate) fn transport_error(err: reqwest::Error) -> String {
     if err.is_connect() || err.is_timeout() {
         format!("Cannot reach the server: {err}")
     } else {

@@ -2,8 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent, typ
 
 import { useI18n } from '../i18n'
 import {
-  apiPush, applyTrace, buildArchive, errorText, onApiProgress, onApplyProgress, onArchiveProgress,
-  revealPath, saveZipAs,
+  apiPush, apiQueueManagers, apiQueues, applyTrace, buildArchive, errorText, onApiProgress,
+  onApplyProgress, onArchiveProgress, revealPath, saveZipAs,
 } from '../lib/api'
 import {
   brokerStats, buildGroups, domainSummary, filterGroups, queueValues,
@@ -12,7 +12,7 @@ import {
 } from '../lib/rows'
 import type {
   ApiProgress, ApplyProgress, ApplyReport, ApplyTarget, ArchiveProgress, ArchiveResult,
-  Connection, PushResult, ScanResult, ServerInfo, TraceUpdate,
+  Connection, PushResult, QueueManager, ScanResult, ServerInfo, TraceUpdate,
 } from '../types'
 import { ReportDialog } from './ReportDialog'
 import { TraceTable } from './TraceTable'
@@ -71,6 +71,13 @@ export function TraceScreen({ scan, isMac, sourcePath, server, onRescan }: Props
   const [pushResult, setPushResult] = useState<PushResult | null>(null)
   const [reload, setReload] = useState(true)
 
+  /**
+   * Что за менеджеры очередей есть на сервере. Пока конфигурация взята из файлов,
+   * подсказывать нечем — там известны только значения, уже прописанные в доменах.
+   */
+  const [managers, setManagers] = useState<QueueManager[]>([])
+  const [serverQueues, setServerQueues] = useState<string[]>([])
+
   const searchRef = useRef<HTMLInputElement>(null)
   const lastClicked = useRef<string | null>(null)
 
@@ -99,6 +106,19 @@ export function TraceScreen({ scan, isMac, sourcePath, server, onRescan }: Props
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [])
+
+  useEffect(() => {
+    if (!server) {
+      setManagers([])
+      return
+    }
+    let cancelled = false
+    apiQueueManagers(server.connection)
+      .then((list) => { if (!cancelled) setManagers(list) })
+      // Раздел очередей может быть недоступен — подсказки просто останутся файловыми.
+      .catch(() => { if (!cancelled) setManagers([]) })
+    return () => { cancelled = true }
+  }, [server])
 
   // Новое сканирование приходит с новыми данными — снимаем выделение.
   useEffect(() => { setSelected(new Set()) }, [scan])
@@ -133,6 +153,26 @@ export function TraceScreen({ scan, isMac, sourcePath, server, onRescan }: Props
     () => groups.flatMap((group) => group.entries.filter((entry) => selected.has(entry.key)).map((entry) => ({ group, entry }))),
     [groups, selected],
   )
+
+  /** Менеджер, на который сейчас нацелена правка. */
+  const targetManager = useMemo(
+    () => managers.find((manager) => manager.broker === newBroker.trim()) ?? null,
+    [managers, newBroker],
+  )
+
+  useEffect(() => {
+    if (!server || !targetManager?.running) {
+      setServerQueues([])
+      return
+    }
+    let cancelled = false
+    apiQueues(server.connection, targetManager.kind, targetManager.id)
+      .then((rows) => {
+        if (!cancelled) setServerQueues(rows.filter((row) => !row.internal).map((row) => row.name))
+      })
+      .catch(() => { if (!cancelled) setServerQueues([]) })
+    return () => { cancelled = true }
+  }, [server, targetManager])
 
   const update = useMemo<TraceUpdate>(() => ({
     broker: newBroker.trim() || null,
@@ -171,6 +211,20 @@ export function TraceScreen({ scan, isMac, sourcePath, server, onRescan }: Props
     }
     return count
   }, [selectedEntries, update])
+
+  // Значения с сервера идут первыми: они точно существуют, в отличие от файловых.
+  const brokerOptions = useMemo(
+    () => [...new Set([...managers.map((manager) => manager.broker), ...brokerValues])],
+    [managers, brokerValues],
+  )
+  const queueOptions = useMemo(
+    () => [...new Set([...serverQueues, ...queues])],
+    [serverQueues, queues],
+  )
+  /** Брокер набран, сервер знает свои менеджеры — и такого среди них нет. */
+  const unknownBroker = Boolean(
+    update.broker && managers.length > 0 && !managers.some((manager) => manager.broker === update.broker),
+  )
 
   const hasUpdate = update.broker !== null || update.queue !== null || update.traceMode !== null
   const canApply = targets.length > 0 && hasUpdate && !applying
@@ -498,7 +552,7 @@ export function TraceScreen({ scan, isMac, sourcePath, server, onRescan }: Props
             <SuggestInput
               id="broker-input"
               value={newBroker}
-              options={brokerValues}
+              options={brokerOptions}
               placeholder={t('apply.brokerPlaceholder')}
               emptyLabel={t('apply.noSuggestions')}
               onChange={setNewBroker}
@@ -509,7 +563,7 @@ export function TraceScreen({ scan, isMac, sourcePath, server, onRescan }: Props
             <SuggestInput
               id="queue-input"
               value={newQueue}
-              options={queues}
+              options={queueOptions}
               placeholder={t('apply.queuePlaceholder')}
               emptyLabel={t('apply.noSuggestions')}
               onChange={setNewQueue}
@@ -532,6 +586,14 @@ export function TraceScreen({ scan, isMac, sourcePath, server, onRescan }: Props
         <p className="px-5 pt-1.5 text-[11.5px] text-content-subtle">{t('apply.hint')}</p>
         {update.broker && !update.broker.includes(':') && (
           <p className="px-5 pt-1 text-[11.5px] text-caution">{t('apply.brokerWarning')}</p>
+        )}
+        {unknownBroker && (
+          <p className="px-5 pt-1 text-[11.5px] text-caution">{t('apply.unknownBroker')}</p>
+        )}
+        {targetManager && !targetManager.running && (
+          <p className="px-5 pt-1 text-[11.5px] text-content-subtle">
+            {t('apply.managerStopped', { broker: targetManager.broker })}
+          </p>
         )}
 
         <div className="mt-3 flex items-center gap-2 border-t border-line px-5 py-3">

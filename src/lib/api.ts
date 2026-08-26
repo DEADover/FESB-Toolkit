@@ -6,8 +6,9 @@ import { revealItemInDir } from '@tauri-apps/plugin-opener'
 
 import type {
   ApiDomain, ApiProgress, AppInfo, ApplyProgress, ApplyReport, ApplyTarget, ArchiveProgress,
-  ArchiveResult, Connection, ExtractResult, PullResult, PushResult, ScanProgress, ScanResult,
-  ServerInfo, TraceUpdate,
+  ArchiveResult, Connection, ExtractResult, LogEntry, LogFileRow, LogRequest, ManagerKind,
+  ModuleAction, ModuleRow, PropertyRow, PropertyScope, PullResult, PushResult, QueueManager,
+  QueueRow, ScanProgress, ScanResult, ServerInfo, TraceUpdate,
 } from '../types'
 
 /** Единственная точка соприкосновения интерфейса с бэкендом на Rust. */
@@ -124,6 +125,56 @@ export function apiRestartModule(connection: Connection, module: string): Promis
 
 export function onApiProgress(handler: (progress: ApiProgress) => void): Promise<UnlistenFn> {
   return listen<ApiProgress>('api:progress', (event) => handler(event.payload))
+}
+
+// ──────────────────── модули, очереди, константы, журналы ────────────────────
+
+export function apiModules(connection: Connection): Promise<ModuleRow[]> {
+  return invoke<ModuleRow[]>('api_modules', { connection })
+}
+
+export function apiModuleAction(connection: Connection, module: string, action: ModuleAction): Promise<void> {
+  return invoke<void>('api_module_action', { connection, module, action })
+}
+
+export function apiQueueManagers(connection: Connection): Promise<QueueManager[]> {
+  return invoke<QueueManager[]>('api_queue_managers', { connection })
+}
+
+export function apiQueues(connection: Connection, kind: ManagerKind, id: string): Promise<QueueRow[]> {
+  return invoke<QueueRow[]>('api_queues', { connection, kind, id })
+}
+
+/** Бэкенд ждёт `Application`, `Broker` или `{ Domain: guid }`. */
+function scopePayload(scope: PropertyScope): unknown {
+  if (scope === 'application') return 'Application'
+  if (scope === 'broker') return 'Broker'
+  return { Domain: scope.domain }
+}
+
+export function apiProperties(connection: Connection, scope: PropertyScope): Promise<PropertyRow[]> {
+  return invoke<PropertyRow[]>('api_properties', { connection, scope: scopePayload(scope) })
+}
+
+export function apiSaveProperty(
+  connection: Connection,
+  scope: PropertyScope,
+  property: PropertyRow,
+  create: boolean,
+): Promise<void> {
+  return invoke<void>('api_save_property', { connection, scope: scopePayload(scope), property, create })
+}
+
+export function apiDeleteProperty(connection: Connection, scope: PropertyScope, key: string): Promise<void> {
+  return invoke<void>('api_delete_property', { connection, scope: scopePayload(scope), key })
+}
+
+export function apiLogFiles(connection: Connection): Promise<LogFileRow[]> {
+  return invoke<LogFileRow[]>('api_log_files', { connection })
+}
+
+export function apiLog(connection: Connection, request: LogRequest): Promise<LogEntry[]> {
+  return invoke<LogEntry[]>('api_log', { connection, request })
 }
 
 /** Понятный текст для ошибки, прилетевшей из команды Tauri. */
