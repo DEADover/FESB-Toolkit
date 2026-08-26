@@ -34,6 +34,15 @@ export function DomainsScreen({ connection, server, pulling, progress, error: pu
   const [confirm, setConfirm] = useState<{ domain: ApiDomain; action: DomainAction } | null>(null)
   /** Домен, который шина отказалась запускать: причина остаётся в журнале. */
   const [refused, setRefused] = useState<ApiDomain | null>(null)
+  /** Массовое действие: сколько сделано и что ответила шина по каждому домену. */
+  const [bulk, setBulk] = useState<{
+    action: DomainAction
+    total: number
+    done: number
+    results: Array<{ name: string; done: boolean; error: string | null }>
+    finished: boolean
+  } | null>(null)
+  const [confirmBulk, setConfirmBulk] = useState<DomainAction | null>(null)
 
   const load = useCallback(async () => {
     if (!connection) return
@@ -91,6 +100,42 @@ export function DomainsScreen({ connection, server, pulling, progress, error: pu
     if (action === 'start') void act(domain, action)
     else setConfirm({ domain, action })
   }, [act])
+
+  /**
+   * Массовое действие над выбранными доменами.
+   *
+   * Строго по очереди: поднять десяток доменов разом — заметная нагрузка
+   * на шину, а торопиться тут некуда. Отказ одного не останавливает
+   * остальных, но остаётся в сводке: шина отвечает `200` и телом `false`,
+   * и такой домен легко потерять.
+   */
+  const runBulk = useCallback(async (action: DomainAction) => {
+    if (!connection) return
+    setConfirmBulk(null)
+    const targets = (domains ?? []).filter((domain) => selected.has(domain.guid))
+    if (targets.length === 0) return
+
+    setBulk({ action, total: targets.length, done: 0, results: [], finished: false })
+    setListError(null)
+
+    for (const domain of targets) {
+      let done = false
+      let error: string | null = null
+      try {
+        done = (await apiDomainAction(connection, domain.guid, action)).done
+      } catch (err) {
+        error = errorText(err)
+      }
+      setBulk((prev) => prev && {
+        ...prev,
+        done: prev.done + 1,
+        results: [...prev.results, { name: domain.name, done, error }],
+      })
+    }
+
+    setBulk((prev) => prev && { ...prev, finished: true })
+    await load()
+  }, [connection, domains, selected, load])
 
   const toggle = useCallback((guid: string) => {
     setSelected((prev) => {
@@ -167,10 +212,11 @@ export function DomainsScreen({ connection, server, pulling, progress, error: pu
           <colgroup>
             <col className="w-9" />
             <col />
-            <col className="w-36" />
+            <col className="w-32" />
             <col className="w-24" />
-            <col className="w-52" />
-            <col className="w-56" />
+            <col className="w-40" />
+            {/* «Запустить · Остановить · Перезапустить» по-русски шире, чем кажется. */}
+            <col className="w-[304px]" />
           </colgroup>
           <thead className="sticky top-0 z-10 bg-surface-2 text-[11px] tracking-wide text-content-subtle">
             <tr className="border-b border-line">
@@ -260,6 +306,16 @@ export function DomainsScreen({ connection, server, pulling, progress, error: pu
           <>
             <Badge tone="accent">{t('api.domains.selected', { count: selected.size })}</Badge>
             <Button variant="ghost" size="sm" onClick={() => setSelected(new Set())}>{t('action.deselect')}</Button>
+            <span className="mx-1 h-5 w-px bg-line" />
+            <Button size="sm" disabled={bulk !== null || pulling} onClick={() => void runBulk('start')}>
+              {t('modules.start')}
+            </Button>
+            <Button size="sm" disabled={bulk !== null || pulling} onClick={() => setConfirmBulk('stop')}>
+              {t('modules.stop')}
+            </Button>
+            <Button size="sm" disabled={bulk !== null || pulling} onClick={() => setConfirmBulk('restart')}>
+              {t('modules.restart')}
+            </Button>
           </>
         )}
 
@@ -288,6 +344,71 @@ export function DomainsScreen({ connection, server, pulling, progress, error: pu
           </Button>
         </div>
       </div>
+      <Modal
+        open={confirmBulk !== null}
+        onClose={() => setConfirmBulk(null)}
+        closeLabel={t('action.close')}
+        title={confirmBulk === 'stop' ? t('domains.confirm.stopMany') : t('domains.confirm.restartMany')}
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setConfirmBulk(null)}>{t('action.cancel')}</Button>
+            <Button variant="primary" onClick={() => confirmBulk && void runBulk(confirmBulk)}>
+              {confirmBulk === 'stop' ? t('modules.stop') : t('modules.restart')}
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-3 text-[13px] leading-relaxed">
+          <p className="text-content-muted">{t('domains.confirm.manyText', { count: selected.size })}</p>
+          <p className="rounded-lg border border-caution/35 bg-caution/10 px-3 py-2 text-caution">
+            {t('domains.confirm.text')}
+          </p>
+        </div>
+      </Modal>
+
+      <Modal
+        open={bulk !== null}
+        onClose={() => bulk?.finished && setBulk(null)}
+        closeLabel={t('action.close')}
+        title={t('domains.bulk.title')}
+        footer={
+          <Button variant="primary" disabled={!bulk?.finished} onClick={() => setBulk(null)}>
+            {t('action.close')}
+          </Button>
+        }
+      >
+        {bulk && (
+          <div className="space-y-3 text-[13px] leading-relaxed">
+            <div className="flex items-center gap-2">
+              {!bulk.finished && <Spinner className="size-4" />}
+              <span>{t('domains.bulk.progress', { done: bulk.done, total: bulk.total })}</span>
+            </div>
+            <div className="max-h-64 overflow-y-auto rounded-lg border border-line">
+              {bulk.results.map((item, index) => (
+                <div
+                  key={`${item.name}-${index}`}
+                  className="flex items-center gap-2 border-b border-line/60 px-3 py-1.5 last:border-b-0"
+                >
+                  <span className={cx(
+                    'size-1.5 shrink-0 rounded-full',
+                    item.error ? 'bg-negative' : item.done ? 'bg-positive' : 'bg-caution',
+                  )} />
+                  <span className="min-w-0 flex-1 truncate">{item.name}</span>
+                  <span className="shrink-0 text-[11px] text-content-subtle">
+                    {item.error ?? (item.done ? t('domains.bulk.ok') : t('domains.bulk.refused'))}
+                  </span>
+                </div>
+              ))}
+            </div>
+            {bulk.finished && bulk.results.some((item) => !item.done) && (
+              <p className="rounded-lg border border-caution/35 bg-caution/10 px-3 py-2 text-caution">
+                {t('domains.refusedMany')}
+              </p>
+            )}
+          </div>
+        )}
+      </Modal>
+
       <Modal
         open={confirm !== null}
         onClose={() => setConfirm(null)}
