@@ -376,3 +376,60 @@ export interface RouteGraph {
   nodes: RouteNode[]
   line: number
 }
+
+// ─────────────── карта доменов, живые СОПС, точки восстановления ───────────────
+
+export interface DomainStat {
+  guid: string
+  name: string
+  active: boolean
+  routes: number
+  running: number
+  success: number
+  errors: number
+  inflight: number
+}
+
+export interface RouteFile {
+  id: string | null
+  name: string | null
+  traceEnabled: boolean
+  traceConfigs: string[]
+  inlineTraceConfig: boolean
+  /** Путь к файлу маршрута во временной копии — по нему рисуется схема. */
+  path: string
+}
+
+export interface DomainRoutes {
+  guid: string
+  name: string | null
+  routes: RouteFile[]
+}
+
+export interface RouteState {
+  id: string
+  name: string | null
+  /** `Started`, `Stopped`, `Suspended` — как их называет сама шина. */
+  state: string | null
+  autoStartup: boolean
+  trace: boolean
+  traceConfig: string | null
+  processed: number
+  failed: number
+  failuresHandled: number
+  inflight: number
+  rate: number
+  minMs: number
+  meanMs: number
+  maxMs: number
+  firstProcessed: string | null
+  lastProcessed: string | null
+}
+
+export type RouteAction = 'start' | 'stop' | 'forceStop' | 'reset'
+
+export interface SavePoint {
+  version: string | null
+  filename: string
+  date: string | null
+}

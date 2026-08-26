@@ -12,8 +12,9 @@ use std::path::PathBuf;
 
 use fesb_settings_editor_lib::testing::{
     apply_trace_change, connect, domains, log_entries, log_files, modules, properties, pull, push,
-    queue_managers, queues, save_property, delete_property, verify, ApplyRequest, ApplyTarget,
-    BeanTarget, Connection, LogRequest, PropertyRow, PropertyScope, TraceUpdate,
+    queue_managers, queues, save_property, delete_property, verify, domain_statistics,
+    fetch_domain_routes, route_state, ApplyRequest, ApplyTarget, BeanTarget, Connection,
+    LogRequest, PropertyRow, PropertyScope, TraceUpdate,
 };
 
 /// Обёртка над рантаймом: приложение вызывает те же функции из команд Tauri.
@@ -382,4 +383,52 @@ fn verification_notices_what_was_not_sent() {
     assert_eq!(found.expected.as_deref(), Some(format!("{original}.NOTSENT").as_str()));
     assert_eq!(found.actual.as_deref(), Some(original.as_str()));
     println!("расхождение поймано: {} → {:?} вместо {:?}", found.domain, found.actual, found.expected);
+}
+
+/// Карта доменов и СОПС одного домена с живым состоянием.
+#[test]
+#[ignore]
+fn reads_the_domain_map_and_live_routes() {
+    let Some(connection) = connection() else {
+        eprintln!("FESB_URL не задан — пропускаем");
+        return;
+    };
+
+    let stats = block(domain_statistics(&connection)).expect("статистика");
+    let with_routes: Vec<_> = stats.iter().filter(|item| item.routes > 0).collect();
+    println!(
+        "доменов {}, из них с СОПС {}, всего СОПС {}",
+        stats.len(),
+        with_routes.len(),
+        stats.iter().map(|item| item.routes).sum::<i64>(),
+    );
+    assert!(!stats.is_empty(), "статистика пуста");
+    assert!(
+        stats.iter().any(|item| item.name != item.guid),
+        "имена доменов не подставились — остались одни guid",
+    );
+
+    // Берём домен, у которого точно есть маршруты.
+    let target = with_routes.first().expect("ни у одного домена нет СОПС");
+    let domain = block(fetch_domain_routes(&connection, &target.guid)).expect("СОПС домена");
+    println!("{}: маршрутов {}", target.name, domain.routes.len());
+    assert!(!domain.routes.is_empty(), "домен со счётчиком СОПС отдал пустой список");
+    assert!(
+        std::path::Path::new(&domain.routes[0].path).is_file(),
+        "файл схемы не сохранён: {}",
+        domain.routes[0].path,
+    );
+
+    // Состояние читается и у остановленного маршрута — списком так не получится.
+    let route = domain.routes[0].id.clone().expect("у маршрута нет id");
+    let state = block(route_state(&connection, &target.guid, &route)).expect("состояние СОПС");
+    println!(
+        "  {} · {} · обработано {} · ошибок {} · в работе {}",
+        state.name.as_deref().unwrap_or("—"),
+        state.state.as_deref().unwrap_or("—"),
+        state.processed,
+        state.failed,
+        state.inflight,
+    );
+    assert_eq!(state.id, route);
 }

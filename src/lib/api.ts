@@ -6,10 +6,12 @@ import { revealItemInDir } from '@tauri-apps/plugin-opener'
 
 import type {
   ApiDomain, ApiProgress, AppInfo, ApplyProgress, ApplyReport, ApplyTarget, ArchiveProgress,
-  ArchiveResult, Connection, DomainAction, DomainActionResult, ExtractResult, LogEntry,
+  ArchiveResult, Connection, DomainAction, DomainActionResult, DomainRoutes, DomainStat,
+  ExtractResult, LogEntry,
   LogFileRow, LogRequest, ManagerKind,
   ModuleAction, ModuleRow, PropertyRow, PropertyScope, PullResult, PushResult, QueueManager,
-  QueueRow, RouteGraph, ScanProgress, ScanResult, ServerInfo, TraceUpdate, VerifyResult,
+  QueueRow, RouteAction, RouteGraph, RouteState, SavePoint, ScanProgress, ScanResult,
+  ServerInfo, TraceUpdate, VerifyResult,
 } from '../types'
 
 /** Единственная точка соприкосновения интерфейса с бэкендом на Rust. */
@@ -154,6 +156,45 @@ export function apiDomainAction(
   action: DomainAction,
 ): Promise<DomainActionResult> {
   return invoke<DomainActionResult>('api_domain_action', { connection, guid, action })
+}
+
+/** Сводка по всем доменам сервера. */
+export function apiDomainStatistics(connection: Connection): Promise<DomainStat[]> {
+  return invoke<DomainStat[]>('api_domain_statistics', { connection })
+}
+
+/** Забирает один домен ради его СОПС — рабочую выгрузку не трогает. */
+export function apiDomainRoutes(connection: Connection, guid: string): Promise<DomainRoutes> {
+  return invoke<DomainRoutes>('api_domain_routes', { connection, guid })
+}
+
+export function apiRouteState(connection: Connection, domain: string, route: string): Promise<RouteState> {
+  return invoke<RouteState>('api_route_state', { connection, domain, route })
+}
+
+export function apiRouteAction(
+  connection: Connection,
+  domain: string,
+  route: string,
+  action: RouteAction,
+): Promise<void> {
+  return invoke<void>('api_route_action', { connection, domain, route, action })
+}
+
+export function apiSavePoints(connection: Connection): Promise<SavePoint[]> {
+  return invoke<SavePoint[]>('api_save_points', { connection })
+}
+
+export function apiCreateSavePoint(connection: Connection): Promise<void> {
+  return invoke<void>('api_create_save_point', { connection })
+}
+
+export function apiDeleteSavePoint(connection: Connection, point: SavePoint): Promise<void> {
+  return invoke<void>('api_delete_save_point', { connection, point })
+}
+
+export function apiRollbackSavePoint(connection: Connection, point: SavePoint): Promise<void> {
+  return invoke<void>('api_rollback_save_point', { connection, point })
 }
 
 export function apiQueueManagers(connection: Connection): Promise<QueueManager[]> {

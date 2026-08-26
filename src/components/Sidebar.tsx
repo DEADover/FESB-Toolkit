@@ -7,6 +7,8 @@ export type ScreenId =
   | 'files.trace'
   | 'api.connection'
   | 'api.domains'
+  | 'api.map'
+  | 'api.routes'
   | 'api.queues'
   | 'api.modules'
   | 'api.properties'
@@ -30,6 +32,8 @@ const SECTIONS: Section[] = [
     items: [
       { id: 'api.connection', label: 'nav.api.connection', hint: 'nav.api.connection.hint', icon: '⇄' },
       { id: 'api.domains', label: 'nav.api.domains', hint: 'nav.api.domains.hint', icon: '▤' },
+      { id: 'api.map', label: 'nav.api.map', hint: 'nav.api.map.hint', icon: '◫' },
+      { id: 'api.routes', label: 'nav.api.routes', hint: 'nav.api.routes.hint', icon: '⇉' },
       { id: 'api.queues', label: 'nav.api.queues', hint: 'nav.api.queues.hint', icon: '≡' },
       { id: 'api.modules', label: 'nav.api.modules', hint: 'nav.api.modules.hint', icon: '⬒' },
       { id: 'api.properties', label: 'nav.api.properties', hint: 'nav.api.properties.hint', icon: '⚙' },

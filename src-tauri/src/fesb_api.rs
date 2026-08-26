@@ -621,6 +621,86 @@ fn extract_into(bytes: &[u8], target: &Path) -> Result<(usize, Option<Vec<u8>>),
     Ok((written, version))
 }
 
+// ───────────────────────── СОПС одного домена ─────────────────────────
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RouteFile {
+    pub id: Option<String>,
+    pub name: Option<String>,
+    pub trace_enabled: bool,
+    pub trace_configs: Vec<String>,
+    pub inline_trace_config: bool,
+    /// Путь к файлу маршрута во временной копии — по нему рисуется схема.
+    pub path: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DomainRoutes {
+    pub guid: String,
+    pub name: Option<String>,
+    pub routes: Vec<RouteFile>,
+}
+
+/// Отдельная папка под схемы: рабочую выгрузку она не трогает и наоборот.
+fn routes_cache() -> PathBuf {
+    std::env::temp_dir().join("fesb-settings-editor-routes")
+}
+
+/// Забирает один домен ради его СОПС.
+///
+/// Схему рисовать не из чего, пока нет файлов маршрутов, но тащить ради этого
+/// всю конфигурацию незачем: один домен приходит за доли секунды. Копия живёт
+/// отдельно от рабочей папки, поэтому открытая выгрузка не пострадает.
+pub async fn fetch_domain_routes(connection: &Connection, guid: &str) -> Result<DomainRoutes, String> {
+    let client = connection.client()?;
+    let cache = routes_cache().join(guid);
+    let _ = fs::remove_dir_all(&cache);
+    fs::create_dir_all(cache.join(DOMAINS_DIR)).map_err(|err| format!("Cannot create a workspace: {err}"))?;
+
+    let archive = cache.join("download.zip");
+    download_batch(connection, &client, std::slice::from_ref(&guid.to_string()), &archive).await?;
+    let unpacked = unpack_domains(&archive, &cache)?;
+    let _ = fs::remove_file(&archive);
+
+    let dir = cache.join(DOMAINS_DIR).join(guid);
+    let routes_dir = dir.join("routes");
+    let mut routes = Vec::new();
+    if let Ok(entries) = fs::read_dir(&routes_dir) {
+        let mut files: Vec<PathBuf> = entries
+            .flatten()
+            .map(|entry| entry.path())
+            .filter(|path| {
+                path.extension().is_some_and(|ext| ext == "xml")
+                    && path.file_name().is_some_and(|name| name.to_string_lossy().starts_with("route-"))
+            })
+            .collect();
+        files.sort();
+
+        for file in files {
+            let Ok(xml) = fs::read_to_string(&file) else { continue };
+            for info in crate::route_xml::parse_routes(&xml) {
+                routes.push(RouteFile {
+                    id: info.id,
+                    name: info.name,
+                    trace_enabled: info.trace_enabled,
+                    trace_configs: info.trace_configs,
+                    inline_trace_config: info.inline_trace_config,
+                    path: file.to_string_lossy().to_string(),
+                });
+            }
+        }
+    }
+    routes.sort_by(|a, b| a.name.as_deref().unwrap_or("").to_lowercase().cmp(&b.name.as_deref().unwrap_or("").to_lowercase()));
+
+    Ok(DomainRoutes {
+        guid: guid.to_string(),
+        name: unpacked.domains.first().map(|item| item.name.clone()),
+        routes,
+    })
+}
+
 // ───────────────────────────── сверить с сервером ─────────────────────────────
 
 #[derive(Debug, Clone, Serialize)]

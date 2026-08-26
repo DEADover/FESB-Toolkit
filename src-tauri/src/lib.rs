@@ -21,10 +21,10 @@ use tauri::{AppHandle, Emitter};
 
 use applier::{apply_trace_change, ApplyReport, ApplyRequest};
 use archive::{create_archive, extract_archive, ArchiveResult, ExtractResult};
-use fesb_api::{ApiDomain, Connection, PullResult, PushResult, ServerInfo, VerifyResult};
+use fesb_api::{ApiDomain, Connection, DomainRoutes, PullResult, PushResult, ServerInfo, VerifyResult};
 use fesb_ops::{
-    DomainActionResult, LogEntry, LogFileRow, LogRequest, ManagerKind, ModuleRow, PropertyRow,
-    PropertyScope, QueueManager, QueueRow,
+    DomainActionResult, DomainStat, LogEntry, LogFileRow, LogRequest, ManagerKind, ModuleRow,
+    PropertyRow, PropertyScope, QueueManager, QueueRow, RouteState, SavePoint,
 };
 use route_graph::{parse_route_graphs, RouteGraph};
 use scanner::{scan_root, ScanResult};
@@ -213,6 +213,59 @@ async fn api_domain_action(
     fesb_ops::domain_action(&connection, &guid, &action).await
 }
 
+/// Сводка по всем доменам сервера: СОПС, ошибки, незавершённые сообщения.
+#[tauri::command]
+async fn api_domain_statistics(connection: Connection) -> Result<Vec<DomainStat>, String> {
+    fesb_ops::domain_statistics(&connection).await
+}
+
+/// Забирает один домен ради его СОПС — рабочую выгрузку не трогает.
+#[tauri::command]
+async fn api_domain_routes(connection: Connection, guid: String) -> Result<DomainRoutes, String> {
+    fesb_api::fetch_domain_routes(&connection, &guid).await
+}
+
+/// Состояние и счётчики одного СОПС.
+#[tauri::command]
+async fn api_route_state(
+    connection: Connection,
+    domain: String,
+    route: String,
+) -> Result<RouteState, String> {
+    fesb_ops::route_state(&connection, &domain, &route).await
+}
+
+/// Запуск, остановка или сброс счётчиков СОПС.
+#[tauri::command]
+async fn api_route_action(
+    connection: Connection,
+    domain: String,
+    route: String,
+    action: String,
+) -> Result<(), String> {
+    fesb_ops::route_action(&connection, &domain, &route, &action).await
+}
+
+#[tauri::command]
+async fn api_save_points(connection: Connection) -> Result<Vec<SavePoint>, String> {
+    fesb_ops::save_points(&connection).await
+}
+
+#[tauri::command]
+async fn api_create_save_point(connection: Connection) -> Result<(), String> {
+    fesb_ops::create_save_point(&connection).await
+}
+
+#[tauri::command]
+async fn api_delete_save_point(connection: Connection, point: SavePoint) -> Result<(), String> {
+    fesb_ops::delete_save_point(&connection, point).await
+}
+
+#[tauri::command]
+async fn api_rollback_save_point(connection: Connection, point: SavePoint) -> Result<(), String> {
+    fesb_ops::rollback_save_point(&connection, point).await
+}
+
 /// Менеджеры очередей всех трёх видов.
 #[tauri::command]
 async fn api_queue_managers(connection: Connection) -> Result<Vec<QueueManager>, String> {
@@ -283,6 +336,14 @@ pub fn run() {
             api_modules,
             api_module_action,
             api_domain_action,
+            api_domain_statistics,
+            api_domain_routes,
+            api_route_state,
+            api_route_action,
+            api_save_points,
+            api_create_save_point,
+            api_delete_save_point,
+            api_rollback_save_point,
             api_queue_managers,
             api_queues,
             api_properties,
@@ -300,9 +361,11 @@ pub fn run() {
 pub mod testing {
     pub use crate::applier::{apply_trace_change, ApplyRequest, ApplyTarget};
     pub use crate::fesb_api::{connect, domains, pull, push, verify, Connection};
+    pub use crate::fesb_api::fetch_domain_routes;
     pub use crate::fesb_ops::{
-        delete_property, log_entries, log_files, modules, properties, queue_managers, queues,
-        save_property, LogRequest, ManagerKind, PropertyRow, PropertyScope,
+        delete_property, domain_statistics, log_entries, log_files, modules, properties,
+        queue_managers, queues, route_state, save_property, LogRequest, ManagerKind, PropertyRow,
+        PropertyScope,
     };
     pub use crate::archive::create_archive;
     pub use crate::domain_xml::{parse_domain_xml, BeanTarget, TraceUpdate};

@@ -3,9 +3,11 @@ import { useCallback, useEffect, useState } from 'react'
 import { ConnectionScreen } from './components/ConnectionScreen'
 import { DomainsScreen } from './components/DomainsScreen'
 import { LogsScreen } from './components/LogsScreen'
+import { MapScreen } from './components/MapScreen'
 import { ModulesScreen } from './components/ModulesScreen'
 import { PropertiesScreen } from './components/PropertiesScreen'
 import { QueuesScreen } from './components/QueuesScreen'
+import { RoutesScreen } from './components/RoutesScreen'
 import { Sidebar, type ScreenId } from './components/Sidebar'
 import { TraceScreen } from './components/TraceScreen'
 import { Badge, Button, Spinner, cx } from './components/ui'
@@ -249,6 +251,8 @@ export default function App() {
   const API_TITLES: Partial<Record<ScreenId, MessageKey>> = {
     'api.connection': 'nav.api.connection.title',
     'api.domains': 'nav.api.domains.title',
+    'api.map': 'nav.api.map.title',
+    'api.routes': 'nav.api.routes.title',
     'api.queues': 'nav.api.queues.title',
     'api.modules': 'nav.api.modules.title',
     'api.properties': 'nav.api.properties.title',
@@ -328,6 +332,10 @@ export default function App() {
             onPull={pull}
             onGoToConnection={() => setScreen('api.connection')}
           />
+        ) : screen === 'api.map' ? (
+          <MapScreen {...apiScreenProps} />
+        ) : screen === 'api.routes' ? (
+          <RoutesScreen {...apiScreenProps} isMac={isMac} />
         ) : screen === 'api.queues' ? (
           <QueuesScreen {...apiScreenProps} />
         ) : screen === 'api.modules' ? (

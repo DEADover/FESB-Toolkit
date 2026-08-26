@@ -661,6 +661,7 @@ export function TraceScreen({ scan, isMac, sourcePath, server, onRescan }: Props
         path={route?.path ?? null}
         domainName={route?.domain ?? null}
         isMac={isMac}
+        live={null}
         onClose={() => setRoute(null)}
       />
 

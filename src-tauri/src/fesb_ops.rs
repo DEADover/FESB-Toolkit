@@ -555,3 +555,226 @@ mod tests {
         assert_eq!(PropertyScope::Broker.item_path("a"), "/api/properties/broker/property/a");
     }
 }
+
+// ───────────────────────── карта доменов ─────────────────────────
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DomainStat {
+    pub guid: String,
+    pub name: String,
+    pub active: bool,
+    pub routes: i64,
+    pub running: i64,
+    pub success: i64,
+    pub errors: i64,
+    pub inflight: i64,
+}
+
+/// Сводка по всем доменам сервера одним запросом.
+///
+/// Статистика знает только guid, поэтому имена подставляются из списка доменов;
+/// то, чего в списке нет (служебные контексты вроде `dashboard`), показывается
+/// под своим идентификатором, а не выбрасывается.
+pub async fn domain_statistics(connection: &Connection) -> Result<Vec<DomainStat>, String> {
+    let client = connection.client()?;
+    let response = connection
+        .get(&client, "/api/domains/statistics/all")
+        .timeout(Duration::from_secs(120))
+        .send()
+        .await
+        .map_err(transport_error)?;
+    let raw: Vec<Value> = ensure_ok(response, "Cannot read domain statistics")
+        .await?
+        .json()
+        .await
+        .map_err(|err| format!("Unexpected answer: {err}"))?;
+
+    let names: std::collections::HashMap<String, String> = crate::fesb_api::domains(connection)
+        .await
+        .unwrap_or_default()
+        .into_iter()
+        .map(|domain| (domain.guid, domain.name))
+        .collect();
+
+    let mut stats: Vec<DomainStat> = raw
+        .into_iter()
+        .filter_map(|item| {
+            let guid = text(&item, "domainGuid")?;
+            Some(DomainStat {
+                name: names.get(&guid).cloned().unwrap_or_else(|| guid.clone()),
+                guid,
+                active: flag(&item, "isActive"),
+                routes: number(&item, &["routesCount"]).unwrap_or(0),
+                running: number(&item, &["runningRoutes"]).unwrap_or(0),
+                success: number(&item, &["successMessages"]).unwrap_or(0),
+                errors: number(&item, &["errorMessages"]).unwrap_or(0),
+                inflight: number(&item, &["inflightMessages"]).unwrap_or(0),
+            })
+        })
+        .collect();
+    stats.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+    Ok(stats)
+}
+
+// ───────────────────────── СОПС на сервере ─────────────────────────
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RouteState {
+    pub id: String,
+    pub name: Option<String>,
+    /// `Started`, `Stopped`, `Suspended` — как их называет сама шина.
+    pub state: Option<String>,
+    pub auto_startup: bool,
+    pub trace: bool,
+    pub trace_config: Option<String>,
+    pub processed: i64,
+    pub failed: i64,
+    pub failures_handled: i64,
+    pub inflight: i64,
+    pub rate: f64,
+    pub min_ms: i64,
+    pub mean_ms: i64,
+    pub max_ms: i64,
+    pub first_processed: Option<String>,
+    pub last_processed: Option<String>,
+}
+
+fn route_state_from(item: &Value) -> Option<RouteState> {
+    Some(RouteState {
+        id: text(item, "id")?,
+        name: text(item, "name"),
+        state: text(item, "routeState"),
+        auto_startup: flag(item, "autoStartup"),
+        trace: flag(item, "trace"),
+        trace_config: item
+            .get("traceConfig")
+            .and_then(|value| value.get("name").and_then(Value::as_str).or_else(|| value.as_str()))
+            .map(String::from),
+        processed: number(item, &["processedQty"]).unwrap_or(0),
+        failed: number(item, &["failed"]).unwrap_or(0),
+        failures_handled: number(item, &["failuresHandled"]).unwrap_or(0),
+        inflight: number(item, &["exchangesInflight"]).unwrap_or(0),
+        rate: item.get("rate").and_then(Value::as_f64).unwrap_or(0.0),
+        min_ms: number(item, &["minProcessingTime"]).unwrap_or(0),
+        mean_ms: number(item, &["meanProcessingTime"]).unwrap_or(0),
+        max_ms: number(item, &["maxProcessingTime"]).unwrap_or(0),
+        first_processed: text(item, "firstProcessed"),
+        last_processed: text(item, "lastProcessed"),
+    })
+}
+
+/// Состояние и счётчики одного СОПС.
+///
+/// Работает и для остановленного маршрута: шина отдаёт его настройки вместе
+/// с нулевыми счётчиками. Списком (`/api/broker/routes`) так не получится —
+/// там только запущенные.
+pub async fn route_state(
+    connection: &Connection,
+    domain: &str,
+    route: &str,
+) -> Result<RouteState, String> {
+    let client = connection.client()?;
+    let response = connection
+        .get(&client, &format!("/api/broker/domain/{domain}/route/{route}"))
+        .timeout(Duration::from_secs(60))
+        .send()
+        .await
+        .map_err(transport_error)?;
+    let item: Value = ensure_ok(response, "Cannot read the route")
+        .await?
+        .json()
+        .await
+        .map_err(|err| format!("Unexpected answer: {err}"))?;
+    route_state_from(&item).ok_or_else(|| "The bus returned a route without an id".to_string())
+}
+
+/// Запуск, остановка, принудительная остановка или сброс счётчиков СОПС.
+pub async fn route_action(
+    connection: &Connection,
+    domain: &str,
+    route: &str,
+    action: &str,
+) -> Result<(), String> {
+    let path = match action {
+        "start" => "start",
+        "stop" => "stop",
+        "forceStop" => "forceStop",
+        "reset" => "counter/reset",
+        other => return Err(format!("Unknown route action: {other}")),
+    };
+    let client = connection.client()?;
+    let response = connection
+        .post(&client, &format!("/api/broker/domain/{domain}/route/{route}/{path}"))
+        .timeout(Duration::from_secs(120))
+        .send()
+        .await
+        .map_err(transport_error)?;
+    ensure_ok(response, "Route action failed").await?;
+    Ok(())
+}
+
+// ───────────────────────── точки восстановления ─────────────────────────
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SavePoint {
+    pub version: Option<String>,
+    pub filename: String,
+    pub date: Option<String>,
+}
+
+pub async fn save_points(connection: &Connection) -> Result<Vec<SavePoint>, String> {
+    let client = connection.client()?;
+    let response = connection
+        .get(&client, "/api/web/save-point")
+        .send()
+        .await
+        .map_err(transport_error)?;
+    ensure_ok(response, "Cannot read restore points")
+        .await?
+        .json()
+        .await
+        .map_err(|err| format!("Unexpected answer: {err}"))
+}
+
+/// Снятие точки восстановления. На боевой конфигурации это десятки секунд.
+pub async fn create_save_point(connection: &Connection) -> Result<(), String> {
+    let client = connection.client()?;
+    let response = connection
+        .post(&client, "/api/web/save-point")
+        .timeout(Duration::from_secs(900))
+        .send()
+        .await
+        .map_err(transport_error)?;
+    ensure_ok(response, "Cannot create a restore point").await?;
+    Ok(())
+}
+
+pub async fn delete_save_point(connection: &Connection, point: SavePoint) -> Result<(), String> {
+    let client = connection.client()?;
+    let response = connection
+        .delete(&client, "/api/web/save-point")
+        .json(&point)
+        .timeout(Duration::from_secs(300))
+        .send()
+        .await
+        .map_err(transport_error)?;
+    ensure_ok(response, "Cannot delete the restore point").await?;
+    Ok(())
+}
+
+/// Возврат конфигурации сервера к точке восстановления.
+pub async fn rollback_save_point(connection: &Connection, point: SavePoint) -> Result<(), String> {
+    let client = connection.client()?;
+    let response = connection
+        .post(&client, "/api/web/save-point/rollback")
+        .json(&point)
+        .timeout(Duration::from_secs(900))
+        .send()
+        .await
+        .map_err(transport_error)?;
+    ensure_ok(response, "Rollback failed").await?;
+    Ok(())
+}
