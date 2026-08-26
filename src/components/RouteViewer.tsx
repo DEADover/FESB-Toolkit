@@ -10,6 +10,8 @@ interface Props {
   /** Путь к файлу СОПС; `null` — просмотрщик закрыт. */
   path: string | null
   domainName: string | null
+  /** На macOS шапку нужно опустить под кнопки окна. */
+  isMac: boolean
   onClose: () => void
 }
 
@@ -20,7 +22,7 @@ interface Props {
  * во весь экран: под диаграмму отдаётся всё место, а подробности выбранного
  * шага живут в боковой панели, не загромождая карточки.
  */
-export function RouteViewer({ path, domainName, onClose }: Props) {
+export function RouteViewer({ path, domainName, isMac, onClose }: Props) {
   const { t } = useI18n()
   const [graphs, setGraphs] = useState<RouteGraph[] | null>(null)
   const [current, setCurrent] = useState(0)
@@ -60,7 +62,10 @@ export function RouteViewer({ path, domainName, onClose }: Props) {
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-canvas">
-      <header className="flex items-center gap-3 border-b border-line bg-surface px-5 py-3">
+      <header
+        data-tauri-drag-region
+        className={cx('flex items-center gap-3 border-b border-line bg-surface px-5', isMac ? 'pb-3 pt-9' : 'py-3')}
+      >
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <h2 className="truncate text-[15px] font-semibold">
@@ -154,49 +159,51 @@ function Details({ node }: { node: RouteNode }) {
   }
 
   return (
-    <div className="flex flex-col">
-      <div className="flex items-start gap-3 border-b border-line px-5 py-4">
-        <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-surface-2 text-[16px] text-content-muted">
+    <div className="flex flex-col gap-4 px-5 py-4">
+      <div className="flex items-start gap-3">
+        <span className="grid size-10 shrink-0 place-items-center rounded-xl border border-line-strong bg-surface-2 text-[17px] text-content-muted">
           {STEP_ICON[node.kind] ?? '▪'}
         </span>
-        <span className="min-w-0">
-          <span className="block text-[10.5px] uppercase tracking-wide text-content-subtle">
+        <span className="min-w-0 pt-0.5">
+          <span className="block text-[10px] uppercase tracking-wide text-content-subtle">
             {kindLabel(node.kind, t)}
           </span>
-          <span className="block text-[14px] font-semibold leading-tight">
+          <span className="block break-words text-[14px] font-semibold leading-tight">
             {node.label ?? kindLabel(node.kind, t)}
           </span>
         </span>
       </div>
 
-      <table className="w-full table-fixed border-collapse text-[11.5px]">
-        <colgroup>
-          <col className="w-28" />
-          <col />
-        </colgroup>
-        <tbody>
-          {rows.map((row, index) => (
-            <tr key={`${row.label}-${index}`} className="border-b border-line/60 align-top odd:bg-surface-2/40">
-              <td className="px-5 py-1.5 text-content-subtle">{row.label}</td>
-              <td className={cx('break-all py-1.5 pr-5 text-content-muted', row.mono && 'font-mono text-[11px]')}>
-                {row.value}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <div className="overflow-hidden rounded-xl border border-line">
+        <table className="w-full table-fixed border-collapse text-[11.5px]">
+          <colgroup>
+            <col className="w-[108px]" />
+            <col />
+          </colgroup>
+          <tbody>
+            {rows.map((row, index) => (
+              <tr key={`${row.label}-${index}`} className="border-b border-line last:border-b-0 align-top">
+                <td className="border-r border-line bg-surface-2/70 px-3 py-2 font-medium text-content-subtle">
+                  <span className="block break-words">{row.label}</span>
+                </td>
+                <td className={cx('px-3 py-2 text-content-muted', row.mono ? 'break-all font-mono text-[11px]' : 'break-words')}>
+                  {row.value}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
 
       {node.uri && (
         <Block label={t('route.uri')}>
-          <code className="block break-all rounded-lg bg-surface-2 px-3 py-2 font-mono text-[11px] leading-relaxed text-content-muted">
-            {node.uri}
-          </code>
+          <code className="block break-all font-mono text-[11px] leading-relaxed text-content-muted">{node.uri}</code>
         </Block>
       )}
 
       {node.expression && (
         <Block label={t('route.expression', { language: node.expression.language })}>
-          <pre className="max-h-80 overflow-auto whitespace-pre-wrap break-all rounded-lg bg-surface-2 px-3 py-2 font-mono text-[11px] leading-relaxed text-content-muted">
+          <pre className="max-h-80 overflow-auto whitespace-pre-wrap break-all font-mono text-[11px] leading-relaxed text-content-muted">
             {node.expression.text}
           </pre>
         </Block>
@@ -204,7 +211,7 @@ function Details({ node }: { node: RouteNode }) {
 
       {node.description && (
         <Block label={t('table.description')}>
-          <pre className="max-h-60 overflow-auto whitespace-pre-wrap break-all rounded-lg bg-surface-2 px-3 py-2 font-mono text-[11px] leading-relaxed text-content-muted">
+          <pre className="max-h-60 overflow-auto whitespace-pre-wrap break-all font-mono text-[11px] leading-relaxed text-content-muted">
             {node.description}
           </pre>
         </Block>
@@ -230,9 +237,11 @@ const STEP_ICON: Record<string, string> = {
 
 function Block({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="border-t border-line px-5 py-3">
-      <div className="mb-1.5 text-[10.5px] uppercase tracking-wide text-content-subtle">{label}</div>
-      {children}
+    <div className="overflow-hidden rounded-xl border border-line">
+      <div className="border-b border-line bg-surface-2/70 px-3 py-1.5 text-[10px] uppercase tracking-wide text-content-subtle">
+        {label}
+      </div>
+      <div className="px-3 py-2">{children}</div>
     </div>
   )
 }

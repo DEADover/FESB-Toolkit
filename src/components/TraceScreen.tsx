@@ -660,6 +660,7 @@ export function TraceScreen({ scan, isMac, sourcePath, server, onRescan }: Props
       <RouteViewer
         path={route?.path ?? null}
         domainName={route?.domain ?? null}
+        isMac={isMac}
         onClose={() => setRoute(null)}
       />
 

@@ -18,7 +18,7 @@ import { cx } from './ui'
 const EVENT = 56
 const EVENT_LABEL = 30
 const TASK_W = 178
-const TASK_H = 86
+const TASK_H = 92
 const GATE = 54
 const CHIP_W = 152
 const CHIP_H = 46
@@ -693,7 +693,7 @@ function BoxView({ box, selected, onSelect, t }: {
       style={style}
       title={node.uri ?? node.label ?? undefined}
       className={cx(
-        'absolute flex flex-col gap-1 rounded-xl border px-2.5 py-2 text-left transition',
+        'absolute flex flex-col rounded-xl border px-2.5 py-2 text-left transition',
         TONE_BORDER[box.tone],
         selected ? 'ring-2 ring-accent' : 'hover:border-content-subtle',
       )}
@@ -709,10 +709,14 @@ function BoxView({ box, selected, onSelect, t }: {
           <span className="shrink-0 rounded bg-surface-2 px-1 font-mono text-[9.5px] text-content-subtle">{adapter}</span>
         )}
       </span>
-      <span className="line-clamp-2 min-h-0 flex-1 text-[12px] font-medium leading-tight">
+      {/*
+        Место под две строки резервируется всегда: иначе длинное название
+        обрезалось бы посередине буквы, а карточки скакали бы по высоте.
+      */}
+      <span className="mt-1.5 line-clamp-2 h-[32px] text-[12px] font-medium leading-4">
         {node.label ?? kindLabel(node.kind, t)}
       </span>
-      {note && <span className="shrink-0 truncate font-mono text-[10px] text-content-subtle">{note}</span>}
+      {note && <span className="mt-auto truncate font-mono text-[10px] text-content-subtle">{note}</span>}
     </button>
   )
 }
