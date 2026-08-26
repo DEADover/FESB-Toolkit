@@ -15,6 +15,8 @@ interface Props {
   server: ServerInfo | null
   /** Идентификатор профиля, которым открыто текущее подключение. */
   activeProfileId: string | null
+  /** Профиль, который надо раскрыть при переходе из шапки. */
+  focusProfileId?: string | null
   onConnect: (profile: ConnectionProfile) => Promise<void>
   onDisconnect: () => void
 }
@@ -40,7 +42,7 @@ const ENVIRONMENT_LABEL: Record<Environment, MessageKey> = {
  * Пароль хранится только по явной галочке, поэтому автоподключение возможно
  * не для каждого профиля — интерфейс говорит об этом прямо, а не молчит.
  */
-export function ConnectionScreen({ store, onStore, server, activeProfileId, onConnect, onDisconnect }: Props) {
+export function ConnectionScreen({ store, onStore, server, activeProfileId, focusProfileId, onConnect, onDisconnect }: Props) {
   const { t } = useI18n()
 
   const [selectedId, setSelectedId] = useState<string | null>(activeProfileId ?? store.lastUsedId ?? store.profiles[0]?.id ?? null)
@@ -72,6 +74,11 @@ export function ConnectionScreen({ store, onStore, server, activeProfileId, onCo
     setTestResult(null)
     setError(null)
   }, [selectedId])
+
+  // Переход по шестерёнке или из переключателя открывает нужный профиль сразу.
+  useEffect(() => {
+    if (focusProfileId) setSelectedId(focusProfileId)
+  }, [focusProfileId])
 
   const persist = useCallback((next: ConnectionStore) => {
     writeStore(next)

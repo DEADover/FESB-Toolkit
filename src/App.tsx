@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { ConnectionScreen } from './components/ConnectionScreen'
+import { ENVIRONMENT_LABEL, ENVIRONMENT_TONE, ServerSwitch, StatusLog } from './components/HeaderBar'
 import { DomainsScreen } from './components/DomainsScreen'
 import { LogsScreen } from './components/LogsScreen'
 import { MapScreen } from './components/MapScreen'
@@ -18,8 +19,9 @@ import {
 } from './lib/api'
 import {
   autoConnectTarget, markUsed, readStore, toConnection, writeStore,
-  type ConnectionProfile, type ConnectionStore, type Environment,
+  type ConnectionProfile, type ConnectionStore,
 } from './lib/connection'
+import { useStatus } from './lib/status'
 import { applyThemeMode, readThemeMode, storeThemeMode, type ThemeMode } from './lib/theme'
 import type {
   ApiProgress, AppInfo, ArchiveProgress, Connection, ScanProgress, ScanResult, ServerInfo,
@@ -40,16 +42,9 @@ interface Session {
   profile: ConnectionProfile
 }
 
-/** Цвет среды в шапке — тот же, что и в списке профилей. */
-const ENVIRONMENT_TONE: Record<Environment, 'neutral' | 'accent' | 'warn' | 'danger'> = {
-  dev: 'neutral',
-  test: 'accent',
-  stage: 'warn',
-  prod: 'danger',
-}
-
 export default function App() {
   const { t } = useI18n()
+  const status = useStatus()
 
   const [info, setInfo] = useState<AppInfo | null>(null)
   const [screen, setScreen] = useState<ScreenId>('files.trace')
@@ -71,6 +66,9 @@ export default function App() {
   const [pulling, setPulling] = useState(false)
   const [apiProgress, setApiProgress] = useState<ApiProgress | null>(null)
   const [pullError, setPullError] = useState<string | null>(null)
+  const [connecting, setConnecting] = useState(false)
+  /** Профиль, который надо раскрыть на экране подключения. */
+  const [focusProfile, setFocusProfile] = useState<string | null>(null)
 
   const isMac = info?.platform === 'macos'
   const busy = scanning || unpacking
@@ -118,13 +116,16 @@ export default function App() {
       const result = await scanDirectory(path)
       setScan(result)
       setRoot(result.root)
+      status.push('ok', t('status.scanned', { count: result.domains.length }))
     } catch (err) {
-      setError(errorText(err))
+      const text = errorText(err)
+      setError(text)
+      status.push('error', text)
     } finally {
       setScanning(false)
       setProgress(null)
     }
-  }, [])
+  }, [status, t])
 
   /** Открывает путь: архив сначала распаковывается во временную папку. */
   const openPath = useCallback(async (path: string) => {
@@ -162,34 +163,51 @@ export default function App() {
 
   /** Открывает подключение по профилю; ошибку разбирает вызывающий экран. */
   const connectProfile = useCallback(async (profile: ConnectionProfile) => {
-    const connection = toConnection(profile)
-    const server = await apiConnect(connection)
-    setSession({ server, connection, profile })
+    setConnecting(true)
+    try {
+      const connection = toConnection(profile)
+      const server = await apiConnect(connection)
+      setSession({ server, connection, profile })
+      setConnections((prev) => {
+        const next = markUsed(prev, profile.id, new Date().toISOString())
+        writeStore(next)
+        return next
+      })
+      status.push('ok', t('status.connected', { name: profile.name, user: server.user }))
+    } catch (err) {
+      status.push('error', t('status.connectFailed', { name: profile.name, error: errorText(err) }))
+      throw err
+    } finally {
+      setConnecting(false)
+    }
+  }, [status, t])
+
+  /** Переключение стенда из шапки: ошибка уходит в журнал, а не наверх. */
+  const switchProfile = useCallback((profile: ConnectionProfile) => {
+    void connectProfile(profile).catch(() => {})
+  }, [connectProfile])
+
+  const disconnect = useCallback(() => {
+    setSession((current) => {
+      if (current) status.push('info', t('status.disconnected', { name: current.profile.name }))
+      return null
+    })
+  }, [status, t])
+
+  const configure = useCallback((profileId: string | null) => {
+    setFocusProfile(profileId)
+    setScreen('api.connection')
   }, [])
 
-  const disconnect = useCallback(() => setSession(null), [])
-
   // Автоподключение возможно только к профилю с сохранённым паролем.
+  const autoConnected = useRef(false)
   useEffect(() => {
+    if (autoConnected.current) return
     const target = autoConnectTarget(connections)
     if (!target) return
-    let cancelled = false
-    void (async () => {
-      try {
-        const connection = toConnection(target)
-        const server = await apiConnect(connection)
-        if (cancelled) return
-        setSession({ server, connection, profile: target })
-        setConnections((prev) => {
-          const next = markUsed(prev, target.id, new Date().toISOString())
-          writeStore(next)
-          return next
-        })
-      } catch {
-        // Стенд мог быть недоступен — молча остаёмся без подключения.
-      }
-    })()
-    return () => { cancelled = true }
+    autoConnected.current = true
+    // Тот же путь, что и у ручного подключения: результат попадёт в журнал.
+    void connectProfile(target).catch(() => {})
     // Автоподключение — разовое действие при запуске, а не реакция на правку профилей.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -203,15 +221,18 @@ export default function App() {
     try {
       const result = await apiPull(session.connection, guids)
       setSource({ kind: 'server', path: session.server.baseUrl })
+      status.push('ok', t('status.pulled', { count: result.domains, name: session.profile.name }))
       await runScan(result.root)
       setScreen('files.trace')
     } catch (err) {
-      setPullError(errorText(err))
+      const text = errorText(err)
+      setPullError(text)
+      status.push('error', text)
     } finally {
       setPulling(false)
       setApiProgress(null)
     }
-  }, [session, runScan])
+  }, [session, runScan, status, t])
 
   // Перетаскивание работает на любом экране: папка или архив открываются сразу.
   useEffect(() => {
@@ -285,9 +306,9 @@ export default function App() {
               )}
               {/* Среда видна на каждом экране API: чтобы правка боевого стенда не была сюрпризом. */}
               {session && (isApiScreen || source?.kind === 'server') && (
-                <Badge tone={ENVIRONMENT_TONE[session.profile.environment]}>
-                  {t(`env.${session.profile.environment}` as MessageKey)}
-                </Badge>
+                <span className={cx('rounded border px-1.5 py-0.5 text-[11px]', ENVIRONMENT_TONE[session.profile.environment])}>
+                  {t(ENVIRONMENT_LABEL[session.profile.environment])}
+                </span>
               )}
             </div>
             <p className="truncate text-[11.5px] text-content-subtle" title={isApiScreen ? session?.server.baseUrl : source?.path}>
@@ -300,6 +321,17 @@ export default function App() {
                   : t('header.noFolder')}
             </p>
           </div>
+          <ServerSwitch
+            store={connections}
+            active={session?.profile ?? null}
+            server={session?.server ?? null}
+            connecting={connecting}
+            onConnect={switchProfile}
+            onDisconnect={disconnect}
+            onConfigure={configure}
+          />
+          <StatusLog />
+
           {!isApiScreen && root && (
             <Button onClick={rescan} disabled={busy}>
               {scanning ? <Spinner className="size-4" /> : '↻'} {t('action.refresh')}
@@ -319,6 +351,7 @@ export default function App() {
             onStore={setConnections}
             server={session?.server ?? null}
             activeProfileId={session?.profile.id ?? null}
+            focusProfileId={focusProfile}
             onConnect={connectProfile}
             onDisconnect={disconnect}
           />

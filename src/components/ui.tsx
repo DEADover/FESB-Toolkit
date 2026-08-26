@@ -108,10 +108,13 @@ export function Segmented<T extends string>({ value, options, onChange, ariaLabe
 /**
  * Поле ввода с подсказками из уже встречающихся значений.
  *
- * Нативный `datalist` здесь не годится: панель ввода прижата к низу окна,
- * а системный список раскрывается вниз и обрезается краем окна. Свой список
- * раскрывается вверх, прокручивается и управляется с клавиатуры.
+ * Нативный `datalist` не годится: он обрезается краем окна. Свой список
+ * прокручивается, управляется с клавиатуры и сам выбирает сторону — вниз,
+ * если под полем есть место, и вверх, если поле прижато к низу окна.
  */
+/** Высота раскрытого списка: по ней решается, хватает ли места снизу. */
+const LIST_HEIGHT = 232
+
 export function SuggestInput({ id, value, options, placeholder, onChange, emptyLabel }: {
   id: string
   value: string
@@ -122,7 +125,16 @@ export function SuggestInput({ id, value, options, placeholder, onChange, emptyL
 }) {
   const [open, setOpen] = useState(false)
   const [active, setActive] = useState(-1)
+  const [dropUp, setDropUp] = useState(false)
   const wrapper = useRef<HTMLDivElement>(null)
+
+  /** Сторона выбирается по свободному месту, а не назначается заранее. */
+  const chooseSide = () => {
+    const box = wrapper.current?.getBoundingClientRect()
+    if (!box) return
+    const below = window.innerHeight - box.bottom
+    setDropUp(below < LIST_HEIGHT && box.top > below)
+  }
 
   const matches = useMemo(() => {
     const needle = value.trim().toLowerCase()
@@ -153,6 +165,7 @@ export function SuggestInput({ id, value, options, placeholder, onChange, emptyL
     if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
       event.preventDefault()
       if (!open) {
+        chooseSide()
         setOpen(true)
         setActive(0)
         return
@@ -180,15 +193,21 @@ export function SuggestInput({ id, value, options, placeholder, onChange, emptyL
         aria-expanded={open}
         onChange={(event) => {
           onChange(event.target.value)
+          chooseSide()
           setOpen(true)
           setActive(-1)
         }}
-        onFocus={() => setOpen(true)}
+        onFocus={() => { chooseSide(); setOpen(true) }}
         onKeyDown={onKeyDown}
       />
 
       {open && (
-        <div className="absolute bottom-full left-0 right-0 z-30 mb-1 max-h-56 overflow-auto rounded-lg border border-line-strong bg-surface py-1 shadow-2xl">
+        <div
+          className={cx(
+            'absolute left-0 right-0 z-30 max-h-56 overflow-auto rounded-lg border border-line-strong bg-surface py-1 shadow-2xl',
+            dropUp ? 'bottom-full mb-1' : 'top-full mt-1',
+          )}
+        >
           {matches.length === 0 ? (
             <div className="px-3 py-1.5 text-[11.5px] text-content-subtle">{emptyLabel}</div>
           ) : (

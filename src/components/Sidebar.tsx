@@ -1,7 +1,7 @@
 import { LANGUAGES, useI18n, type Language, type MessageKey } from '../i18n'
 import type { ThemeMode } from '../lib/theme'
 import type { AppInfo } from '../types'
-import { Badge, Segmented, cx } from './ui'
+import { Segmented, cx } from './ui'
 
 export type ScreenId =
   | 'files.trace'
@@ -16,28 +16,29 @@ export type ScreenId =
 
 interface Section {
   title: MessageKey
-  soon?: boolean
-  items: Array<{ id: ScreenId; label: MessageKey; hint: MessageKey; icon: string; disabled?: boolean }>
+  /** Экран настроек раздела — открывается шестерёнкой у заголовка. */
+  settings?: { screen: ScreenId; title: MessageKey }
+  items: Array<{ id: ScreenId; label: MessageKey; icon: string; disabled?: boolean }>
 }
 
 const SECTIONS: Section[] = [
   {
     title: 'nav.files',
     items: [
-      { id: 'files.trace', label: 'nav.files.trace', hint: 'nav.files.trace.hint', icon: '◎' },
+      { id: 'files.trace', label: 'nav.files.trace', icon: '◎' },
     ],
   },
   {
     title: 'nav.api',
+    settings: { screen: 'api.connection', title: 'nav.api.connection.title' },
     items: [
-      { id: 'api.connection', label: 'nav.api.connection', hint: 'nav.api.connection.hint', icon: '⇄' },
-      { id: 'api.domains', label: 'nav.api.domains', hint: 'nav.api.domains.hint', icon: '▤' },
-      { id: 'api.map', label: 'nav.api.map', hint: 'nav.api.map.hint', icon: '◫' },
-      { id: 'api.routes', label: 'nav.api.routes', hint: 'nav.api.routes.hint', icon: '⇉' },
-      { id: 'api.queues', label: 'nav.api.queues', hint: 'nav.api.queues.hint', icon: '≡' },
-      { id: 'api.modules', label: 'nav.api.modules', hint: 'nav.api.modules.hint', icon: '⬒' },
-      { id: 'api.properties', label: 'nav.api.properties', hint: 'nav.api.properties.hint', icon: '⚙' },
-      { id: 'api.logs', label: 'nav.api.logs', hint: 'nav.api.logs.hint', icon: '☰' },
+      { id: 'api.map', label: 'nav.api.map', icon: '◫' },
+      { id: 'api.domains', label: 'nav.api.domains', icon: '▤' },
+      { id: 'api.routes', label: 'nav.api.routes', icon: '⇉' },
+      { id: 'api.queues', label: 'nav.api.queues', icon: '≡' },
+      { id: 'api.modules', label: 'nav.api.modules', icon: '⬒' },
+      { id: 'api.properties', label: 'nav.api.properties', icon: '◈' },
+      { id: 'api.logs', label: 'nav.api.logs', icon: '☰' },
     ],
   },
 ]
@@ -93,11 +94,48 @@ export function Sidebar({ screen, onScreen, info, isMac, collapsed, onCollapse, 
                   <span className="whitespace-nowrap text-[11px] font-semibold tracking-wide text-content-subtle">
                     {t(section.title)}
                   </span>
-                  {section.soon && <Badge>{t('nav.soon')}</Badge>}
+                  {section.settings && (
+                    <button
+                      type="button"
+                      onClick={() => onScreen(section.settings!.screen)}
+                      title={t(section.settings.title)}
+                      aria-label={t(section.settings.title)}
+                      className={cx(
+                        'ml-auto grid size-5 place-items-center rounded-md text-[12px] transition',
+                        screen === section.settings.screen
+                          ? 'bg-accent/20 text-accent-content'
+                          : 'text-content-subtle hover:bg-surface-3 hover:text-content',
+                      )}
+                    >
+                      ⚙
+                    </button>
+                  )}
                 </div>
               )}
 
               <div className="flex flex-col gap-0.5">
+                {collapsed && section.settings && (
+                  <button
+                    type="button"
+                    onClick={() => onScreen(section.settings!.screen)}
+                    title={t(section.settings.title)}
+                    className={cx(
+                      'flex w-full items-center justify-center rounded-lg py-1.5 transition',
+                      screen === section.settings.screen ? 'bg-accent/12' : 'hover:bg-surface-3',
+                    )}
+                  >
+                    <span
+                      className={cx(
+                        'grid size-7 place-items-center rounded-md text-[13px]',
+                        screen === section.settings.screen
+                          ? 'bg-accent/20 text-accent-content'
+                          : 'bg-surface-2 text-content-subtle',
+                      )}
+                    >
+                      ⚙
+                    </span>
+                  </button>
+                )}
                 {section.items.map((item) => (
                   <button
                     key={item.id}
@@ -122,10 +160,7 @@ export function Sidebar({ screen, onScreen, info, isMac, collapsed, onCollapse, 
                       {item.icon}
                     </span>
                     {!collapsed && (
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-[12.5px] font-medium">{t(item.label)}</span>
-                        <span className="block truncate text-[10.5px] text-content-subtle">{t(item.hint)}</span>
-                      </span>
+                      <span className="min-w-0 flex-1 truncate text-[12.5px] font-medium">{t(item.label)}</span>
                     )}
                   </button>
                 ))}
