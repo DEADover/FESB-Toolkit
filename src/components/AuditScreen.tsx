@@ -82,9 +82,9 @@ export function AuditScreen({ connection, server, onGoToConnection }: Props) {
 
   return (
     <ScreenBody>
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <SearchInput
-          className="flex-1"
+          className="min-w-64 flex-1"
           value={search}
           placeholder={t('audit.search')}
           onChange={setSearch}

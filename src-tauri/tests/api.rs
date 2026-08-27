@@ -13,7 +13,7 @@ use std::path::PathBuf;
 use fesb_toolkit_lib::testing::{
     apply_trace_change, connect, domains, log_entries, log_files, modules, properties, pull, push,
     queue_managers, queues, save_property, delete_property, verify, domain_statistics,
-    audit, fetch_domain_routes, queue_message, queue_messages, route_index, route_state,
+    audit, certificates, fetch_domain_routes, queue_message, queue_messages, route_index, route_state,
     ApplyRequest, ApplyTarget,
     BeanTarget, Connection, LogRequest, ManagerKind, PropertyRow, PropertyScope, TraceUpdate,
 };
@@ -623,4 +623,33 @@ fn dump_endpoint_sample() {
     sample.extend(points.iter().filter(|p| p.port.is_some()).take(3));
     sample.extend(points.iter().filter(|p| p.scheme == "https").take(3));
     println!("{}", serde_json::to_string(&sample).unwrap());
+}
+
+/// Сертификаты хранилищ: что лежит в `fesb.jks` и в доверенных хранилищах.
+#[test]
+#[ignore]
+fn reads_the_certificates() {
+    let Some(connection) = connection() else {
+        eprintln!("FESB_URL не задан — пропускаем");
+        return;
+    };
+    let report = block(certificates(&connection)).expect("сертификаты");
+    println!("хранилищ {} · сертификатов {}", report.stores.len(), report.certificates.len());
+    for store in &report.stores {
+        println!("  {} · {} · сертификатов {}", store.name, store.kind, store.count);
+    }
+    for item in &report.certificates {
+        println!(
+            "  {}/{} · {} · выдан {} · до {} · {} {:?} бит · цепочка {}",
+            item.store, item.alias, item.subject_name, item.issuer_name, item.not_after,
+            item.key_algorithm, item.key_bits, item.chain,
+        );
+    }
+    assert!(!report.stores.is_empty(), "шина не отдала ни одного хранилища");
+
+    // Дата окончания нужна для главного вопроса раздела — «когда протухнет».
+    for item in &report.certificates {
+        assert!(!item.not_after.is_empty(), "у {} нет даты окончания", item.alias);
+        assert!(!item.subject_name.is_empty(), "у {} не разобрано имя владельца", item.alias);
+    }
 }

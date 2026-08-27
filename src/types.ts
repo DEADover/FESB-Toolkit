@@ -563,3 +563,40 @@ export interface ApiEndpoint {
   idleTimeout: number | null
   idleThreads: number | null
 }
+
+/** Сертификат из хранилища шины — строка раздела «Сертификаты». */
+export interface ApiCertificate {
+  store: string
+  /** `key` — хранилище ключей, `trusted` — доверенное. */
+  storeKind: 'key' | 'trusted'
+  alias: string
+  subject: string
+  subjectName: string
+  issuer: string
+  issuerName: string
+  selfSigned: boolean
+  /** Может подписывать чужие сертификаты. */
+  authority: boolean
+  notBefore: string
+  notAfter: string
+  algorithm: string
+  keyAlgorithm: string
+  /** Длина ключа в битах — известна только для RSA. */
+  keyBits: number | null
+  serial: string
+  usage: string[]
+  chain: number
+  chainPath: string[]
+}
+
+/** Хранилище — показывается и пустым: это тоже ответ. */
+export interface CertificateStore {
+  name: string
+  kind: 'key' | 'trusted'
+  count: number
+}
+
+export interface CertificateReport {
+  stores: CertificateStore[]
+  certificates: ApiCertificate[]
+}

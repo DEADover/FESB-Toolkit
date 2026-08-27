@@ -40,6 +40,8 @@ const COLUMNS: Array<{
   key: MessageKey
   width: string
   align?: 'right'
+  /** Почему колонка бывает пустой — подсказка у её заголовка. */
+  hint?: MessageKey
   /** Как значение выглядит в таблице. По умолчанию — как в файле. */
   cell?: (row: ApiEndpoint, t: Translate) => ReactNode
   text: (row: ApiEndpoint, t: Translate) => string
@@ -65,16 +67,16 @@ const COLUMNS: Array<{
     ) },
   { key: 'endpoints.port', width: 'w-16', align: 'right',
     text: (row) => (row.port === null ? '' : String(row.port)) },
-  { key: 'endpoints.protocol', width: 'w-32', text: (row) => row.protocol ?? '' },
+  { key: 'endpoints.protocol', width: 'w-32', hint: 'endpoints.protocol.hint', text: (row) => row.protocol ?? '' },
   { key: 'endpoints.ssl', width: 'w-20',
     text: (row, t) => (row.ssl === null ? '' : row.ssl ? t('endpoints.yes') : t('endpoints.no')),
     cell: (row, t) => (row.ssl === null
       ? <span className="text-content-subtle">—</span>
       : <Badge tone={row.ssl ? 'ok' : 'warn'}>{row.ssl ? t('endpoints.yes') : t('endpoints.no')}</Badge>) },
-  { key: 'endpoints.ciphers', width: 'w-56', text: (row) => row.ciphers ?? '' },
+  { key: 'endpoints.ciphers', width: 'w-56', hint: 'endpoints.ciphers.hint', text: (row) => row.ciphers ?? '' },
   { key: 'endpoints.auth', width: 'w-32', text: (row) => row.auth ?? '' },
   { key: 'table.state', width: 'w-28', text: (row) => row.state ?? '' },
-  { key: 'endpoints.uptime', width: 'w-24', text: (row) => row.uptime ?? '' },
+  { key: 'endpoints.uptime', width: 'w-24', hint: 'endpoints.uptime.hint', text: (row) => row.uptime ?? '' },
   { key: 'endpoints.busy', width: 'w-24', align: 'right', text: (row) => number(row.busyThreads) },
   { key: 'endpoints.utilized', width: 'w-28', align: 'right', text: (row) => number(row.utilizedThreads) },
   { key: 'endpoints.ready', width: 'w-28', align: 'right', text: (row) => number(row.readyThreads) },
@@ -263,9 +265,9 @@ export function EndpointsScreen({ connection, server, onGoToConnection }: Props)
         </div>
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <SearchInput
-          className="flex-1"
+          className="min-w-64 flex-1"
           value={search}
           placeholder={t('endpoints.search')}
           onChange={setSearch}
@@ -324,7 +326,12 @@ export function EndpointsScreen({ connection, server, onGoToConnection }: Props)
           </colgroup>
           <THead>
             {COLUMNS.map((column) => (
-              <Th key={column.key} align={column.align} className="whitespace-nowrap">
+              <Th
+                key={column.key}
+                align={column.align}
+                title={column.hint ? t(column.hint) : undefined}
+                className="whitespace-nowrap"
+              >
                 {t(column.key)}
               </Th>
             ))}

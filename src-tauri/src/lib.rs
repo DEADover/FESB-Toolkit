@@ -6,6 +6,7 @@
 mod applier;
 mod api_report;
 mod archive;
+mod certificates;
 mod domain_xml;
 mod fesb_api;
 mod fesb_ops;
@@ -264,6 +265,12 @@ async fn api_endpoint_report(
     .await
 }
 
+/// Сертификаты из хранилищ ключей и доверенных хранилищ шины.
+#[tauri::command]
+async fn api_certificates(connection: Connection) -> Result<certificates::CertificateReport, String> {
+    certificates::certificates(&connection).await
+}
+
 /// Сохраняет готовый отчёт файлом Excel.
 ///
 /// Шапка приходит с фронтенда: там она уже переведена, и дублировать словарь
@@ -419,6 +426,7 @@ pub fn run() {
             api_domain_routes,
             api_route_index,
             api_endpoint_report,
+            api_certificates,
             save_report,
             api_route_state,
             api_route_action,
@@ -447,6 +455,7 @@ pub mod testing {
     pub use crate::applier::{apply_trace_change, ApplyRequest, ApplyTarget};
     pub use crate::fesb_api::{connect, domains, pull, push, verify, Connection};
     pub use crate::fesb_api::{endpoint_report, fetch_domain_routes, route_index};
+    pub use crate::certificates::{certificates, common_name, read_certificate};
     pub use crate::fesb_ops::{
         delete_property, domain_statistics, log_entries, log_files, modules, properties,
         audit, queue_managers, queue_message, queue_messages, queues, route_state, save_property,

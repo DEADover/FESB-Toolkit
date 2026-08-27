@@ -1,8 +1,8 @@
 import { useMemo } from 'react'
 
 import {
-  ArrowRight, ArrowsLeftRight, Crosshair, Cube, FingerprintSimple, FlowArrow, FolderOpen,
-  ListDashes, Plugs, Queue, SlidersHorizontal, Stack, type Icon,
+  ArrowRight, ArrowsLeftRight, Certificate, Crosshair, Cube, FingerprintSimple, FlowArrow,
+  FolderOpen, ListDashes, Plugs, Queue, SlidersHorizontal, Stack, type Icon,
 } from '@phosphor-icons/react'
 
 import { useI18n } from '../i18n'
@@ -207,6 +207,8 @@ export function WelcomeScreen({
               onClick={() => onScreen('api.routes')} dim={!server} />
             <Tile icon={Plugs} title={t('nav.api.endpoints.title')} text={t('welcome.hint.endpoints')}
               onClick={() => onScreen('api.endpoints')} dim={!server} />
+            <Tile icon={Certificate} title={t('nav.api.certificates')} text={t('welcome.hint.certificates')}
+              onClick={() => onScreen('api.certificates')} dim={!server} />
             <Tile icon={Queue} title={t('nav.api.queues')} text={t('welcome.hint.queues')}
               onClick={() => onScreen('api.queues')} dim={!server} />
             <Tile icon={Cube} title={t('nav.api.modules')} text={t('welcome.hint.modules')}

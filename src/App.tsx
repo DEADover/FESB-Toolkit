@@ -8,6 +8,7 @@ import { DomainLinksScreen } from './components/DomainLinksScreen'
 import { ServerSwitch } from './components/HeaderBar'
 import { DomainsScreen, type PullIntent } from './components/DomainsScreen'
 import { WelcomeScreen } from './components/WelcomeScreen'
+import { CertificatesScreen } from './components/CertificatesScreen'
 import { EndpointsScreen } from './components/EndpointsScreen'
 import { LogsScreen } from './components/LogsScreen'
 import { ModulesScreen } from './components/ModulesScreen'
@@ -284,6 +285,7 @@ export default function App() {
     'api.audit': 'nav.api.audit.title',
     'api.routes': 'nav.api.routes.title',
     'api.endpoints': 'nav.api.endpoints.title',
+    'api.certificates': 'nav.api.certificates.title',
     welcome: 'nav.welcome',
     'api.queues': 'nav.api.queues.title',
     'api.modules': 'nav.api.modules.title',
@@ -389,6 +391,8 @@ export default function App() {
           <RoutesScreen {...apiScreenProps} isMac={isMac} initialGuid={routesDomain} />
         ) : screen === 'api.endpoints' ? (
           <EndpointsScreen {...apiScreenProps} />
+        ) : screen === 'api.certificates' ? (
+          <CertificatesScreen {...apiScreenProps} />
         ) : screen === 'api.queues' ? (
           <QueuesScreen {...apiScreenProps} />
         ) : screen === 'api.modules' ? (

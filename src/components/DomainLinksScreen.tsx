@@ -158,9 +158,9 @@ export function DomainLinksScreen({ scan, isMac, onOpenFolder, onGoToDomains }: 
         />
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <SearchInput
-          className="flex-1"
+          className="min-w-64 flex-1"
           value={query}
           placeholder={t('domainLinks.search')}
           onChange={setQuery}

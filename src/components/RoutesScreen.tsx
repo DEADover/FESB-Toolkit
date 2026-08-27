@@ -266,8 +266,8 @@ export function RoutesScreen({ connection, server, isMac, initialGuid, onGoToCon
               <colgroup>
                 <col />
                 <col className="w-24" />
+                <col className="w-24" />
                 <col className="w-20" />
-                <col className="w-16" />
                 <col className="hidden w-20 xl:table-column" />
                 <col className="w-28" />
               </colgroup>

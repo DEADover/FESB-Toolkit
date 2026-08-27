@@ -275,9 +275,9 @@ export function DomainsScreen({ connection, server, pulling, progress, error: pu
         </div>
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <SearchInput
-          className="flex-1"
+          className="min-w-64 flex-1"
           value={query}
           placeholder={t('api.domains.search')}
           onChange={setQuery}
@@ -307,7 +307,7 @@ export function DomainsScreen({ connection, server, pulling, progress, error: pu
         <DataTable>
           {/* Счётчики уходят на узком окне: имя и состояние домена важнее. */}
           <colgroup>
-            <col className="w-9" />
+            <col className="w-10" />
             <col />
             <col className="w-28" />
             <col className="w-20" />
@@ -317,7 +317,7 @@ export function DomainsScreen({ connection, server, pulling, progress, error: pu
             <col className="w-28" />
           </colgroup>
           <THead>
-              <Th className="px-2">
+              <Th>
                 <Checkbox
                   checked={allVisibleSelected}
                   onChange={toggleVisible}
@@ -325,12 +325,12 @@ export function DomainsScreen({ connection, server, pulling, progress, error: pu
                 />
               </Th>
               <SortColumn label={t('table.domain')} id="name" sort={sort} onSort={setSort} align="left" />
-              <Th className="px-2">{t('table.state')}</Th>
+              <Th>{t('table.state')}</Th>
               <SortColumn label={t('map.routes')} id="routes" sort={sort} onSort={setSort} />
               <SortColumn label={t('map.errors')} id="errors" sort={sort} onSort={setSort} />
               <SortColumn label={t('map.inflight')} id="inflight" sort={sort} onSort={setSort} className="hidden xl:table-cell" />
               <SortColumn label={t('map.success')} id="success" sort={sort} onSort={setSort} className="hidden xl:table-cell" />
-              <Th className="px-2">{t('modules.actions')}</Th>
+              <Th>{t('modules.actions')}</Th>
             </THead>
           <tbody>
             {visible.map((domain) => (
@@ -343,7 +343,7 @@ export function DomainsScreen({ connection, server, pulling, progress, error: pu
                   !domain.active && 'text-content-subtle',
                 )}
               >
-                <td className="px-2 py-1.5">
+                <td className="px-3 py-1.5">
                   <Checkbox
                     checked={selected.has(domain.guid)}
                     onChange={() => toggle(domain.guid)}
@@ -351,7 +351,7 @@ export function DomainsScreen({ connection, server, pulling, progress, error: pu
                     aria-label={domain.name}
                   />
                 </td>
-                <td className="px-2 py-1.5">
+                <td className="px-3 py-1.5">
                   <div className="flex items-center gap-1.5">
                     <span className="min-w-0 truncate font-medium" title={domain.name}>{domain.name}</span>
                     {domain.leader && <Badge tone="accent">{t('api.domains.leader')}</Badge>}
@@ -367,14 +367,14 @@ export function DomainsScreen({ connection, server, pulling, progress, error: pu
                     {domain.group ? `${domain.group} · ` : ''}{domain.guid}
                   </div>
                 </td>
-                <td className="px-2 py-1.5">
+                <td className="px-3 py-1.5">
                   {domain.limping
                     ? <Badge tone="warn" title={t('map.notAllRunning.hint')}>{t('map.notAllRunning')}</Badge>
                     : domain.active
                       ? <Badge tone="ok">{t('table.active')}</Badge>
                       : <Badge>{t('table.stopped')}</Badge>}
                 </td>
-                <td className="px-2 py-1.5 text-right tabular-nums" onClick={(event) => event.stopPropagation()}>
+                <td className="px-3 py-1.5 text-right tabular-nums" onClick={(event) => event.stopPropagation()}>
                   {domain.routes > 0 ? (
                     <button
                       type="button"
@@ -386,16 +386,16 @@ export function DomainsScreen({ connection, server, pulling, progress, error: pu
                     </button>
                   ) : '—'}
                 </td>
-                <td className={cx('px-2 py-1.5 text-right tabular-nums', domain.errors > 0 && 'font-medium text-negative')}>
+                <td className={cx('px-3 py-1.5 text-right tabular-nums', domain.errors > 0 && 'font-medium text-negative')}>
                   {domain.errors > 0 ? domain.errors.toLocaleString() : '—'}
                 </td>
-                <td className={cx('hidden px-2 py-1.5 text-right tabular-nums xl:table-cell', domain.inflight > 0 && 'font-medium text-caution')}>
+                <td className={cx('hidden px-3 py-1.5 text-right tabular-nums xl:table-cell', domain.inflight > 0 && 'font-medium text-caution')}>
                   {domain.inflight > 0 ? domain.inflight.toLocaleString() : '—'}
                 </td>
-                <td className="hidden px-2 py-1.5 text-right tabular-nums text-content-muted xl:table-cell">
+                <td className="hidden px-3 py-1.5 text-right tabular-nums text-content-muted xl:table-cell">
                   {domain.success > 0 ? domain.success.toLocaleString() : '—'}
                 </td>
-                <td className="px-2 py-1.5" onClick={(event) => event.stopPropagation()}>
+                <td className="px-3 py-1.5" onClick={(event) => event.stopPropagation()}>
                   <div className="flex items-center gap-1">
                     <IconButton
                       icon={Play}
@@ -618,7 +618,7 @@ function SortColumn({ label, id, sort, onSort, align = 'right', className }: {
   className?: string
 }) {
   return (
-    <Th align={align} className={cx('px-2', className)}>
+    <Th align={align} className={className}>
       <button
         type="button"
         onClick={() => onSort(id)}

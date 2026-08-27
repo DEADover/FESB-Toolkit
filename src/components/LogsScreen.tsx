@@ -122,9 +122,9 @@ export function LogsScreen({ connection, server, onGoToConnection }: Props) {
 
   return (
     <ScreenBody>
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <SearchInput
-          className="flex-1"
+          className="min-w-64 flex-1"
           value={search}
           placeholder={t('logs.search')}
           onChange={setSearch}
@@ -166,7 +166,7 @@ export function LogsScreen({ connection, server, onGoToConnection }: Props) {
         <DataTable>
           <colgroup>
             <col className="w-44" />
-            <col className="w-16" />
+            <col className="w-20" />
             <col className="w-56" />
             <col />
           </colgroup>

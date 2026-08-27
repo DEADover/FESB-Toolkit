@@ -6,7 +6,7 @@ import { openUrl, revealItemInDir } from '@tauri-apps/plugin-opener'
 
 import type {
   ApiDomain, ApiProgress, AppInfo, ApplyProgress, ApplyReport, ApplyTarget, ArchiveProgress,
-  ApiEndpoint, ArchiveResult, AuditEntry, Connection, DomainAction, DomainActionResult, DomainRouteNames,
+  ApiEndpoint, ArchiveResult, CertificateReport, AuditEntry, Connection, DomainAction, DomainActionResult, DomainRouteNames,
   DomainRoutes, DomainStat,
   ExtractResult, LinkGraph, LogEntry,
   LogFileRow, LogRequest, ManagerKind,
@@ -75,6 +75,16 @@ export function saveXlsxAs(title: string, defaultName: string): Promise<string |
  */
 export function apiEndpointReport(connection: Connection): Promise<ApiEndpoint[]> {
   return invoke<ApiEndpoint[]>('api_endpoint_report', { connection })
+}
+
+/**
+ * Сертификаты из хранилищ ключей и доверенных хранилищ.
+ *
+ * Читается быстро — два запроса на списки и два на сами хранилища,
+ * поэтому раздел открывается сразу, без кнопки «собрать».
+ */
+export function apiCertificates(connection: Connection): Promise<CertificateReport> {
+  return invoke<CertificateReport>('api_certificates', { connection })
 }
 
 /** Пишет таблицу файлом Excel: шапка приходит уже переведённой. */

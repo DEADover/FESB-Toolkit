@@ -143,32 +143,38 @@ export function QueuesScreen({ connection, server, onGoToConnection }: Props) {
         </Panel>
 
         <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3">
-          <div className="flex items-center gap-2">
-            <SearchInput
-          className="flex-1"
-          value={query}
-          placeholder={t('queues.search')}
-          onChange={setQuery}
-        />
-            <Toggle checked={hideInternal} onChange={setHideInternal} label={t('queues.hideInternal')} />
-            {selected && (
-              <IconButton
-                size="md"
-                icon={copied === selected.broker ? Check : Copy}
-                label={copied === selected.broker ? t('queues.copied') : t('queues.copyBroker')}
-                onClick={() => copy(selected.broker)}
+          {/* Панель списка очередей: поиск, служебные и обновление относятся
+              к списку, а не к сообщениям. В режиме сообщений она уезжает
+              целиком — иначе на экране две кнопки «Обновить», и непонятно,
+              какая из них обновляет то, на что смотришь. */}
+          {!inbox && (
+            <div className="flex flex-wrap items-center gap-2">
+              <SearchInput
+                className="min-w-64 flex-1"
+                value={query}
+                placeholder={t('queues.search')}
+                onChange={setQuery}
               />
-            )}
-            <RefreshButton
-          busy={loadingQueues}
-          disabled={loadingQueues || !selected}
-          onClick={() => void openQueues(selected)}
-        />
-          </div>
+              <Toggle checked={hideInternal} onChange={setHideInternal} label={t('queues.hideInternal')} />
+              {selected && (
+                <IconButton
+                  size="md"
+                  icon={copied === selected.broker ? Check : Copy}
+                  label={copied === selected.broker ? t('queues.copied') : t('queues.copyBroker')}
+                  onClick={() => copy(selected.broker)}
+                />
+              )}
+              <RefreshButton
+                busy={loadingQueues}
+                disabled={loadingQueues || !selected}
+                onClick={() => void openQueues(selected)}
+              />
+            </div>
+          )}
 
           <ErrorBar error={queueError} />
 
-          {selected && !selected.running && (
+          {!inbox && selected && !selected.running && (
             <Notice tone="warn" small>
               {t('queues.stoppedHint', { broker: selected.broker })}
             </Notice>
@@ -188,8 +194,8 @@ export function QueuesScreen({ connection, server, onGoToConnection }: Props) {
                 {/* Накопительные счётчики уходят на узком окне: имя очереди
                     и текущее число сообщений нужнее, чем «положено за всё время». */}
                 <col />
-                <col className="w-20" />
                 <col className="w-24" />
+                <col className="w-28" />
                 <col className="hidden w-24 xl:table-column" />
                 <col className="hidden w-24 xl:table-column" />
                 <col className="w-28" />
