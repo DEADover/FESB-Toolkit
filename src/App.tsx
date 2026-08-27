@@ -20,7 +20,8 @@ import { RoutesScreen } from './components/RoutesScreen'
 import { Sidebar, type ScreenId } from './components/Sidebar'
 import { RefreshButton } from './components/ApiShell'
 import { TraceScreen } from './components/TraceScreen'
-import { ActionLink, Badge, Button, cx, Notice, Spinner } from './components/ui'
+import { useToast } from './components/Toaster'
+import { Badge, Button, cx, Notice, Spinner } from './components/ui'
 import { useI18n, type MessageKey } from './i18n'
 import {
   apiConnect, apiPull, appInfo, buildArchive, errorText, onApiProgress, onExtractProgress, onFileDrop, onScanProgress, openArchive, saveZipAs, scanDirectory, selectArchive, selectFolder,
@@ -52,6 +53,7 @@ interface Session {
 
 export default function App() {
   const { t } = useI18n()
+  const toast = useToast()
 
   const [info, setInfo] = useState<AppInfo | null>(null)
   const [screen, setScreen] = useState<ScreenId>('welcome')
@@ -74,8 +76,8 @@ export default function App() {
   const [apiProgress, setApiProgress] = useState<ApiProgress | null>(null)
   const [pullError, setPullError] = useState<string | null>(null)
   const [connecting, setConnecting] = useState(false)
-  /** Стенд, к которому не удалось переключиться, и почему. */
-  const [switchError, setSwitchError] = useState<{ profile: ConnectionProfile; message: string } | null>(null)
+  /** Последнее переключение стенда не удалось: точка в пилюле красная. */
+  const [failedSwitch, setFailedSwitch] = useState(false)
   /** Профиль, который надо раскрыть на экране подключения. */
   const [focusProfile, setFocusProfile] = useState<string | null>(null)
   /** Домен, к СОПС которого перешли с карты. */
@@ -188,6 +190,13 @@ export default function App() {
     }
   }, [])
 
+  const disconnect = useCallback(() => { setSession(null); setFailedSwitch(false) }, [])
+
+  const configure = useCallback((profileId: string | null) => {
+    setFocusProfile(profileId)
+    setScreen('api.connection')
+  }, [])
+
   /**
    * Переключение стенда из шапки.
    *
@@ -196,18 +205,18 @@ export default function App() {
    * до следующей попытки, вместе с именем стенда и дорогой к его настройкам.
    */
   const switchProfile = useCallback((profile: ConnectionProfile) => {
-    setSwitchError(null)
+    setFailedSwitch(false)
     void connectProfile(profile).catch((error: unknown) => {
-      setSwitchError({ profile, message: errorText(error) })
+      setFailedSwitch(true)
+      toast({
+        tone: 'danger',
+        title: t('switch.failed', { name: profile.name }),
+        text: errorText(error),
+        action: { label: t('switch.configure'), onClick: () => configure(profile.id) },
+      })
     })
-  }, [connectProfile])
+  }, [connectProfile, toast, t, configure])
 
-  const disconnect = useCallback(() => { setSession(null); setSwitchError(null) }, [])
-
-  const configure = useCallback((profileId: string | null) => {
-    setFocusProfile(profileId)
-    setScreen('api.connection')
-  }, [])
 
   // Автоподключение возможно только к профилю с сохранённым паролем.
   const autoConnected = useRef(false)
@@ -353,7 +362,7 @@ export default function App() {
             active={session?.profile ?? null}
             server={session?.server ?? null}
             connecting={connecting}
-            failed={switchError !== null}
+            failed={failedSwitch}
             onConnect={switchProfile}
             onDisconnect={disconnect}
             onConfigure={configure}
@@ -368,17 +377,6 @@ export default function App() {
             </>
           )}
         </header>
-
-        {switchError && (
-          <div className="px-6 pb-3">
-            <Notice tone="danger" onClose={() => setSwitchError(null)} closeLabel={t('action.close')}>
-              {t('switch.failed', { name: switchError.profile.name })} {switchError.message}{' · '}
-              <ActionLink onClick={() => { const id = switchError.profile.id; setSwitchError(null); configure(id) }}>
-                {t('switch.configure')}
-              </ActionLink>
-            </Notice>
-          </div>
-        )}
 
         {screen === 'welcome' ? (
           <WelcomeScreen

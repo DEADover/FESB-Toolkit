@@ -11,7 +11,10 @@
 //! * `/api/security/perms` — что каждое право означает; описания приходят
 //!   от шины и уже по-русски, поэтому переводить их незачем и нечем;
 //! * `/api/security/user-session` — кто сейчас в системе, с каких адресов,
-//!   плюс время последнего входа из `.../times/login/last`.
+//!   плюс время последнего входа из `.../times/login/last`;
+//! * `/api/security/settings`, `.../ldap`, `.../oauth` и настройки простоя —
+//!   как вообще устроен вход: чем проверяют пароль, сколько попыток даётся
+//!   и подключены ли внешние источники учётных записей.
 //!
 //! Область роли — это поля вида `domainsForView` и `qmsForEdit`. Их три
 //! десятка, и заводить под каждое строку словаря не нужно: имя разбирается
@@ -74,12 +77,64 @@ pub struct UserAccess {
     pub last_login: Option<i64>,
 }
 
+/// Как устроен вход на сервер.
+#[derive(Debug, Clone, Serialize, PartialEq, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct SignIn {
+    /// Учётные записи берутся из каталога.
+    pub ldap: bool,
+    pub oauth: bool,
+    /// Сколько неудачных попыток даётся до блокировки.
+    pub max_attempts: Option<i64>,
+    /// Требования к паролю — регулярным выражением, как их задаёт шина.
+    pub password_policy: Option<String>,
+    pub password_encoder: Option<String>,
+    /// Алгоритм хеширования пароля устарел и вскрывается перебором.
+    pub weak_encoder: bool,
+    /// Пароль подходит любой: требований нет.
+    pub any_password: bool,
+    pub block_inactive: Option<bool>,
+}
+
 #[derive(Debug, Clone, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct AccessReport {
     pub roles: Vec<Role>,
     pub permissions: Vec<Permission>,
     pub users: Vec<UserAccess>,
+    pub sign_in: SignIn,
+}
+
+/// Алгоритмы, которыми пароли сегодня не хешируют.
+///
+/// MD5 и SHA-1 перебираются на обычной видеокарте, а `noop` и `plain`
+/// означают, что пароль лежит как есть. Список короткий намеренно:
+/// отмечать нужно то, что действительно плохо, иначе метку перестают
+/// замечать.
+const WEAK_ENCODERS: [&str; 5] = ["md5", "sha1", "sha-1", "noop", "plain"];
+
+fn read_sign_in(
+    settings: &serde_json::Value,
+    ldap: &serde_json::Value,
+    oauth: &serde_json::Value,
+    inactivity: &serde_json::Value,
+) -> SignIn {
+    let encoder = text(settings, "defaultPasswordEncoderType");
+    let policy = text(settings, "policy");
+    SignIn {
+        // Ненастроенный каталог шина отдаёт как `{"_type": "null"}`.
+        ldap: ldap.is_object() && text(ldap, "_type").as_deref() != Some("null") && ldap.as_object().is_some_and(|map| map.len() > 1),
+        oauth: oauth.get("enabled").and_then(serde_json::Value::as_bool).unwrap_or(false),
+        max_attempts: settings.get("maxAttempts").and_then(serde_json::Value::as_i64),
+        weak_encoder: encoder
+            .as_deref()
+            .is_some_and(|name| WEAK_ENCODERS.contains(&name.to_lowercase().as_str())),
+        // `.*` и пустая строка означают одно и то же: подойдёт любой пароль.
+        any_password: policy.as_deref().is_none_or(|value| value == ".*" || value == ".+"),
+        password_policy: policy,
+        password_encoder: encoder,
+        block_inactive: inactivity.get("blockInactivityUsers").and_then(serde_json::Value::as_bool),
+    }
 }
 
 /// Читает роли, права и открытые сеансы.
@@ -134,7 +189,22 @@ pub async fn access(connection: &Connection) -> Result<AccessReport, String> {
         .collect();
     users.sort_by(|a, b| a.user.cmp(&b.user));
 
-    Ok(AccessReport { roles, permissions, users })
+    // Как устроен вход: четыре мелких метода, и любой из них может быть
+    // закрыт правами — тогда просто нечего показать в этой строке.
+    let null = serde_json::Value::Null;
+    let settings = get_json(connection, &client, "/api/security/settings").await.unwrap_or(null.clone());
+    let ldap = get_json(connection, &client, "/api/security/ldap").await.unwrap_or(null.clone());
+    let oauth = get_json(connection, &client, "/api/security/oauth").await.unwrap_or(null.clone());
+    let inactivity = get_json(connection, &client, "/api/security/local/user/times/inactivity/settings")
+        .await
+        .unwrap_or(null);
+
+    Ok(AccessReport {
+        roles,
+        permissions,
+        users,
+        sign_in: read_sign_in(&settings, &ldap, &oauth, &inactivity),
+    })
 }
 
 fn read_role(value: &serde_json::Value) -> Role {
@@ -267,6 +337,50 @@ mod tests {
         let folded = fold_sessions(Some(&json!([{ "ip": "null", "agent": "null" }])));
         assert_eq!(folded.len(), 1);
         assert_eq!(folded[0].ip, "");
+    }
+
+    #[test]
+    fn a_weak_password_hash_is_called_out() {
+        for name in ["MD5", "md5", "SHA1", "noop", "PLAIN"] {
+            let settings = json!({ "defaultPasswordEncoderType": name });
+            let sign_in = read_sign_in(&settings, &json!(null), &json!(null), &json!(null));
+            assert!(sign_in.weak_encoder, "{name} должен быть отмечен");
+        }
+        let good = json!({ "defaultPasswordEncoderType": "bcrypt" });
+        assert!(!read_sign_in(&good, &json!(null), &json!(null), &json!(null)).weak_encoder);
+    }
+
+    #[test]
+    fn a_policy_that_allows_anything_is_not_a_policy() {
+        for policy in [".*", ".+"] {
+            let settings = json!({ "policy": policy });
+            assert!(read_sign_in(&settings, &json!(null), &json!(null), &json!(null)).any_password);
+        }
+        let real = json!({ "policy": "^(?=.*[A-Z])(?=.*\\d).{12,}$" });
+        assert!(!read_sign_in(&real, &json!(null), &json!(null), &json!(null)).any_password);
+        // Правила нет вовсе — это тоже «любой пароль».
+        assert!(read_sign_in(&json!({}), &json!(null), &json!(null), &json!(null)).any_password);
+    }
+
+    #[test]
+    fn an_unconfigured_directory_does_not_count_as_connected() {
+        let empty = json!({ "_type": "null" });
+        let sign_in = read_sign_in(&json!({}), &empty, &json!({ "enabled": false }), &json!({}));
+        assert!(!sign_in.ldap);
+        assert!(!sign_in.oauth);
+
+        let real = json!({ "url": "ldap://dc.corp", "baseDn": "dc=corp", "enabled": true });
+        assert!(read_sign_in(&json!({}), &real, &json!(null), &json!(null)).ldap);
+    }
+
+    #[test]
+    fn the_sign_in_settings_survive_a_server_that_answers_nothing() {
+        let nothing = json!(null);
+        let sign_in = read_sign_in(&nothing, &nothing, &nothing, &nothing);
+        assert_eq!(sign_in.max_attempts, None);
+        assert_eq!(sign_in.password_encoder, None);
+        assert!(!sign_in.weak_encoder);
+        assert_eq!(sign_in.block_inactive, None);
     }
 
     #[test]

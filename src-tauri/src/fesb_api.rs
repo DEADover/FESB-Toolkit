@@ -203,11 +203,27 @@ pub(crate) async fn ensure_ok(response: reqwest::Response, what: &str) -> Result
 }
 
 pub(crate) fn transport_error(err: reqwest::Error) -> String {
-    if err.is_connect() || err.is_timeout() {
-        format!("Cannot reach the server: {err}")
+    // Свой текст reqwest начинает с «error sending request for url (…)»,
+    // и адрес в нём повторяет тот, который мы называем и сами. Смысл несёт
+    // причина, а она лежит в самом конце цепочки источников: «failed to
+    // lookup address information», «connection refused».
+    let cause = root_cause(&err);
+    if err.is_timeout() {
+        format!("The server did not answer in time: {cause}")
+    } else if err.is_connect() {
+        format!("Cannot reach the server: {cause}")
     } else {
-        err.to_string()
+        cause
     }
+}
+
+/// Самая глубокая причина ошибки — та, что объясняет, что случилось.
+fn root_cause(err: &(dyn std::error::Error + 'static)) -> String {
+    let mut deepest = err;
+    while let Some(source) = deepest.source() {
+        deepest = source;
+    }
+    deepest.to_string()
 }
 
 // ───────────────────────────── данные о сервере ─────────────────────────────
@@ -1308,6 +1324,35 @@ mod tests {
         assert_eq!(connection("http://esb:8181").base(), "http://esb:8181/manager");
         assert_eq!(connection("https://esb/fesb/").base(), "https://esb/fesb");
         assert_eq!(connection("http://esb:8181/manager").base(), "http://esb:8181/manager");
+    }
+
+    #[test]
+    fn the_transport_error_keeps_the_cause_and_drops_the_repeated_address() {
+        // Своя ошибка reqwest недоступна для сборки вручную, поэтому проверяем
+        // разбор цепочки на обычных ошибках: берётся самая глубокая причина.
+        #[derive(Debug)]
+        struct Layer(&'static str, Option<Box<Layer>>);
+        impl std::fmt::Display for Layer {
+            fn fmt(&self, out: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                out.write_str(self.0)
+            }
+        }
+        impl std::error::Error for Layer {
+            fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+                self.1.as_deref().map(|item| item as &(dyn std::error::Error + 'static))
+            }
+        }
+
+        let deep = Layer(
+            "error sending request for url (https://esb.corp/manager/api/security/user)",
+            Some(Box::new(Layer(
+                "client error",
+                Some(Box::new(Layer("failed to lookup address information", None))),
+            ))),
+        );
+        assert_eq!(root_cause(&deep), "failed to lookup address information");
+        // Единственный слой — он же и причина.
+        assert_eq!(root_cause(&Layer("connection refused", None)), "connection refused");
     }
 
     #[test]

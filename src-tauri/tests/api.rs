@@ -766,6 +766,12 @@ fn reads_who_can_do_what() {
             println!("      {} × {} · {:?}", session.ip, session.count, session.agent);
         }
     }
+    println!(
+        "вход: LDAP {} · OAuth {} · попыток {:?} · хеш {:?} (слабый: {}) · политика {:?} (любой: {})",
+        report.sign_in.ldap, report.sign_in.oauth, report.sign_in.max_attempts,
+        report.sign_in.password_encoder, report.sign_in.weak_encoder,
+        report.sign_in.password_policy, report.sign_in.any_password,
+    );
     assert!(!report.roles.is_empty(), "шина не отдала ни одной роли");
     assert!(!report.permissions.is_empty(), "нет справочника прав");
     // Каждое право роли должно находиться в справочнике — иначе описание

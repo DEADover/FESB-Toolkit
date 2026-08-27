@@ -614,10 +614,27 @@ export interface UserAccess {
   lastLogin: number | null
 }
 
+/** Как устроен вход на сервер. */
+export interface SignIn {
+  /** Учётные записи берутся из каталога. */
+  ldap: boolean
+  oauth: boolean
+  maxAttempts: number | null
+  /** Требования к паролю — регулярным выражением, как их задаёт шина. */
+  passwordPolicy: string | null
+  passwordEncoder: string | null
+  /** Алгоритм хеширования устарел и вскрывается перебором. */
+  weakEncoder: boolean
+  /** Пароль подходит любой: требований нет. */
+  anyPassword: boolean
+  blockInactive: boolean | null
+}
+
 export interface AccessReport {
   roles: Role[]
   permissions: Permission[]
   users: UserAccess[]
+  signIn: SignIn
 }
 
 /** Состояние сервера: время работы, память, процессор и диски. */

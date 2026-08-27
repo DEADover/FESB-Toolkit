@@ -3,10 +3,11 @@ import { Fragment, useCallback, useMemo, useState, type ReactNode } from 'react'
 import { CaretRight, DownloadSimple } from '@phosphor-icons/react'
 
 import { useI18n, type MessageKey, type Translate } from '../i18n'
-import { apiEndpointReport, errorText, onApiProgress, saveReport, saveXlsxAs } from '../lib/api'
+import { apiEndpointReport, errorText, revealPath, onApiProgress, saveReport, saveXlsxAs } from '../lib/api'
 import { localStamp } from '../lib/paths'
 import type { ApiEndpoint, ApiProgress, Connection, ServerInfo } from '../types'
 import { ErrorBar, NotConnected, Panel, ScreenBody, StatsBar, TableMessage, useDebounced } from './ApiShell'
+import { useToast } from './Toaster'
 import {
   Badge, Button, ButtonGlyph, CodePill, cx, DataTable, EmptyState, FOCUS_RING, MultiSelect, Readout, rowClick, SearchInput, Select, Spinner, Th, THead, Toggle,
 } from './ui'
@@ -111,6 +112,7 @@ function number(value: number | null): string {
  */
 export function EndpointsScreen({ connection, server, onGoToConnection }: Props) {
   const { t } = useI18n()
+  const toast = useToast()
   const [rows, setRows] = useState<ApiEndpoint[] | null>(null)
   const [building, setBuilding] = useState(false)
   const [progress, setProgress] = useState<ApiProgress | null>(null)
@@ -226,12 +228,20 @@ export function EndpointsScreen({ connection, server, onGoToConnection }: Props)
     setError(null)
     try {
       await saveReport(output, t('nav.api.endpoints'), headers, body)
+      // Раньше выгрузка заканчивалась молча: диалог закрылся — и всё.
+      // Теперь видно, что файл записан, и до него один щелчок.
+      toast({
+        tone: 'ok',
+        title: t('report.saved'),
+        text: `${output.split(/[/\\]/).pop()} · ${t('report.savedRows', { count: body.length })}`,
+        action: { label: t('action.reveal'), onClick: () => void revealPath(output) },
+      })
     } catch (err) {
       setError(errorText(err))
     } finally {
       setSaving(false)
     }
-  }, [visible, t])
+  }, [visible, t, toast])
 
   if (!connection || !server) return <NotConnected onGoToConnection={onGoToConnection} />
 

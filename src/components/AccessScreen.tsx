@@ -149,6 +149,8 @@ export function AccessScreen({ connection, server, onGoToConnection }: Props) {
             ))}
           </div>
 
+          <SignInCard report={data} />
+
           <Users report={data} />
         </Panel>
 
@@ -274,4 +276,76 @@ function shortAgent(agent: string): string {
   const browser = /(Chrome|Firefox|Safari|Edg)\/[\d.]+/.exec(agent)
   if (browser) return browser[0].replace('Edg/', 'Edge/')
   return agent.length > 24 ? `${agent.slice(0, 24)}…` : agent
+}
+
+/**
+ * Как устроен вход.
+ *
+ * Роли отвечают, что человеку можно; это — как он вообще попадает внутрь.
+ * Две вещи здесь отмечаются, а не просто показываются: устаревший хеш
+ * пароля и политика, под которую подходит любой пароль. И то и другое
+ * ищут в первую очередь, когда приходят проверять стенд.
+ */
+function SignInCard({ report }: { report: AccessReport | null }) {
+  const { t } = useI18n()
+  if (!report) return null
+  const { signIn } = report
+
+  const sources = [signIn.ldap && 'LDAP', signIn.oauth && 'OAuth'].filter(Boolean) as string[]
+  return (
+    <div className="border-t border-line px-3 py-2.5">
+      <div className="mb-2 text-[11px] tracking-wide text-content-subtle">{t('access.signIn')}</div>
+      <dl className="flex flex-col gap-1.5 text-[11.5px]">
+        <Fact label={t('access.source')} value={sources.join(', ') || t('access.source.local')} />
+        {signIn.maxAttempts !== null && (
+          <Fact label={t('access.attempts')} value={String(signIn.maxAttempts)} />
+        )}
+        <Fact
+          label={t('access.policy')}
+          value={signIn.anyPassword ? t('access.policy.any') : signIn.passwordPolicy ?? '—'}
+          mono={!signIn.anyPassword}
+          warn={signIn.anyPassword}
+        />
+        {signIn.passwordEncoder && (
+          <Fact
+            label={t('access.encoder')}
+            value={signIn.passwordEncoder}
+            warn={signIn.weakEncoder}
+            hint={signIn.weakEncoder ? t('access.encoder.weak') : undefined}
+          />
+        )}
+        {signIn.blockInactive !== null && (
+          <Fact
+            label={t('access.blockInactive')}
+            value={signIn.blockInactive ? t('action.on') : t('action.off')}
+          />
+        )}
+      </dl>
+    </div>
+  )
+}
+
+/** Строка «подпись — значение»; отмеченное значение выделено цветом. */
+function Fact({ label, value, mono, warn, hint }: {
+  label: string
+  value: string
+  mono?: boolean
+  warn?: boolean
+  hint?: string
+}) {
+  return (
+    <div className="flex items-baseline gap-2" title={hint}>
+      <dt className="shrink-0 text-content-subtle">{label}</dt>
+      <dd
+        className={cx(
+          'ml-auto min-w-0 truncate text-right',
+          mono && 'font-mono text-[11px]',
+          warn ? 'text-caution' : 'text-content',
+        )}
+        title={value}
+      >
+        {value}
+      </dd>
+    </div>
+  )
 }

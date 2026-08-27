@@ -5,6 +5,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 
 import App from './App'
+import { ToastProvider } from './components/Toaster'
 import { I18nProvider } from './i18n'
 import { applyThemeMode, readThemeMode } from './lib/theme'
 import './index.css'
@@ -15,7 +16,9 @@ applyThemeMode(readThemeMode())
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <I18nProvider>
-      <App />
+      <ToastProvider>
+        <App />
+      </ToastProvider>
     </I18nProvider>
   </StrictMode>,
 )

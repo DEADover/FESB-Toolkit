@@ -3,12 +3,13 @@ import { useCallback, useMemo, useState } from 'react'
 import { Certificate, DownloadSimple } from '@phosphor-icons/react'
 
 import { useI18n, type MessageKey, type Translate } from '../i18n'
-import { apiCertificates, errorText, saveReport, saveXlsxAs } from '../lib/api'
+import { apiCertificates, errorText, revealPath, saveReport, saveXlsxAs } from '../lib/api'
 import { localStamp } from '../lib/paths'
 import type { ApiCertificate, CertificateReport, Connection, ServerInfo } from '../types'
 import {
   ErrorBar, NotConnected, Panel, RefreshButton, ScreenBody, StatsBar, TableMessage, useApiData, useDebounced,
 } from './ApiShell'
+import { useToast } from './Toaster'
 import {
   Badge, Button, ButtonGlyph, CodePill, cx, DataTable, EmptyState, Modal, MultiSelect, Readout,
   rowClick, SearchInput, Th, THead, Toggle,
@@ -91,6 +92,7 @@ const COLUMNS: Array<{
  */
 export function CertificatesScreen({ connection, server, onGoToConnection }: Props) {
   const { t } = useI18n()
+  const toast = useToast()
   const load = useCallback((open: Connection) => apiCertificates(open), [])
   const { data, loading, error, reload, setError } = useApiData<CertificateReport>(connection, load)
 
@@ -151,12 +153,20 @@ export function CertificatesScreen({ connection, server, onGoToConnection }: Pro
     setError(null)
     try {
       await saveReport(output, t('nav.api.certificates'), headers, body)
+      // Раньше выгрузка заканчивалась молча: диалог закрылся — и всё.
+      // Теперь видно, что файл записан, и до него один щелчок.
+      toast({
+        tone: 'ok',
+        title: t('report.saved'),
+        text: `${output.split(/[/\\]/).pop()} · ${t('report.savedRows', { count: body.length })}`,
+        action: { label: t('action.reveal'), onClick: () => void revealPath(output) },
+      })
     } catch (err) {
       setError(errorText(err))
     } finally {
       setSaving(false)
     }
-  }, [visible, t, setError])
+  }, [visible, t, setError, toast])
 
   if (!connection || !server) return <NotConnected onGoToConnection={onGoToConnection} />
 
