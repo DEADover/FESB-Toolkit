@@ -456,10 +456,13 @@ export function EmptyState({ icon: Glyph, title, text, action, children }: {
  * и разным кеглем. Отступы снаружи задаёт тот, кто ставит полосу: она
  * встречается и в потоке экрана, и внутри панели с собственными полями.
  */
-export function Notice({ tone, small, className, children }: {
+export function Notice({ tone, small, className, onClose, closeLabel, children }: {
   tone: 'danger' | 'warn' | 'ok'
   small?: boolean
   className?: string
+  /** Полосу можно убрать: сообщение о неудаче висит, пока его не прочли. */
+  onClose?: () => void
+  closeLabel?: string
   children: ReactNode
 }) {
   const tones = {
@@ -468,8 +471,19 @@ export function Notice({ tone, small, className, children }: {
     ok: 'border-positive/35 bg-positive/10 text-positive',
   }
   return (
-    <div className={cx('rounded-lg border px-3 py-2', small && 'text-[11.5px]', tones[tone], className)}>
-      {children}
+    <div className={cx('flex items-start gap-3 rounded-lg border px-3 py-2', small && 'text-[11.5px]', tones[tone], className)}>
+      <div className="min-w-0 flex-1">{children}</div>
+      {onClose && (
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label={closeLabel}
+          title={closeLabel}
+          className={cx('-mr-1 grid size-5 shrink-0 place-items-center rounded transition hover:bg-current/15', FOCUS_RING)}
+        >
+          <X size={11} weight="bold" />
+        </button>
+      )}
     </div>
   )
 }
@@ -775,13 +789,16 @@ export function Spinner({ className }: { className?: string }) {
   )
 }
 
-export function Modal({ open, onClose, title, children, footer, wide, closeLabel }: {
+const MODAL_WIDTH = { narrow: 'max-w-lg', roomy: 'max-w-2xl', wide: 'max-w-4xl' }
+
+export function Modal({ open, onClose, title, children, footer, width = 'narrow', closeLabel }: {
   open: boolean
   onClose: () => void
   title: ReactNode
   children: ReactNode
   footer?: ReactNode
-  wide?: boolean
+  /** `narrow` — вопрос, `roomy` — карточка, `wide` — таблица. */
+  width?: keyof typeof MODAL_WIDTH
   closeLabel: string
 }) {
   useEffect(() => {
@@ -795,7 +812,7 @@ export function Modal({ open, onClose, title, children, footer, wide, closeLabel
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-6 backdrop-blur-sm" onMouseDown={onClose}>
       <div
-        className={cx('flex max-h-[85vh] w-full flex-col overflow-hidden rounded-2xl border border-line-strong bg-surface shadow-2xl', wide ? 'max-w-4xl' : 'max-w-lg')}
+        className={cx('flex max-h-[85vh] w-full flex-col overflow-hidden rounded-2xl border border-line-strong bg-surface shadow-2xl', MODAL_WIDTH[width])}
         onMouseDown={(event) => event.stopPropagation()}
       >
         <div className="flex items-center justify-between border-b border-line px-5 py-4">

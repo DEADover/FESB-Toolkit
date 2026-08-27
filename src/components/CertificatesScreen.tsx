@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 
 import { Certificate, DownloadSimple } from '@phosphor-icons/react'
 
@@ -10,8 +10,8 @@ import {
   ErrorBar, NotConnected, Panel, RefreshButton, ScreenBody, StatsBar, TableMessage, useApiData, useDebounced,
 } from './ApiShell'
 import {
-  Badge, Button, ButtonGlyph, CodePill, cx, DataTable, EmptyState, MultiSelect, Readout, rowClick,
-  SearchInput, Th, THead, Toggle,
+  Badge, Button, ButtonGlyph, CodePill, cx, DataTable, EmptyState, Modal, MultiSelect, Readout,
+  rowClick, SearchInput, Th, THead, Toggle,
 } from './ui'
 
 interface Props {
@@ -97,7 +97,7 @@ export function CertificatesScreen({ connection, server, onGoToConnection }: Pro
   const [search, setSearch] = useState('')
   const [stores, setStores] = useState<Set<string>>(new Set())
   const [onlyProblem, setOnlyProblem] = useState(false)
-  const [open, setOpen] = useState<string | null>(null)
+  const [open, setOpen] = useState<ApiCertificate | null>(null)
   const [saving, setSaving] = useState(false)
   const query = useDebounced(search, 250)
 
@@ -244,77 +244,44 @@ export function CertificatesScreen({ connection, server, onGoToConnection }: Pro
             ))}
           </THead>
           <tbody>
-            {visible.map((row) => {
-              const id = `${row.storeKind}:${row.store}:${row.alias}:${row.serial}`
-              const shown = open === id
-              const left = daysLeft(row.notAfter)
-              return (
-                <Fragment key={id}>
-                  <tr
-                    onClick={rowClick(() => setOpen(shown ? null : id))}
-                    title={t('certificates.openHint')}
-                    className={cx(
-                      'cursor-pointer align-top',
-                      shown ? 'bg-surface-2/60' : 'border-b border-line/60 hover:bg-surface-2',
+            {visible.map((row) => (
+              <tr
+                key={`${row.storeKind}:${row.store}:${row.alias}:${row.serial}`}
+                onClick={rowClick(() => setOpen(row))}
+                title={t('certificates.openHint')}
+                className="cursor-pointer border-b border-line/60 align-top hover:bg-surface-2"
+              >
+                <td className="truncate px-3 py-1.5" title={t(kindHint(row.storeKind))}>
+                  <span className="font-mono text-[11px]">{row.store}</span>
+                </td>
+                <td className="truncate px-3 py-1.5 font-medium">{row.alias || '—'}</td>
+                <td className="truncate px-3 py-1.5" title={row.subject}>{row.subjectName || '—'}</td>
+                <td className="truncate px-3 py-1.5" title={row.issuer}>
+                  <span className="flex items-center gap-1.5">
+                    <span className="min-w-0 truncate">{row.issuerName || '—'}</span>
+                    {row.selfSigned && <Badge>{t('certificates.selfSigned')}</Badge>}
+                    {row.authority && (
+                      <Badge tone="accent" title={t('certificates.authority.hint')}>{t('certificates.authority')}</Badge>
                     )}
-                  >
-                    <td className="truncate px-3 py-1.5" title={t(kindHint(row.storeKind))}>
-                      <span className="font-mono text-[11px]">{row.store}</span>
-                    </td>
-                    <td className="truncate px-3 py-1.5 font-medium">{row.alias || '—'}</td>
-                    <td className="truncate px-3 py-1.5" title={row.subject}>{row.subjectName || '—'}</td>
-                    <td className="truncate px-3 py-1.5" title={row.issuer}>
-                      <span className="flex items-center gap-1.5">
-                        <span className="min-w-0 truncate">{row.issuerName || '—'}</span>
-                        {row.selfSigned && <Badge>{t('certificates.selfSigned')}</Badge>}
-                        {row.authority && (
-                          <Badge tone="accent" title={t('certificates.authority.hint')}>{t('certificates.authority')}</Badge>
-                        )}
-                      </span>
-                    </td>
-                    <td className="px-3 py-1.5 tabular-nums text-content-muted">{formatDate(row.notBefore)}</td>
-                    <td className="px-3 py-1.5 tabular-nums">{formatDate(row.notAfter)}</td>
-                    <td className="px-3 py-1.5"><Expiry days={left} notBefore={row.notBefore} /></td>
-                    <td className="truncate px-3 py-1.5">
-                      {keyText(row) ? <CodePill>{keyText(row)}</CodePill> : '—'}
-                    </td>
-                    <td className="truncate px-3 py-1.5 font-mono text-[11px] text-content-muted">
-                      {row.algorithm || '—'}
-                    </td>
-                    <td className="truncate px-3 py-1.5 text-[11.5px] text-content-muted" title={row.usage.join(', ')}>
-                      {row.usage.join(', ') || '—'}
-                    </td>
-                    <td className="truncate px-3 py-1.5 font-mono text-[10.5px] text-content-subtle">
-                      {row.serial || '—'}
-                    </td>
-                  </tr>
-
-                  {shown && (
-                    <tr className="border-b border-line/60 bg-surface-2/60">
-                      <td colSpan={COLUMNS.length} className="px-3 pb-3">
-                        {/* Полные имена не помещаются в колонку, а нужны именно
-                            целиком: по OU и O понимают, чей это сертификат. */}
-                        <dl className="grid grid-cols-[10rem_1fr] gap-x-4 gap-y-1 text-[11.5px]">
-                          <Line label={t('certificates.subject')} value={row.subject} />
-                          <Line label={t('certificates.issuer')} value={row.issuer} />
-                          <Line
-                            label={t('certificates.validFrom')}
-                            value={`${row.notBefore.replace('T', ' ')} — ${row.notAfter.replace('T', ' ')}`}
-                          />
-                          {row.chainPath.length > 0 && (
-                            <Line label={t('certificates.chain')} value={row.chainPath.join('  →  ')} />
-                          )}
-                          {row.usage.length > 0 && (
-                            <Line label={t('certificates.usage')} value={row.usage.join(', ')} />
-                          )}
-                          <Line label={t('certificates.serial')} value={row.serial} />
-                        </dl>
-                      </td>
-                    </tr>
-                  )}
-                </Fragment>
-              )
-            })}
+                  </span>
+                </td>
+                <td className="px-3 py-1.5 tabular-nums text-content-muted">{formatDate(row.notBefore)}</td>
+                <td className="px-3 py-1.5 tabular-nums">{formatDate(row.notAfter)}</td>
+                <td className="px-3 py-1.5"><Expiry days={daysLeft(row.notAfter)} notBefore={row.notBefore} /></td>
+                <td className="truncate px-3 py-1.5">
+                  {keyText(row) ? <CodePill>{keyText(row)}</CodePill> : '—'}
+                </td>
+                <td className="truncate px-3 py-1.5 font-mono text-[11px] text-content-muted">
+                  {row.algorithm || '—'}
+                </td>
+                <td className="truncate px-3 py-1.5 text-[11.5px] text-content-muted" title={row.usage.join(', ')}>
+                  {row.usage.join(', ') || '—'}
+                </td>
+                <td className="truncate px-3 py-1.5 font-mono text-[10.5px] text-content-subtle">
+                  {row.serial || '—'}
+                </td>
+              </tr>
+            ))}
             {visible.length === 0 && (
               <TableMessage colSpan={COLUMNS.length}>
                 {loading ? t('empty.scanning') : t('certificates.nothing')}
@@ -323,7 +290,75 @@ export function CertificatesScreen({ connection, server, onGoToConnection }: Pro
           </tbody>
         </DataTable>
       </Panel>
+
+      <CertificateCard certificate={open} onClose={() => setOpen(null)} />
     </ScreenBody>
+  )
+}
+
+/**
+ * Полное описание сертификата отдельным окном.
+ *
+ * Разворачивать его строкой в таблице было неудобно вдвойне: полные имена
+ * всё равно не помещались в ширину колонки, а соседние строки уезжали вниз,
+ * и сравнить два сертификата глазами становилось нельзя. В окне помещается
+ * всё — и то, что уже показано в таблице, тоже: карточку открывают, чтобы
+ * увидеть сертификат целиком, а не половину.
+ */
+function CertificateCard({ certificate, onClose }: {
+  certificate: ApiCertificate | null
+  onClose: () => void
+}) {
+  const { t } = useI18n()
+  if (!certificate) return null
+
+  const left = daysLeft(certificate.notAfter)
+  return (
+    <Modal
+      open
+      width="roomy"
+      onClose={onClose}
+      closeLabel={t('action.close')}
+      title={
+        <span className="flex min-w-0 items-center gap-2">
+          <span className="truncate">{certificate.alias || certificate.subjectName || '—'}</span>
+          <Expiry days={left} notBefore={certificate.notBefore} />
+        </span>
+      }
+      footer={<Button onClick={onClose}>{t('action.close')}</Button>}
+    >
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge>{t(kindLabel(certificate.storeKind))}</Badge>
+          {certificate.selfSigned && <Badge>{t('certificates.selfSigned')}</Badge>}
+          {certificate.authority && (
+            <Badge tone="accent" title={t('certificates.authority.hint')}>{t('certificates.authority')}</Badge>
+          )}
+        </div>
+
+        <dl className="grid grid-cols-[11rem_1fr] gap-x-4 gap-y-1.5 text-[11.5px]">
+          <Line label={t('certificates.store')} value={certificate.store} mono />
+          <Line label={t('certificates.alias')} value={certificate.alias} mono />
+          <Line label={t('certificates.subject')} value={certificate.subject} mono />
+          <Line label={t('certificates.issuer')} value={certificate.issuer} mono />
+          <Line label={t('certificates.validFrom')} value={certificate.notBefore.replace('T', ' ')} />
+          <Line label={t('certificates.validTo')} value={certificate.notAfter.replace('T', ' ')} />
+          <Line
+            label={t('certificates.left')}
+            value={left === null
+              ? ''
+              : left < 0 ? t('certificates.expiredLabel') : t('certificates.days', { count: left })}
+          />
+          <Line label={t('certificates.key')} value={keyText(certificate)} />
+          <Line label={t('certificates.algorithm')} value={certificate.algorithm} mono />
+          <Line label={t('certificates.usage')} value={certificate.usage.join(', ')} />
+          <Line label={t('certificates.serial')} value={certificate.serial} mono />
+          {certificate.chainPath.length > 0 && (
+            <Line label={t('certificates.chain')} value={certificate.chainPath.join('  →  ')} />
+          )}
+        </dl>
+      </div>
+    </Modal>
   )
 }
 
@@ -343,11 +378,11 @@ function Expiry({ days, notBefore }: { days: number | null; notBefore: string })
   return <Badge tone={tone}>{t('certificates.days', { count: days })}</Badge>
 }
 
-function Line({ label, value }: { label: string; value: string }) {
+function Line({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
   return (
     <>
       <dt className="text-content-subtle">{label}</dt>
-      <dd className="break-all font-mono text-[11px] text-content-muted">{value || '—'}</dd>
+      <dd className={cx('break-all text-content-muted', mono && 'font-mono text-[11px]')}>{value || '—'}</dd>
     </>
   )
 }

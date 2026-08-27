@@ -32,11 +32,13 @@ export const ENVIRONMENT_LABEL: Record<Environment, MessageKey> = {
 }
 
 /** Быстрое переключение стенда: список профилей по средам. */
-export function ServerSwitch({ store, active, server, connecting, onConnect, onDisconnect, onConfigure }: {
+export function ServerSwitch({ store, active, server, connecting, failed, onConnect, onDisconnect, onConfigure }: {
   store: ConnectionStore
   active: ConnectionProfile | null
   server: ServerInfo | null
   connecting: boolean
+  /** Последнее переключение не удалось: точка красная, пока не получится. */
+  failed?: boolean
   onConnect: (profile: ConnectionProfile) => void
   onDisconnect: () => void
   onConfigure: (profileId: string | null) => void
@@ -48,7 +50,7 @@ export function ServerSwitch({ store, active, server, connecting, onConnect, onD
   useClickAway(holder, () => setOpen(false))
 
   const groups = byEnvironment(store.profiles)
-  const state: DotKind = connecting ? 'warn' : server ? 'ok' : 'info'
+  const state: DotKind = connecting ? 'warn' : failed ? 'error' : server ? 'ok' : 'info'
 
   return (
     <div ref={holder} className="relative">
@@ -96,15 +98,13 @@ export function ServerSwitch({ store, active, server, connecting, onConnect, onD
                         if (ready) onConnect(profile)
                         else onConfigure(profile.id)
                       }}
+                      title={profile.url}
                       className={cx(
                         'flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left transition',
                         profile.id === active?.id ? 'bg-accent/12' : 'hover:bg-surface-3',
                       )}
                     >
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-[12.5px]">{profile.name}</span>
-                        <span className="block truncate text-[10.5px] text-content-subtle">{profile.url}</span>
-                      </span>
+                      <span className="min-w-0 flex-1 truncate text-[12.5px]">{profile.name}</span>
                       {!ready && (
                         <Key size={12} weight="bold" className="shrink-0 text-content-subtle" aria-label={t('switch.needsPassword')} />
                       )}

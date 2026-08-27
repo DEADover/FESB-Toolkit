@@ -291,6 +291,7 @@ export const ru: Record<keyof typeof en, string> = {
 
   'switch.none': 'Нет сервера',
   'switch.empty': 'Подключений пока нет',
+  'switch.failed': 'Не удалось подключиться к {name}.',
   'switch.configure': 'Настроить',
   'switch.needsPassword': 'Пароль не сохранён — откройте подключение и введите его',
 
@@ -479,7 +480,7 @@ export const ru: Record<keyof typeof en, string> = {
   'certificates.emptyStore': 'пусто',
   'certificates.export': 'Сохранить в Excel ({count})',
   'certificates.save': 'Сохранить список сертификатов',
-  'certificates.openHint': 'Нажмите на строку, чтобы увидеть полные имена и цепочку',
+  'certificates.openHint': 'Нажмите на строку, чтобы открыть сертификат целиком',
   'welcome.hint.certificates': 'Чем шина подписывается и когда истекают сроки',
   'endpoints.protocol.hint': 'Читается из фабрик Jetty. Если сервер их не объявляет, колонка остаётся пустой',
   'endpoints.ciphers.hint': 'Читается из фабрик Jetty. Если сервер их не объявляет, колонка остаётся пустой',

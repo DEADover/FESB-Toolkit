@@ -291,6 +291,7 @@ export const en = {
 
   'switch.none': 'No server',
   'switch.empty': 'No connections yet',
+  'switch.failed': 'Could not connect to {name}.',
   'switch.configure': 'Manage',
   'switch.needsPassword': 'The password is not saved. Open the connection to enter it',
 
@@ -479,7 +480,7 @@ export const en = {
   'certificates.emptyStore': 'empty',
   'certificates.export': 'Save to Excel ({count})',
   'certificates.save': 'Save the certificate list',
-  'certificates.openHint': 'Click the row to see the full names and the chain',
+  'certificates.openHint': 'Click the row to open the whole certificate',
   'welcome.hint.certificates': 'What the bus signs with, and when it runs out',
   'endpoints.protocol.hint': 'Read from the Jetty factories. If the server declares none, the column stays empty',
   'endpoints.ciphers.hint': 'Read from the Jetty factories. If the server declares none, the column stays empty',

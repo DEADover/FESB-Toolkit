@@ -788,7 +788,7 @@ export function TraceScreen({ scan, isMac, sourcePath, server, onRescan }: Props
       </Modal>
 
       <Modal
-        wide
+        width="wide"
         open={pushResult !== null || verifyResult !== null}
         onClose={() => { setPushResult(null); setVerifyResult(null) }}
         closeLabel={t('action.close')}

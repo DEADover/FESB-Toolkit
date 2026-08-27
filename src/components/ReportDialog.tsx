@@ -33,7 +33,7 @@ export function ReportDialog({ report, scan, archiving, onBuildArchive, onClose 
   return (
     <Modal
       open
-      wide
+      width="wide"
       onClose={onClose}
       closeLabel={t('action.close')}
       title={summary.dryRun ? t('report.titleDry') : t('report.title')}

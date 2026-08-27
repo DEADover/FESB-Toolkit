@@ -20,7 +20,7 @@ import { RoutesScreen } from './components/RoutesScreen'
 import { Sidebar, type ScreenId } from './components/Sidebar'
 import { RefreshButton } from './components/ApiShell'
 import { TraceScreen } from './components/TraceScreen'
-import { Badge, Button, cx, Notice, Spinner } from './components/ui'
+import { ActionLink, Badge, Button, cx, Notice, Spinner } from './components/ui'
 import { useI18n, type MessageKey } from './i18n'
 import {
   apiConnect, apiPull, appInfo, buildArchive, errorText, onApiProgress, onExtractProgress, onFileDrop, onScanProgress, openArchive, saveZipAs, scanDirectory, selectArchive, selectFolder,
@@ -74,6 +74,8 @@ export default function App() {
   const [apiProgress, setApiProgress] = useState<ApiProgress | null>(null)
   const [pullError, setPullError] = useState<string | null>(null)
   const [connecting, setConnecting] = useState(false)
+  /** Стенд, к которому не удалось переключиться, и почему. */
+  const [switchError, setSwitchError] = useState<{ profile: ConnectionProfile; message: string } | null>(null)
   /** Профиль, который надо раскрыть на экране подключения. */
   const [focusProfile, setFocusProfile] = useState<string | null>(null)
   /** Домен, к СОПС которого перешли с карты. */
@@ -186,12 +188,21 @@ export default function App() {
     }
   }, [])
 
-  /** Переключение стенда из шапки: ошибка уходит в журнал, а не наверх. */
+  /**
+   * Переключение стенда из шапки.
+   *
+   * Раньше ошибка здесь просто пропадала: нажимаешь другой стенд, ничего
+   * не происходит, и почему — неизвестно. Теперь неудача остаётся на виду
+   * до следующей попытки, вместе с именем стенда и дорогой к его настройкам.
+   */
   const switchProfile = useCallback((profile: ConnectionProfile) => {
-    void connectProfile(profile).catch(() => {})
+    setSwitchError(null)
+    void connectProfile(profile).catch((error: unknown) => {
+      setSwitchError({ profile, message: errorText(error) })
+    })
   }, [connectProfile])
 
-  const disconnect = useCallback(() => setSession(null), [])
+  const disconnect = useCallback(() => { setSession(null); setSwitchError(null) }, [])
 
   const configure = useCallback((profileId: string | null) => {
     setFocusProfile(profileId)
@@ -342,6 +353,7 @@ export default function App() {
             active={session?.profile ?? null}
             server={session?.server ?? null}
             connecting={connecting}
+            failed={switchError !== null}
             onConnect={switchProfile}
             onDisconnect={disconnect}
             onConfigure={configure}
@@ -356,6 +368,17 @@ export default function App() {
             </>
           )}
         </header>
+
+        {switchError && (
+          <div className="px-6 pb-3">
+            <Notice tone="danger" onClose={() => setSwitchError(null)} closeLabel={t('action.close')}>
+              {t('switch.failed', { name: switchError.profile.name })} {switchError.message}{' · '}
+              <ActionLink onClick={() => { const id = switchError.profile.id; setSwitchError(null); configure(id) }}>
+                {t('switch.configure')}
+              </ActionLink>
+            </Notice>
+          </div>
+        )}
 
         {screen === 'welcome' ? (
           <WelcomeScreen
