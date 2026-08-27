@@ -152,6 +152,7 @@ export function DomainLinksScreen({ scan, isMac }: Props) {
 
       <div className="flex items-center gap-2">
         <SearchInput
+          className="flex-1"
           value={query}
           placeholder={t('domainLinks.search')}
           onChange={setQuery}

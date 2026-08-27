@@ -93,6 +93,7 @@ export function MapScreen({ connection, server, onOpenRoutes, onGoToConnection }
 
       <div className="flex items-center gap-2">
         <SearchInput
+          className="flex-1"
           value={query}
           placeholder={t('map.search')}
           onChange={setQuery}

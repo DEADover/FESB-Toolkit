@@ -140,7 +140,8 @@ export function SearchInput({ value, placeholder, onChange, className }: {
   className?: string
 }) {
   return (
-    <div className={cx('relative min-w-0 flex-1', className)}>
+    // Ширину задаёт тот, кто ставит поле: в ряду оно растягивается, в колонке нет.
+    <div className={cx('relative min-w-0', className)}>
       <TextInput
         value={value}
         placeholder={placeholder}

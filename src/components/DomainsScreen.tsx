@@ -182,6 +182,7 @@ export function DomainsScreen({ connection, server, pulling, progress, error: pu
     <div className="flex min-h-0 flex-1 flex-col gap-3 px-6 pb-4">
       <div className="flex items-center gap-2">
         <SearchInput
+          className="flex-1"
           value={query}
           placeholder={t('api.domains.search')}
           onChange={setQuery}

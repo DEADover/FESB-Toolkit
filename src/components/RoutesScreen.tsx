@@ -14,7 +14,7 @@ import type {
 } from '../types'
 import { AutoRefreshToggle, ErrorBar, NotConnected, Panel, TableMessage, useApiData, useAutoRefresh } from './ApiShell'
 import { RouteViewer } from './RouteViewer'
-import { Badge, Button, IconButton, Spinner, TextInput, cx } from './ui'
+import { Badge, Button, IconButton, SearchInput, Spinner, cx } from './ui'
 
 interface Props {
   connection: Connection | null
@@ -181,10 +181,10 @@ export function RoutesScreen({ connection, server, isMac, initialGuid, onGoToCon
       <div className="flex min-h-0 flex-1 gap-3">
         <Panel className="flex w-72 shrink-0 flex-col">
           <div className="sticky top-0 z-10 flex flex-col gap-1.5 border-b border-line bg-surface-2 px-2 py-2">
-            <TextInput
+            <SearchInput
               value={query}
               placeholder={index ? t('routes.searchBoth') : t('routes.searchDomain')}
-              onChange={(event) => setQuery(event.target.value)}
+              onChange={setQuery}
             />
             {index ? (
               <span className="px-1 text-[10.5px] text-content-subtle">

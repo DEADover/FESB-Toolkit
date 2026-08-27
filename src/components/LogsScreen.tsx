@@ -121,6 +121,7 @@ export function LogsScreen({ connection, server, onGoToConnection }: Props) {
     <div className="flex min-h-0 flex-1 flex-col gap-3 px-6 pb-4">
       <div className="flex items-center gap-2">
         <SearchInput
+          className="flex-1"
           value={search}
           placeholder={t('logs.search')}
           onChange={setSearch}

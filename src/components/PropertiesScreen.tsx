@@ -133,6 +133,7 @@ export function PropertiesScreen({ connection, server, onGoToConnection }: Props
         )}
 
         <SearchInput
+          className="flex-1"
           value={query}
           placeholder={t('properties.search')}
           onChange={setQuery}

@@ -141,6 +141,7 @@ export function QueuesScreen({ connection, server, onGoToConnection }: Props) {
         <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3">
           <div className="flex items-center gap-2">
             <SearchInput
+          className="flex-1"
           value={query}
           placeholder={t('queues.search')}
           onChange={setQuery}
