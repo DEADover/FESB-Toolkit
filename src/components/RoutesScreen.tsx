@@ -2,15 +2,17 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import { useI18n } from '../i18n'
 import {
-  apiDomainRoutes, apiDomainStatistics, apiRouteAction, apiRouteState, errorText, routeLinks,
+  apiDomainRoutes, apiDomainStatistics, apiRouteAction, apiRouteIndex, apiRouteState, errorText,
+  onApiProgress, routeLinks,
 } from '../lib/api'
 import { neighboursOf } from '../lib/links'
 import type {
-  Connection, DomainRoutes, DomainStat, LinkGraph, RouteAction, RouteFile, RouteState, ServerInfo,
+  ApiProgress, Connection, DomainRouteNames, DomainRoutes, DomainStat, LinkGraph, RouteAction,
+  RouteFile, RouteState, ServerInfo,
 } from '../types'
 import { AutoRefreshToggle, ErrorBar, NotConnected, Panel, TableMessage, useApiData, useAutoRefresh } from './ApiShell'
 import { RouteViewer } from './RouteViewer'
-import { Badge, Button, Spinner, TextInput, cx } from './ui'
+import { Badge, Button, IconButton, Spinner, TextInput, cx } from './ui'
 
 interface Props {
   connection: Connection | null
@@ -45,16 +47,59 @@ export function RoutesScreen({ connection, server, isMac, initialGuid, onGoToCon
   const [auto, setAuto] = useState(false)
   /** Связи считаются по временной копии домена — значит, только внутри него. */
   const [graph, setGraph] = useState<LinkGraph | null>(null)
+  /**
+   * Имена СОПС по всем доменам.
+   *
+   * Лёгкого способа спросить их у шины нет, поэтому указатель строится
+   * по явной команде: это чтение всех доменов, минуты полторы.
+   */
+  const [index, setIndex] = useState<DomainRouteNames[] | null>(null)
+  const [indexing, setIndexing] = useState(false)
+  const [progress, setProgress] = useState<ApiProgress | null>(null)
 
   const withRoutes = useMemo(
     () => (stats.data ?? []).filter((item) => item.routes > 0),
     [stats.data],
   )
+  /** Какие СОПС домена подошли под запрос — их видно прямо в списке. */
+  const matches = useMemo(() => {
+    const needle = query.trim().toLowerCase()
+    if (!needle || !index) return new Map<string, string[]>()
+    const found = new Map<string, string[]>()
+    for (const item of index) {
+      const hits = item.routes.filter((route) => route.toLowerCase().includes(needle))
+      if (hits.length > 0) found.set(item.guid, hits)
+    }
+    return found
+  }, [index, query])
+
   const domains = useMemo(() => {
     const needle = query.trim().toLowerCase()
     if (!needle) return withRoutes
-    return withRoutes.filter((item) => item.name.toLowerCase().includes(needle))
-  }, [withRoutes, query])
+    return withRoutes.filter(
+      (item) => item.name.toLowerCase().includes(needle) || matches.has(item.guid),
+    )
+  }, [withRoutes, query, matches])
+
+  useEffect(() => {
+    const unlisten = onApiProgress(setProgress)
+    return () => { unlisten.then((off) => off()) }
+  }, [])
+
+  const buildIndex = useCallback(async () => {
+    if (!connection) return
+    setIndexing(true)
+    setError(null)
+    setProgress(null)
+    try {
+      setIndex(await apiRouteIndex(connection))
+    } catch (err) {
+      setError(errorText(err))
+    } finally {
+      setIndexing(false)
+      setProgress(null)
+    }
+  }, [connection])
 
   /** Состояние читается по каждому маршруту: списком отдаются только запущенные. */
   const readStates = useCallback(async (guid: string, routes: RouteFile[]) => {
@@ -133,12 +178,32 @@ export function RoutesScreen({ connection, server, isMac, initialGuid, onGoToCon
 
       <div className="flex min-h-0 flex-1 gap-3">
         <Panel className="flex w-72 shrink-0 flex-col">
-          <div className="sticky top-0 z-10 border-b border-line bg-surface-2 px-2 py-2">
+          <div className="sticky top-0 z-10 flex flex-col gap-1.5 border-b border-line bg-surface-2 px-2 py-2">
             <TextInput
               value={query}
-              placeholder={t('routes.searchDomain')}
+              placeholder={index ? t('routes.searchBoth') : t('routes.searchDomain')}
               onChange={(event) => setQuery(event.target.value)}
             />
+            {index ? (
+              <span className="px-1 text-[10.5px] text-content-subtle">
+                {t('routes.indexReady', { count: index.reduce((sum, item) => sum + item.routes.length, 0) })}
+              </span>
+            ) : (
+              <button
+                type="button"
+                onClick={() => void buildIndex()}
+                disabled={indexing}
+                title={t('routes.buildIndex.hint')}
+                className="flex items-center gap-1.5 rounded px-1 py-0.5 text-left text-[10.5px] text-accent-content transition hover:bg-surface-3 disabled:text-content-subtle"
+              >
+                {indexing ? (
+                  <>
+                    <Spinner className="size-3" />
+                    {t('routes.indexing', { current: progress?.current ?? 0, total: progress?.total ?? 0 })}
+                  </>
+                ) : t('routes.buildIndex')}
+              </button>
+            )}
           </div>
           <div className="flex flex-col p-1.5">
             {domains.map((item) => (
@@ -147,12 +212,22 @@ export function RoutesScreen({ connection, server, isMac, initialGuid, onGoToCon
                 type="button"
                 onClick={() => void openDomain(item)}
                 className={cx(
-                  'flex items-center gap-2 rounded-lg px-2.5 py-2 text-left transition',
+                  'flex items-start gap-2 rounded-lg px-2.5 py-2 text-left transition',
                   selected?.guid === item.guid ? 'bg-accent/12' : 'hover:bg-surface-3',
                 )}
               >
-                <span className={cx('size-1.5 shrink-0 rounded-full', item.active ? 'bg-positive' : 'bg-content-subtle/40')} />
-                <span className="min-w-0 flex-1 truncate text-[12.5px]">{item.name}</span>
+                <span className={cx('mt-1.5 size-1.5 shrink-0 rounded-full', item.active ? 'bg-positive' : 'bg-content-subtle/40')} />
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[12.5px]">{item.name}</span>
+                  {matches.get(item.guid)?.slice(0, 2).map((route) => (
+                    <span key={route} className="block truncate text-[10px] text-accent-content">{route}</span>
+                  ))}
+                  {(matches.get(item.guid)?.length ?? 0) > 2 && (
+                    <span className="block text-[10px] text-content-subtle">
+                      {t('routes.matchesMore', { count: (matches.get(item.guid)?.length ?? 0) - 2 })}
+                    </span>
+                  )}
+                </span>
                 <span className="shrink-0 rounded bg-surface-2 px-1 text-[10px] tabular-nums text-content-subtle">
                   {item.routes}
                 </span>
@@ -191,8 +266,7 @@ export function RoutesScreen({ connection, server, isMac, initialGuid, onGoToCon
                 <col className="w-24" />
                 <col className="w-20" />
                 <col className="w-20" />
-                {/* Три кнопки с русскими подписями шире, чем кажется. */}
-                <col className="w-[272px]" />
+                <col className="w-28" />
               </colgroup>
               <thead className="sticky top-0 z-10 bg-surface-2 text-[11px] tracking-wide text-content-subtle">
                 <tr className="border-b border-line">
@@ -237,20 +311,23 @@ export function RoutesScreen({ connection, server, isMac, initialGuid, onGoToCon
                         {state?.inflight ?? '—'}
                       </td>
                       <td className="px-3 py-1.5">
-                        <div className="flex items-center gap-1.5">
-                          <RowButton
+                        <div className="flex items-center gap-1">
+                          <IconButton
+                            icon="▶"
                             label={t('modules.start')}
                             busy={pending === `${route.id}:start`}
                             disabled={pending !== null || started}
                             onClick={() => void act(route, 'start')}
                           />
-                          <RowButton
+                          <IconButton
+                            icon="■"
                             label={t('modules.stop')}
                             busy={pending === `${route.id}:stop`}
                             disabled={pending !== null || !started}
                             onClick={() => void act(route, 'stop')}
                           />
-                          <RowButton
+                          <IconButton
+                            icon="⟲"
                             label={t('routes.reset')}
                             busy={pending === `${route.id}:reset`}
                             disabled={pending !== null || !state}
@@ -286,15 +363,3 @@ export function RoutesScreen({ connection, server, isMac, initialGuid, onGoToCon
   )
 }
 
-function RowButton({ label, busy, disabled, onClick }: {
-  label: string
-  busy: boolean
-  disabled: boolean
-  onClick: () => void
-}) {
-  return (
-    <Button size="sm" onClick={onClick} disabled={disabled || busy}>
-      {busy ? <Spinner className="size-3.5" /> : label}
-    </Button>
-  )
-}

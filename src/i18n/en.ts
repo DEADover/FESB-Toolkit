@@ -4,7 +4,6 @@ export const en = {
 
   'nav.files': 'Configuration Files',
   'nav.files.trace': 'Trace Configuration',
-  'nav.files.trace.hint': 'Broker, Queue, Mode',
   'nav.files.links': 'Domain Links',
   'nav.files.links.title': 'Links Between Domains',
 
@@ -24,10 +23,7 @@ export const en = {
 
   'nav.api': 'API',
   'nav.api.connection': 'Connection',
-  'nav.api.connection.hint': 'Host And Credentials',
   'nav.api.domains': 'Domains',
-  'nav.api.domains.hint': 'Live Objects',
-  'nav.soon': 'Soon',
 
   'action.selectFolder': 'Select Folder',
   'action.openArchive': 'Open ZIP',
@@ -60,7 +56,6 @@ export const en = {
   'header.noFolder': 'No Folder Selected',
   'header.folder': 'Folder',
   'header.archive': 'Archive',
-  'warn.noVersion': 'The version File Was Not Found Next To domains. Open The Folder That Contains Both — Otherwise The Configuration ZIP Will Come Out Incomplete.',
 
   'empty.title': 'Select A Configuration Export Folder',
   'empty.text': 'Drop A Folder Or A Configuration .zip Here, Or Pick One With The Buttons Below.',
@@ -101,21 +96,16 @@ export const en = {
   'table.guid': 'GUID',
   'table.startMode': 'Start Mode',
   'table.state': 'State',
-  'table.traces': 'Traces',
   'table.routes': 'Routes',
   'table.route': 'Route',
-  'table.traced': 'Traced',
-  'table.traceObject': 'Trace Object',
   'table.usedBy': 'Used By',
   'table.usedByHint': 'Routes Using This Trace Object',
   'table.traceMode': 'Trace Mode',
   'table.routesHint': '{traced} Of {total} Routes Use Trace',
   'table.description': 'Description',
-  'table.line': 'Line',
   'table.empty': 'Nothing Found — Adjust The Filters',
   'table.noTraceBean': 'No Trace Bean',
   'table.noProperty': 'No Property',
-  'table.traceCount': '{count} Traces',
   'table.stopped': 'Stopped',
   'table.stoppedHint': 'The Domain Is Stopped',
   'table.changed': 'Changed In This Session',
@@ -155,8 +145,6 @@ export const en = {
   'route.uri': 'Address',
   'route.expression': 'Expression ({language})',
   'route.format': 'Format',
-  'route.exceptions': 'Exceptions',
-  'route.attributes': 'Attributes',
 
   'route.kind.from': 'Entry Point',
   'route.kind.to': 'Send',
@@ -193,7 +181,6 @@ export const en = {
   'route.kind.aggregate': 'Aggregate',
   'route.kind.transacted': 'Transaction',
 
-  'routes.filter.traced': 'With Trace',
   'routes.filter.untraced': 'Without Trace',
   'routes.trace.on': 'On',
   'routes.trace.off': 'Off',
@@ -273,7 +260,6 @@ export const en = {
   'nav.api.domains.title': 'Server Domains',
 
   'header.server': 'Server',
-  'api.header.noServer': 'Not Connected',
 
   'switch.none': 'No Server',
   'switch.empty': 'No Connections Yet',
@@ -320,7 +306,6 @@ export const en = {
   'api.remember.hint': 'The Password Is Kept On This Machine As Plain Text — Leave It Off On A Shared Computer',
   'api.insecure': 'Allow Self-Signed Certificates',
   'api.insecure.hint': 'Skip Certificate Checks — Only For Test Stands',
-  'api.forget': 'Forget',
   'api.connect': 'Connect',
   'api.connecting': 'Connecting…',
   'api.connected': 'Connected',
@@ -376,16 +361,12 @@ export const en = {
   'push.reloadedOff': 'The Files Were Written, But Running Domains Still Use The Old Configuration Until They Are Restarted.',
 
   'nav.api.queues': 'Queues',
-  'nav.api.queues.hint': 'Managers And Depth',
   'nav.api.queues.title': 'Queue Managers',
   'nav.api.modules': 'Modules',
-  'nav.api.modules.hint': 'State And Restart',
   'nav.api.modules.title': 'Bus Modules',
   'nav.api.properties': 'Constants',
-  'nav.api.properties.hint': 'Application, Broker, Domain',
   'nav.api.properties.title': 'Constants',
   'nav.api.logs': 'Logs',
-  'nav.api.logs.hint': 'Server Log Files',
   'nav.api.logs.title': 'Server Logs',
 
   'domains.confirm.stopMany': 'Stop The Selected Domains?',
@@ -401,10 +382,8 @@ export const en = {
   'domains.confirm.restart': 'Restart The Domain?',
   'domains.confirm.text': 'Its Routes Stop Processing Messages Until The Domain Is Back Up.',
   'nav.api.map': 'Domain Map',
-  'nav.api.map.hint': 'Where It Hurts',
   'nav.api.map.title': 'Domain Map',
   'nav.api.routes': 'Routes',
-  'nav.api.routes.hint': 'Live State And Diagrams',
   'nav.api.routes.title': 'Server Routes',
 
   'nav.api.audit': 'Audit',
@@ -437,6 +416,12 @@ export const en = {
   'map.notAllRunning': 'Not All Started',
   'map.notAllRunning.hint': 'The Domain Is Active, But Some Of Its Routes Are Not Running',
 
+  'routes.searchBoth': 'Search By Domain Or Route',
+  'routes.buildIndex': 'Search By Route Too…',
+  'routes.buildIndex.hint': 'The Bus Has No Light Way To List Routes, So All Domains Have To Be Read — About A Minute And A Half',
+  'routes.indexing': 'Reading Domains: {current} Of {total}',
+  'routes.indexReady': 'Route Names Known: {count}',
+  'routes.matchesMore': '+{count} More',
   'routes.searchDomain': 'Search By Domain',
   'routes.count': 'Routes: {count}',
   'routes.pickDomain': 'Pick A Domain On The Left',

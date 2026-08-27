@@ -22,6 +22,40 @@ export function Button({ variant = 'secondary', size = 'md', className, ...rest 
   return <button type="button" className={cx(base, sizes[size], variants[variant], className)} {...rest} />
 }
 
+/**
+ * Кнопка-иконка для действий в строке таблицы.
+ *
+ * Подписи вроде «Перезапустить» съедают половину строки и в русском языке
+ * заметно шире английских — на трёх действиях это уже целая колонка.
+ * Значение при этом остаётся в подсказке и в имени для экранного диктора.
+ */
+export function IconButton({ icon, label, busy, disabled, tone, onClick }: {
+  icon: string
+  label: string
+  busy?: boolean
+  disabled?: boolean
+  tone?: 'danger'
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled || busy}
+      title={label}
+      aria-label={label}
+      className={cx(
+        'grid size-7 shrink-0 place-items-center rounded-md border border-line-strong bg-surface-2 text-[12px] transition',
+        'hover:bg-surface-3 hover:text-content disabled:cursor-not-allowed disabled:opacity-35',
+        'focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent',
+        tone === 'danger' ? 'text-negative' : 'text-content-muted',
+      )}
+    >
+      {busy ? <Spinner className="size-3.5" /> : icon}
+    </button>
+  )
+}
+
 export function Badge({ children, tone = 'neutral', className, title }: {
   children: ReactNode
   tone?: 'neutral' | 'accent' | 'warn' | 'danger' | 'ok'

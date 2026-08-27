@@ -6,8 +6,8 @@ import { revealItemInDir } from '@tauri-apps/plugin-opener'
 
 import type {
   ApiDomain, ApiProgress, AppInfo, ApplyProgress, ApplyReport, ApplyTarget, ArchiveProgress,
-  ArchiveResult, AuditEntry, Connection, DomainAction, DomainActionResult, DomainRoutes,
-  DomainStat,
+  ArchiveResult, AuditEntry, Connection, DomainAction, DomainActionResult, DomainRouteNames,
+  DomainRoutes, DomainStat,
   ExtractResult, LinkGraph, LogEntry,
   LogFileRow, LogRequest, ManagerKind,
   ModuleAction, ModuleRow, PropertyRow, PropertyScope, PullResult, PushResult, QueueManager,
@@ -173,6 +173,11 @@ export function apiDomainStatistics(connection: Connection): Promise<DomainStat[
 /** Забирает один домен ради его СОПС — рабочую выгрузку не трогает. */
 export function apiDomainRoutes(connection: Connection, guid: string): Promise<DomainRoutes> {
   return invoke<DomainRoutes>('api_domain_routes', { connection, guid })
+}
+
+/** Имена всех СОПС сервера — по ним ищут домен. */
+export function apiRouteIndex(connection: Connection): Promise<DomainRouteNames[]> {
+  return invoke<DomainRouteNames[]>('api_route_index', { connection })
 }
 
 export function apiRouteState(connection: Connection, domain: string, route: string): Promise<RouteState> {

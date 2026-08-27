@@ -621,6 +621,110 @@ fn extract_into(bytes: &[u8], target: &Path) -> Result<(usize, Option<Vec<u8>>),
     Ok((written, version))
 }
 
+// ───────────────────────── указатель имён СОПС ─────────────────────────
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DomainRouteNames {
+    pub guid: String,
+    pub name: String,
+    pub routes: Vec<String>,
+}
+
+/// Собирает имена всех СОПС сервера — по ним потом ищут домен.
+///
+/// Лёгкого способа спросить «какие СОПС в домене» у шины нет:
+/// `/api/broker/routes` отдаёт только запущенные. Поэтому домены читаются
+/// пачками, как при выгрузке, а на диске ничего не остаётся — из архивов
+/// берутся только имена.
+pub async fn route_index<F: FnMut(ApiProgress)>(
+    connection: &Connection,
+    mut on_progress: F,
+) -> Result<Vec<DomainRouteNames>, String> {
+    let guids: Vec<String> = domains(connection).await?.into_iter().map(|item| item.guid).collect();
+    if guids.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let client = connection.client()?;
+    let scratch = routes_cache().join(format!("index-{}", stamp()));
+    let root = scratch.join(EXPORT_DIR);
+    fs::create_dir_all(root.join(DOMAINS_DIR)).map_err(|err| format!("Cannot create a workspace: {err}"))?;
+
+    let expected = guids.len() as u64;
+    let batches: Vec<Vec<String>> = guids.chunks(GUIDS_PER_REQUEST).map(<[String]>::to_vec).collect();
+    let mut done = 0u64;
+    on_progress(ApiProgress { phase: "domains", current: 0, total: expected });
+
+    let outcome = async {
+        let mut index: Vec<DomainRouteNames> = Vec::new();
+
+        for (wave, group) in batches.chunks(BATCH_CONCURRENCY).enumerate() {
+            let mut running = Vec::with_capacity(group.len());
+            for (offset, batch) in group.iter().enumerate() {
+                let number = wave * BATCH_CONCURRENCY + offset;
+                let path = scratch.join(format!("index-{number}.zip"));
+                let connection = connection.clone();
+                let client = client.clone();
+                let batch = batch.clone();
+                running.push(tauri::async_runtime::spawn(async move {
+                    download_batch(&connection, &client, &batch, &path).await.map(|_| path)
+                }));
+            }
+
+            for handle in running {
+                let path = handle.await.map_err(|err| format!("Index interrupted: {err}"))??;
+                let unpacked = unpack_domains(&path, &root)?;
+                let _ = fs::remove_file(&path);
+
+                for domain in unpacked.domains {
+                    let dir = root.join(DOMAINS_DIR).join(&domain.guid);
+                    index.push(DomainRouteNames {
+                        routes: read_route_names(&dir),
+                        guid: domain.guid,
+                        name: domain.name,
+                    });
+                    // Файлы больше не нужны: указателю хватает имён.
+                    let _ = fs::remove_dir_all(&dir);
+                }
+                done = index.len() as u64;
+                on_progress(ApiProgress { phase: "domains", current: done, total: expected });
+            }
+        }
+
+        index.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+        Ok(index)
+    }
+    .await;
+
+    let _ = fs::remove_dir_all(&scratch);
+    outcome
+}
+
+/// Имена СОПС из папки домена.
+fn read_route_names(dir: &Path) -> Vec<String> {
+    let Ok(entries) = fs::read_dir(dir.join("routes")) else { return Vec::new() };
+    let mut names = Vec::new();
+    for entry in entries.flatten() {
+        let path = entry.path();
+        let is_route = path
+            .file_name()
+            .and_then(|name| name.to_str())
+            .is_some_and(|name| name.starts_with("route-") && name.ends_with(".xml"));
+        if !is_route {
+            continue;
+        }
+        let Ok(xml) = fs::read_to_string(&path) else { continue };
+        for info in crate::route_xml::parse_routes(&xml) {
+            if let Some(name) = info.name {
+                names.push(name);
+            }
+        }
+    }
+    names.sort();
+    names
+}
+
 // ───────────────────────── СОПС одного домена ─────────────────────────
 
 #[derive(Debug, Clone, Serialize)]

@@ -506,3 +506,9 @@ export interface AuditEntry {
   status: number | null
   text: string
 }
+
+export interface DomainRouteNames {
+  guid: string
+  name: string
+  routes: string[]
+}

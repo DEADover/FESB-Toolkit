@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { AuditScreen } from './components/AuditScreen'
 import { ConnectionScreen } from './components/ConnectionScreen'
 import { DomainLinksScreen } from './components/DomainLinksScreen'
-import { ENVIRONMENT_LABEL, ENVIRONMENT_TONE, ServerSwitch } from './components/HeaderBar'
+import { ServerSwitch } from './components/HeaderBar'
 import { DomainsScreen } from './components/DomainsScreen'
 import { LogsScreen } from './components/LogsScreen'
 import { MapScreen } from './components/MapScreen'
@@ -293,12 +293,6 @@ export default function App() {
                 <Badge tone="accent" className="font-mono">
                   <span title={t('header.fesbVersion')}>FESB {scan.fesbVersion}</span>
                 </Badge>
-              )}
-              {/* Среда видна на каждом экране API: чтобы правка боевого стенда не была сюрпризом. */}
-              {session && (isApiScreen || source?.kind === 'server') && (
-                <span className={cx('rounded border px-1.5 py-0.5 text-[11px]', ENVIRONMENT_TONE[session.profile.environment])}>
-                  {t(ENVIRONMENT_LABEL[session.profile.environment])}
-                </span>
               )}
             </div>
             {/*

@@ -13,7 +13,8 @@ use std::path::PathBuf;
 use fesb_settings_editor_lib::testing::{
     apply_trace_change, connect, domains, log_entries, log_files, modules, properties, pull, push,
     queue_managers, queues, save_property, delete_property, verify, domain_statistics,
-    audit, fetch_domain_routes, queue_message, queue_messages, route_state, ApplyRequest, ApplyTarget,
+    audit, fetch_domain_routes, queue_message, queue_messages, route_index, route_state,
+    ApplyRequest, ApplyTarget,
     BeanTarget, Connection, LogRequest, ManagerKind, PropertyRow, PropertyScope, TraceUpdate,
 };
 
@@ -515,4 +516,35 @@ fn reads_the_audit_trail() {
         kinds.contains_key("BROKER_DOMAINS_EXPORT"),
         "не видно выгрузок доменов, которые делает само приложение",
     );
+}
+
+/// Указатель имён СОПС по всему серверу: по нему ищут домен.
+#[test]
+#[ignore]
+fn builds_an_index_of_route_names() {
+    let Some(connection) = connection() else {
+        eprintln!("FESB_URL не задан — пропускаем");
+        return;
+    };
+
+    let started = std::time::Instant::now();
+    let index = block(route_index(&connection, |_| {})).expect("указатель");
+    let routes: usize = index.iter().map(|item| item.routes.len()).sum();
+    println!(
+        "доменов {}, имён СОПС {routes}, за {:.0} с",
+        index.len(),
+        started.elapsed().as_secs_f32(),
+    );
+
+    assert!(index.len() > 200, "доменов подозрительно мало: {}", index.len());
+    assert!(routes > 2000, "имён СОПС подозрительно мало: {routes}");
+    assert!(
+        index.iter().any(|item| item.name != item.guid),
+        "имена доменов не подставились",
+    );
+    // На диске после указателя ничего оставаться не должно.
+    let leftovers = std::fs::read_dir(std::env::temp_dir().join("fesb-settings-editor-routes"))
+        .map(|entries| entries.flatten().filter(|e| e.file_name().to_string_lossy().starts_with("index-")).count())
+        .unwrap_or(0);
+    assert_eq!(leftovers, 0, "временная папка указателя не убрана");
 }

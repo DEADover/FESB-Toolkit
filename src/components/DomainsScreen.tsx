@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useI18n } from '../i18n'
 import { apiDomainAction, apiDomains, errorText } from '../lib/api'
 import type { ApiDomain, ApiProgress, Connection, DomainAction, ServerInfo } from '../types'
-import { Badge, Button, Checkbox, Modal, Spinner, TextInput, cx } from './ui'
+import { Badge, Button, Checkbox, IconButton, Modal, Spinner, TextInput, cx } from './ui'
 
 interface Props {
   connection: Connection | null
@@ -214,9 +214,8 @@ export function DomainsScreen({ connection, server, pulling, progress, error: pu
             <col />
             <col className="w-32" />
             <col className="w-24" />
-            <col className="w-40" />
-            {/* «Запустить · Остановить · Перезапустить» по-русски шире, чем кажется. */}
-            <col className="w-[304px]" />
+            <col />
+            <col className="w-28" />
           </colgroup>
           <thead className="sticky top-0 z-10 bg-surface-2 text-[11px] tracking-wide text-content-subtle">
             <tr className="border-b border-line">
@@ -268,20 +267,23 @@ export function DomainsScreen({ connection, server, pulling, progress, error: pu
                   {domain.guid}
                 </td>
                 <td className="px-2 py-1.5" onClick={(event) => event.stopPropagation()}>
-                  <div className="flex items-center gap-1.5">
-                    <RowAction
+                  <div className="flex items-center gap-1">
+                    <IconButton
+                      icon="▶"
                       label={t('modules.start')}
                       busy={pending === `${domain.guid}:start`}
                       disabled={pending !== null || pulling || domain.active}
                       onClick={() => startAction(domain, 'start')}
                     />
-                    <RowAction
+                    <IconButton
+                      icon="■"
                       label={t('modules.stop')}
                       busy={pending === `${domain.guid}:stop`}
                       disabled={pending !== null || pulling || !domain.active}
                       onClick={() => startAction(domain, 'stop')}
                     />
-                    <RowAction
+                    <IconButton
+                      icon="↻"
                       label={t('modules.restart')}
                       busy={pending === `${domain.guid}:restart`}
                       disabled={pending !== null || pulling || !domain.active}
@@ -436,15 +438,3 @@ export function DomainsScreen({ connection, server, pulling, progress, error: pu
   )
 }
 
-function RowAction({ label, busy, disabled, onClick }: {
-  label: string
-  busy: boolean
-  disabled: boolean
-  onClick: () => void
-}) {
-  return (
-    <Button size="sm" onClick={onClick} disabled={disabled || busy}>
-      {busy ? <Spinner className="size-3.5" /> : label}
-    </Button>
-  )
-}

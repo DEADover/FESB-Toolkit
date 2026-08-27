@@ -104,6 +104,41 @@ export function useAutoRefresh(enabled: boolean, action: () => unknown) {
   }, [enabled])
 }
 
+/**
+ * Чип-фильтр со счётчиком: журналы и аудит устроены одинаково, и выглядеть
+ * должны так же. Свой цвет активного состояния нужен только уровням журнала,
+ * где красное и жёлтое несут смысл.
+ */
+export function FilterChip({ active, count, activeClass, className, title, onClick, children }: {
+  active: boolean
+  count?: ReactNode
+  activeClass?: string
+  className?: string
+  title?: string
+  onClick: () => void
+  children: ReactNode
+}) {
+  return (
+    <button
+      type="button"
+      title={title}
+      onClick={onClick}
+      className={cx(
+        'flex shrink-0 items-center gap-1.5 rounded-lg border px-2 py-1 text-[11.5px] transition',
+        active
+          ? activeClass ?? 'border-accent/50 bg-accent/12 text-accent-content'
+          : 'border-line-strong text-content-muted hover:bg-surface-3',
+        className,
+      )}
+    >
+      {children}
+      {count !== undefined && count !== null && (
+        <span className="rounded bg-surface-3 px-1 text-[10px] tabular-nums">{count}</span>
+      )}
+    </button>
+  )
+}
+
 /** Переключатель автообновления — один и тот же на всех живых экранах. */
 export function AutoRefreshToggle({ checked, onChange }: { checked: boolean; onChange: (value: boolean) => void }) {
   const { t } = useI18n()

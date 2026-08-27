@@ -3,7 +3,9 @@ import { Fragment, useCallback, useEffect, useMemo, useState } from 'react'
 import { useI18n } from '../i18n'
 import { apiAudit, errorText } from '../lib/api'
 import type { AuditEntry, Connection, ServerInfo } from '../types'
-import { AutoRefreshToggle, ErrorBar, NotConnected, Panel, TableMessage, useAutoRefresh } from './ApiShell'
+import {
+  AutoRefreshToggle, ErrorBar, FilterChip, NotConnected, Panel, TableMessage, useAutoRefresh,
+} from './ApiShell'
 import { Badge, Button, Spinner, TextInput, cx } from './ui'
 
 interface Props {
@@ -103,18 +105,18 @@ export function AuditScreen({ connection, server, onGoToConnection }: Props) {
       </div>
 
       <div className="flex items-center gap-1">
-        <Chip active={filter === 'action'} onClick={() => setFilter('action')} count={counts.action}>
+        <FilterChip active={filter === 'action'} onClick={() => setFilter('action')} count={counts.action}>
           {t('audit.filter.action')}
-        </Chip>
-        <Chip active={filter === 'login'} onClick={() => setFilter('login')} count={counts.login}>
+        </FilterChip>
+        <FilterChip active={filter === 'login'} onClick={() => setFilter('login')} count={counts.login}>
           {t('audit.filter.login')}
-        </Chip>
-        <Chip active={filter === 'session'} onClick={() => setFilter('session')} count={counts.session}>
+        </FilterChip>
+        <FilterChip active={filter === 'session'} onClick={() => setFilter('session')} count={counts.session}>
           {t('audit.filter.session')}
-        </Chip>
-        <Chip active={filter === 'all'} onClick={() => setFilter('all')} count={entries.length}>
+        </FilterChip>
+        <FilterChip active={filter === 'all'} onClick={() => setFilter('all')} count={entries.length}>
           {t('filter.all')}
-        </Chip>
+        </FilterChip>
         {counts.failed > 0 && (
           <Badge tone="danger" className="ml-2" title={t('audit.failed.hint')}>
             {t('audit.failed', { count: counts.failed })}
@@ -221,23 +223,3 @@ function formatTime(value: string | null): string {
   return match ? `${match[3]}.${match[2]} ${match[4]}` : value
 }
 
-function Chip({ active, count, onClick, children }: {
-  active: boolean
-  count: number
-  onClick: () => void
-  children: React.ReactNode
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cx(
-        'flex items-center gap-1.5 rounded-lg border px-2 py-1 text-[11.5px] transition',
-        active ? 'border-accent/50 bg-accent/12 text-accent-content' : 'border-line-strong text-content-muted hover:bg-surface-3',
-      )}
-    >
-      {children}
-      <span className="rounded bg-surface-3 px-1 text-[10px] tabular-nums">{count}</span>
-    </button>
-  )
-}

@@ -7,7 +7,7 @@ import {
 } from '../lib/api'
 import type { Connection, ModuleAction, ModuleRow, SavePoint, ServerInfo } from '../types'
 import { ErrorBar, NotConnected, Panel, TableMessage, useApiData } from './ApiShell'
-import { Badge, Button, Modal, Spinner, cx } from './ui'
+import { Badge, Button, IconButton, Modal, Spinner, cx } from './ui'
 
 interface Props {
   connection: Connection | null
@@ -79,9 +79,8 @@ export function ModulesScreen({ connection, server, onGoToConnection }: Props) {
             <col />
             <col className="w-48" />
             <col className="w-48" />
-            <col className="w-40" />
-            {/* «Запустить · Остановить · Перезапустить» по-русски шире, чем кажется. */}
-            <col className="w-[304px]" />
+            <col className="w-44" />
+            <col className="w-28" />
           </colgroup>
           <thead className="sticky top-0 z-10 bg-surface-2 text-[11px] tracking-wide text-content-subtle">
             <tr className="border-b border-line">
@@ -116,20 +115,23 @@ export function ModulesScreen({ connection, server, onGoToConnection }: Props) {
                   </div>
                 </td>
                 <td className="px-3 py-2">
-                  <div className="flex items-center gap-1.5">
-                    <Action
+                  <div className="flex items-center gap-1">
+                    <IconButton
+                      icon="▶"
                       label={t('modules.start')}
                       busy={pending === `${module.name}:start`}
                       disabled={pending !== null || module.running}
                       onClick={() => start(module, 'start')}
                     />
-                    <Action
+                    <IconButton
+                      icon="■"
                       label={t('modules.stop')}
                       busy={pending === `${module.name}:stop`}
                       disabled={pending !== null || !module.running}
                       onClick={() => start(module, 'stop')}
                     />
-                    <Action
+                    <IconButton
+                      icon="↻"
                       label={t('modules.restart')}
                       busy={pending === `${module.name}:restart`}
                       disabled={pending !== null || !module.running}
@@ -264,12 +266,19 @@ function SavePoints({ connection }: { connection: Connection }) {
                     {point.version ? ` · FESB ${point.version}` : ''}
                   </span>
                 </span>
-                <Button size="sm" disabled={busy !== null} onClick={() => setConfirm({ point, action: 'rollback' })}>
-                  {t('savepoints.rollback')}
-                </Button>
-                <Button size="sm" variant="ghost" disabled={busy !== null} onClick={() => setConfirm({ point, action: 'delete' })}>
-                  {t('properties.delete')}
-                </Button>
+                <IconButton
+                  icon="⟲"
+                  label={t('savepoints.rollback')}
+                  disabled={busy !== null}
+                  onClick={() => setConfirm({ point, action: 'rollback' })}
+                />
+                <IconButton
+                  icon="✕"
+                  label={t('properties.delete')}
+                  tone="danger"
+                  disabled={busy !== null}
+                  onClick={() => setConfirm({ point, action: 'delete' })}
+                />
               </div>
             ))}
           </div>
@@ -309,15 +318,3 @@ function SavePoints({ connection }: { connection: Connection }) {
   )
 }
 
-function Action({ label, busy, disabled, onClick }: {
-  label: string
-  busy: boolean
-  disabled: boolean
-  onClick: () => void
-}) {
-  return (
-    <Button size="sm" onClick={onClick} disabled={disabled || busy}>
-      {busy ? <Spinner className="size-3.5" /> : label}
-    </Button>
-  )
-}

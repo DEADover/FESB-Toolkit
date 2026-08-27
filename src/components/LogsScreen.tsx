@@ -1,10 +1,12 @@
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react'
 
 import { useI18n } from '../i18n'
 import { apiLog, apiLogFiles, errorText } from '../lib/api'
 import type { Connection, LogEntry, LogFileRow, ServerInfo } from '../types'
-import { ErrorBar, NotConnected, Panel, TableMessage, useApiData } from './ApiShell'
-import { Badge, Button, Checkbox, ScrollStrip, Spinner, TextInput, cx } from './ui'
+import {
+  AutoRefreshToggle, ErrorBar, FilterChip, NotConnected, Panel, TableMessage, useApiData, useAutoRefresh,
+} from './ApiShell'
+import { Badge, Button, ScrollStrip, Spinner, TextInput, cx } from './ui'
 
 interface Props {
   connection: Connection | null
@@ -13,7 +15,6 @@ interface Props {
 }
 
 const LEVELS = ['ERROR', 'WARN', 'INFO', 'DEBUG', 'TRACE'] as const
-const REFRESH_MS = 10_000
 
 /**
  * Журналы сервера прямо в приложении.
@@ -60,10 +61,6 @@ export function LogsScreen({ connection, server, onGoToConnection }: Props) {
     }
   }, [])
 
-  // Автообновление не должно перезапускаться от каждой смены фильтра,
-  // поэтому таймер дёргает всегда актуальную версию запроса.
-  const latest = useRef<() => Promise<void>>(async () => {})
-
   const fetchEntries = useCallback(async () => {
     if (!connection) return
     setLoading(true)
@@ -85,15 +82,8 @@ export function LogsScreen({ connection, server, onGoToConnection }: Props) {
     }
   }, [connection, selectedFiles, levels, search, limit])
 
-  latest.current = fetchEntries
-
   useEffect(() => { void fetchEntries() }, [fetchEntries])
-
-  useEffect(() => {
-    if (!auto) return
-    const timer = setInterval(() => { void latest.current() }, REFRESH_MS)
-    return () => clearInterval(timer)
-  }, [auto])
+  useAutoRefresh(auto, fetchEntries)
 
   const toggleFile = useCallback((name: string) => {
     setSelectedFiles((prev) => {
@@ -147,10 +137,7 @@ export function LogsScreen({ connection, server, onGoToConnection }: Props) {
             <option key={value} value={value}>{t('logs.lines', { count: value })}</option>
           ))}
         </select>
-        <label className="flex h-9 cursor-pointer items-center gap-2 rounded-lg border border-line-strong bg-surface px-3 text-[12.5px] text-content-muted">
-          <Checkbox checked={auto} onChange={(event) => setAuto(event.target.checked)} />
-          {t('logs.auto')}
-        </label>
+        <AutoRefreshToggle checked={auto} onChange={setAuto} />
         <Button onClick={() => void fetchEntries()} disabled={loading}>
           {loading ? <Spinner className="size-4" /> : '↻'} {t('action.refresh')}
         </Button>
@@ -159,20 +146,15 @@ export function LogsScreen({ connection, server, onGoToConnection }: Props) {
       <div className="flex items-center gap-2">
         <div className="flex shrink-0 items-center gap-1">
           {LEVELS.map((level) => (
-            <button
+            <FilterChip
               key={level}
-              type="button"
+              active={levels.has(level)}
+              activeClass={levelTone(level)}
+              count={counts.get(level)}
               onClick={() => toggleLevel(level)}
-              className={cx(
-                'rounded-lg border px-2 py-1 font-mono text-[11px] transition',
-                levels.has(level)
-                  ? levelTone(level)
-                  : 'border-line-strong text-content-subtle hover:bg-surface-3',
-              )}
             >
-              {level}
-              {counts.has(level) && <span className="ml-1.5 tabular-nums opacity-70">{counts.get(level)}</span>}
-            </button>
+              <span className="font-mono">{level}</span>
+            </FilterChip>
           ))}
         </div>
 
@@ -183,22 +165,16 @@ export function LogsScreen({ connection, server, onGoToConnection }: Props) {
           scrollRightLabel={t('action.scrollRight')}
         >
           {(files.data ?? []).map((file) => (
-            <button
+            <FilterChip
               key={file.name}
-              type="button"
-              onClick={() => toggleFile(file.name)}
+              active={selectedFiles.has(file.name)}
+              className={cx(file.size === 0 && 'opacity-50')}
+              count={formatBytes(file.size)}
               title={t('logs.fileHint', { size: formatBytes(file.size) })}
-              className={cx(
-                'flex shrink-0 items-center gap-1.5 rounded-lg border px-2 py-1 text-[11.5px] transition',
-                selectedFiles.has(file.name)
-                  ? 'border-accent/50 bg-accent/12 text-accent-content'
-                  : 'border-line-strong text-content-muted hover:bg-surface-3',
-                file.size === 0 && 'opacity-50',
-              )}
+              onClick={() => toggleFile(file.name)}
             >
               <span className="whitespace-nowrap font-mono">{file.name}</span>
-              <span className="rounded bg-surface-3 px-1 text-[10px] tabular-nums">{formatBytes(file.size)}</span>
-            </button>
+            </FilterChip>
           ))}
         </ScrollStrip>
       </div>

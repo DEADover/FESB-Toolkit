@@ -5,7 +5,6 @@ export const ru: Record<keyof typeof en, string> = {
 
   'nav.files': 'Файлы конфигурации',
   'nav.files.trace': 'Настройки трассировки',
-  'nav.files.trace.hint': 'Брокер, очередь, режим',
   'nav.files.links': 'Связи доменов',
   'nav.files.links.title': 'Связи между доменами',
 
@@ -25,10 +24,7 @@ export const ru: Record<keyof typeof en, string> = {
 
   'nav.api': 'API',
   'nav.api.connection': 'Подключение',
-  'nav.api.connection.hint': 'Адрес и доступ',
   'nav.api.domains': 'Домены',
-  'nav.api.domains.hint': 'Объекты в шине',
-  'nav.soon': 'Скоро',
 
   'action.selectFolder': 'Выбрать папку',
   'action.openArchive': 'Открыть ZIP',
@@ -61,7 +57,6 @@ export const ru: Record<keyof typeof en, string> = {
   'header.noFolder': 'Папка не выбрана',
   'header.folder': 'Папка',
   'header.archive': 'Архив',
-  'warn.noVersion': 'Рядом с domains не найден файл version. Откройте папку, в которой есть оба, — иначе архив конфигурации получится неполным.',
 
   'empty.title': 'Выберите папку с экспортом конфигурации',
   'empty.text': 'Перетащите сюда папку или zip с конфигурацией — либо выберите их кнопками ниже.',
@@ -102,21 +97,16 @@ export const ru: Record<keyof typeof en, string> = {
   'table.guid': 'GUID',
   'table.startMode': 'Режим запуска',
   'table.state': 'Состояние',
-  'table.traces': 'Трассировки',
   'table.routes': 'СОПС',
   'table.route': 'СОПС',
-  'table.traced': 'С трассировкой',
-  'table.traceObject': 'Объект трассировки',
   'table.usedBy': 'Используется в',
   'table.usedByHint': 'СОПС, использующие этот объект трассировки',
   'table.traceMode': 'Режим трассировки',
   'table.routesHint': 'Трассировку используют {traced} из {total} СОПС',
   'table.description': 'Описание',
-  'table.line': 'Строка',
   'table.empty': 'Ничего не найдено — измените фильтры',
   'table.noTraceBean': 'Нет bean-а трассировки',
   'table.noProperty': 'Нет property',
-  'table.traceCount': 'Трассировок: {count}',
   'table.stopped': 'Остановлен',
   'table.stoppedHint': 'Домен остановлен',
   'table.changed': 'Изменено в этой сессии',
@@ -156,8 +146,6 @@ export const ru: Record<keyof typeof en, string> = {
   'route.uri': 'Адрес',
   'route.expression': 'Выражение ({language})',
   'route.format': 'Формат',
-  'route.exceptions': 'Исключения',
-  'route.attributes': 'Атрибуты',
 
   'route.kind.from': 'Точка входа',
   'route.kind.to': 'Отправка',
@@ -194,7 +182,6 @@ export const ru: Record<keyof typeof en, string> = {
   'route.kind.aggregate': 'Агрегация',
   'route.kind.transacted': 'Транзакция',
 
-  'routes.filter.traced': 'С трассировкой',
   'routes.filter.untraced': 'Без трассировки',
   'routes.trace.on': 'Вкл',
   'routes.trace.off': 'Выкл',
@@ -273,7 +260,6 @@ export const ru: Record<keyof typeof en, string> = {
   'nav.api.domains.title': 'Домены сервера',
 
   'header.server': 'Сервер',
-  'api.header.noServer': 'Нет подключения',
 
   'switch.none': 'Нет сервера',
   'switch.empty': 'Подключений пока нет',
@@ -320,7 +306,6 @@ export const ru: Record<keyof typeof en, string> = {
   'api.remember.hint': 'Пароль сохранится на этом компьютере в открытом виде — на общей машине лучше не включать',
   'api.insecure': 'Разрешить самоподписанные сертификаты',
   'api.insecure.hint': 'Не проверять сертификат — только для тестовых стендов',
-  'api.forget': 'Забыть',
   'api.connect': 'Подключиться',
   'api.connecting': 'Подключение…',
   'api.connected': 'Подключено',
@@ -376,16 +361,12 @@ export const ru: Record<keyof typeof en, string> = {
   'push.reloadedOff': 'Файлы записаны, но запущенные домены будут работать со старой конфигурацией до перезапуска.',
 
   'nav.api.queues': 'Очереди',
-  'nav.api.queues.hint': 'Менеджеры и глубина',
   'nav.api.queues.title': 'Менеджеры очередей',
   'nav.api.modules': 'Модули',
-  'nav.api.modules.hint': 'Состояние и перезапуск',
   'nav.api.modules.title': 'Модули шины',
   'nav.api.properties': 'Константы',
-  'nav.api.properties.hint': 'Приложение, брокер, домен',
   'nav.api.properties.title': 'Константы',
   'nav.api.logs': 'Журналы',
-  'nav.api.logs.hint': 'Протоколы работы сервера',
   'nav.api.logs.title': 'Журналы сервера',
 
   'domains.confirm.stopMany': 'Остановить выбранные домены?',
@@ -401,10 +382,8 @@ export const ru: Record<keyof typeof en, string> = {
   'domains.confirm.restart': 'Перезапустить домен?',
   'domains.confirm.text': 'СОПС домена перестанут обрабатывать сообщения до его возврата в работу.',
   'nav.api.map': 'Карта доменов',
-  'nav.api.map.hint': 'Где болит',
   'nav.api.map.title': 'Карта доменов',
   'nav.api.routes': 'СОПС',
-  'nav.api.routes.hint': 'Состояние и схемы',
   'nav.api.routes.title': 'СОПС сервера',
 
   'nav.api.audit': 'Аудит',
@@ -437,6 +416,12 @@ export const ru: Record<keyof typeof en, string> = {
   'map.notAllRunning': 'не все запущены',
   'map.notAllRunning.hint': 'Домен активен, но часть его СОПС не работает',
 
+  'routes.searchBoth': 'Поиск по домену или СОПС',
+  'routes.buildIndex': 'Искать и по СОПС…',
+  'routes.buildIndex.hint': 'Лёгкого способа спросить список СОПС у шины нет, поэтому придётся прочитать все домены — минуты полторы',
+  'routes.indexing': 'Читаю домены: {current} из {total}',
+  'routes.indexReady': 'Известно имён СОПС: {count}',
+  'routes.matchesMore': 'и ещё {count}',
   'routes.searchDomain': 'Поиск по домену',
   'routes.count': 'СОПС: {count}',
   'routes.pickDomain': 'Выберите домен слева',

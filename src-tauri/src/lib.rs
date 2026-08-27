@@ -22,7 +22,10 @@ use tauri::{AppHandle, Emitter};
 
 use applier::{apply_trace_change, ApplyReport, ApplyRequest};
 use archive::{create_archive, extract_archive, ArchiveResult, ExtractResult};
-use fesb_api::{ApiDomain, Connection, DomainRoutes, PullResult, PushResult, ServerInfo, VerifyResult};
+use fesb_api::{
+    ApiDomain, Connection, DomainRouteNames, DomainRoutes, PullResult, PushResult, ServerInfo,
+    VerifyResult,
+};
 use fesb_ops::{
     AuditEntry, DomainActionResult, DomainStat, LogEntry, LogFileRow, LogRequest, ManagerKind, ModuleRow,
     PropertyRow, PropertyScope, QueueManager, QueueMessage, QueueRow, RouteState, SavePoint,
@@ -236,6 +239,18 @@ async fn api_domain_routes(connection: Connection, guid: String) -> Result<Domai
     fesb_api::fetch_domain_routes(&connection, &guid).await
 }
 
+/// Имена всех СОПС сервера — по ним ищут домен.
+#[tauri::command]
+async fn api_route_index(
+    app: AppHandle,
+    connection: Connection,
+) -> Result<Vec<DomainRouteNames>, String> {
+    fesb_api::route_index(&connection, |progress| {
+        let _ = app.emit(API_PROGRESS_EVENT, progress);
+    })
+    .await
+}
+
 /// Состояние и счётчики одного СОПС.
 #[tauri::command]
 async fn api_route_state(
@@ -380,6 +395,7 @@ pub fn run() {
             api_domain_action,
             api_domain_statistics,
             api_domain_routes,
+            api_route_index,
             api_route_state,
             api_route_action,
             api_save_points,
@@ -406,7 +422,7 @@ pub fn run() {
 pub mod testing {
     pub use crate::applier::{apply_trace_change, ApplyRequest, ApplyTarget};
     pub use crate::fesb_api::{connect, domains, pull, push, verify, Connection};
-    pub use crate::fesb_api::fetch_domain_routes;
+    pub use crate::fesb_api::{fetch_domain_routes, route_index};
     pub use crate::fesb_ops::{
         delete_property, domain_statistics, log_entries, log_files, modules, properties,
         audit, queue_managers, queue_message, queue_messages, queues, route_state, save_property,
