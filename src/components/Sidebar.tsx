@@ -207,20 +207,27 @@ export function Sidebar({ screen, onScreen, info, isMac, collapsed, onCollapse, 
   )
 }
 
+/**
+ * Знак FESB Toolkit: «F», она же маршрут.
+ *
+ * Снизу — исток, дальше ствол вверх и две ветки вправо: ровно то, что
+ * делает СОПС. Геометрия здесь та же, что в `public/favicon.svg` и в иконке
+ * приложения, — знак должен быть везде одинаковым, поэтому меняется он
+ * во всех трёх местах сразу.
+ */
 function Logo() {
   return (
     <svg viewBox="0 0 32 32" className="size-8 shrink-0" aria-hidden>
-      <rect width="32" height="32" rx="8" className="fill-surface-3" />
-      <g className="stroke-accent-strong" strokeWidth="1.6">
-        <path d="M16 16 16 9M16 16 22 19.5M16 16 10 19.5" />
+      <rect width="32" height="32" rx="7.5" className="fill-surface-3" />
+      <g className="stroke-accent" fill="none" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M9.5 23.5V7.5H20.5" />
+        <path d="M9.5 15H17.5" />
       </g>
-      <g className="fill-surface-3 stroke-accent" strokeWidth="1.6">
-        <circle cx="16" cy="8.5" r="2.6" />
-        <circle cx="22.5" cy="20" r="2.6" />
-        <circle cx="9.5" cy="20" r="2.6" />
+      <g className="fill-accent">
+        <circle cx="21.5" cy="7.5" r="3" />
+        <circle cx="18.5" cy="15" r="3" />
+        <circle cx="9.5" cy="23.5" r="3" />
       </g>
-      <circle cx="16" cy="16" r="4.2" className="fill-accent" />
-      <circle cx="16" cy="16" r="1.9" className="fill-surface-3" />
     </svg>
   )
 }

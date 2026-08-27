@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "FESB Settings Editor",
+  "productName": "FESB Toolkit",
   "version": "0.1.1",
-  "identifier": "ru.factorts.fesb-settings-editor",
+  "identifier": "ru.factorts.fesb-toolkit",
   "build": {
     "beforeDevCommand": "npm run vite:dev",
     "devUrl": "http://localhost:5173",
@@ -13,7 +13,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "FESB Settings Editor",
+        "title": "FESB Toolkit",
         "width": 1440,
         "height": 900,
         "minWidth": 1020,
@@ -34,7 +34,7 @@
     "active": true,
     "targets": "all",
     "category": "DeveloperTool",
-    "shortDescription": "Массовое редактирование настроек FESB",
+    "shortDescription": "Работа с интеграционной шиной FESB",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",

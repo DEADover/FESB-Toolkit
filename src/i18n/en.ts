@@ -1,6 +1,6 @@
 /** Английский словарь — источник истины: ключи остальных языков сверяются с ним. */
 export const en = {
-  'app.name': 'FESB Settings Editor',
+  'app.name': 'FESB Toolkit',
 
   'nav.files': 'Configuration Files',
   'nav.files.trace': 'Trace Configuration',

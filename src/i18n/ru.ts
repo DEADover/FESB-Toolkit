@@ -1,7 +1,7 @@
 import type { en } from './en'
 
 export const ru: Record<keyof typeof en, string> = {
-  'app.name': 'FESB Settings Editor',
+  'app.name': 'FESB Toolkit',
 
   'nav.files': 'Файлы конфигурации',
   'nav.files.trace': 'Настройки трассировки',

@@ -10,7 +10,7 @@
 
 use std::path::PathBuf;
 
-use fesb_settings_editor_lib::testing::{
+use fesb_toolkit_lib::testing::{
     apply_trace_change, connect, domains, log_entries, log_files, modules, properties, pull, push,
     queue_managers, queues, save_property, delete_property, verify, domain_statistics,
     audit, fetch_domain_routes, queue_message, queue_messages, route_index, route_state,
@@ -71,7 +71,7 @@ fn round_trip_changes_the_broker_and_puts_it_back() {
         let pulled = tauri::async_runtime::block_on(pull(&connection, Some(&guids), |_| {}))
             .expect("выгрузка домена");
         let root = PathBuf::from(&pulled.root);
-        let scan = fesb_settings_editor_lib::testing::scan_root(&root, |_| {});
+        let scan = fesb_toolkit_lib::testing::scan_root(&root, |_| {});
         let Some(domain) = scan.domains.first() else { continue };
         let Some(trace) = domain.traces.iter().find(|item| item.broker.is_some()) else { continue };
 
@@ -88,7 +88,7 @@ fn round_trip_changes_the_broker_and_puts_it_back() {
     println!("домен {guid}: bean {bean_id}, broker {original}");
 
     let root_path = PathBuf::from(&root);
-    let scan = fesb_settings_editor_lib::testing::scan_root(&root_path, |_| {});
+    let scan = fesb_toolkit_lib::testing::scan_root(&root_path, |_| {});
     let domain = scan.domains.first().unwrap().clone();
     let probe = format!("{original}.ROUNDTRIP");
 
@@ -126,7 +126,7 @@ fn round_trip_changes_the_broker_and_puts_it_back() {
     // Проверяем сервер: новое значение должно вернуться в следующей выгрузке.
     let guids = vec![guid.clone()];
     let again = tauri::async_runtime::block_on(pull(&connection, Some(&guids), |_| {})).unwrap();
-    let check = fesb_settings_editor_lib::testing::scan_root(&PathBuf::from(&again.root), |_| {});
+    let check = fesb_toolkit_lib::testing::scan_root(&PathBuf::from(&again.root), |_| {});
     let after = check.domains.first().expect("домен пропал с сервера");
     let value = after
         .traces
@@ -163,7 +163,7 @@ fn round_trip_changes_the_broker_and_puts_it_back() {
         .expect("возврат на сервер");
 
     let final_pull = tauri::async_runtime::block_on(pull(&connection, Some(&guids), |_| {})).unwrap();
-    let final_scan = fesb_settings_editor_lib::testing::scan_root(&PathBuf::from(&final_pull.root), |_| {});
+    let final_scan = fesb_toolkit_lib::testing::scan_root(&PathBuf::from(&final_pull.root), |_| {});
     let restored = final_scan
         .domains
         .first()
@@ -330,7 +330,7 @@ fn verification_notices_what_was_not_sent() {
         let guids = vec![candidate.guid.clone()];
         let pulled = block(pull(&connection, Some(&guids), |_| {})).expect("выгрузка");
         let root = PathBuf::from(&pulled.root);
-        let scan = fesb_settings_editor_lib::testing::scan_root(&root, |_| {});
+        let scan = fesb_toolkit_lib::testing::scan_root(&root, |_| {});
         let Some(domain) = scan.domains.first() else { continue };
         let Some(trace) = domain.traces.iter().find(|item| item.broker.is_some()) else { continue };
         chosen = Some((
@@ -351,7 +351,7 @@ fn verification_notices_what_was_not_sent() {
     assert!(clean.mismatches.is_empty(), "расхождения на нетронутой выгрузке: {:?}", clean.mismatches);
 
     // Правим локально и НЕ отправляем: сверка должна это заметить.
-    let scan = fesb_settings_editor_lib::testing::scan_root(&root_path, |_| {});
+    let scan = fesb_toolkit_lib::testing::scan_root(&root_path, |_| {});
     let domain = scan.domains.first().unwrap().clone();
     let request = ApplyRequest {
         update: TraceUpdate {
@@ -543,7 +543,7 @@ fn builds_an_index_of_route_names() {
         "имена доменов не подставились",
     );
     // На диске после указателя ничего оставаться не должно.
-    let leftovers = std::fs::read_dir(std::env::temp_dir().join("fesb-settings-editor-routes"))
+    let leftovers = std::fs::read_dir(std::env::temp_dir().join("fesb-toolkit-routes"))
         .map(|entries| entries.flatten().filter(|e| e.file_name().to_string_lossy().starts_with("index-")).count())
         .unwrap_or(0);
     assert_eq!(leftovers, 0, "временная папка указателя не убрана");

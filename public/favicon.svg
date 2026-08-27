@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- FESB Toolkit: «F» — она же маршрут, который расходится на два выхода. -->
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1c2540"/>
+      <stop offset="1" stop-color="#0a0e18"/>
+    </linearGradient>
+  </defs>
+  <rect width="32" height="32" rx="7.5" fill="url(#tile)"/>
+  <g fill="none" stroke="#8299fc" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M9.5 23.5V7.5H20.5"/>
+    <path d="M9.5 15H17.5"/>
+  </g>
+  <g fill="#8299fc">
+    <circle cx="21.5" cy="7.5" r="3"/>
+    <circle cx="18.5" cy="15" r="3"/>
+    <circle cx="9.5" cy="23.5" r="3"/>
+  </g>
+</svg>

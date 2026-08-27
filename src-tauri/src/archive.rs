@@ -222,7 +222,7 @@ pub fn create_archive<F: FnMut(ArchiveProgress)>(
 
 /// Рабочая папка, куда распаковываются архивы. Одна на запуск приложения.
 fn workspace_root() -> PathBuf {
-    std::env::temp_dir().join("fesb-settings-editor")
+    std::env::temp_dir().join("fesb-toolkit")
 }
 
 /// Распаковывает zip с выгрузкой конфигурации во временную папку.

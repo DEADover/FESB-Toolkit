@@ -388,7 +388,7 @@ pub struct PullResult {
 }
 
 fn workspace_root() -> PathBuf {
-    std::env::temp_dir().join("fesb-settings-editor")
+    std::env::temp_dir().join("fesb-toolkit")
 }
 
 /// Забирает выбранные домены с сервера и раскладывает их в привычную
@@ -751,7 +751,7 @@ pub struct DomainRoutes {
 
 /// Отдельная папка под схемы: рабочую выгрузку она не трогает и наоборот.
 fn routes_cache() -> PathBuf {
-    std::env::temp_dir().join("fesb-settings-editor-routes")
+    std::env::temp_dir().join("fesb-toolkit-routes")
 }
 
 /// Забирает один домен ради его СОПС.

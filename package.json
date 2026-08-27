@@ -1,8 +1,8 @@
 {
-  "name": "fesb-settings-editor",
-  "productName": "FESB Settings Editor",
+  "name": "fesb-toolkit",
+  "productName": "FESB Toolkit",
   "version": "0.1.1",
-  "description": "Инструмент для массового редактирования конфигурации интеграционной шины FESB",
+  "description": "Инструмент для работы с интеграционной шиной FESB: массовая правка конфигурации и управление стендом по API",
   "private": true,
   "type": "module",
   "scripts": {

@@ -393,7 +393,7 @@ pub async fn save_property(
     }
     let client = connection.client()?;
     let body = serde_json::json!({
-        "comment": comment.unwrap_or_else(|| "FESB Settings Editor".into()),
+        "comment": comment.unwrap_or_else(|| "FESB Toolkit".into()),
         "data": property,
     });
 

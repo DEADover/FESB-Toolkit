@@ -6,7 +6,7 @@
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 
-use fesb_settings_editor_lib::testing::{create_archive, parse_domain_xml, parse_route_graphs, scan_root};
+use fesb_toolkit_lib::testing::{create_archive, parse_domain_xml, parse_route_graphs, scan_root};
 
 #[test]
 #[ignore]
@@ -104,7 +104,7 @@ fn parses_real_export() {
 #[test]
 #[ignore]
 fn applies_change_to_real_files() {
-    use fesb_settings_editor_lib::testing::{apply_trace_change, ApplyRequest, ApplyTarget, BeanTarget, TraceUpdate};
+    use fesb_toolkit_lib::testing::{apply_trace_change, ApplyRequest, ApplyTarget, BeanTarget, TraceUpdate};
 
     let Ok(corpus) = std::env::var("FESB_CORPUS") else {
         eprintln!("FESB_CORPUS не задан — пропускаем");
@@ -315,7 +315,7 @@ fn parses_every_route_into_a_graph() {
     assert!(steps > 10_000, "шагов подозрительно мало: {steps}");
 }
 
-fn walk(nodes: &[fesb_settings_editor_lib::testing::RouteNode], kinds: &mut BTreeMap<String, usize>) {
+fn walk(nodes: &[fesb_toolkit_lib::testing::RouteNode], kinds: &mut BTreeMap<String, usize>) {
     for node in nodes {
         *kinds.entry(node.kind.clone()).or_default() += 1;
         walk(&node.children, kinds);
@@ -356,7 +356,7 @@ fn links_routes_across_the_real_export() {
         eprintln!("FESB_CORPUS не задан — пропускаем");
         return;
     };
-    let graph = fesb_settings_editor_lib::testing::build_links(&PathBuf::from(root));
+    let graph = fesb_toolkit_lib::testing::build_links(&PathBuf::from(root));
 
     let mut by_kind: BTreeMap<&str, usize> = BTreeMap::new();
     let mut cross = 0usize;
@@ -397,7 +397,7 @@ fn links_routes_across_the_real_export() {
 #[ignore]
 fn dump_links() {
     let (Ok(root), Ok(file)) = (std::env::var("FESB_CORPUS"), std::env::var("FESB_ROUTE")) else { return };
-    let graph = fesb_settings_editor_lib::testing::build_links(&PathBuf::from(root));
+    let graph = fesb_toolkit_lib::testing::build_links(&PathBuf::from(root));
     let mine: Vec<usize> = graph
         .routes
         .iter()

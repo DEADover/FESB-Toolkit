@@ -1,10 +1,21 @@
-# FESB Settings Editor
+# FESB Toolkit
 
 Кроссплатформенный (Windows / macOS / Linux) инструмент для работы с конфигурацией
 интеграционной шины **FESB**.
 
 Интерфейс двуязычный (English по умолчанию, есть русский), со светлой и тёмной темой
 и режимом следования за настройкой ОС.
+
+## Знак
+
+«F» — она же маршрут: внизу исток, дальше ствол вверх и две ветки вправо. Ровно то,
+что делает СОПС, и одновременно первая буква названия.
+
+Геометрия знака описана один раз и повторена в трёх местах, потому что везде он
+должен выглядеть одинаково: [public/favicon.svg](public/favicon.svg) — вкладка
+браузера, `icon-source.png` — из него `npx tauri icon` собирает весь набор иконок
+приложения, и `Logo` в [src/components/Sidebar.tsx](src/components/Sidebar.tsx) —
+боковая панель, где цвета берутся из токенов темы. Меняется знак сразу во всех трёх.
 
 ## Разделы
 
@@ -375,12 +386,12 @@ npm run test:rust    # тесты бэкенда
 
 | Артефакт | Что внутри |
 | --- | --- |
-| `fesb-settings-editor-windows-installer` | `.exe` (NSIS) и `.msi` |
-| `fesb-settings-editor-windows-portable` | один `fesb-settings-editor.exe`, без установки |
+| `fesb-toolkit-windows-installer` | `.exe` (NSIS) и `.msi` |
+| `fesb-toolkit-windows-portable` | один `fesb-toolkit.exe`, без установки |
 
 ```bash
 gh workflow run build.yml          # запустить вручную
-gh run download --name fesb-settings-editor-windows-portable
+gh run download --name fesb-toolkit-windows-portable
 ```
 
 Установщик ставится в профиль пользователя, без прав администратора;
@@ -419,6 +430,8 @@ FESB_URL=http://localhost:8181/manager FESB_USER=root FESB_PASSWORD=root cargo t
 ## Структура
 
 ```
+public/
+  favicon.svg         знак приложения — он же иконка и логотип в боковой панели
 src/
   i18n/               словари en/ru и провайдер перевода
   components/         экраны Trace, Connection, Domains, Queues, Modules,
