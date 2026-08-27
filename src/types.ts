@@ -526,3 +526,30 @@ export interface DomainRouteNames {
   name: string
   routes: string[]
 }
+
+/**
+ * Внешняя точка входа или выхода одного СОПС.
+ *
+ * `null` в поле значит «сведений нет», а не «нет»: шина рассказывает о TLS
+ * и авторизации только там, где точка описана фабрикой Jetty.
+ */
+export interface ApiEndpoint {
+  domain: string
+  domainGuid: string
+  route: string
+  routeId: string
+  component: string
+  /** `in` — точка входа, `out` — точка выхода. */
+  direction: 'in' | 'out'
+  scheme: string
+  uri: string
+  host: string | null
+  port: number | null
+  ssl: boolean | null
+  protocol: string | null
+  ciphers: string | null
+  auth: string | null
+  state: string | null
+  busyThreads: number | null
+  maxThreads: number | null
+}

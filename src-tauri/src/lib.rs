@@ -4,6 +4,7 @@
 //! готовые структуры и не имеет прямого доступа к диску.
 
 mod applier;
+mod api_report;
 mod archive;
 mod domain_xml;
 mod fesb_api;
@@ -13,6 +14,7 @@ mod route_graph;
 mod route_links;
 mod route_xml;
 mod scanner;
+mod xlsx;
 mod xml;
 
 use std::path::PathBuf;
@@ -250,6 +252,27 @@ async fn api_route_index(
     .await
 }
 
+/// Отчёт по внешним точкам входа и выхода всех СОПС сервера.
+#[tauri::command]
+async fn api_endpoint_report(
+    app: AppHandle,
+    connection: Connection,
+) -> Result<Vec<api_report::Endpoint>, String> {
+    fesb_api::endpoint_report(&connection, |progress| {
+        let _ = app.emit(API_PROGRESS_EVENT, progress);
+    })
+    .await
+}
+
+/// Сохраняет готовый отчёт файлом Excel.
+///
+/// Шапка приходит с фронтенда: там она уже переведена, и дублировать словарь
+/// в Rust ради одного файла незачем.
+#[tauri::command]
+fn save_report(path: String, sheet: String, headers: Vec<String>, rows: Vec<Vec<String>>) -> Result<(), String> {
+    xlsx::write_sheet(std::path::Path::new(&path), &sheet, &headers, &rows)
+}
+
 /// Состояние и счётчики одного СОПС.
 #[tauri::command]
 async fn api_route_state(
@@ -395,6 +418,8 @@ pub fn run() {
             api_domain_statistics,
             api_domain_routes,
             api_route_index,
+            api_endpoint_report,
+            save_report,
             api_route_state,
             api_route_action,
             api_save_points,
@@ -421,7 +446,7 @@ pub fn run() {
 pub mod testing {
     pub use crate::applier::{apply_trace_change, ApplyRequest, ApplyTarget};
     pub use crate::fesb_api::{connect, domains, pull, push, verify, Connection};
-    pub use crate::fesb_api::{fetch_domain_routes, route_index};
+    pub use crate::fesb_api::{endpoint_report, fetch_domain_routes, route_index};
     pub use crate::fesb_ops::{
         delete_property, domain_statistics, log_entries, log_files, modules, properties,
         audit, queue_managers, queue_message, queue_messages, queues, route_state, save_property,

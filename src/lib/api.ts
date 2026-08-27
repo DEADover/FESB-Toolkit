@@ -6,7 +6,7 @@ import { openUrl, revealItemInDir } from '@tauri-apps/plugin-opener'
 
 import type {
   ApiDomain, ApiProgress, AppInfo, ApplyProgress, ApplyReport, ApplyTarget, ArchiveProgress,
-  ArchiveResult, AuditEntry, Connection, DomainAction, DomainActionResult, DomainRouteNames,
+  ApiEndpoint, ArchiveResult, AuditEntry, Connection, DomainAction, DomainActionResult, DomainRouteNames,
   DomainRoutes, DomainStat,
   ExtractResult, LinkGraph, LogEntry,
   LogFileRow, LogRequest, ManagerKind,
@@ -61,6 +61,25 @@ export function buildArchive(root: string, output: string, domains: string[] | n
 
 export function saveZipAs(title: string, defaultName: string): Promise<string | null> {
   return save({ title, defaultPath: defaultName, filters: [{ name: 'ZIP', extensions: ['zip'] }] })
+}
+
+export function saveXlsxAs(title: string, defaultName: string): Promise<string | null> {
+  return save({ title, defaultPath: defaultName, filters: [{ name: 'Excel', extensions: ['xlsx'] }] })
+}
+
+/**
+ * Отчёт по внешним точкам входа и выхода всех СОПС сервера.
+ *
+ * Сервер выкачивается целиком, поэтому долго: на стенде из 256 доменов
+ * это полторы минуты. Прогресс приходит теми же событиями, что у выгрузки.
+ */
+export function apiEndpointReport(connection: Connection): Promise<ApiEndpoint[]> {
+  return invoke<ApiEndpoint[]>('api_endpoint_report', { connection })
+}
+
+/** Пишет таблицу файлом Excel: шапка приходит уже переведённой. */
+export function saveReport(path: string, sheet: string, headers: string[], rows: string[][]): Promise<void> {
+  return invoke<void>('save_report', { path, sheet, headers, rows })
 }
 
 /** Разбирает файл СОПС в дерево шагов — из него рисуется схема. */

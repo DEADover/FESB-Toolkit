@@ -278,6 +278,20 @@ struct RawModule {
     running: bool,
 }
 
+/// Читает JSON по адресу, не разбираясь в его форме.
+///
+/// Отчёту по точкам входа нужны ответы четырёх разных методов, и разбирать
+/// их в типы незачем: нужные поля он достаёт по именам сам.
+pub(crate) async fn get_json(
+    connection: &Connection,
+    client: &reqwest::Client,
+    path: &str,
+) -> Result<serde_json::Value, String> {
+    let response = connection.get(client, path).send().await.map_err(transport_error)?;
+    let body = ensure_ok(response, "Cannot read the answer").await?;
+    body.json().await.map_err(|err| format!("Unexpected answer: {err}"))
+}
+
 /// Находит рабочий адрес, перебирая варианты из `candidates()`.
 ///
 /// Пробуем по очереди, пока какой-то не ответит на `/api/security/user`.
@@ -714,31 +728,82 @@ pub struct DomainRouteNames {
 /// берутся только имена.
 pub async fn route_index<F: FnMut(ApiProgress)>(
     connection: &Connection,
-    mut on_progress: F,
+    on_progress: F,
 ) -> Result<Vec<DomainRouteNames>, String> {
-    let guids: Vec<String> = domains(connection).await?.into_iter().map(|item| item.guid).collect();
-    if guids.is_empty() {
+    let mut index = walk_domains(connection, on_progress, |dir, domain| {
+        DomainRouteNames { routes: read_route_names(dir), guid: domain.guid.clone(), name: domain.name.clone() }
+    })
+    .await?;
+    index.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+    Ok(index)
+}
+
+/// Отчёт по внешним точкам входа и выхода всех СОПС сервера.
+pub async fn endpoint_report<F: FnMut(ApiProgress)>(
+    connection: &Connection,
+    on_progress: F,
+) -> Result<Vec<crate::api_report::Endpoint>, String> {
+    let per_domain = walk_domains(connection, on_progress, |dir, domain| {
+        crate::api_report::endpoints_of_domain(dir, &domain.name, &domain.guid)
+    })
+    .await?;
+
+    let mut points: Vec<crate::api_report::Endpoint> = per_domain.into_iter().flatten().collect();
+    let guids: Vec<String> = points.iter().map(|point| point.domain_guid.clone()).collect();
+    let mut unique = guids.clone();
+    unique.sort();
+    unique.dedup();
+
+    let facts = crate::api_report::port_facts(connection, &unique).await;
+    crate::api_report::enrich(&mut points, &facts);
+
+    points.sort_by(|a, b| {
+        a.domain
+            .to_lowercase()
+            .cmp(&b.domain.to_lowercase())
+            .then_with(|| a.route.to_lowercase().cmp(&b.route.to_lowercase()))
+            .then_with(|| a.direction.cmp(b.direction))
+    });
+    Ok(points)
+}
+
+/// Выкачивает все домены пачками и отдаёт каждый распакованный домен разборщику.
+///
+/// Забирать сервер целиком дорого, поэтому пачки идут параллельно, а папка
+/// домена удаляется сразу после разбора: на диске никогда не лежит больше
+/// одной волны. Этим живут и указатель имён СОПС, и отчёт по точкам входа.
+async fn walk_domains<T, F, R>(
+    connection: &Connection,
+    mut on_progress: F,
+    mut read: R,
+) -> Result<Vec<T>, String>
+where
+    F: FnMut(ApiProgress),
+    R: FnMut(&Path, &ManifestDomain) -> T,
+{
+    let names = domains(connection).await?;
+    if names.is_empty() {
         return Ok(Vec::new());
     }
+    let guids: Vec<String> = names.iter().map(|item| item.guid.clone()).collect();
 
     let client = connection.client()?;
-    let scratch = routes_cache().join(format!("index-{}", stamp()));
+    let scratch = routes_cache().join(format!("walk-{}", stamp()));
     let root = scratch.join(EXPORT_DIR);
     fs::create_dir_all(root.join(DOMAINS_DIR)).map_err(|err| format!("Cannot create a workspace: {err}"))?;
 
     let expected = guids.len() as u64;
     let batches: Vec<Vec<String>> = guids.chunks(GUIDS_PER_REQUEST).map(<[String]>::to_vec).collect();
-    let mut done = 0u64;
     on_progress(ApiProgress { phase: "domains", current: 0, total: expected });
 
     let outcome = async {
-        let mut index: Vec<DomainRouteNames> = Vec::new();
+        let mut collected: Vec<T> = Vec::new();
 
         for (wave, group) in batches.chunks(BATCH_CONCURRENCY).enumerate() {
             let mut running = Vec::with_capacity(group.len());
             for (offset, batch) in group.iter().enumerate() {
                 let number = wave * BATCH_CONCURRENCY + offset;
-                let path = scratch.join(format!("index-{number}.zip"));
+                let path = scratch.join(format!("walk-{number}.zip"));
                 let connection = connection.clone();
                 let client = client.clone();
                 let batch = batch.clone();
@@ -748,27 +813,24 @@ pub async fn route_index<F: FnMut(ApiProgress)>(
             }
 
             for handle in running {
-                let path = handle.await.map_err(|err| format!("Index interrupted: {err}"))??;
+                let path = handle.await.map_err(|err| format!("Walk interrupted: {err}"))??;
                 let unpacked = unpack_domains(&path, &root)?;
                 let _ = fs::remove_file(&path);
 
+                let mut done = 0u64;
                 for domain in unpacked.domains {
                     let dir = root.join(DOMAINS_DIR).join(&domain.guid);
-                    index.push(DomainRouteNames {
-                        routes: read_route_names(&dir),
-                        guid: domain.guid,
-                        name: domain.name,
-                    });
-                    // Файлы больше не нужны: указателю хватает имён.
+                    collected.push(read(&dir, &domain));
+                    // Файлы больше не нужны: разборщик взял из них своё.
                     let _ = fs::remove_dir_all(&dir);
+                    done += 1;
                 }
-                done = index.len() as u64;
-                on_progress(ApiProgress { phase: "domains", current: done, total: expected });
+                let _ = done;
+                on_progress(ApiProgress { phase: "domains", current: collected.len() as u64, total: expected });
             }
         }
 
-        index.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
-        Ok(index)
+        Ok(collected)
     }
     .await;
 

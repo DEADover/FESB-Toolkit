@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ComponentProps, type ReactNode } from 'react'
 
-import { CaretDown, CaretLeft, CaretRight, CaretUp, MagnifyingGlass, X, type Icon } from '@phosphor-icons/react'
+import { CaretDown, CaretLeft, CaretRight, CaretUp, Check, MagnifyingGlass, X, type Icon } from '@phosphor-icons/react'
 
 export function cx(...parts: Array<string | false | null | undefined>): string {
   return parts.filter(Boolean).join(' ')
@@ -233,35 +233,74 @@ export function useClickAway(ref: React.RefObject<HTMLElement | null>, close: ()
   }, [ref, close])
 }
 
-/** Одиночный выбор: нативный список, но одетый как остальные поля. */
-export function Select<T extends string | number>({ value, options, onChange, ariaLabel, className }: {
+/**
+ * Одиночный выбор.
+ *
+ * Свой список, а не `<select>`: нативный раскрывается системным меню
+ * в светлом оформлении — на тёмной теме это выглядело чужой заплатой,
+ * да и рядом с `MultiSelect` два разных списка бросались в глаза.
+ */
+export function Select<T extends string | number>({ value, options, onChange, ariaLabel, label, className }: {
   value: T
   options: Array<{ id: T; label: string }>
   onChange: (value: T) => void
   ariaLabel: string
+  /** Подпись слева от значения — как у `MultiSelect`. */
+  label?: string
   className?: string
 }) {
+  const [open, setOpen] = useState(false)
+  const holder = useRef<HTMLDivElement>(null)
+  useClickAway(holder, () => setOpen(false))
+
+  const current = options.find((option) => option.id === value)
+
   return (
-    <select
-      value={value}
-      aria-label={ariaLabel}
-      onChange={(event) => {
-        const raw = event.target.value
-        const picked = options.find((option) => String(option.id) === raw)
-        if (picked) onChange(picked.id)
-      }}
-      className={cx(
-        CONTROL_HEIGHT,
-        'shrink-0 rounded-lg border border-line-strong bg-surface px-2 text-[12.5px] text-content outline-none transition',
-        'hover:border-content-subtle',
-        FOCUS_RING,
-        className,
+    <div ref={holder} className={cx('relative shrink-0', className)}>
+      <button
+        type="button"
+        aria-label={ariaLabel}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        onClick={() => setOpen((shown) => !shown)}
+        className={cx(
+          CONTROL_HEIGHT,
+          'flex w-full items-center gap-2 rounded-lg border border-line-strong bg-surface px-3 text-[12.5px] transition',
+          'hover:border-content-subtle',
+          FOCUS_RING,
+        )}
+      >
+        {label && <span className="shrink-0 text-content-subtle">{label}</span>}
+        <span className="min-w-0 flex-1 truncate text-left font-medium text-content">
+          {current?.label ?? ''}
+        </span>
+        <CaretDown size={10} weight="bold" className="shrink-0 text-content-subtle" />
+      </button>
+
+      {open && (
+        <div
+          role="listbox"
+          className="absolute left-0 top-full z-40 mt-1 max-h-72 w-full min-w-40 overflow-y-auto rounded-xl border border-line-strong bg-surface p-1.5 shadow-2xl"
+        >
+          {options.map((option) => (
+            <button
+              key={String(option.id)}
+              type="button"
+              role="option"
+              aria-selected={option.id === value}
+              onClick={() => { onChange(option.id); setOpen(false) }}
+              className={cx(
+                'flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-[12px] transition',
+                option.id === value ? 'bg-accent/12 text-content' : 'text-content-muted hover:bg-surface-3',
+              )}
+            >
+              <span className="min-w-0 flex-1 truncate">{option.label}</span>
+              {option.id === value && <Check size={12} weight="bold" className="shrink-0 text-accent-content" />}
+            </button>
+          ))}
+        </div>
       )}
-    >
-      {options.map((option) => (
-        <option key={String(option.id)} value={String(option.id)}>{option.label}</option>
-      ))}
-    </select>
+    </div>
   )
 }
 

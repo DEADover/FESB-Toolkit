@@ -548,3 +548,33 @@ fn builds_an_index_of_route_names() {
         .unwrap_or(0);
     assert_eq!(leftovers, 0, "временная папка указателя не убрана");
 }
+
+/// Отчёт по точкам входа и выхода: собирается со всего сервера.
+#[test]
+#[ignore]
+fn builds_the_endpoint_report() {
+    let Some(connection) = connection() else { return };
+    let started = std::time::Instant::now();
+    let points = block(fesb_toolkit_lib::testing::endpoint_report(&connection, |_| {})).unwrap();
+    println!(
+        "точек {}, за {:?}; входов {}, выходов {}",
+        points.len(),
+        started.elapsed(),
+        points.iter().filter(|p| p.direction == "in").count(),
+        points.iter().filter(|p| p.direction == "out").count(),
+    );
+
+    let mut schemes: std::collections::BTreeMap<&str, usize> = std::collections::BTreeMap::new();
+    for point in &points {
+        *schemes.entry(point.scheme.as_str()).or_default() += 1;
+    }
+    println!("схемы: {schemes:?}");
+    println!("с портом: {}", points.iter().filter(|p| p.port.is_some()).count());
+    println!("с TLS: {}", points.iter().filter(|p| p.ssl == Some(true)).count());
+    for point in points.iter().take(4) {
+        println!("  {} · {} · {} · {}", point.domain, point.route, point.direction, point.uri);
+    }
+
+    // Внутренних адресов в отчёте быть не должно — он про внешний мир.
+    assert!(points.iter().all(|p| p.scheme != "direct" && p.scheme != "localmq"));
+}
