@@ -140,7 +140,14 @@ export function PropertiesScreen({ connection, server, onGoToConnection }: Props
           onChange={setQuery}
         />
 
-        <Button variant="primary" disabled={!scope} onClick={() => setAdding({ ...EMPTY })}>
+        {/* Константы приложения — собственные настройки шины: их состав
+            задан ею, и своя запись здесь ничего не включит. */}
+        <Button
+          variant="primary"
+          disabled={!scope || scopeId === 'application'}
+          title={scopeId === 'application' ? t('properties.add.fixed') : undefined}
+          onClick={() => setAdding({ ...EMPTY })}
+        >
           {t('properties.add')}
         </Button>
         <RefreshButton
@@ -278,6 +285,15 @@ export function PropertiesScreen({ connection, server, onGoToConnection }: Props
  * Enter сохраняет, Esc возвращает прежнее значение, уход фокуса сохраняет
  * молча — так правка сотни констант не превращается в сотню диалогов.
  */
+/**
+ * На сколько поле правки сдвигается влево.
+ *
+ * У него своя рамка и свой отступ, и текст внутри вставал на семь пикселей
+ * правее заголовка колонки — значение переставало стоять под подписью.
+ * Сдвигаем поле ровно на эту величину: рамка (1) плюс отступ (6).
+ */
+const INLINE_EDIT_INSET = '-ml-[7px]'
+
 function InlineEdit({ value, placeholder, title, mono, busy, onSave }: {
   value: string
   placeholder?: string
@@ -318,6 +334,7 @@ function InlineEdit({ value, placeholder, title, mono, busy, onSave }: {
         className={cx(
           'min-w-0 flex-1 rounded border border-transparent bg-transparent px-1.5 py-1 text-[12px] outline-none transition',
           'hover:border-line-strong focus:border-accent focus:bg-surface',
+          INLINE_EDIT_INSET,
           mono && 'font-mono',
         )}
       />

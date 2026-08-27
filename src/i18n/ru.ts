@@ -751,6 +751,7 @@ export const ru: Record<keyof typeof en, string> = {
   'properties.key': 'Имя',
   'properties.value': 'Значение',
   'properties.add': 'Добавить константу',
+  'properties.add.fixed': 'Константы приложения — собственные настройки шины: их состав задан ею, и своя запись здесь ничего не включит',
   'properties.delete': 'Удалить',
   'properties.save': 'Сохранить',
   'properties.secured': 'Скрывать значение',

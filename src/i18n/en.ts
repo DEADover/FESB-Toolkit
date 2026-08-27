@@ -751,6 +751,7 @@ export const en = {
   'properties.key': 'Name',
   'properties.value': 'Value',
   'properties.add': 'Add constant',
+  'properties.add.fixed': 'The application constants belong to the bus itself: their set is fixed, and a new one here would switch nothing on',
   'properties.delete': 'Delete',
   'properties.save': 'Save',
   'properties.secured': 'Hide the value',
