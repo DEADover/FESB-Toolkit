@@ -6,7 +6,7 @@ import { AuditScreen } from './components/AuditScreen'
 import { ConnectionScreen } from './components/ConnectionScreen'
 import { DomainLinksScreen } from './components/DomainLinksScreen'
 import { ServerSwitch } from './components/HeaderBar'
-import { DomainsScreen } from './components/DomainsScreen'
+import { DomainsScreen, type PullIntent } from './components/DomainsScreen'
 import { LogsScreen } from './components/LogsScreen'
 import { MapScreen } from './components/MapScreen'
 import { ModulesScreen } from './components/ModulesScreen'
@@ -19,13 +19,13 @@ import { TraceScreen } from './components/TraceScreen'
 import { Badge, Button, cx, Notice, Spinner } from './components/ui'
 import { useI18n, type MessageKey } from './i18n'
 import {
-  apiConnect, apiPull, appInfo, errorText, onApiProgress, onExtractProgress, onFileDrop,
-  onScanProgress, openArchive, scanDirectory, selectArchive, selectFolder,
+  apiConnect, apiPull, appInfo, buildArchive, errorText, onApiProgress, onExtractProgress, onFileDrop, onScanProgress, openArchive, saveZipAs, scanDirectory, selectArchive, selectFolder,
 } from './lib/api'
 import {
   autoConnectTarget, markUsed, readStore, toConnection, writeStore,
   type ConnectionProfile, type ConnectionStore,
 } from './lib/connection'
+import { localStamp } from './lib/paths'
 import { applyThemeMode, readThemeMode, storeThemeMode, type ThemeMode } from './lib/theme'
 import type {
   ApiProgress, AppInfo, ArchiveProgress, Connection, ScanProgress, ScanResult, ServerInfo,
@@ -167,8 +167,10 @@ export default function App() {
   const connectProfile = useCallback(async (profile: ConnectionProfile) => {
     setConnecting(true)
     try {
-      const connection = toConnection(profile)
-      const server = await apiConnect(connection)
+      const server = await apiConnect(toConnection(profile))
+      // Адрес мог быть введён без схемы и без /manager: подключение подобрало
+      // рабочий вариант, и дальше все вызовы идут уже по нему, без перебора.
+      const connection = { ...toConnection(profile), url: server.baseUrl }
       setSession({ server, connection, profile })
       setConnections((prev) => {
         const next = markUsed(prev, profile.id, new Date().toISOString())
@@ -205,14 +207,25 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  /** Забирает домены с сервера и передаёт их обычному редактору. */
-  const pull = useCallback(async (guids: string[] | null) => {
+  /**
+   * Забирает домены с сервера.
+   *
+   * Выгрузка одна и та же, различается только то, что происходит потом:
+   * либо домены открываются в редакторе, либо сразу складываются в архив.
+   * Второй случай раньше приходилось доводить вручную через редактор.
+   */
+  const pull = useCallback(async (guids: string[] | null, intent: PullIntent) => {
     if (!session) return
     setPulling(true)
     setPullError(null)
     setApiProgress(null)
     try {
       const result = await apiPull(session.connection, guids)
+      if (intent === 'archive') {
+        const output = await saveZipAs(t('dialog.saveZip'), `config-${localStamp()}.zip`)
+        if (output) await buildArchive(result.root, output, null)
+        return
+      }
       setSource({ kind: 'server', path: session.server.baseUrl })
       await runScan(result.root)
       setScreen('files.trace')
@@ -222,7 +235,7 @@ export default function App() {
       setPulling(false)
       setApiProgress(null)
     }
-  }, [session, runScan])
+  }, [session, runScan, t])
 
   // Перетаскивание работает на любом экране: папка или архив открываются сразу.
   useEffect(() => {

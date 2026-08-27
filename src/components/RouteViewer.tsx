@@ -7,7 +7,7 @@ import { errorText, readRoute, revealPath } from '../lib/api'
 import type { RouteGraph, RouteNeighbours, RouteNode, RouteState } from '../types'
 import { byUri } from '../lib/links'
 import { kindLabel, RouteDiagram, scheme, shortUri } from './RouteDiagram'
-import { Badge, Button, cx, DataTable, Notice, Spinner } from './ui'
+import { Badge, Button, cx, DataTable, Notice, Spinner, Th, THead } from './ui'
 
 interface Props {
   /** Путь к файлу СОПС; `null` — просмотрщик закрыт. */
@@ -298,9 +298,14 @@ function Details({ node }: { node: RouteNode }) {
   for (const exception of node.exceptions) {
     rows.push({ label: t('route.row.exception'), value: exception, mono: true })
   }
+  const assignments = node.assignments ?? []
   for (const attribute of node.attributes) {
+    // У склеенного компонента `name` — это имя первой строки таблицы,
+    // а не свойство шага: показывать его отдельно было бы враньём.
+    if (assignments.length > 0 && attribute.name === 'name') continue
     rows.push({ label: attribute.name, value: attribute.value || '—', mono: true })
   }
+  if (assignments.length > 0) rows.push({ label: t('route.row.assignments'), value: String(assignments.length) })
 
   return (
     <div className="flex flex-col gap-4 px-5 py-4">
@@ -312,7 +317,7 @@ function Details({ node }: { node: RouteNode }) {
           <span className="block text-[10px] uppercase tracking-wide text-content-subtle">
             {kindLabel(node.kind, t)}
           </span>
-          <span className="block break-words text-[14px] font-semibold leading-tight">
+          <span className="block break-words text-[15px] font-semibold leading-tight">
             {node.label ?? kindLabel(node.kind, t)}
           </span>
         </span>
@@ -339,13 +344,51 @@ function Details({ node }: { node: RouteNode }) {
         </DataTable>
       </div>
 
+      {/*
+        Таблица присвоений — так же, как в редакторе FESB: имя, язык, выражение.
+        Один блок «Установить переменные» задаёт их пачкой, и читать их надо
+        вместе, а не как десяток одинаковых шагов на схеме.
+      */}
+      {assignments.length > 0 && (
+        <Block label={t('route.assignments', { count: assignments.length })}>
+          <div className="overflow-hidden rounded-lg border border-line">
+            <DataTable dense>
+              {/* Панель узкая: имени и синтаксиса хватает малого, выражению нужен остаток. */}
+              <colgroup>
+                <col className="w-28" />
+                <col className="w-14" />
+                <col />
+              </colgroup>
+              <THead>
+                <Th className="px-2 py-1.5">{t('route.assign.name')}</Th>
+                <Th className="px-2 py-1.5">{t('route.assign.language')}</Th>
+                <Th className="px-2 py-1.5">{t('route.assign.value')}</Th>
+              </THead>
+              <tbody>
+                {assignments.map((item, index) => (
+                  <tr key={`${item.name}-${index}`} className="border-b border-line/60 align-top last:border-b-0">
+                    <td className="break-all px-2 py-1.5 font-mono text-[11px] text-content">{item.name || '—'}</td>
+                    <td className="px-2 py-1.5 font-mono text-[10px] uppercase text-content-subtle">
+                      {item.language ?? '—'}
+                    </td>
+                    <td className="break-all px-2 py-1.5 font-mono text-[11px] text-content-muted">
+                      {item.value || '—'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </DataTable>
+          </div>
+        </Block>
+      )}
+
       {node.uri && (
         <Block label={t('route.uri')}>
           <code className="block break-all font-mono text-[11px] leading-relaxed text-content-muted">{node.uri}</code>
         </Block>
       )}
 
-      {node.expression && (
+      {node.expression && assignments.length === 0 && (
         <Block label={t('route.expression', { language: node.expression.language })}>
           <pre className="max-h-80 overflow-auto whitespace-pre-wrap break-all font-mono text-[11px] leading-relaxed text-content-muted">
             {node.expression.text}

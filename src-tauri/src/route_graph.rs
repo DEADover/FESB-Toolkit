@@ -53,6 +53,14 @@ pub struct Attribute {
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct Assignment {
+    pub name: String,
+    pub language: Option<String>,
+    pub value: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct RouteNode {
     /// Имя элемента Camel: `to`, `choice`, `doTry`, `setHeader`…
     pub kind: String,
@@ -69,11 +77,23 @@ pub struct RouteNode {
     /// Классы исключений у `doCatch`.
     pub exceptions: Vec<String>,
     pub attributes: Vec<Attribute>,
+    /// Присвоения одного компонента: `имя → выражение`.
+    ///
+    /// Один блок «Установить переменные» в редакторе FESB кладёт в XML
+    /// столько элементов `setProperty`, сколько в нём строк, и все они несут
+    /// один `factor-guid`. Рисовать их отдельными шагами — значит показать
+    /// тридцать блоков там, где в редакторе их восемь.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub assignments: Vec<Assignment>,
     pub children: Vec<RouteNode>,
     pub line: usize,
     /// Собственный текст элемента: нужен, только чтобы свернуть его в родителя.
     #[serde(skip)]
     text: String,
+    /// `factor-guid` — идентификатор компонента редактора. Не показывается,
+    /// нужен, чтобы склеить соседние элементы одного компонента в один шаг.
+    #[serde(skip)]
+    guid: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -196,9 +216,11 @@ fn blank(kind: &str, line: usize) -> RouteNode {
         format: None,
         exceptions: Vec::new(),
         attributes: Vec::new(),
+        assignments: Vec::new(),
         children: Vec::new(),
         line,
         text: String::new(),
+        guid: None,
     }
 }
 
@@ -290,9 +312,11 @@ fn build_node(
         format: None,
         exceptions: Vec::new(),
         attributes: kept,
+        assignments: Vec::new(),
         children: Vec::new(),
         line: line_at(xml, start),
         text: inner_text(xml, text_from, text_to),
+        guid: value("factor-guid"),
     };
     node.children = fold(&mut node, children);
     node
@@ -338,7 +362,74 @@ fn fold(parent: &mut RouteNode, children: Vec<RouteNode>) -> Vec<RouteNode> {
         kept.push(child);
     }
 
-    kept
+    merge_components(kept)
+}
+
+/// Склеивает соседние элементы одного компонента редактора в один шаг.
+///
+/// В редакторе FESB блок «Установить переменные» — это таблица: сколько строк,
+/// столько элементов `setProperty` в XML, и все они помечены одним
+/// `factor-guid`. Отдельными шагами их рисовать нельзя: на корпусе из 255
+/// доменов это 36% лишних блоков, а на отдельных СОПС — тридцать блоков
+/// вместо тринадцати.
+fn merge_components(nodes: Vec<RouteNode>) -> Vec<RouteNode> {
+    let mut out: Vec<RouteNode> = Vec::with_capacity(nodes.len());
+
+    for node in nodes {
+        let same = match (&node.guid, out.last()) {
+            // Склеиваем только присвоения: у ветвлений и вызовов одинаковый
+            // guid значил бы совсем другое, да и детей у них терять нельзя.
+            (Some(guid), Some(prev)) => {
+                prev.guid.as_deref() == Some(guid.as_str())
+                    && prev.kind == node.kind
+                    && is_assignment(&node.kind)
+                    && node.children.is_empty()
+            }
+            _ => false,
+        };
+        if !same {
+            out.push(node);
+            continue;
+        }
+
+        let previous = out.last_mut().expect("проверено выше");
+        if previous.assignments.is_empty() {
+            previous.assignments.push(assignment_of(previous));
+        }
+        previous.assignments.push(assignment_of(&node));
+    }
+
+    // Одинокое присвоение остаётся как было: таблица из одной строки не нужна.
+    for node in &mut out {
+        if node.assignments.len() == 1 {
+            node.assignments.clear();
+        }
+    }
+    out
+}
+
+/// Шаги, которые в редакторе задаются таблицей «имя — выражение».
+fn is_assignment(kind: &str) -> bool {
+    matches!(kind, "setProperty" | "setHeader" | "setVariable" | "setExchangePattern")
+}
+
+fn assignment_of(node: &RouteNode) -> Assignment {
+    let name = node
+        .attributes
+        .iter()
+        .find(|attr| attr.name == "name")
+        .map(|attr| attr.value.clone())
+        .unwrap_or_default();
+    let value = node
+        .expression
+        .as_ref()
+        .map(|expression| expression.text.clone())
+        .unwrap_or_else(|| node.text.clone());
+    Assignment {
+        name,
+        language: node.expression.as_ref().map(|expression| expression.language.clone()),
+        value,
+    }
 }
 
 #[cfg(test)]
@@ -476,5 +567,64 @@ mod tests {
             graph.nodes[0].expression.as_ref().map(|e| e.text.as_str()),
             Some("if (a < b) return 1"),
         );
+    }
+}
+
+#[cfg(test)]
+mod component_tests {
+    use super::*;
+
+    /// Одна таблица «Установить переменные» на пять строк — это один шаг.
+    #[test]
+    fn assignments_of_one_component_become_one_step() {
+        let xml = r#"<routes><route id="r"><from uri="direct://in"/>
+            <setProperty factor-component="SetPropertyEndpoint" factor-guid="endpoint-1"
+                factor-name="Установить переменные" id="a" name="poaAttName">
+                <simple>${body.documentFile.fileName}</simple>
+            </setProperty>
+            <setProperty factor-component="SetPropertyEndpoint" factor-guid="endpoint-1"
+                factor-name="Установить переменные" id="b" name="sigAttName">
+                <simple>${body.signatureFile.fileName}</simple>
+            </setProperty>
+            <setProperty factor-component="SetPropertyEndpoint" factor-guid="endpoint-2"
+                factor-name="Установить переменные" id="c" name="fnsCode">
+                <groovy>body.documentHeader.addressedFTSOfficeID</groovy>
+            </setProperty>
+            <to uri="direct://out"/></route></routes>"#;
+        let graph = &parse_route_graphs(xml)[0];
+        let kinds: Vec<&str> = graph.nodes.iter().map(|n| n.kind.as_str()).collect();
+        assert_eq!(kinds, ["from", "setProperty", "setProperty", "to"]);
+
+        let merged = &graph.nodes[1];
+        assert_eq!(merged.assignments.len(), 2);
+        assert_eq!(merged.assignments[0].name, "poaAttName");
+        assert_eq!(merged.assignments[0].value, "${body.documentFile.fileName}");
+        assert_eq!(merged.assignments[1].name, "sigAttName");
+
+        // Второй компонент — отдельный шаг, и он один: таблицы из одной строки нет.
+        assert!(graph.nodes[2].assignments.is_empty());
+    }
+
+    /// Разные компоненты подряд не склеиваются, даже если это один и тот же тег.
+    #[test]
+    fn different_components_stay_apart() {
+        let xml = r#"<routes><route id="r"><from uri="direct://in"/>
+            <setHeader factor-guid="endpoint-1" id="a" name="one"><simple>1</simple></setHeader>
+            <setHeader factor-guid="endpoint-2" id="b" name="two"><simple>2</simple></setHeader>
+            </route></routes>"#;
+        let graph = &parse_route_graphs(xml)[0];
+        assert_eq!(graph.nodes.len(), 3);
+        assert!(graph.nodes.iter().all(|n| n.assignments.is_empty()));
+    }
+
+    /// Шаги с детьми не склеиваются никогда: иначе потерялись бы ветки.
+    #[test]
+    fn steps_with_children_are_never_merged() {
+        let xml = r#"<routes><route id="r"><from uri="direct://in"/>
+            <choice factor-guid="endpoint-1" id="a"><when><simple>1</simple><to uri="direct://x"/></when></choice>
+            <choice factor-guid="endpoint-1" id="b"><when><simple>2</simple><to uri="direct://y"/></when></choice>
+            </route></routes>"#;
+        let graph = &parse_route_graphs(xml)[0];
+        assert_eq!(graph.nodes.iter().filter(|n| n.kind == "choice").count(), 2);
     }
 }

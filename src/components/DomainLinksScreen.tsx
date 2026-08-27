@@ -9,7 +9,7 @@ import { RouteViewer } from './RouteViewer'
 import {
   RefreshButton, ScreenBody,
 } from './ApiShell'
-import { Badge, cx, DataTable, Notice, Readout, SearchInput, Th, THead, Toggle } from './ui'
+import { Badge, cx, DataTable, EmptyState, Notice, Readout, SearchInput, Th, THead, Toggle } from './ui'
 
 interface Props {
   scan: ScanResult | null
@@ -129,15 +129,11 @@ export function DomainLinksScreen({ scan, isMac }: Props) {
 
   if (!scan) {
     return (
-      <div className="flex flex-1 items-center justify-center px-6 pb-10">
-        <div className="max-w-md text-center">
-          <div className="mx-auto grid size-14 place-items-center rounded-2xl bg-surface-2 text-accent-content">
-          <ArrowsLeftRight size={24} weight="regular" />
-        </div>
-          <h2 className="mt-4 text-[15px] font-semibold">{t('domainLinks.noScan')}</h2>
-          <p className="mt-2 text-content-subtle">{t('domainLinks.noScan.text')}</p>
-        </div>
-      </div>
+      <EmptyState
+        icon={ArrowsLeftRight}
+        title={t('domainLinks.noScan')}
+        text={t('domainLinks.noScan.text')}
+      />
     )
   }
 

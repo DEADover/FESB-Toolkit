@@ -1,14 +1,17 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
-import { ArrowsClockwise, ArrowsLeftRight, Play, Stop } from '@phosphor-icons/react'
+import { ArrowsClockwise, Play, Stop } from '@phosphor-icons/react'
 
 import { useI18n } from '../i18n'
 import { apiDomainAction, apiDomains, errorText } from '../lib/api'
 import type { ApiDomain, ApiProgress, Connection, DomainAction, ServerInfo } from '../types'
 import {
-  RefreshButton, ScreenBody,
+  NotConnected, RefreshButton, ScreenBody,
 } from './ApiShell'
-import { Badge, Button, Checkbox, cx, DataTable, IconButton, Modal, Notice, SearchInput, Spinner, Th, THead, Toggle } from './ui'
+import { Badge, Button, Checkbox, cx, DataTable, FOCUS_RING, IconButton, Modal, Notice, SearchInput, Spinner, Th, THead, Toggle } from './ui'
+
+/** Что делать с доменами после выгрузки. */
+export type PullIntent = 'edit' | 'archive'
 
 interface Props {
   connection: Connection | null
@@ -17,7 +20,7 @@ interface Props {
   progress: ApiProgress | null
   /** Ошибка последней выгрузки — приходит из App, где живёт сам вызов. */
   error: string | null
-  onPull: (guids: string[] | null) => void
+  onPull: (guids: string[] | null, intent: PullIntent) => void
   onGoToConnection: () => void
 }
 
@@ -48,6 +51,14 @@ export function DomainsScreen({ connection, server, pulling, progress, error: pu
     finished: boolean
   } | null>(null)
   const [confirmBulk, setConfirmBulk] = useState<DomainAction | null>(null)
+  /**
+   * Что забираем, пока не выбрано, зачем.
+   *
+   * `undefined` — вопрос не задан, `null` — забираем все домены,
+   * массив — выбранные. Различать нужно, потому что «все» и «пустой список»
+   * для сервера не одно и то же.
+   */
+  const [asking, setAsking] = useState<string[] | null | undefined>(undefined)
 
   const load = useCallback(async () => {
     if (!connection) return
@@ -164,20 +175,8 @@ export function DomainsScreen({ connection, server, pulling, progress, error: pu
     })
   }, [visible])
 
-  if (!connection || !server) {
-    return (
-      <div className="flex flex-1 items-center justify-center px-6 pb-10">
-        <div className="max-w-md text-center">
-          <div className="mx-auto grid size-14 place-items-center rounded-2xl bg-surface-2 text-accent-content">
-          <ArrowsLeftRight size={24} weight="regular" />
-        </div>
-          <h2 className="mt-4 text-[15px] font-semibold">{t('api.notConnected')}</h2>
-          <p className="mt-2 text-content-subtle">{t('api.notConnected.text')}</p>
-          <Button variant="primary" className="mt-5" onClick={onGoToConnection}>{t('nav.api.connection')}</Button>
-        </div>
-      </div>
-    )
-  }
+  // На этом экране заглушка своя: с неё уводят прямо на подключение.
+  if (!connection || !server) return <NotConnected onGoToConnection={onGoToConnection} />
 
   const allVisibleSelected = visible.length > 0 && visible.every((domain) => selected.has(domain.guid))
 
@@ -328,17 +327,13 @@ export function DomainsScreen({ connection, server, pulling, progress, error: pu
               {t('api.pull.progress', { current: progress?.current ?? 0, total: progress?.total ?? selected.size })}
             </span>
           )}
-          <Button
-            onClick={() => onPull(null)}
-            disabled={pulling}
-            title={t('api.pull.allHint')}
-          >
+          <Button onClick={() => setAsking(null)} disabled={pulling} title={t('api.pull.allHint')}>
             {t('api.pull.all', { count: domains?.length ?? 0 })}
           </Button>
           <Button
             variant="primary"
             // Выбраны все домены — это и есть «забрать всё»: перечислять их незачем.
-            onClick={() => onPull(selected.size === domains?.length ? null : [...selected])}
+            onClick={() => setAsking(selected.size === domains?.length ? null : [...selected])}
             disabled={pulling || selected.size === 0}
           >
             {pulling
@@ -435,7 +430,50 @@ export function DomainsScreen({ connection, server, pulling, progress, error: pu
           </div>
         )}
       </Modal>
+      {/*
+        Домены забирают ради двух разных вещей: чтобы поправить трассировку
+        и чтобы просто снять копию конфигурации. Раньше выгрузка всегда
+        открывала редактор, и второй случай приходилось доводить руками.
+      */}
+      <Modal
+        open={asking !== undefined}
+        onClose={() => setAsking(undefined)}
+        closeLabel={t('action.close')}
+        title={t('api.pull.intent.title')}
+      >
+        <p className="text-content-muted">{t('api.pull.intent.text')}</p>
+        <div className="mt-4 flex flex-col gap-2">
+          <IntentChoice
+            title={t('api.pull.intent.edit')}
+            text={t('api.pull.intent.edit.text')}
+            onClick={() => { const guids = asking ?? null; setAsking(undefined); onPull(guids, 'edit') }}
+          />
+          <IntentChoice
+            title={t('api.pull.intent.archive')}
+            text={t('api.pull.intent.archive.text')}
+            onClick={() => { const guids = asking ?? null; setAsking(undefined); onPull(guids, 'archive') }}
+          />
+        </div>
+      </Modal>
+
     </ScreenBody>
   )
 }
 
+/** Один вариант ответа на «зачем забираем»: заголовок и строчка пояснения. */
+function IntentChoice({ title, text, onClick }: { title: string; text: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cx(
+        'rounded-xl border border-line-strong bg-surface-2 px-4 py-3 text-left transition',
+        'hover:border-accent/50 hover:bg-surface-3',
+        FOCUS_RING,
+      )}
+    >
+      <div className="text-[13px] font-semibold">{title}</div>
+      <div className="mt-1 text-[11.5px] text-content-subtle">{text}</div>
+    </button>
+  )
+}

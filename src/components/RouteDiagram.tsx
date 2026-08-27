@@ -123,6 +123,14 @@ function firstLine(text: string, limit = 64): string {
 
 /** Одна строка под заголовком карточки — самое важное про шаг. */
 export function summary(node: RouteNode): string | null {
+  // Склеенный компонент подписывается именами первых переменных: по ним
+  // блок узнают, а полный список открывается в панели справа.
+  const assignments = node.assignments ?? []
+  if (assignments.length > 0) {
+    const names = assignments.map((item) => item.name).filter(Boolean)
+    const head = names.slice(0, 2).join(', ')
+    return names.length > 2 ? `${head} +${names.length - 2}` : head
+  }
   if (node.uri) return shortUri(node.uri)
   if (node.expression) return firstLine(node.expression.text)
   if (node.format) return node.format
@@ -684,7 +692,7 @@ function BoxView({ box, selected, onSelect, neighbours, onOpenRoute, t }: {
         onClick={() => onSelect(node)}
         style={style}
         className={cx(
-          'absolute grid place-items-center rounded-full border-2 text-[16px] transition',
+          'absolute grid place-items-center rounded-full border-2 transition',
           TONE_BORDER[box.tone],
           box.shape === 'end' && 'border-[3px]',
           selected ? 'ring-2 ring-accent ring-offset-2 ring-offset-canvas' : 'hover:border-content-subtle',

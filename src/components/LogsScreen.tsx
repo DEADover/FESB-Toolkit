@@ -5,9 +5,9 @@ import { useI18n } from '../i18n'
 import { apiLog, apiLogFiles, errorText } from '../lib/api'
 import type { Connection, LogEntry, LogFileRow, ServerInfo } from '../types'
 import {
-  AutoRefreshToggle, ErrorBar, FilterChip, LimitSelect, NotConnected, Panel, RefreshButton, ScreenBody, TableMessage, useApiData, useAutoRefresh,
+  AutoRefreshToggle, ErrorBar, LimitSelect, useDebounced, NotConnected, Panel, RefreshButton, ScreenBody, TableMessage, useApiData, useAutoRefresh,
 } from './ApiShell'
-import { Badge, Button, CodePill, cx, DataTable, ScrollStrip, SearchInput, Th, THead, TONES, type Tone } from './ui'
+import { Badge, Button, CodePill, cx, DataTable, MultiSelect, SearchInput, Th, THead, type Tone } from './ui'
 
 interface Props {
   connection: Connection | null
@@ -62,6 +62,10 @@ export function LogsScreen({ connection, server, onGoToConnection }: Props) {
     }
   }, [])
 
+  // Поиск уходит на сервер: без задержки запрос летел на каждую букву,
+  // и на тысяче записей окно заметно подвисало.
+  const query = useDebounced(search)
+
   const fetchEntries = useCallback(async () => {
     if (!connection) return
     setLoading(true)
@@ -70,7 +74,7 @@ export function LogsScreen({ connection, server, onGoToConnection }: Props) {
       const rows = await apiLog(connection, {
         logs: [...selectedFiles],
         levels: [...levels],
-        search: search.trim() || null,
+        search: query.trim() || null,
         limit,
       })
       setEntries(rows)
@@ -81,34 +85,34 @@ export function LogsScreen({ connection, server, onGoToConnection }: Props) {
     } finally {
       setLoading(false)
     }
-  }, [connection, selectedFiles, levels, search, limit])
+  }, [connection, selectedFiles, levels, query, limit])
 
   useEffect(() => { void fetchEntries() }, [fetchEntries])
   useAutoRefresh(auto, fetchEntries)
 
-  const toggleFile = useCallback((name: string) => {
-    setSelectedFiles((prev) => {
-      const next = new Set(prev)
-      if (next.has(name)) next.delete(name)
-      else next.add(name)
-      return next
-    })
-  }, [])
+  /**
+   * Строки готовятся один раз на выборку.
+   *
+   * Первая строка сообщения и признак «есть стектрейс» считались заново на
+   * каждой перерисовке: тысяча записей — тысяча `split` по многокилобайтному
+   * трейсу, и это на каждое нажатие клавиши.
+   */
+  const rows = useMemo(() => (entries ?? []).map((entry, index) => {
+    const message = entry.message ?? ''
+    const cut = message.indexOf('\n')
+    return {
+      entry,
+      index,
+      first: cut < 0 ? message : message.slice(0, cut),
+      multiline: cut >= 0,
+      message,
+    }
+  }), [entries])
 
-  const toggleLevel = useCallback((level: string) => {
-    setLevels((prev) => {
-      const next = new Set(prev)
-      if (next.has(level)) next.delete(level)
-      else next.add(level)
-      return next
-    })
-  }, [])
-
-  const rows = entries ?? []
   const counts = useMemo(() => {
     const result = new Map<string, number>()
-    for (const entry of rows) {
-      const level = entry.level ?? '—'
+    for (const row of rows) {
+      const level = row.entry.level ?? '—'
       result.set(level, (result.get(level) ?? 0) + 1)
     }
     return result
@@ -124,50 +128,36 @@ export function LogsScreen({ connection, server, onGoToConnection }: Props) {
           value={search}
           placeholder={t('logs.search')}
           onChange={setSearch}
+          clearLabel={t('action.clearSearch')}
+        />
+        <MultiSelect
+          label={t('logs.level')}
+          emptyLabel={t('filter.all')}
+          className="w-52"
+          options={LEVELS.map((level) => ({
+            id: level,
+            label: level,
+            tone: levelTone(level),
+            hint: counts.get(level) ? String(counts.get(level)) : undefined,
+          }))}
+          selected={levels}
+          onChange={setLevels}
+        />
+        <MultiSelect
+          label={t('logs.files')}
+          emptyLabel={t('logs.files.none')}
+          className="w-56"
+          options={(files.data ?? []).map((file) => ({
+            id: file.name,
+            label: file.name,
+            hint: formatBytes(file.size),
+          }))}
+          selected={selectedFiles}
+          onChange={setSelectedFiles}
         />
         <LimitSelect value={limit} onChange={setLimit} />
         <AutoRefreshToggle checked={auto} onChange={setAuto} />
-        <RefreshButton
-          busy={loading}
-          disabled={loading}
-          onClick={() => void fetchEntries()}
-        />
-      </div>
-
-      <div className="flex items-center gap-2">
-        <div className="flex shrink-0 items-center gap-1">
-          {LEVELS.map((level) => (
-            <FilterChip
-              key={level}
-              active={levels.has(level)}
-              activeClass={TONES[levelTone(level)]}
-              count={counts.get(level)}
-              onClick={() => toggleLevel(level)}
-            >
-              <span className="font-mono">{level}</span>
-            </FilterChip>
-          ))}
-        </div>
-
-        <ScrollStrip
-          className="min-w-0 flex-1"
-          itemCount={(files.data ?? []).length}
-          scrollLeftLabel={t('action.scrollLeft')}
-          scrollRightLabel={t('action.scrollRight')}
-        >
-          {(files.data ?? []).map((file) => (
-            <FilterChip
-              key={file.name}
-              active={selectedFiles.has(file.name)}
-              className={cx(file.size === 0 && 'opacity-50')}
-              count={formatBytes(file.size)}
-              title={t('logs.fileHint', { size: formatBytes(file.size) })}
-              onClick={() => toggleFile(file.name)}
-            >
-              <span className="whitespace-nowrap font-mono">{file.name}</span>
-            </FilterChip>
-          ))}
-        </ScrollStrip>
+        <RefreshButton busy={loading} disabled={loading} onClick={() => void fetchEntries()} />
       </div>
 
       <ErrorBar error={error ?? files.error} />
@@ -187,9 +177,7 @@ export function LogsScreen({ connection, server, onGoToConnection }: Props) {
               <Th>{t('logs.message')}</Th>
             </THead>
           <tbody>
-            {rows.map((entry, index) => {
-              const message = entry.message ?? ''
-              const multiline = message.includes('\n')
+            {rows.map(({ entry, index, first, multiline, message }) => {
               const open = expanded.has(index)
               return (
                 <Fragment key={`${entry.timestamp ?? ''}-${index}`}>
@@ -218,7 +206,7 @@ export function LogsScreen({ connection, server, onGoToConnection }: Props) {
                   <td className="px-3 py-1.5">
                     <div className="flex items-start gap-2">
                       <span className="min-w-0 flex-1 truncate font-mono text-[11.5px]">
-                        {message.split('\n')[0] || '—'}
+                        {first || '—'}
                       </span>
                       {multiline && (
                         <Badge tone={open ? 'accent' : 'neutral'} title={t('logs.expandHint')}>

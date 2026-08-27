@@ -268,7 +268,7 @@ export function RoutesScreen({ connection, server, isMac, initialGuid, onGoToCon
                 <col className="w-24" />
                 <col className="w-20" />
                 <col className="w-16" />
-                <col className="hidden w-16 xl:table-column" />
+                <col className="hidden w-20 xl:table-column" />
                 <col className="w-28" />
               </colgroup>
               <THead>
@@ -276,7 +276,7 @@ export function RoutesScreen({ connection, server, isMac, initialGuid, onGoToCon
                   <Th>{t('table.state')}</Th>
                   <Th align="right">{t('routes.processed')}</Th>
                   <Th align="right">{t('map.errors')}</Th>
-                  <Th align="right" className="hidden xl:table-cell">{t('map.inflight')}</Th>
+                  <Th align="right" className="hidden whitespace-nowrap xl:table-cell">{t('map.inflight')}</Th>
                   <Th>{t('modules.actions')}</Th>
                 </THead>
               <tbody>

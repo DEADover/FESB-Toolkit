@@ -8,7 +8,7 @@ import type { Connection, QueueManager, QueueMessage, QueueRow, ServerInfo } fro
 import {
   AutoRefreshToggle, ErrorBar, NotConnected, Panel, RefreshButton, ScreenBody, TableMessage, useApiData, useAutoRefresh,
 } from './ApiShell'
-import { Badge, Button, Checkbox, cx, DataTable, IconButton, Notice, SearchInput, Spinner, Th, THead } from './ui'
+import { Badge, Button, cx, DataTable, IconButton, Notice, SearchInput, Spinner, Th, THead, Toggle } from './ui'
 
 interface Props {
   connection: Connection | null
@@ -148,12 +148,10 @@ export function QueuesScreen({ connection, server, onGoToConnection }: Props) {
           placeholder={t('queues.search')}
           onChange={setQuery}
         />
-            <label className="flex h-9 shrink-0 cursor-pointer items-center gap-2 whitespace-nowrap rounded-lg border border-line-strong bg-surface px-3 text-[12.5px] text-content-muted">
-              <Checkbox checked={hideInternal} onChange={(event) => setHideInternal(event.target.checked)} />
-              {t('queues.hideInternal')}
-            </label>
+            <Toggle checked={hideInternal} onChange={setHideInternal} label={t('queues.hideInternal')} />
             {selected && (
               <IconButton
+                size="md"
                 icon={copied === selected.broker ? Check : Copy}
                 label={copied === selected.broker ? t('queues.copied') : t('queues.copyBroker')}
                 onClick={() => copy(selected.broker)}

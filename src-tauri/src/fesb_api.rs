@@ -41,6 +41,19 @@ const JUNK_FILES: [&str; 2] = [".DS_Store", "Thumbs.db"];
 
 // ───────────────────────────── подключение ─────────────────────────────
 
+/// Похоже ли на стенд без TLS: локальный хост или явный порт, кроме 443.
+fn plain_http_likely(raw: &str) -> bool {
+    let host = raw.split(['/', '?']).next().unwrap_or(raw);
+    let (name, port) = match host.rsplit_once(':') {
+        Some((name, port)) if port.chars().all(|c| c.is_ascii_digit()) => (name, Some(port)),
+        _ => (host, None),
+    };
+    if matches!(name, "localhost" | "127.0.0.1" | "0.0.0.0" | "::1") {
+        return true;
+    }
+    matches!(port, Some(port) if port != "443")
+}
+
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Connection {
@@ -53,19 +66,51 @@ pub struct Connection {
 }
 
 impl Connection {
-    /// Приводит адрес к виду `http://host:port/manager`.
+    /// Адрес, по которому идут запросы.
     ///
-    /// Пользователю достаточно ввести `localhost:8181` — путь до менеджера
-    /// подставится сам, но явно указанный путь мы не трогаем.
+    /// Это первый из вариантов `candidates()`: подключение уже прошло проверку
+    /// и приложение хранит найденный адрес целиком, так что гадать не нужно.
     pub(crate) fn base(&self) -> String {
+        self.candidates().into_iter().next().unwrap_or_else(|| self.url.trim().to_string())
+    }
+
+    /// Адреса, которые стоит перебрать при подключении.
+    ///
+    /// Пользователю незачем помнить ни схему, ни путь до менеджера: достаточно
+    /// `esb.corp:8181` или даже `esb.corp`. Схема и путь дописываются сами,
+    /// а порядок перебора выбран так, чтобы обычный случай угадывался с первого
+    /// раза: локальный стенд и явный порт — это почти всегда http, всё
+    /// остальное в корпоративной сети — https.
+    pub(crate) fn candidates(&self) -> Vec<String> {
         let raw = self.url.trim().trim_end_matches('/');
-        let full = if raw.contains("://") { raw.to_string() } else { format!("http://{raw}") };
-        let after_scheme = full.splitn(2, "://").nth(1).unwrap_or("");
-        if after_scheme.contains('/') {
-            full
-        } else {
-            format!("{full}/manager")
+        if raw.is_empty() {
+            return Vec::new();
         }
+
+        let (schemes, rest) = match raw.split_once("://") {
+            // Схему указали явно — уважаем и не подставляем вторую.
+            Some((scheme, rest)) => (vec![scheme.to_string()], rest.to_string()),
+            None if plain_http_likely(raw) => (vec!["http".into(), "https".into()], raw.to_string()),
+            None => (vec!["https".into(), "http".into()], raw.to_string()),
+        };
+
+        // Путь указали — значит, знают, куда идут; иначе пробуем и с /manager, и без.
+        let paths: Vec<String> = if rest.contains('/') {
+            vec![String::new()]
+        } else {
+            vec!["/manager".into(), String::new()]
+        };
+
+        let mut out = Vec::new();
+        for path in &paths {
+            for scheme in &schemes {
+                let candidate = format!("{scheme}://{rest}{path}");
+                if !out.contains(&candidate) {
+                    out.push(candidate);
+                }
+            }
+        }
+        out
     }
 
     pub(crate) fn client(&self) -> Result<reqwest::Client, String> {
@@ -233,15 +278,45 @@ struct RawModule {
     running: bool,
 }
 
+/// Находит рабочий адрес, перебирая варианты из `candidates()`.
+///
+/// Пробуем по очереди, пока какой-то не ответит на `/api/security/user`.
+/// Ответ «нет прав» или «неверный пароль» — тоже находка: сервер там есть,
+/// перебирать дальше незачем, ошибку показываем как есть.
+async fn resolve(
+    connection: &Connection,
+    client: &reqwest::Client,
+) -> Result<(Connection, reqwest::Response), String> {
+    let candidates = connection.candidates();
+    if candidates.is_empty() {
+        return Err("The server address is empty".into());
+    }
+    let mut last: Option<String> = None;
+    for url in candidates {
+        let attempt = Connection { url: url.clone(), ..connection.clone() };
+        match attempt.get(client, "/api/security/user").send().await {
+            Ok(response) if response.status().is_success() => {
+                return Ok((attempt, response));
+            }
+            Ok(response) => {
+                // Сервер отвечает, но отказывает: адрес верный, дело в правах.
+                let status = response.status();
+                if status == reqwest::StatusCode::UNAUTHORIZED || status == reqwest::StatusCode::FORBIDDEN {
+                    let body = ensure_ok(response, "Cannot read the current user").await;
+                    return Err(body.err().unwrap_or_else(|| "Access denied".into()));
+                }
+                last = Some(format!("{url} answered {}", status.as_u16()));
+            }
+            Err(err) => last = Some(format!("{url}: {}", transport_error(err))),
+        }
+    }
+    Err(last.unwrap_or_else(|| "The server did not answer".into()))
+}
+
 pub async fn connect(connection: &Connection) -> Result<ServerInfo, String> {
     let client = connection.client()?;
-
-    let response = connection
-        .get(&client, "/api/security/user")
-        .send()
-        .await
-        .map_err(transport_error)?;
-    let body = ensure_ok(response, "Cannot read the current user").await?;
+    let (connection, body) = resolve(connection, &client).await?;
+    let connection = &connection;
     let raw: serde_json::Value = body.json().await.map_err(|err| format!("Unexpected answer: {err}"))?;
     let user: SecurityUser = SecurityUser {
         username: raw.get("username").and_then(|v| v.as_str()).map(String::from),
@@ -1232,5 +1307,64 @@ mod tests {
         assert_eq!(fs::read_to_string(root.join("version")).unwrap(), "V8.6.524");
 
         let _ = fs::remove_dir_all(&dir);
+    }
+}
+
+#[cfg(test)]
+mod address_tests {
+    use super::*;
+
+    fn at(url: &str) -> Connection {
+        Connection { url: url.into(), username: "root".into(), password: "root".into(), insecure: true }
+    }
+
+    #[test]
+    fn local_stand_tries_plain_http_first() {
+        assert_eq!(
+            at("localhost:8181").candidates(),
+            [
+                "http://localhost:8181/manager",
+                "https://localhost:8181/manager",
+                "http://localhost:8181",
+                "https://localhost:8181",
+            ]
+        );
+    }
+
+    #[test]
+    fn corporate_host_tries_tls_first() {
+        assert_eq!(
+            at("esb.corp").candidates(),
+            [
+                "https://esb.corp/manager",
+                "http://esb.corp/manager",
+                "https://esb.corp",
+                "http://esb.corp",
+            ]
+        );
+    }
+
+    #[test]
+    fn explicit_scheme_and_path_are_left_alone() {
+        assert_eq!(at("https://esb.corp/console").candidates(), ["https://esb.corp/console"]);
+        assert_eq!(
+            at("http://esb.corp:8181").candidates(),
+            ["http://esb.corp:8181/manager", "http://esb.corp:8181"]
+        );
+    }
+
+    #[test]
+    fn port_443_is_read_as_tls() {
+        assert_eq!(at("esb.corp:443").candidates()[0], "https://esb.corp:443/manager");
+    }
+
+    #[test]
+    fn trailing_slash_and_spaces_do_not_matter() {
+        assert_eq!(at("  localhost:8181/  ").candidates()[0], "http://localhost:8181/manager");
+    }
+
+    #[test]
+    fn empty_address_has_nothing_to_try() {
+        assert!(at("   ").candidates().is_empty());
     }
 }

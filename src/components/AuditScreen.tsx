@@ -5,9 +5,9 @@ import { useI18n } from '../i18n'
 import { apiAudit, errorText } from '../lib/api'
 import type { AuditEntry, Connection, ServerInfo } from '../types'
 import {
-  AutoRefreshToggle, ErrorBar, FilterChip, LimitSelect, NotConnected, Panel, RefreshButton, ScreenBody, TableMessage, useAutoRefresh,
+  AutoRefreshToggle, ErrorBar, LimitSelect, NotConnected, Panel, RefreshButton, ScreenBody, TableMessage, useAutoRefresh, useDebounced,
 } from './ApiShell'
-import { Badge, CodePill, cx, DataTable, SearchInput, Th, THead } from './ui'
+import { Badge, CodePill, cx, DataTable, SearchInput, Select, Th, THead } from './ui'
 
 interface Props {
   connection: Connection | null
@@ -36,6 +36,9 @@ export function AuditScreen({ connection, server, onGoToConnection }: Props) {
   const [auto, setAuto] = useState(false)
   const [open, setOpen] = useState<number | null>(null)
 
+  // Как и в журналах: запрос уходит на сервер, а не фильтрует уже полученное.
+  const query = useDebounced(search)
+
   const load = useCallback(async () => {
     if (!connection) return
     setLoading(true)
@@ -44,7 +47,7 @@ export function AuditScreen({ connection, server, onGoToConnection }: Props) {
       setEntries(await apiAudit(connection, {
         logs: [],
         levels: [],
-        search: search.trim() || null,
+        search: query.trim() || null,
         limit,
       }))
       setOpen(null)
@@ -54,7 +57,7 @@ export function AuditScreen({ connection, server, onGoToConnection }: Props) {
     } finally {
       setLoading(false)
     }
-  }, [connection, search, limit])
+  }, [connection, query, limit])
 
   useEffect(() => { void load() }, [load])
   useAutoRefresh(auto, load)
@@ -85,31 +88,24 @@ export function AuditScreen({ connection, server, onGoToConnection }: Props) {
           value={search}
           placeholder={t('audit.search')}
           onChange={setSearch}
+          clearLabel={t('action.clearSearch')}
+        />
+        <Select<Filter>
+          ariaLabel={t('audit.kind')}
+          value={filter}
+          onChange={setFilter}
+          options={[
+            { id: 'action', label: `${t('audit.filter.action')} · ${counts.action}` },
+            { id: 'login', label: `${t('audit.filter.login')} · ${counts.login}` },
+            { id: 'session', label: `${t('audit.filter.session')} · ${counts.session}` },
+            { id: 'all', label: `${t('filter.all')} · ${entries.length}` },
+          ]}
         />
         <LimitSelect value={limit} onChange={setLimit} />
         <AutoRefreshToggle checked={auto} onChange={setAuto} />
-        <RefreshButton
-          busy={loading}
-          disabled={loading}
-          onClick={() => void load()}
-        />
-      </div>
-
-      <div className="flex items-center gap-1">
-        <FilterChip active={filter === 'action'} onClick={() => setFilter('action')} count={counts.action}>
-          {t('audit.filter.action')}
-        </FilterChip>
-        <FilterChip active={filter === 'login'} onClick={() => setFilter('login')} count={counts.login}>
-          {t('audit.filter.login')}
-        </FilterChip>
-        <FilterChip active={filter === 'session'} onClick={() => setFilter('session')} count={counts.session}>
-          {t('audit.filter.session')}
-        </FilterChip>
-        <FilterChip active={filter === 'all'} onClick={() => setFilter('all')} count={entries.length}>
-          {t('filter.all')}
-        </FilterChip>
+        <RefreshButton busy={loading} disabled={loading} onClick={() => void load()} />
         {counts.failed > 0 && (
-          <Badge tone="danger" className="ml-2" title={t('audit.failed.hint')}>
+          <Badge tone="danger" title={t('audit.failed.hint')}>
             {t('audit.failed', { count: counts.failed })}
           </Badge>
         )}

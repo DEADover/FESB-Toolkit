@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent, type ReactNode } from 'react'
 
 import { useI18n } from '../i18n'
+import { folderBesideExport, localStamp } from '../lib/paths'
 import {
   apiPush, apiQueueManagers, apiQueues, apiVerify, applyTrace, buildArchive, errorText,
   onApiProgress, onApplyProgress, onArchiveProgress, revealPath, routeLinks, saveZipAs,
@@ -932,27 +933,6 @@ function VerifyReport({ result }: { result: VerifyResult }) {
 }
 
 /** Метка времени в локальном часовом поясе: `2026-08-25-0112`. */
-function localStamp(): string {
-  const now = new Date()
-  const pad = (value: number) => String(value).padStart(2, '0')
-  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}`
-}
-
-/**
- * Папка, в которую логично положить новый архив: рядом с исходной выгрузкой.
- * Для `…/config-X/domains` это `…/`, для `…/config-X.zip` — тоже `…/`.
- */
-function folderBesideExport(source: string): string {
-  const separator = source.includes('\\') && !source.includes('/') ? '\\' : '/'
-  const parts = source.split(/[/\\]/).filter(Boolean)
-  const last = parts[parts.length - 1] ?? ''
-  // Файл архива и папка конфигурации лежат на одном уровне, папка domains — на уровень глубже.
-  const up = last === 'domains' ? 2 : 1
-  const kept = parts.slice(0, Math.max(parts.length - up, 0))
-  const prefix = source.startsWith('/') ? '/' : ''
-  return kept.length > 0 ? `${prefix}${kept.join(separator)}${separator}` : prefix
-}
-
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`
   const units = ['KB', 'MB', 'GB']

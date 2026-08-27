@@ -5,7 +5,7 @@ import { ArrowsClockwise, ArrowsLeftRight } from '@phosphor-icons/react'
 import { useI18n } from '../i18n'
 import { errorText } from '../lib/api'
 import type { Connection } from '../types'
-import { Button, cx, FOCUS_RING, Notice, Spinner, Toggle } from './ui'
+import { Button, cx, EmptyState, FOCUS_RING, Notice, Select, Spinner, Toggle } from './ui'
 
 /**
  * Общая обвязка для экранов раздела API: все они читают что-то с сервера,
@@ -16,16 +16,12 @@ import { Button, cx, FOCUS_RING, Notice, Spinner, Toggle } from './ui'
 export function NotConnected({ onGoToConnection }: { onGoToConnection: () => void }) {
   const { t } = useI18n()
   return (
-    <div className="flex flex-1 items-center justify-center px-6 pb-10">
-      <div className="max-w-md text-center">
-        <div className="mx-auto grid size-14 place-items-center rounded-2xl bg-surface-2 text-accent-content">
-          <ArrowsLeftRight size={24} weight="regular" />
-        </div>
-        <h2 className="mt-4 text-[15px] font-semibold">{t('api.notConnected')}</h2>
-        <p className="mt-2 text-content-subtle">{t('api.notConnected.text')}</p>
-        <Button variant="primary" className="mt-5" onClick={onGoToConnection}>{t('nav.api.connection')}</Button>
-      </div>
-    </div>
+    <EmptyState
+      icon={ArrowsLeftRight}
+      title={t('api.notConnected')}
+      text={t('api.notConnected.text')}
+      action={<Button variant="primary" onClick={onGoToConnection}>{t('nav.api.connection')}</Button>}
+    />
   )
 }
 
@@ -100,6 +96,22 @@ export function useApiData<T>(
   return { data, loading, error, reload, setError }
 }
 
+/**
+ * Значение, которое догоняет ввод с задержкой.
+ *
+ * Поиск в журналах и в аудите уходит на сервер, и без задержки запрос
+ * улетал на каждое нажатие клавиши: на тысяче записей это заметно
+ * подвешивало окно.
+ */
+export function useDebounced<T>(value: T, delay = 400): T {
+  const [settled, setSettled] = useState(value)
+  useEffect(() => {
+    const timer = setTimeout(() => setSettled(value), delay)
+    return () => clearTimeout(timer)
+  }, [value, delay])
+  return settled
+}
+
 /** Период автообновления: чаще смысла нет, счётчики шина считает не мгновенно. */
 const REFRESH_MS = 10_000
 
@@ -144,16 +156,12 @@ export function RefreshButton({ busy, disabled, className, onClick }: {
 export function LimitSelect({ value, onChange }: { value: number; onChange: (value: number) => void }) {
   const { t } = useI18n()
   return (
-    <select
+    <Select<number>
+      ariaLabel={t('logs.limit')}
       value={value}
-      onChange={(event) => onChange(Number(event.target.value))}
-      className="h-9 rounded-lg border border-line-strong bg-surface px-2 text-[12.5px] text-content outline-none"
-      aria-label={t('logs.limit')}
-    >
-      {[50, 200, 500, 1000].map((option) => (
-        <option key={option} value={option}>{t('logs.lines', { count: option })}</option>
-      ))}
-    </select>
+      onChange={onChange}
+      options={[50, 200, 500, 1000].map((option) => ({ id: option, label: t('logs.lines', { count: option }) }))}
+    />
   )
 }
 

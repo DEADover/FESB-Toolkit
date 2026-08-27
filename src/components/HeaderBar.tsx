@@ -5,7 +5,7 @@ import { CaretDown, Key } from '@phosphor-icons/react'
 import { useI18n, type MessageKey } from '../i18n'
 import { byEnvironment, type ConnectionProfile, type ConnectionStore, type Environment } from '../lib/connection'
 import type { ServerInfo } from '../types'
-import { Button, cx } from './ui'
+import { Button, CONTROL_HEIGHT, cx, FOCUS_RING } from './ui'
 
 /**
  * Переключатель стенда в шапке.
@@ -57,7 +57,9 @@ export function ServerSwitch({ store, active, server, connecting, onConnect, onD
         onClick={() => setOpen((value) => !value)}
         title={server ? server.baseUrl : t('switch.none')}
         className={cx(
-          'flex h-9 max-w-64 items-center gap-2 rounded-lg border px-2.5 text-[12.5px] transition',
+          CONTROL_HEIGHT,
+          'flex max-w-64 items-center gap-2 rounded-lg border px-2.5 text-[12.5px] transition',
+          FOCUS_RING,
           'border-line-strong bg-surface hover:bg-surface-2',
         )}
       >

@@ -300,7 +300,7 @@ export function ConnectionScreen({ store, onStore, server, activeProfileId, focu
                     id="profile-url"
                     value={draft.url}
                     autoComplete="url"
-                    placeholder="http://localhost:8181/manager"
+                    placeholder="localhost:8181"
                     onChange={(event) => set('url', event.target.value)}
                   />
                 </Field>

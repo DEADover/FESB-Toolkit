@@ -361,8 +361,22 @@ export interface RouteNode {
   format: string | null
   exceptions: string[]
   attributes: RouteAttribute[]
+  /**
+   * Присвоения одного компонента: «имя → выражение».
+   *
+   * Пусто у обычных шагов. Заполнено там, где в редакторе FESB стоит таблица:
+   * один блок «Установить переменные» кладёт в XML столько элементов, сколько
+   * в нём строк, и рисовать их отдельными шагами нельзя.
+   */
+  assignments?: RouteAssignment[]
   children: RouteNode[]
   line: number
+}
+
+export interface RouteAssignment {
+  name: string
+  language: string | null
+  value: string
 }
 
 export interface RouteGraph {

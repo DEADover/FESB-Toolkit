@@ -16,6 +16,9 @@ export function cx(...parts: Array<string | false | null | undefined>): string {
 export const FOCUS_RING =
   'focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent'
 
+/** Единая высота органов управления в рядах фильтров: поля, списки, кнопки. */
+export const CONTROL_HEIGHT = 'h-9'
+
 type ButtonProps = ComponentProps<'button'> & {
   variant?: 'primary' | 'secondary' | 'ghost'
   size?: 'sm' | 'md'
@@ -25,7 +28,7 @@ export function Button({ variant = 'secondary', size = 'md', className, ...rest 
   const base =
     'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg font-medium transition ' +
     'disabled:cursor-not-allowed disabled:opacity-40 ' + FOCUS_RING
-  const sizes = { sm: 'h-7 px-2.5 text-[12px]', md: 'h-9 px-3.5 text-[13px]' }
+  const sizes = { sm: 'h-7 px-2.5 text-[12px]', md: cx(CONTROL_HEIGHT, 'px-3.5 text-[13px]') }
   const variants = {
     primary: 'bg-accent-strong text-white hover:bg-accent shadow-sm shadow-accent-strong/25',
     secondary: 'border border-line-strong bg-surface-2 text-content hover:bg-surface-3',
@@ -41,12 +44,20 @@ export function Button({ variant = 'secondary', size = 'md', className, ...rest 
  * заметно шире английских — на трёх действиях это уже целая колонка.
  * Значение при этом остаётся в подсказке и в имени для экранного диктора.
  */
-export function IconButton({ icon: Glyph, label, busy, disabled, tone, onClick }: {
+export function IconButton({ icon: Glyph, label, busy, disabled, tone, size = 'sm', onClick }: {
   icon: Icon
   label: string
   busy?: boolean
   disabled?: boolean
   tone?: 'danger'
+  /**
+   * `sm` — для строк таблицы, `md` — для рядов фильтров.
+   *
+   * Иконка в 28 пикселей рядом с полем в 36 бросается в глаза: в ряду
+   * органы управления должны быть одной высоты, а в строке таблицы —
+   * наоборот, как можно ниже.
+   */
+  size?: 'sm' | 'md'
   onClick: () => void
 }) {
   return (
@@ -57,13 +68,14 @@ export function IconButton({ icon: Glyph, label, busy, disabled, tone, onClick }
       title={label}
       aria-label={label}
       className={cx(
-        'grid size-7 shrink-0 place-items-center rounded-md border border-line-strong bg-surface-2 text-[12px] transition',
+        'grid shrink-0 place-items-center border border-line-strong bg-surface-2 transition',
+        size === 'md' ? cx(CONTROL_HEIGHT, 'w-9 rounded-lg') : 'size-7 rounded-md',
         'hover:bg-surface-3 hover:text-content disabled:cursor-not-allowed disabled:opacity-35',
         FOCUS_RING,
         tone === 'danger' ? 'text-negative' : 'text-content-muted',
       )}
     >
-      {busy ? <Spinner className="size-3.5" /> : <Glyph size={15} weight="bold" />}
+      {busy ? <Spinner className="size-3.5" /> : <Glyph size={size === 'md' ? 16 : 15} weight="bold" />}
     </button>
   )
 }
@@ -182,6 +194,164 @@ export function SearchInput({ value, placeholder, onChange, className, inputRef,
 }
 
 /**
+ * Закрывает всплывающую панель по клику мимо неё и по Escape.
+ *
+ * Один обработчик на все выпадающие списки: у каждого свой был бы шансом
+ * забыть Escape.
+ */
+export function useClickAway(ref: React.RefObject<HTMLElement | null>, close: () => void) {
+  useEffect(() => {
+    const onDown = (event: MouseEvent) => {
+      if (ref.current && !ref.current.contains(event.target as Node)) close()
+    }
+    const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') close() }
+    window.addEventListener('mousedown', onDown)
+    window.addEventListener('keydown', onKey)
+    return () => {
+      window.removeEventListener('mousedown', onDown)
+      window.removeEventListener('keydown', onKey)
+    }
+  }, [ref, close])
+}
+
+/** Одиночный выбор: нативный список, но одетый как остальные поля. */
+export function Select<T extends string | number>({ value, options, onChange, ariaLabel, className }: {
+  value: T
+  options: Array<{ id: T; label: string }>
+  onChange: (value: T) => void
+  ariaLabel: string
+  className?: string
+}) {
+  return (
+    <select
+      value={value}
+      aria-label={ariaLabel}
+      onChange={(event) => {
+        const raw = event.target.value
+        const picked = options.find((option) => String(option.id) === raw)
+        if (picked) onChange(picked.id)
+      }}
+      className={cx(
+        CONTROL_HEIGHT,
+        'shrink-0 rounded-lg border border-line-strong bg-surface px-2 text-[12.5px] text-content outline-none transition',
+        'hover:border-content-subtle',
+        FOCUS_RING,
+        className,
+      )}
+    >
+      {options.map((option) => (
+        <option key={String(option.id)} value={String(option.id)}>{option.label}</option>
+      ))}
+    </select>
+  )
+}
+
+/**
+ * Выбор нескольких значений списком.
+ *
+ * Уровни журнала и сами файлы журналов раньше лежали рядом кнопок: на десяти
+ * файлах ряд переставал помещаться и уезжал под горизонтальную прокрутку.
+ * Список занимает одну кнопку и показывает, сколько выбрано.
+ */
+export function MultiSelect({ label, options, selected, onChange, className, emptyLabel }: {
+  label: string
+  options: Array<{ id: string; label: string; hint?: string; tone?: Tone }>
+  selected: Set<string>
+  onChange: (selected: Set<string>) => void
+  className?: string
+  /** Что показать, когда не выбрано ничего. */
+  emptyLabel: string
+}) {
+  const [open, setOpen] = useState(false)
+  const holder = useRef<HTMLDivElement>(null)
+  useClickAway(holder, () => setOpen(false))
+
+  const toggle = (id: string) => {
+    const next = new Set(selected)
+    if (next.has(id)) next.delete(id)
+    else next.add(id)
+    onChange(next)
+  }
+
+  const chosen = options.filter((option) => selected.has(option.id))
+  const summary = chosen.length === 0
+    ? emptyLabel
+    : chosen.length <= 2
+      ? chosen.map((option) => option.label).join(', ')
+      : `${chosen.length}`
+
+  return (
+    <div ref={holder} className={cx('relative shrink-0', className)}>
+      <button
+        type="button"
+        onClick={() => setOpen((value) => !value)}
+        title={label}
+        className={cx(
+          CONTROL_HEIGHT,
+          'flex w-full items-center gap-2 rounded-lg border border-line-strong bg-surface px-3 text-[12.5px] transition',
+          'hover:border-content-subtle',
+          FOCUS_RING,
+          chosen.length ? 'text-content' : 'text-content-subtle',
+        )}
+      >
+        <span className="shrink-0 text-content-subtle">{label}</span>
+        <span className="min-w-0 flex-1 truncate text-left font-medium">{summary}</span>
+        <CaretDown size={10} weight="bold" className="shrink-0 text-content-subtle" />
+      </button>
+
+      {open && (
+        <div className="absolute left-0 top-full z-40 mt-1 max-h-72 w-64 overflow-y-auto rounded-xl border border-line-strong bg-surface p-1.5 shadow-2xl">
+          {options.map((option) => (
+            <label
+              key={option.id}
+              title={option.hint}
+              className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-[12px] transition hover:bg-surface-3"
+            >
+              <Checkbox checked={selected.has(option.id)} onChange={() => toggle(option.id)} />
+              <span className={cx('min-w-0 flex-1 truncate', option.tone && TONES[option.tone].split(' ').pop())}>
+                {option.label}
+              </span>
+              {option.hint && <span className="shrink-0 text-[10.5px] text-content-subtle">{option.hint}</span>}
+            </label>
+          ))}
+          {options.length === 0 && (
+            <p className="px-2 py-4 text-center text-[11.5px] text-content-subtle">{emptyLabel}</p>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/**
+ * Пустая страница: значок, заголовок, пояснение и, если есть куда, кнопка.
+ *
+ * Лежала пятью копиями с разъехавшимися отступами — на экране подключений
+ * пояснение было на полпункта мельче остальных, и это было заметно.
+ */
+export function EmptyState({ icon: Glyph, title, text, action, children }: {
+  icon: Icon
+  title: string
+  text?: string
+  action?: ReactNode
+  children?: ReactNode
+}) {
+  return (
+    <div className="flex flex-1 items-center justify-center px-6 pb-10">
+      <div className="max-w-md text-center">
+        <div className="mx-auto grid size-14 place-items-center rounded-2xl bg-surface-2 text-accent-content">
+          <Glyph size={24} weight="regular" />
+        </div>
+        <h2 className="mt-4 text-[15px] font-semibold">{title}</h2>
+        {text && <p className="mt-2 text-[12.5px] leading-relaxed text-content-subtle">{text}</p>}
+        {children}
+        {action && <div className="mt-5">{action}</div>}
+      </div>
+    </div>
+  )
+}
+
+/**
  * Полоса-уведомление: ошибка, предупреждение, подтверждение.
  *
  * Лежала восемнадцатью копиями с разной прозрачностью рамки (/40 против /35)
@@ -224,7 +394,8 @@ export function Toggle({ checked, onChange, label, disabled, title }: {
     <label
       title={title}
       className={cx(
-        'flex h-9 shrink-0 items-center gap-2 whitespace-nowrap rounded-lg border border-line-strong',
+        CONTROL_HEIGHT,
+        'flex shrink-0 items-center gap-2 whitespace-nowrap rounded-lg border border-line-strong',
         'bg-surface px-3 text-[12.5px] text-content-muted',
         'has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-1 has-[:focus-visible]:outline-accent',
         disabled ? 'cursor-not-allowed opacity-45' : 'cursor-pointer',
@@ -240,7 +411,8 @@ export function TextInput({ className, ...rest }: ComponentProps<'input'> & { re
   return (
     <input
       className={cx(
-        'h-9 w-full rounded-lg border border-line-strong bg-surface px-3 text-content outline-none transition',
+        CONTROL_HEIGHT,
+        'w-full rounded-lg border border-line-strong bg-surface px-3 text-content outline-none transition',
         'hover:border-content-subtle focus:border-accent focus:ring-2 focus:ring-accent/25',
         className,
       )}
@@ -257,7 +429,12 @@ export function Segmented<T extends string>({ value, options, onChange, ariaLabe
   ariaLabel: string
 }) {
   return (
-    <div role="group" aria-label={ariaLabel} className="inline-flex rounded-lg border border-line-strong bg-surface-2 p-0.5">
+    // Высота как у полей рядом: переключатель стоит в тех же рядах фильтров.
+    <div
+      role="group"
+      aria-label={ariaLabel}
+      className={cx(CONTROL_HEIGHT, 'inline-flex shrink-0 items-center rounded-lg border border-line-strong bg-surface-2 p-0.5')}
+    >
       {options.map((option) => (
         <button
           key={option.id}
