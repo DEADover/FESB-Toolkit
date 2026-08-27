@@ -9,7 +9,7 @@ use std::time::Duration;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use crate::fesb_api::{ensure_ok, transport_error, Connection};
+use crate::fesb_api::{ensure_ok, transport_error, ApiProgress, Connection};
 
 /// Достаёт число из поля, как бы оно ни называлось в конкретном модуле.
 fn number(value: &Value, keys: &[&str]) -> Option<i64> {
@@ -1062,6 +1062,184 @@ pub async fn queue_message(
         .await
         .map_err(|err| format!("Unexpected answer: {err}"))?;
     message_from(&item).ok_or_else(|| "The bus returned a message without an id".to_string())
+}
+
+/// Сколько тел читается одновременно.
+///
+/// Сообщения мелкие, и узкое место — не полоса, а время хода до сервера:
+/// восемь одновременных запросов превращают двести последовательных ходов
+/// в двадцать пять.
+const BODY_CONCURRENCY: usize = 8;
+
+/// Сколько знаков показывать вокруг найденного.
+const EXCERPT_BEFORE: usize = 60;
+const EXCERPT_AFTER: usize = 120;
+
+/// Сообщение, в теле которого нашёлся искомый текст.
+#[derive(Debug, Clone, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct QueueMatch {
+    pub id: String,
+    /// Кусок тела вокруг найденного — чтобы было видно, за что зацепилось.
+    pub excerpt: String,
+}
+
+/// Ищет текст в телах сообщений очереди.
+///
+/// В списке тела нет: шина отдаёт его только у отдельно запрошенного
+/// сообщения. Поэтому поиск по содержимому — это отдельный проход по всем
+/// сообщениям, и запускать его сам по себе, на каждое нажатие клавиши,
+/// нельзя. Идентификаторы приходят с фронтенда: список там уже есть,
+/// а заодно можно искать только по тому, что осталось после фильтров.
+pub async fn queue_search<F: FnMut(ApiProgress)>(
+    connection: &Connection,
+    kind: ManagerKind,
+    id: &str,
+    queue: &str,
+    ids: Vec<String>,
+    needle: &str,
+    mut on_progress: F,
+) -> Result<Vec<QueueMatch>, String> {
+    let needle = needle.trim();
+    if needle.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let total = ids.len() as u64;
+    let mut done = 0u64;
+    let mut found = Vec::new();
+    on_progress(ApiProgress { phase: "messages", current: 0, total });
+
+    for group in ids.chunks(BODY_CONCURRENCY) {
+        let mut running = Vec::with_capacity(group.len());
+        for message in group {
+            let connection = connection.clone();
+            let id = id.to_string();
+            let queue = queue.to_string();
+            let message = message.clone();
+            running.push(tauri::async_runtime::spawn(async move {
+                let body = queue_message(&connection, kind, &id, &queue, &message)
+                    .await
+                    .ok()
+                    .and_then(|loaded| loaded.body);
+                (message, body)
+            }));
+        }
+
+        for handle in running {
+            let (message, body) = handle.await.map_err(|err| format!("Search interrupted: {err}"))?;
+            done += 1;
+            // Сообщение, которое не прочиталось, поиск не роняет: очередь
+            // живая, и пока мы её листаем, часть сообщений уже забрали.
+            if let Some(body) = body {
+                if let Some(excerpt) = excerpt_around(&body, &needle) {
+                    found.push(QueueMatch { id: message, excerpt });
+                }
+            }
+        }
+        on_progress(ApiProgress { phase: "messages", current: done, total });
+    }
+
+    Ok(found)
+}
+
+/// Кусок текста вокруг первого вхождения — или `None`, если его нет.
+///
+/// Всё считается в символах, а не в байтах: тело бывает русским, и срез
+/// посреди буквы уронил бы поиск целиком. Регистр снимается посимвольно —
+/// так строка и её версия в нижнем регистре остаются одной длины, и позиция,
+/// найденная в одной, годится для другой.
+fn excerpt_around(body: &str, needle: &str) -> Option<String> {
+    let needle = fold(needle);
+    if needle.is_empty() {
+        return None;
+    }
+    let chars: Vec<char> = body.chars().collect();
+    let lower = fold(body);
+    if lower.len() < needle.len() {
+        return None;
+    }
+    let at = lower.windows(needle.len()).position(|window| window == needle.as_slice())?;
+
+    let start = at.saturating_sub(EXCERPT_BEFORE);
+    let end = (at + needle.len() + EXCERPT_AFTER).min(chars.len());
+
+    let mut out = String::new();
+    if start > 0 {
+        out.push('…');
+    }
+    // Переводы строк и отступы в вырезке только мешают: она однострочная.
+    let mut space = false;
+    for symbol in &chars[start..end] {
+        if symbol.is_whitespace() {
+            space = true;
+            continue;
+        }
+        if space && !out.is_empty() {
+            out.push(' ');
+        }
+        space = false;
+        out.push(*symbol);
+    }
+    if end < chars.len() {
+        out.push('…');
+    }
+    Some(out)
+}
+
+/// Строка в нижнем регистре, символ в символ.
+///
+/// `str::to_lowercase` местами меняет длину (турецкое `İ` разворачивается
+/// в два символа), и тогда позиция из одной строки не годится для другой.
+/// Для поиска довольно первого символа развёртки.
+fn fold(value: &str) -> Vec<char> {
+    value.chars().map(|symbol| symbol.to_lowercase().next().unwrap_or(symbol)).collect()
+}
+
+#[cfg(test)]
+mod message_search_tests {
+    use super::*;
+
+    #[test]
+    fn the_excerpt_shows_what_was_found_and_what_is_around_it() {
+        let body = "<order><number>4815162342</number></order>";
+        let excerpt = excerpt_around(body, "4815").expect("нашлось");
+        assert!(excerpt.contains("4815162342"), "{excerpt}");
+        assert!(excerpt.contains("<order>"), "{excerpt}");
+    }
+
+    #[test]
+    fn the_search_ignores_case_in_both_alphabets() {
+        assert!(excerpt_around("Заявка ПРИНЯТА", "принята").is_some());
+        assert!(excerpt_around("Status: ACCEPTED", "accepted").is_some());
+        assert!(excerpt_around("статус", "СТАТУС").is_some());
+    }
+
+    #[test]
+    fn a_russian_body_does_not_break_the_slicing() {
+        let body = "начало ".repeat(40) + "нужное" + &" хвост".repeat(40);
+        let excerpt = excerpt_around(&body, "нужное").expect("нашлось");
+        assert!(excerpt.starts_with('…') && excerpt.ends_with('…'), "{excerpt}");
+        assert!(excerpt.contains("нужное"), "{excerpt}");
+    }
+
+    #[test]
+    fn the_excerpt_is_one_line() {
+        let excerpt = excerpt_around("первая\n\tвторая   третья", "вторая").expect("нашлось");
+        assert_eq!(excerpt, "первая вторая третья");
+    }
+
+    #[test]
+    fn nothing_is_returned_when_the_text_is_not_there() {
+        assert_eq!(excerpt_around("тело сообщения", "накладная"), None);
+        assert_eq!(excerpt_around("тело", ""), None);
+        assert_eq!(excerpt_around("", "тело"), None);
+    }
+
+    #[test]
+    fn a_needle_longer_than_the_body_is_simply_not_found() {
+        assert_eq!(excerpt_around("да", "длинная строка"), None);
+    }
 }
 
 // ───────────────────────────── аудит ─────────────────────────────

@@ -472,6 +472,13 @@ export interface QueueMessage {
   truncated: boolean
 }
 
+/** Сообщение, в теле которого нашёлся искомый текст. */
+export interface QueueMatch {
+  id: string
+  /** Кусок тела вокруг найденного — видно, за что зацепилось. */
+  excerpt: string
+}
+
 // ─────────────────────────── связи СОПС ───────────────────────────
 
 export interface LinkedRoute {
@@ -562,6 +569,49 @@ export interface ApiEndpoint {
   queueSize: number | null
   idleTimeout: number | null
   idleThreads: number | null
+}
+
+/** Состояние сервера: время работы, память, процессор и диски. */
+export interface ServerUsage {
+  /** Сколько шина работает, в миллисекундах. */
+  uptime: number | null
+  version: string | null
+  jvm: string | null
+  os: string | null
+  path: string | null
+  addresses: string[]
+  memoryUsed: number | null
+  memoryMax: number | null
+  processors: number | null
+  /** Доля занятого процессора, 0..1. */
+  processorUsage: number | null
+  disks: DiskUsage[]
+}
+
+export interface DiskUsage {
+  name: string
+  /** Путь у каталога; у диска пусто. */
+  path: string | null
+  total: number
+  used: number
+  free: number
+}
+
+/** Обмен, который шина ещё не довела до конца. */
+export interface InflightExchange {
+  id: string
+  domain: string
+  domainGuid: string
+  route: string
+  routeId: string
+  /** СОПС, в котором сообщение сейчас: при вызове одного СОПС из другого это не то же самое. */
+  at: string | null
+  /** Шаг, на котором оно стоит. */
+  node: string | null
+  thread: string | null
+  duration: number | null
+  elapsed: number | null
+  interrupted: boolean
 }
 
 /** Сертификат из хранилища шины — строка раздела «Сертификаты». */

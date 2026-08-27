@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent, type ReactNode } from 'react'
 
 import { useI18n } from '../i18n'
+import { formatBytes } from '../lib/format'
 import { folderBesideExport, localStamp } from '../lib/paths'
 import {
   apiPush, apiQueueManagers, apiQueues, apiVerify, applyTrace, buildArchive, errorText,
@@ -933,17 +934,6 @@ function VerifyReport({ result }: { result: VerifyResult }) {
 }
 
 /** Метка времени в локальном часовом поясе: `2026-08-25-0112`. */
-function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`
-  const units = ['KB', 'MB', 'GB']
-  let value = bytes / 1024
-  let unit = 0
-  while (value >= 1024 && unit < units.length - 1) {
-    value /= 1024
-    unit++
-  }
-  return `${value.toFixed(value >= 100 ? 0 : 1)} ${units[unit]}`
-}
 
 function ConfirmValue({ text }: { text: string }) {
   return <code className="rounded bg-accent/12 px-2 py-1 font-mono text-accent-content">{text}</code>
@@ -962,7 +952,6 @@ function Field({ label, htmlFor, className, children }: {
     </div>
   )
 }
-
 
 function FilterChip({ active, mono, children, ...rest }: {
   active: boolean

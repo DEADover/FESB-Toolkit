@@ -1,8 +1,8 @@
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react'
 
-
 import { useI18n } from '../i18n'
 import { apiLog, apiLogFiles, errorText } from '../lib/api'
+import { formatBytes } from '../lib/format'
 import type { Connection, LogEntry, LogFileRow, ServerInfo } from '../types'
 import {
   AutoRefreshToggle, ErrorBar, LimitSelect, useDebounced, NotConnected, Panel, RefreshButton, ScreenBody, TableMessage, useApiData, useAutoRefresh,
@@ -271,14 +271,3 @@ function formatTime(value: string | null): string {
   return `${match[3]}.${match[2]} ${match[4].slice(0, 12)}`
 }
 
-function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`
-  const units = ['KB', 'MB', 'GB']
-  let value = bytes / 1024
-  let unit = 0
-  while (value >= 1024 && unit < units.length - 1) {
-    value /= 1024
-    unit++
-  }
-  return `${value.toFixed(value >= 100 ? 0 : 1)} ${units[unit]}`
-}

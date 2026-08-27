@@ -4,6 +4,7 @@
 //! готовые структуры и не имеет прямого доступа к диску.
 
 mod applier;
+mod analytics;
 mod api_report;
 mod archive;
 mod certificates;
@@ -265,6 +266,18 @@ async fn api_endpoint_report(
     .await
 }
 
+/// Состояние сервера: время работы, память, процессор и диски.
+#[tauri::command]
+async fn api_server_usage(connection: Connection) -> Result<analytics::ServerUsage, String> {
+    analytics::server_usage(&connection).await
+}
+
+/// Обмены, которые шина ещё не довела до конца.
+#[tauri::command]
+async fn api_inflight(connection: Connection) -> Result<Vec<analytics::InflightExchange>, String> {
+    analytics::inflight_exchanges(&connection).await
+}
+
 /// Сертификаты из хранилищ ключей и доверенных хранилищ шины.
 #[tauri::command]
 async fn api_certificates(connection: Connection) -> Result<certificates::CertificateReport, String> {
@@ -357,6 +370,26 @@ async fn api_queue_message(
     fesb_ops::queue_message(&connection, kind, &id, &queue, &message).await
 }
 
+/// Поиск текста в телах сообщений очереди.
+///
+/// Тела в списке нет, поэтому каждое сообщение приходится забрать отдельно;
+/// прогресс идёт теми же событиями, что у выгрузки доменов.
+#[tauri::command]
+async fn api_queue_search(
+    app: AppHandle,
+    connection: Connection,
+    kind: ManagerKind,
+    id: String,
+    queue: String,
+    ids: Vec<String>,
+    needle: String,
+) -> Result<Vec<fesb_ops::QueueMatch>, String> {
+    fesb_ops::queue_search(&connection, kind, &id, &queue, ids, &needle, |progress| {
+        let _ = app.emit(API_PROGRESS_EVENT, progress);
+    })
+    .await
+}
+
 /// Константы приложения, брокера или домена.
 #[tauri::command]
 async fn api_properties(connection: Connection, scope: PropertyScope) -> Result<Vec<PropertyRow>, String> {
@@ -427,6 +460,8 @@ pub fn run() {
             api_route_index,
             api_endpoint_report,
             api_certificates,
+            api_server_usage,
+            api_inflight,
             save_report,
             api_route_state,
             api_route_action,
@@ -438,6 +473,7 @@ pub fn run() {
             api_queues,
             api_queue_messages,
             api_queue_message,
+            api_queue_search,
             api_properties,
             api_save_property,
             api_delete_property,
@@ -456,9 +492,11 @@ pub mod testing {
     pub use crate::fesb_api::{connect, domains, pull, push, verify, Connection};
     pub use crate::fesb_api::{endpoint_report, fetch_domain_routes, route_index};
     pub use crate::certificates::{certificates, common_name, read_certificate};
+    pub use crate::analytics::{inflight_exchanges, server_usage};
     pub use crate::fesb_ops::{
         delete_property, domain_statistics, log_entries, log_files, modules, properties,
-        audit, queue_managers, queue_message, queue_messages, queues, route_state, save_property,
+        audit, queue_managers, queue_message, queue_messages, queue_search, queues, route_state,
+        save_property,
         LogRequest, ManagerKind, PropertyRow,
         PropertyScope,
     };

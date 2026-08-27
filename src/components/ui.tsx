@@ -889,10 +889,10 @@ export function Readout({ label, value, tone, hint }: {
 }
 
 /** Подпись над текстом: то же, что `Readout`, но значение читают, а не считают. */
-export function TextReadout({ label, value }: { label: string; value: string }) {
+export function TextReadout({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
     <div className="min-w-0">
-      <div className="text-[11px] tracking-wide text-content-subtle">{label}</div>
+      <div className="text-[11px] tracking-wide text-content-subtle" title={hint}>{label}</div>
       <div className="truncate text-[13px] font-medium" title={value}>{value}</div>
     </div>
   )

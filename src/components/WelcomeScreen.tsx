@@ -1,19 +1,24 @@
-import { useMemo } from 'react'
+import { useCallback, useMemo } from 'react'
 
 import {
-  ArrowRight, ArrowsLeftRight, Certificate, Crosshair, Cube, FingerprintSimple, FlowArrow,
+  ArrowRight, ArrowsLeftRight, Broadcast, Certificate, Crosshair, Cube, FingerprintSimple, FlowArrow,
   FolderOpen, ListDashes, Plugs, Queue, SlidersHorizontal, Stack, type Icon,
 } from '@phosphor-icons/react'
 
 import { useI18n } from '../i18n'
+import { apiServerUsage } from '../lib/api'
+import { formatUptime } from '../lib/format'
+import { useApiData } from './ApiShell'
 import { byEnvironment, type ConnectionProfile, type ConnectionStore } from '../lib/connection'
-import type { ScanResult, ServerInfo } from '../types'
+import type { Connection, ScanResult, ServerInfo, ServerUsage } from '../types'
 import { ENVIRONMENT_LABEL, ENVIRONMENT_TONE } from './HeaderBar'
 import type { ScreenId } from './Sidebar'
 import { Badge, Button, cx, FOCUS_RING, Readout } from './ui'
 
 interface Props {
   server: ServerInfo | null
+  /** Открытое подключение — по нему карточка спрашивает состояние сервера. */
+  connection: Connection | null
   scan: ScanResult | null
   sourcePath: string | null
   connections: ConnectionStore
@@ -34,7 +39,7 @@ interface Props {
  * выгрузка или сервер, на их месте оказываются цифры и продолжение работы.
  */
 export function WelcomeScreen({
-  server, scan, sourcePath, connections, connecting,
+  server, connection, scan, sourcePath, connections, connecting,
   onScreen, onOpenFolder, onOpenArchive, onConnect,
 }: Props) {
   const { t } = useI18n()
@@ -113,6 +118,7 @@ export function WelcomeScreen({
                   <Readout label={t('nav.api.modules')} value={`${runningModules} / ${server.modules.length}`} />
                   <Readout label={t('api.info.user')} value={server.user} />
                   {server.apiVersion && <Readout label="FESB" value={server.apiVersion} />}
+                  <Uptime connection={connection} />
                 </div>
                 <Actions>
                   <Button variant="primary" onClick={() => onScreen('api.domains')}>
@@ -207,6 +213,8 @@ export function WelcomeScreen({
               onClick={() => onScreen('api.routes')} dim={!server} />
             <Tile icon={Plugs} title={t('nav.api.endpoints.title')} text={t('welcome.hint.endpoints')}
               onClick={() => onScreen('api.endpoints')} dim={!server} />
+            <Tile icon={Broadcast} title={t('nav.api.inflight')} text={t('welcome.hint.inflight')}
+              onClick={() => onScreen('api.inflight')} dim={!server} />
             <Tile icon={Certificate} title={t('nav.api.certificates')} text={t('welcome.hint.certificates')}
               onClick={() => onScreen('api.certificates')} dim={!server} />
             <Tile icon={Queue} title={t('nav.api.queues')} text={t('welcome.hint.queues')}
@@ -319,4 +327,18 @@ function Tile({ icon: Glyph, title, text, onClick, dim }: {
 function shortDate(value: string): string {
   const match = /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}:\d{2})/.exec(value)
   return match ? `${match[3]}.${match[2]} ${match[4]}` : value
+}
+
+/**
+ * Сколько шина работает — показатель, который есть только здесь.
+ *
+ * Отдельным запросом и молча: это приятная подробность, а не то, ради
+ * чего открывают экран, и падать из-за неё карточка не должна.
+ */
+function Uptime({ connection }: { connection: Connection | null }) {
+  const { t } = useI18n()
+  const load = useCallback((open: Connection) => apiServerUsage(open), [])
+  const { data } = useApiData<ServerUsage>(connection, load)
+  if (!data?.uptime) return null
+  return <Readout label={t('server.uptime')} value={formatUptime(data.uptime, t)} />
 }

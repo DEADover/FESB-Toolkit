@@ -3,19 +3,22 @@ import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type
 import { ArrowsLeftRight, Check } from '@phosphor-icons/react'
 
 import { useI18n, type MessageKey } from '../i18n'
-import { apiConnect, errorText } from '../lib/api'
+import { apiConnect, apiServerUsage, errorText } from '../lib/api'
+import { formatBytes, formatShare, formatUptime } from '../lib/format'
 import {
   blankProfile, byEnvironment, isReady, markUsed, removeProfile, toConnection, upsertProfile,
   writeStore, type ConnectionProfile, type ConnectionStore, type Environment,
 } from '../lib/connection'
-import type { ServerInfo } from '../types'
-import { ScreenBody } from './ApiShell'
+import type { Connection, DiskUsage, ServerInfo, ServerUsage } from '../types'
+import { ScreenBody, useApiData } from './ApiShell'
 import { Badge, Button, Checkbox, cx, Modal, Notice, Segmented, Spinner, TextInput, TextReadout, Toggle } from './ui'
 
 interface Props {
   store: ConnectionStore
   onStore: (store: ConnectionStore) => void
   server: ServerInfo | null
+  /** Открытое подключение — по нему карточка спрашивает состояние сервера. */
+  connection: Connection | null
   /** Идентификатор профиля, которым открыто текущее подключение. */
   activeProfileId: string | null
   /** Профиль, который надо раскрыть при переходе из шапки. */
@@ -45,7 +48,7 @@ const ENVIRONMENT_LABEL: Record<Environment, MessageKey> = {
  * Пароль хранится только по явной галочке, поэтому автоподключение возможно
  * не для каждого профиля — интерфейс говорит об этом прямо, а не молчит.
  */
-export function ConnectionScreen({ store, onStore, server, activeProfileId, focusProfileId, onConnect, onDisconnect }: Props) {
+export function ConnectionScreen({ store, onStore, server, connection, activeProfileId, focusProfileId, onConnect, onDisconnect }: Props) {
   const { t } = useI18n()
 
   const [selectedId, setSelectedId] = useState<string | null>(activeProfileId ?? store.lastUsedId ?? store.profiles[0]?.id ?? null)
@@ -270,7 +273,10 @@ export function ConnectionScreen({ store, onStore, server, activeProfileId, focu
                 )}
               </div>
 
-              <div className="grid grid-cols-2 gap-3 px-5 pt-4">
+              {/* Четыре среды подряд («Разработка … Прод») шире половины
+                  формы на узком окне, и «Прод» уезжал за край. Пока места
+                  мало — поля идут друг под другом. */}
+              <div className="grid grid-cols-1 gap-3 px-5 pt-4 xl:grid-cols-2">
                 <Field label={t('profiles.name')} htmlFor="profile-name">
                   <TextInput
                     id="profile-name"
@@ -393,7 +399,7 @@ export function ConnectionScreen({ store, onStore, server, activeProfileId, focu
             </div>
           )}
 
-          {server && <ServerCard server={server} />}
+          {server && connection && <ServerCard server={server} connection={connection} />}
         </div>
       </div>
 
@@ -448,7 +454,7 @@ function ConnectedStrip({ server, profile, onDisconnect }: {
  * Разница неочевидна, когда рядом открыта форма другого стенда, — поэтому
  * у карточки есть заголовок с адресом.
  */
-function ServerCard({ server }: { server: ServerInfo }) {
+function ServerCard({ server, connection }: { server: ServerInfo; connection: Connection }) {
   const { t } = useI18n()
   const running = server.modules.filter((item) => item.running).length
 
@@ -472,6 +478,8 @@ function ServerCard({ server }: { server: ServerInfo }) {
           {t('api.missingPermissions', { list: server.missingPermissions.join(', ') })}
         </Notice>
       )}
+
+      <ServerState connection={connection} />
 
       <div className="border-t border-line px-5 py-3">
         <div className="mb-2 text-[11px] tracking-wide text-content-subtle">
@@ -527,3 +535,89 @@ function Field({ label, htmlFor, hint, children }: {
   )
 }
 
+/**
+ * Состояние самой шины: сколько работает, чем занята память, сколько
+ * осталось на дисках.
+ *
+ * Живёт здесь, а не отдельным разделом, потому что отвечает на тот же
+ * вопрос, что и вся карточка, — «что это за сервер». Читается отдельным
+ * запросом: подключение проверять этим не нужно, и если прав не хватило,
+ * остальная карточка от этого не страдает.
+ */
+function ServerState({ connection }: { connection: Connection }) {
+  const { t } = useI18n()
+  const load = useCallback((open: Connection) => apiServerUsage(open), [])
+  const { data } = useApiData<ServerUsage>(connection, load)
+  if (!data) return null
+
+  const memory = data.memoryUsed !== null && data.memoryMax !== null
+    ? `${formatBytes(data.memoryUsed)} / ${formatBytes(data.memoryMax)}`
+    : '—'
+
+  return (
+    <div className="border-t border-line px-5 py-4">
+      <div className="mb-3 text-[11px] tracking-wide text-content-subtle">{t('server.state')}</div>
+      <div className="grid grid-cols-4 gap-4">
+        <TextReadout
+          label={t('server.uptime')}
+          value={data.uptime === null ? '—' : formatUptime(data.uptime, t)}
+        />
+        <TextReadout label={t('server.memory')} value={memory} hint={t('server.memory.hint')} />
+        <TextReadout
+          label={t('server.cpu')}
+          value={data.processorUsage === null ? '—' : formatShare(data.processorUsage)}
+          hint={data.processors ? t('server.cpu.hint', { count: data.processors }) : undefined}
+        />
+        <TextReadout label={t('server.os')} value={data.os ?? '—'} />
+        <TextReadout label={t('server.jvm')} value={data.jvm ?? '—'} />
+        <TextReadout label={t('server.path')} value={data.path ?? '—'} />
+        <TextReadout
+          label={t('server.addresses')}
+          value={data.addresses.join(', ') || '—'}
+        />
+      </div>
+
+      {data.disks.length > 0 && (
+        <>
+          <div className="mb-2 mt-4 text-[11px] tracking-wide text-content-subtle">{t('server.disks')}</div>
+          <div className="grid grid-cols-2 gap-x-6 gap-y-2 xl:grid-cols-3">
+            {data.disks.map((disk) => (
+              <Disk key={`${disk.name}-${disk.path ?? ''}`} disk={disk} />
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
+/**
+ * Один диск или каталог полосой.
+ *
+ * Полоса важнее цифр: «занято 3.3 GB из 910 GB» надо считать в уме,
+ * а полоса отвечает сразу. Красной она становится там, где место
+ * действительно кончается.
+ */
+function Disk({ disk }: { disk: DiskUsage }) {
+  const { t } = useI18n()
+  const share = disk.total > 0 ? disk.used / disk.total : 0
+  return (
+    <div title={disk.path ?? disk.name}>
+      <div className="flex items-baseline gap-2 text-[11.5px]">
+        <span className="min-w-0 truncate font-medium">{disk.name}</span>
+        <span className="ml-auto shrink-0 tabular-nums text-content-subtle">
+          {formatBytes(disk.free)} {t('server.disk.free')}
+        </span>
+      </div>
+      <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-surface-3">
+        <div
+          className={cx(
+            'h-full rounded-full',
+            share > 0.9 ? 'bg-negative' : share > 0.75 ? 'bg-caution' : 'bg-accent',
+          )}
+          style={{ width: `${Math.max(share * 100, 1)}%` }}
+        />
+      </div>
+    </div>
+  )
+}

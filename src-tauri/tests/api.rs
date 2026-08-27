@@ -13,7 +13,9 @@ use std::path::PathBuf;
 use fesb_toolkit_lib::testing::{
     apply_trace_change, connect, domains, log_entries, log_files, modules, properties, pull, push,
     queue_managers, queues, save_property, delete_property, verify, domain_statistics,
-    audit, certificates, fetch_domain_routes, queue_message, queue_messages, route_index, route_state,
+    audit, certificates, fetch_domain_routes, inflight_exchanges, queue_message, queue_messages,
+    queue_search, server_usage,
+    route_index, route_state,
     ApplyRequest, ApplyTarget,
     BeanTarget, Connection, LogRequest, ManagerKind, PropertyRow, PropertyScope, TraceUpdate,
 };
@@ -652,4 +654,93 @@ fn reads_the_certificates() {
         assert!(!item.not_after.is_empty(), "у {} нет даты окончания", item.alias);
         assert!(!item.subject_name.is_empty(), "у {} не разобрано имя владельца", item.alias);
     }
+}
+
+/// Поиск текста в телах сообщений очереди.
+#[test]
+#[ignore]
+fn searches_inside_message_bodies() {
+    let Some(connection) = connection() else {
+        eprintln!("FESB_URL не задан — пропускаем");
+        return;
+    };
+    let managers = block(queue_managers(&connection)).expect("менеджеры очередей");
+    let Some(manager) = managers.iter().find(|item| item.running) else {
+        eprintln!("нет запущенного менеджера — пропускаем");
+        return;
+    };
+    let rows = block(queues(&connection, manager.kind, &manager.id)).expect("очереди");
+    let Some(queue) = rows.iter().find(|row| row.messages > 0) else {
+        eprintln!("непустой очереди нет — пропускаем");
+        return;
+    };
+    let listed = block(queue_messages(&connection, manager.kind, &manager.id, &queue.name, 40))
+        .expect("сообщения");
+    println!("{} · {} · сообщений {}", manager.broker, queue.name, listed.len());
+
+    // Ищем то, что заведомо есть: кусок тела первого сообщения.
+    let first = block(queue_message(&connection, manager.kind, &manager.id, &queue.name, &listed[0].id))
+        .expect("сообщение целиком");
+    let body = first.body.clone().unwrap_or_default();
+    let needle: String = body.chars().filter(|c| !c.is_whitespace()).take(12).collect();
+    if needle.is_empty() {
+        eprintln!("тело пустое — пропускаем");
+        return;
+    }
+
+    let ids: Vec<String> = listed.iter().map(|item| item.id.clone()).collect();
+    let found = block(queue_search(&connection, manager.kind, &manager.id, &queue.name, ids, &needle, |_| {}))
+        .expect("поиск");
+    println!("искали «{needle}» — нашлось {}", found.len());
+    for item in found.iter().take(3) {
+        println!("  {} · {}", item.id, item.excerpt);
+    }
+    assert!(!found.is_empty(), "не нашлось даже то, что взято из тела");
+    assert!(found.iter().all(|item| !item.excerpt.is_empty()), "вырезка пустая");
+
+    // Заведомо отсутствующий текст не должен находиться.
+    let ids: Vec<String> = listed.iter().map(|item| item.id.clone()).collect();
+    let none = block(queue_search(
+        &connection, manager.kind, &manager.id, &queue.name, ids,
+        "нетакогослованигдевообще", |_| {},
+    ))
+    .expect("поиск");
+    assert!(none.is_empty(), "нашлось то, чего нет: {none:?}");
+}
+
+/// Состояние сервера и незавершённые обмены.
+#[test]
+#[ignore]
+fn reads_what_the_server_is_doing_right_now() {
+    let Some(connection) = connection() else {
+        eprintln!("FESB_URL не задан — пропускаем");
+        return;
+    };
+    let usage = block(server_usage(&connection)).expect("состояние сервера");
+    println!(
+        "работает {:?} мс · FESB {:?} · {:?}",
+        usage.uptime, usage.version, usage.os,
+    );
+    println!(
+        "память {:?} из {:?} · процессоров {:?} · загрузка {:?}",
+        usage.memory_used, usage.memory_max, usage.processors, usage.processor_usage,
+    );
+    for disk in &usage.disks {
+        println!("  {} {:?} · занято {} из {}", disk.name, disk.path, disk.used, disk.total);
+    }
+    assert!(usage.uptime.unwrap_or(0) > 0, "шина не сказала, сколько работает");
+    assert!(usage.version.is_some(), "нет версии");
+    assert!(!usage.disks.is_empty(), "ни одного диска или каталога");
+    assert!(usage.memory_max.unwrap_or(0) > 0, "нет размера памяти");
+
+    let inflight = block(inflight_exchanges(&connection)).expect("незавершённые обмены");
+    println!("незавершённых обменов {}", inflight.len());
+    for item in inflight.iter().take(5) {
+        println!(
+            "  {} · {} / {} · шаг {:?} · {:?} мс",
+            item.id, item.domain, item.route, item.node, item.duration,
+        );
+    }
+    // Пустой список — нормальный ответ: значит, ничего не застряло.
+    assert!(inflight.iter().all(|item| item.duration.unwrap_or(0) >= item.elapsed.unwrap_or(0)));
 }

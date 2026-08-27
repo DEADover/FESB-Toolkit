@@ -10,6 +10,7 @@ import { DomainsScreen, type PullIntent } from './components/DomainsScreen'
 import { WelcomeScreen } from './components/WelcomeScreen'
 import { CertificatesScreen } from './components/CertificatesScreen'
 import { EndpointsScreen } from './components/EndpointsScreen'
+import { InflightScreen } from './components/InflightScreen'
 import { LogsScreen } from './components/LogsScreen'
 import { ModulesScreen } from './components/ModulesScreen'
 import { PropertiesScreen } from './components/PropertiesScreen'
@@ -286,6 +287,7 @@ export default function App() {
     'api.routes': 'nav.api.routes.title',
     'api.endpoints': 'nav.api.endpoints.title',
     'api.certificates': 'nav.api.certificates.title',
+    'api.inflight': 'nav.api.inflight.title',
     welcome: 'nav.welcome',
     'api.queues': 'nav.api.queues.title',
     'api.modules': 'nav.api.modules.title',
@@ -356,6 +358,7 @@ export default function App() {
         {screen === 'welcome' ? (
           <WelcomeScreen
             server={session?.server ?? null}
+            connection={session?.connection ?? null}
             scan={scan}
             sourcePath={source?.path ?? null}
             connections={connections}
@@ -370,6 +373,7 @@ export default function App() {
             store={connections}
             onStore={setConnections}
             server={session?.server ?? null}
+            connection={session?.connection ?? null}
             activeProfileId={session?.profile.id ?? null}
             focusProfileId={focusProfile}
             onConnect={connectProfile}
@@ -389,6 +393,11 @@ export default function App() {
           />
         ) : screen === 'api.routes' ? (
           <RoutesScreen {...apiScreenProps} isMac={isMac} initialGuid={routesDomain} />
+        ) : screen === 'api.inflight' ? (
+          <InflightScreen
+            {...apiScreenProps}
+            onOpenRoutes={(guid) => { setRoutesDomain(guid); setScreen('api.routes') }}
+          />
         ) : screen === 'api.endpoints' ? (
           <EndpointsScreen {...apiScreenProps} />
         ) : screen === 'api.certificates' ? (

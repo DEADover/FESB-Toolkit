@@ -1,4 +1,4 @@
-import { ArrowsLeftRight, CaretLeft, CaretRight, Certificate, CircleHalf, Crosshair, Cube, FingerprintSimple, FlowArrow, Gear, GithubLogo, House, ListDashes, Moon, Plugs, Queue, SlidersHorizontal, Stack, Sun, type Icon } from '@phosphor-icons/react'
+import { ArrowsLeftRight, Broadcast, CaretLeft, CaretRight, Certificate, CircleHalf, Crosshair, Cube, FingerprintSimple, FlowArrow, Gear, GithubLogo, House, ListDashes, Moon, Plugs, Queue, SlidersHorizontal, Stack, Sun, type Icon } from '@phosphor-icons/react'
 
 import { LANGUAGES, useI18n, type MessageKey } from '../i18n'
 import { openRepository, REPOSITORY_URL } from '../lib/api'
@@ -13,6 +13,7 @@ export type ScreenId =
   | 'api.connection'
   | 'api.domains'
   | 'api.routes'
+  | 'api.inflight'
   | 'api.endpoints'
   | 'api.certificates'
   | 'api.queues'
@@ -51,6 +52,8 @@ const SECTIONS: Section[] = [
     items: [
       { id: 'api.domains', label: 'nav.api.domains', icon: Stack },
       { id: 'api.routes', label: 'nav.api.routes', icon: FlowArrow },
+      // Сразу за СОПС: это они и есть, только в движении.
+      { id: 'api.inflight', label: 'nav.api.inflight', icon: Broadcast },
       { id: 'api.endpoints', label: 'nav.api.endpoints', icon: Plugs },
       // Сертификаты стоят сразу за точками: точки говорят, что связь
       // защищена, сертификаты — чем именно и до какого числа.

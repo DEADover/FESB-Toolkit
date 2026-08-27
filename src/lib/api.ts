@@ -6,12 +6,12 @@ import { openUrl, revealItemInDir } from '@tauri-apps/plugin-opener'
 
 import type {
   ApiDomain, ApiProgress, AppInfo, ApplyProgress, ApplyReport, ApplyTarget, ArchiveProgress,
-  ApiEndpoint, ArchiveResult, CertificateReport, AuditEntry, Connection, DomainAction, DomainActionResult, DomainRouteNames,
+  ApiEndpoint, ArchiveResult, CertificateReport, InflightExchange, ServerUsage, AuditEntry, Connection, DomainAction, DomainActionResult, DomainRouteNames,
   DomainRoutes, DomainStat,
   ExtractResult, LinkGraph, LogEntry,
   LogFileRow, LogRequest, ManagerKind,
   ModuleAction, ModuleRow, PropertyRow, PropertyScope, PullResult, PushResult, QueueManager,
-  QueueMessage, QueueRow, RouteAction, RouteGraph, RouteState, SavePoint, ScanProgress,
+  QueueMatch, QueueMessage, QueueRow, RouteAction, RouteGraph, RouteState, SavePoint, ScanProgress,
   ScanResult,
   ServerInfo, TraceUpdate, VerifyResult,
 } from '../types'
@@ -85,6 +85,16 @@ export function apiEndpointReport(connection: Connection): Promise<ApiEndpoint[]
  */
 export function apiCertificates(connection: Connection): Promise<CertificateReport> {
   return invoke<CertificateReport>('api_certificates', { connection })
+}
+
+/** Состояние сервера: время работы, память, процессор и диски. */
+export function apiServerUsage(connection: Connection): Promise<ServerUsage> {
+  return invoke<ServerUsage>('api_server_usage', { connection })
+}
+
+/** Обмены, которые шина ещё не довела до конца. */
+export function apiInflight(connection: Connection): Promise<InflightExchange[]> {
+  return invoke<InflightExchange[]>('api_inflight', { connection })
 }
 
 /** Пишет таблицу файлом Excel: шапка приходит уже переведённой. */
@@ -277,6 +287,24 @@ export function apiQueueMessage(
   message: string,
 ): Promise<QueueMessage> {
   return invoke<QueueMessage>('api_queue_message', { connection, kind, id, queue, message })
+}
+
+/**
+ * Ищет текст в телах сообщений очереди.
+ *
+ * Тела в списке нет, поэтому каждое сообщение читается отдельным запросом —
+ * поиск идёт по кнопке, а не по каждому нажатию клавиши. Прогресс приходит
+ * теми же событиями, что у выгрузки доменов.
+ */
+export function apiQueueSearch(
+  connection: Connection,
+  kind: ManagerKind,
+  id: string,
+  queue: string,
+  ids: string[],
+  needle: string,
+): Promise<QueueMatch[]> {
+  return invoke<QueueMatch[]>('api_queue_search', { connection, kind, id, queue, ids, needle })
 }
 
 export function apiProperties(connection: Connection, scope: PropertyScope): Promise<PropertyRow[]> {

@@ -1,12 +1,13 @@
-import { Fragment, useCallback, useEffect, useMemo, useState } from 'react'
+import { Fragment, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 
-import { ArrowLeft, ArrowsClockwise, Check, Copy } from '@phosphor-icons/react'
+import { ArrowLeft, ArrowsClockwise, Check, Copy, MagnifyingGlass } from '@phosphor-icons/react'
 
 import { useI18n } from '../i18n'
-import { apiQueueManagers, apiQueueMessage, apiQueueMessages, apiQueues, errorText } from '../lib/api'
-import type { Connection, QueueManager, QueueMessage, QueueRow, ServerInfo } from '../types'
+import { apiQueueManagers, apiQueueMessage, apiQueueMessages, apiQueues, apiQueueSearch, errorText, onApiProgress } from '../lib/api'
+import type { ApiProgress, Connection, QueueManager, QueueMessage, QueueRow, ServerInfo } from '../types'
 import {
-  AutoRefreshToggle, ErrorBar, NotConnected, Panel, RefreshButton, ScreenBody, TableMessage, useApiData, useAutoRefresh,
+  AutoRefreshToggle, ErrorBar, NotConnected, Panel, RefreshButton, ScreenBody, TableMessage, useApiData,
+  useAutoRefresh, useDebounced,
 } from './ApiShell'
 import {
   Badge, Button, ButtonGlyph, cx, DataTable, IconButton, Notice, rowClick, SearchInput, Spinner, Th, THead, Toggle,
@@ -272,6 +273,13 @@ function Messages({ connection, manager, queue, onBack }: {
   const [error, setError] = useState<string | null>(null)
   const [auto, setAuto] = useState(false)
 
+  const [search, setSearch] = useState('')
+  /** Что нашлось в телах и по какому запросу: чужой ответ показывать нельзя. */
+  const [hits, setHits] = useState<{ needle: string; found: Map<string, string> } | null>(null)
+  const [searching, setSearching] = useState(false)
+  const [progress, setProgress] = useState<ApiProgress | null>(null)
+  const query = useDebounced(search, 250)
+
   const load = useCallback(async () => {
     setLoading(true)
     setError(null)
@@ -287,6 +295,42 @@ function Messages({ connection, manager, queue, onBack }: {
 
   useEffect(() => { void load() }, [load])
   useAutoRefresh(auto, load)
+
+  /**
+   * Отбор по тому, что уже есть в списке: идентификатор, корреляция, тип,
+   * адрес ответа и свойства. Тела здесь нет — за ним идут отдельно.
+   */
+  const visible = useMemo(() => {
+    const needle = query.trim().toLowerCase()
+    if (!needle) return messages
+    const found = hits?.needle === needle ? hits.found : null
+    return messages.filter((message) => found?.has(message.id) || matchesHeader(message, needle))
+  }, [messages, query, hits])
+
+  const needle = query.trim()
+  /** Ответ устарел, как только запрос изменился: искать нужно заново. */
+  const searched = hits !== null && hits.needle === needle.toLowerCase()
+
+  const searchBodies = useCallback(async () => {
+    if (!needle) return
+    setSearching(true)
+    setError(null)
+    setProgress(null)
+    const stop = await onApiProgress(setProgress)
+    try {
+      const matches = await apiQueueSearch(
+        connection, manager.kind, manager.id, queue.name,
+        messages.map((message) => message.id), needle,
+      )
+      setHits({ needle: needle.toLowerCase(), found: new Map(matches.map((m) => [m.id, m.excerpt])) })
+    } catch (err) {
+      setError(errorText(err))
+    } finally {
+      void stop()
+      setSearching(false)
+      setProgress(null)
+    }
+  }, [connection, manager, queue.name, messages, needle])
 
   /** Тело шина отдаёт только у отдельно запрошенного сообщения. */
   const expand = useCallback(async (message: QueueMessage) => {
@@ -306,21 +350,50 @@ function Messages({ connection, manager, queue, onBack }: {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3">
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <Button size="sm" onClick={onBack}><ArrowLeft size={14} weight="bold" /> {t('queues.backToQueues')}</Button>
         <span className="min-w-0 truncate font-mono text-[12.5px] font-semibold">{queue.name}</span>
-        <span className="text-[11.5px] text-content-subtle">
-          {t('queues.messagesCount', { count: messages.length })}
+        <span className="text-[11.5px] tabular-nums text-content-subtle">
+          {needle
+            ? t('queues.messagesShown', { visible: visible.length, total: messages.length })
+            : t('queues.messagesCount', { count: messages.length })}
         </span>
         <div className="ml-auto flex items-center gap-2">
           <AutoRefreshToggle checked={auto} onChange={setAuto} />
-          <RefreshButton
-          busy={loading}
-          disabled={loading}
-          onClick={() => void load()}
-        />
+          <RefreshButton busy={loading} disabled={loading} onClick={() => void load()} />
         </div>
       </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <SearchInput
+          className="min-w-64 flex-1"
+          value={search}
+          placeholder={t('queues.searchMessages')}
+          onChange={setSearch}
+          clearLabel={t('action.clearSearch')}
+        />
+        {/* Поиск по телам — отдельная кнопка, а не то же поле: тела в списке
+            нет, и за каждым приходится идти на сервер. Делать это на каждое
+            нажатие клавиши нельзя, а молча не делать — значит соврать, что
+            в очереди ничего не нашлось. */}
+        <Button
+          className="min-w-52"
+          disabled={!needle || searching || searched || messages.length === 0}
+          title={t('queues.searchBodies.hint')}
+          onClick={() => void searchBodies()}
+        >
+          <ButtonGlyph busy={searching}><MagnifyingGlass size={14} weight="bold" /></ButtonGlyph>
+          {searched
+            ? t('queues.searchBodies.done', { count: hits?.found.size ?? 0 })
+            : t('queues.searchBodies', { count: messages.length })}
+        </Button>
+      </div>
+
+      {searching && progress && (
+        <p className="text-[11.5px] tabular-nums text-content-subtle">
+          {t('queues.searchProgress', { current: progress.current, total: progress.total })}
+        </p>
+      )}
 
       <ErrorBar error={error} />
 
@@ -331,7 +404,9 @@ function Messages({ connection, manager, queue, onBack }: {
             <col />
             <col className="w-28" />
             <col className="w-24" />
-            <col className="w-20" />
+            {/* Под «Состояние» встают метки «Постоянное» и «Повторное»,
+                и заголовок сам по себе шире, чем узкая колонка. */}
+            <col className="w-32" />
           </colgroup>
           <THead>
               <Th>{t('logs.time')}</Th>
@@ -341,9 +416,10 @@ function Messages({ connection, manager, queue, onBack }: {
               <Th>{t('table.state')}</Th>
             </THead>
           <tbody>
-            {messages.map((message) => {
+            {visible.map((message) => {
               const loaded = full[message.id]
               const shown = open === message.id
+              const excerpt = hits?.needle === needle.toLowerCase() ? hits.found.get(message.id) : undefined
               return (
                 <Fragment key={message.id}>
                   <tr
@@ -353,7 +429,16 @@ function Messages({ connection, manager, queue, onBack }: {
                     <td className="px-3 py-1.5 font-mono text-[11px] text-content-subtle">
                       {message.timestamp?.replace('T', ' ').slice(0, 23) ?? '—'}
                     </td>
-                    <td className="truncate px-3 py-1.5 font-mono text-[11px]" title={message.id}>{message.id}</td>
+                    <td className="px-3 py-1.5" title={message.id}>
+                      <div className="truncate font-mono text-[11px]">{message.id}</div>
+                      {/* Вырезка из тела: видно, за что зацепился поиск,
+                          и не надо раскрывать каждое сообщение подряд. */}
+                      {excerpt && (
+                        <div className="mt-0.5 truncate font-mono text-[10.5px] text-content-subtle">
+                          <Highlight text={excerpt} needle={needle} />
+                        </div>
+                      )}
+                    </td>
                     <td className="px-3 py-1.5 text-content-muted">{message.bodyType ?? '—'}</td>
                     <td className="px-3 py-1.5 text-right tabular-nums">{message.size}</td>
                     <td className="px-3 py-1.5">
@@ -378,8 +463,10 @@ function Messages({ connection, manager, queue, onBack }: {
                 </Fragment>
               )
             })}
-            {messages.length === 0 && (
-              <TableMessage colSpan={5}>{loading ? t('empty.scanning') : t('queues.noMessages')}</TableMessage>
+            {visible.length === 0 && (
+              <TableMessage colSpan={5}>
+                {loading ? t('empty.scanning') : needle ? t('queues.noMatches') : t('queues.noMessages')}
+              </TableMessage>
             )}
           </tbody>
         </DataTable>
@@ -424,4 +511,40 @@ function MessageBody({ message }: { message: QueueMessage }) {
       </div>
     </div>
   )
+}
+
+/**
+ * Совпадение по тому, что видно в списке.
+ *
+ * Тела здесь нет — за ним ходят отдельной кнопкой, — но идентификатор,
+ * корреляция и свойства находятся мгновенно, и чаще всего ищут именно их.
+ */
+function matchesHeader(message: QueueMessage, needle: string): boolean {
+  if (message.id.toLowerCase().includes(needle)) return true
+  if ((message.correlationId ?? '').toLowerCase().includes(needle)) return true
+  if ((message.bodyType ?? '').toLowerCase().includes(needle)) return true
+  if ((message.replyTo ?? '').toLowerCase().includes(needle)) return true
+  return message.properties.some(
+    (property) =>
+      property.name.toLowerCase().includes(needle) || property.value.toLowerCase().includes(needle),
+  )
+}
+
+/** Подсвечивает найденное в вырезке: иначе её приходится перечитывать глазами. */
+function Highlight({ text, needle }: { text: string; needle: string }) {
+  const parts: ReactNode[] = []
+  const lower = text.toLowerCase()
+  const target = needle.toLowerCase()
+  let at = 0
+  for (let found = lower.indexOf(target); found >= 0; found = lower.indexOf(target, at)) {
+    if (found > at) parts.push(text.slice(at, found))
+    parts.push(
+      <mark key={found} className="rounded bg-accent/25 text-accent-content">
+        {text.slice(found, found + target.length)}
+      </mark>,
+    )
+    at = found + target.length
+  }
+  parts.push(text.slice(at))
+  return <>{parts}</>
 }
