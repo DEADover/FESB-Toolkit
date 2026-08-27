@@ -13,7 +13,7 @@ type ButtonProps = ComponentProps<'button'> & {
 
 export function Button({ variant = 'secondary', size = 'md', className, ...rest }: ButtonProps) {
   const base =
-    'inline-flex items-center justify-center gap-2 rounded-lg font-medium transition ' +
+    'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg font-medium transition ' +
     'disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent'
   const sizes = { sm: 'h-7 px-2.5 text-[12px]', md: 'h-9 px-3.5 text-[13px]' }
   const variants = {
@@ -133,19 +133,23 @@ export function Checkbox({ className, ...rest }: ComponentProps<'input'>) {
  * Эта пара — поле плюс значок в абсолютной позиции — была скопирована
  * на восьми экранах. Один компонент дешевле, и лупа теперь везде одна и та же.
  */
-export function SearchInput({ value, placeholder, onChange, className }: {
+export function SearchInput({ value, placeholder, onChange, className, inputRef, clearLabel }: {
   value: string
   placeholder: string
   onChange: (value: string) => void
   className?: string
+  inputRef?: React.Ref<HTMLInputElement>
+  /** Задан — справа появляется крестик, который стирает запрос. */
+  clearLabel?: string
 }) {
   return (
     // Ширину задаёт тот, кто ставит поле: в ряду оно растягивается, в колонке нет.
     <div className={cx('relative min-w-0', className)}>
       <TextInput
+        ref={inputRef}
         value={value}
         placeholder={placeholder}
-        className="pl-8"
+        className={cx('pl-8', clearLabel && value && 'pr-8')}
         onChange={(event) => onChange(event.target.value)}
       />
       <MagnifyingGlass
@@ -153,11 +157,50 @@ export function SearchInput({ value, placeholder, onChange, className }: {
         weight="bold"
         className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-content-subtle"
       />
+      {clearLabel && value && (
+        <button
+          type="button"
+          aria-label={clearLabel}
+          onClick={() => onChange('')}
+          className="absolute right-2 top-1/2 -translate-y-1/2 rounded px-1 text-content-subtle transition hover:text-content"
+        >
+          <X size={13} weight="bold" />
+        </button>
+      )}
     </div>
   )
 }
 
-export function TextInput({ className, ...rest }: ComponentProps<'input'>) {
+/**
+ * Переключатель-пилюля: чекбокс с подписью в рамке высотой с поле ввода.
+ *
+ * Лежал шестью копиями — «только активные», «только проблемные», «скрыть
+ * служебные», автообновление и так далее. Подпись не переносится: ряд
+ * с фильтрами скорее сожмёт поле поиска, чем сломает подпись пополам.
+ */
+export function Toggle({ checked, onChange, label, disabled, title }: {
+  checked: boolean
+  onChange: (value: boolean) => void
+  label: string
+  disabled?: boolean
+  title?: string
+}) {
+  return (
+    <label
+      title={title}
+      className={cx(
+        'flex h-9 shrink-0 items-center gap-2 whitespace-nowrap rounded-lg border border-line-strong',
+        'bg-surface px-3 text-[12.5px] text-content-muted',
+        disabled ? 'cursor-not-allowed opacity-45' : 'cursor-pointer',
+      )}
+    >
+      <Checkbox checked={checked} disabled={disabled} onChange={(event) => onChange(event.target.checked)} />
+      {label}
+    </label>
+  )
+}
+
+export function TextInput({ className, ...rest }: ComponentProps<'input'> & { ref?: React.Ref<HTMLInputElement> }) {
   return (
     <input
       className={cx(
@@ -465,6 +508,75 @@ export function Stat({ label, value, tone, hint }: {
     <div className="flex shrink-0 flex-col gap-0.5" title={hint}>
       <span className={cx('text-[17px] font-semibold leading-none tabular-nums', color)}>{value}</span>
       <span className={cx('whitespace-nowrap text-[11px] tracking-wide text-content-subtle', hint && 'decoration-dotted underline-offset-2 hover:underline')}>{label}</span>
+    </div>
+  )
+}
+
+/**
+ * Таблица данных: оболочка, шапка и ячейка заголовка.
+ *
+ * Одни и те же три строки классов лежали в десяти экранах, а `<th>` — в
+ * тридцати восьми местах. Правка кегля или отступов означала обход всех.
+ * Теперь это одно место, и `colgroup` каждый экран задаёт себе сам —
+ * ширины у всех разные и общими быть не могут.
+ */
+export function DataTable({ dense, children }: { dense?: boolean; children: ReactNode }) {
+  return (
+    <table className={cx('w-full table-fixed border-collapse', dense ? 'text-[11.5px]' : 'text-[12.5px]')}>
+      {children}
+    </table>
+  )
+}
+
+export function THead({ children }: { children: ReactNode }) {
+  return (
+    <thead className="sticky top-0 z-10 bg-surface-2 text-[11px] tracking-wide text-content-subtle">
+      <tr className="border-b border-line">{children}</tr>
+    </thead>
+  )
+}
+
+export function Th({ align = 'left', className, title, children }: {
+  align?: 'left' | 'right'
+  className?: string
+  title?: string
+  children?: ReactNode
+}) {
+  return (
+    <th title={title} className={cx('px-3 py-2 font-medium', align === 'right' ? 'text-right' : 'text-left', className)}>
+      {children}
+    </th>
+  )
+}
+
+/**
+ * Подпись над числом.
+ *
+ * Отличается от `Stat` порядком: там число сверху и это сводка, здесь подпись
+ * сверху и это строка показателей. Обе формы живые, поэтому обе и оставлены,
+ * но копий каждой должно быть по одной.
+ */
+export function Readout({ label, value, tone, hint }: {
+  label: string
+  value: ReactNode
+  tone?: 'accent' | 'warn' | 'danger'
+  hint?: string
+}) {
+  const color = tone === 'accent' ? 'text-accent-content' : tone === 'warn' ? 'text-caution' : tone === 'danger' ? 'text-negative' : ''
+  return (
+    <div title={hint}>
+      <div className="text-[11px] tracking-wide text-content-subtle">{label}</div>
+      <div className={cx('text-[17px] font-semibold tabular-nums', color)}>{value}</div>
+    </div>
+  )
+}
+
+/** Подпись над текстом: то же, что `Readout`, но значение читают, а не считают. */
+export function TextReadout({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="min-w-0">
+      <div className="text-[11px] tracking-wide text-content-subtle">{label}</div>
+      <div className="truncate text-[13px] font-medium" title={value}>{value}</div>
     </div>
   )
 }

@@ -7,7 +7,7 @@ import type { Connection, DomainStat, ServerInfo } from '../types'
 import {
   AutoRefreshToggle, ErrorBar, NotConnected, Panel, RefreshButton, TableMessage, useApiData, useAutoRefresh,
 } from './ApiShell'
-import { Badge, Checkbox, cx, SearchInput } from './ui'
+import { Badge, cx, DataTable, Readout, SearchInput, Th, THead, Toggle } from './ui'
 
 interface Props {
   connection: Connection | null
@@ -79,11 +79,11 @@ export function MapScreen({ connection, server, onOpenRoutes, onGoToConnection }
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3 px-6 pb-4">
       <div className="flex items-center gap-7 rounded-xl border border-line bg-surface px-5 py-3.5">
-        <Total label={t('map.domains')} value={`${totals.active} / ${totals.domains}`} hint={t('map.domains.hint')} />
-        <Total label={t('map.routes')} value={`${totals.running} / ${totals.routes}`} hint={t('map.routes.hint')} />
-        <Total label={t('map.success')} value={totals.success.toLocaleString()} />
-        <Total label={t('map.errors')} value={totals.errors.toLocaleString()} tone={totals.errors > 0 ? 'danger' : undefined} />
-        <Total label={t('map.inflight')} value={totals.inflight.toLocaleString()} tone={totals.inflight > 0 ? 'warn' : undefined} />
+        <Readout label={t('map.domains')} value={`${totals.active} / ${totals.domains}`} hint={t('map.domains.hint')} />
+        <Readout label={t('map.routes')} value={`${totals.running} / ${totals.routes}`} hint={t('map.routes.hint')} />
+        <Readout label={t('map.success')} value={totals.success.toLocaleString()} />
+        <Readout label={t('map.errors')} value={totals.errors.toLocaleString()} tone={totals.errors > 0 ? 'danger' : undefined} />
+        <Readout label={t('map.inflight')} value={totals.inflight.toLocaleString()} tone={totals.inflight > 0 ? 'warn' : undefined} />
         <div className="ml-auto flex items-center gap-2">
           <AutoRefreshToggle checked={auto} onChange={setAuto} />
           <RefreshButton
@@ -101,13 +101,12 @@ export function MapScreen({ connection, server, onOpenRoutes, onGoToConnection }
           placeholder={t('map.search')}
           onChange={setQuery}
         />
-        <label
+        <Toggle
+          checked={onlyTrouble}
+          onChange={setOnlyTrouble}
+          label={t('map.onlyTrouble')}
           title={t('map.onlyTrouble.hint')}
-          className="flex h-9 cursor-pointer items-center gap-2 rounded-lg border border-line-strong bg-surface px-3 text-[12.5px] text-content-muted"
-        >
-          <Checkbox checked={onlyTrouble} onChange={(event) => setOnlyTrouble(event.target.checked)} />
-          {t('map.onlyTrouble')}
-        </label>
+        />
         <span className="text-[11.5px] text-content-subtle">
           {t('map.shown', { visible: visible.length, total: stats.length })}
         </span>
@@ -116,7 +115,7 @@ export function MapScreen({ connection, server, onOpenRoutes, onGoToConnection }
       <ErrorBar error={error} />
 
       <Panel className="flex-1">
-        <table className="w-full table-fixed border-collapse text-[12.5px]">
+        <DataTable>
           <colgroup>
             <col />
             <col className="w-24" />
@@ -125,16 +124,14 @@ export function MapScreen({ connection, server, onOpenRoutes, onGoToConnection }
             <col className="w-24" />
             <col className="w-24" />
           </colgroup>
-          <thead className="sticky top-0 z-10 bg-surface-2 text-[11px] tracking-wide text-content-subtle">
-            <tr className="border-b border-line">
+          <THead>
               <Head label={t('table.domain')} id="name" sort={sort} onSort={setSort} align="left" />
               <Head label={t('map.routes')} id="routes" sort={sort} onSort={setSort} />
               <Head label={t('map.running')} id="running" sort={sort} onSort={setSort} />
               <Head label={t('map.success')} id="success" sort={sort} onSort={setSort} />
               <Head label={t('map.errors')} id="errors" sort={sort} onSort={setSort} />
               <Head label={t('map.inflight')} id="inflight" sort={sort} onSort={setSort} />
-            </tr>
-          </thead>
+            </THead>
           <tbody>
             {visible.map((item) => (
               <tr
@@ -178,7 +175,7 @@ export function MapScreen({ connection, server, onOpenRoutes, onGoToConnection }
               <TableMessage colSpan={6}>{loading ? t('empty.scanning') : t('table.empty')}</TableMessage>
             )}
           </tbody>
-        </table>
+        </DataTable>
       </Panel>
     </div>
   )
@@ -192,7 +189,7 @@ function Head({ label, id, sort, onSort, align }: {
   align?: 'left'
 }) {
   return (
-    <th className={cx('px-3 py-2 font-medium', align === 'left' ? 'text-left' : 'text-right')}>
+    <Th className={cx('px-3 py-2 font-medium', align === 'left' ? 'text-left' : 'text-right')}>
       <button
         type="button"
         onClick={() => onSort(id)}
@@ -200,26 +197,7 @@ function Head({ label, id, sort, onSort, align }: {
       >
         {label}
       </button>
-    </th>
+    </Th>
   )
 }
 
-function Total({ label, value, hint, tone }: {
-  label: string
-  value: string
-  hint?: string
-  tone?: 'danger' | 'warn'
-}) {
-  return (
-    <div title={hint}>
-      <div className="text-[11px] tracking-wide text-content-subtle">{label}</div>
-      <div className={cx(
-        'text-[17px] font-semibold tabular-nums',
-        tone === 'danger' && 'text-negative',
-        tone === 'warn' && 'text-caution',
-      )}>
-        {value}
-      </div>
-    </div>
-  )
-}

@@ -6,7 +6,7 @@ import { useI18n } from '../i18n'
 import { apiDomainAction, apiDomains, errorText } from '../lib/api'
 import type { ApiDomain, ApiProgress, Connection, DomainAction, ServerInfo } from '../types'
 import { RefreshButton } from './ApiShell'
-import { Badge, Button, Checkbox, cx, IconButton, Modal, SearchInput, Spinner } from './ui'
+import { Badge, Button, Checkbox, cx, DataTable, IconButton, Modal, SearchInput, Spinner, Th, THead, Toggle } from './ui'
 
 interface Props {
   connection: Connection | null
@@ -188,10 +188,7 @@ export function DomainsScreen({ connection, server, pulling, progress, error: pu
           placeholder={t('api.domains.search')}
           onChange={setQuery}
         />
-        <label className="flex h-9 cursor-pointer items-center gap-2 rounded-lg border border-line-strong bg-surface px-3 text-[12.5px] text-content-muted">
-          <Checkbox checked={onlyActive} onChange={(event) => setOnlyActive(event.target.checked)} />
-          {t('api.domains.onlyActive')}
-        </label>
+        <Toggle checked={onlyActive} onChange={setOnlyActive} label={t('api.domains.onlyActive')} />
         <RefreshButton
           busy={loading}
           disabled={loading || pulling}
@@ -212,7 +209,7 @@ export function DomainsScreen({ connection, server, pulling, progress, error: pu
       )}
 
       <div className="min-h-0 flex-1 overflow-auto rounded-xl border border-line bg-surface">
-        <table className="w-full table-fixed border-collapse text-[12.5px]">
+        <DataTable>
           <colgroup>
             <col className="w-9" />
             <col />
@@ -221,22 +218,20 @@ export function DomainsScreen({ connection, server, pulling, progress, error: pu
             <col />
             <col className="w-28" />
           </colgroup>
-          <thead className="sticky top-0 z-10 bg-surface-2 text-[11px] tracking-wide text-content-subtle">
-            <tr className="border-b border-line">
-              <th className="px-2 py-2">
+          <THead>
+              <Th className="px-2">
                 <Checkbox
                   checked={allVisibleSelected}
                   onChange={toggleVisible}
                   aria-label={t('api.domains.selectAll')}
                 />
-              </th>
-              <th className="px-2 py-2 text-left font-medium">{t('table.domain')}</th>
-              <th className="px-2 py-2 text-left font-medium">{t('api.domains.group')}</th>
-              <th className="px-2 py-2 text-left font-medium">{t('table.state')}</th>
-              <th className="px-2 py-2 text-left font-medium">{t('table.guid')}</th>
-              <th className="px-2 py-2 text-left font-medium">{t('modules.actions')}</th>
-            </tr>
-          </thead>
+              </Th>
+              <Th className="px-2">{t('table.domain')}</Th>
+              <Th className="px-2">{t('api.domains.group')}</Th>
+              <Th className="px-2">{t('table.state')}</Th>
+              <Th className="px-2">{t('table.guid')}</Th>
+              <Th className="px-2">{t('modules.actions')}</Th>
+            </THead>
           <tbody>
             {visible.map((domain) => (
               <tr
@@ -301,7 +296,7 @@ export function DomainsScreen({ connection, server, pulling, progress, error: pu
               <tr><td colSpan={6} className="px-3 py-10 text-center text-content-subtle">{t('table.empty')}</td></tr>
             )}
           </tbody>
-        </table>
+        </DataTable>
       </div>
 
       <div className="flex items-center gap-3 rounded-xl border border-line bg-surface px-5 py-3">

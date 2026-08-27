@@ -7,7 +7,7 @@ import { errorText, readRoute, revealPath } from '../lib/api'
 import type { RouteGraph, RouteNeighbours, RouteNode, RouteState } from '../types'
 import { byUri } from '../lib/links'
 import { kindLabel, RouteDiagram, scheme, shortUri } from './RouteDiagram'
-import { Badge, Button, Spinner, cx } from './ui'
+import { Badge, Button, cx, DataTable, Spinner } from './ui'
 
 interface Props {
   /** Путь к файлу СОПС; `null` — просмотрщик закрыт. */
@@ -190,6 +190,12 @@ function LiveStrip({ live }: { live: RouteState }) {
   )
 }
 
+/**
+ * Показатель в живой полосе над схемой.
+ *
+ * Не `Readout`: здесь моноширинный шрифт и компактный кегль, потому что
+ * значения меняются на глазах и не должны дёргать соседей по ширине.
+ */
 function Metric({ label, value, tone }: { label: string; value: string; tone?: 'danger' | 'warn' }) {
   return (
     <span className="min-w-0">
@@ -313,7 +319,7 @@ function Details({ node }: { node: RouteNode }) {
       </div>
 
       <div className="overflow-hidden rounded-xl border border-line">
-        <table className="w-full table-fixed border-collapse text-[11.5px]">
+        <DataTable dense>
           <colgroup>
             <col className="w-[108px]" />
             <col />
@@ -330,7 +336,7 @@ function Details({ node }: { node: RouteNode }) {
               </tr>
             ))}
           </tbody>
-        </table>
+        </DataTable>
       </div>
 
       {node.uri && (

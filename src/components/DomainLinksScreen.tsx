@@ -7,7 +7,7 @@ import { errorText, routeLinks } from '../lib/api'
 import type { LinkGraph, ScanResult } from '../types'
 import { RouteViewer } from './RouteViewer'
 import { RefreshButton } from './ApiShell'
-import { Badge, Checkbox, cx, SearchInput } from './ui'
+import { Badge, cx, DataTable, Readout, SearchInput, Th, THead, Toggle } from './ui'
 
 interface Props {
   scan: ScanResult | null
@@ -142,10 +142,10 @@ export function DomainLinksScreen({ scan, isMac }: Props) {
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3 px-6 pb-4">
       <div className="flex items-center gap-7 rounded-xl border border-line bg-surface px-5 py-3.5">
-        <Total label={t('domainLinks.total')} value={totals.links} />
-        <Total label={t('domainLinks.cross')} value={totals.crossLinks} tone="accent" />
-        <Total label={t('domainLinks.pairs')} value={totals.pairs} />
-        <Total label={t('domainLinks.domains')} value={totals.domains} />
+        <Readout label={t('domainLinks.total')} value={totals.links.toLocaleString()} />
+        <Readout label={t('domainLinks.cross')} value={totals.crossLinks.toLocaleString()} tone="accent" />
+        <Readout label={t('domainLinks.pairs')} value={totals.pairs.toLocaleString()} />
+        <Readout label={t('domainLinks.domains')} value={totals.domains.toLocaleString()} />
         <RefreshButton className="ml-auto"
           busy={loading}
           disabled={loading}
@@ -160,13 +160,12 @@ export function DomainLinksScreen({ scan, isMac }: Props) {
           placeholder={t('domainLinks.search')}
           onChange={setQuery}
         />
-        <label
+        <Toggle
+          checked={onlyCross}
+          onChange={setOnlyCross}
+          label={t('domainLinks.onlyCross')}
           title={t('domainLinks.onlyCross.hint')}
-          className="flex h-9 cursor-pointer items-center gap-2 rounded-lg border border-line-strong bg-surface px-3 text-[12.5px] text-content-muted"
-        >
-          <Checkbox checked={onlyCross} onChange={(event) => setOnlyCross(event.target.checked)} />
-          {t('domainLinks.onlyCross')}
-        </label>
+        />
         <span className="text-[11.5px] text-content-subtle">
           {t('map.shown', { visible: visible.length, total: pairs.length })}
         </span>
@@ -175,7 +174,7 @@ export function DomainLinksScreen({ scan, isMac }: Props) {
       {error && <div className="rounded-lg border border-negative/40 bg-negative/10 px-3 py-2 text-negative">{error}</div>}
 
       <div className="min-h-0 flex-1 overflow-auto rounded-xl border border-line bg-surface">
-        <table className="w-full table-fixed border-collapse text-[12.5px]">
+        <DataTable>
           <colgroup>
             <col />
             <col className="w-8" />
@@ -183,15 +182,13 @@ export function DomainLinksScreen({ scan, isMac }: Props) {
             <col className="w-28" />
             <col className="w-28" />
           </colgroup>
-          <thead className="sticky top-0 z-10 bg-surface-2 text-[11px] tracking-wide text-content-subtle">
-            <tr className="border-b border-line">
-              <th className="px-3 py-2 text-left font-medium">{t('domainLinks.from')}</th>
-              <th className="px-1 py-2" />
-              <th className="px-3 py-2 text-left font-medium">{t('domainLinks.to')}</th>
-              <th className="px-3 py-2 text-right font-medium">{t('links.call')}</th>
-              <th className="px-3 py-2 text-right font-medium">{t('links.queue')}</th>
-            </tr>
-          </thead>
+          <THead>
+              <Th>{t('domainLinks.from')}</Th>
+              <Th className="px-1" />
+              <Th>{t('domainLinks.to')}</Th>
+              <Th align="right">{t('links.call')}</Th>
+              <Th align="right">{t('links.queue')}</Th>
+            </THead>
           <tbody>
             {visible.map((pair) => {
               const open = expanded === pair.key
@@ -264,7 +261,7 @@ export function DomainLinksScreen({ scan, isMac }: Props) {
               </tr>
             )}
           </tbody>
-        </table>
+        </DataTable>
       </div>
 
       <RouteViewer
@@ -278,13 +275,3 @@ export function DomainLinksScreen({ scan, isMac }: Props) {
   )
 }
 
-function Total({ label, value, tone }: { label: string; value: number; tone?: 'accent' }) {
-  return (
-    <div>
-      <div className="text-[11px] tracking-wide text-content-subtle">{label}</div>
-      <div className={cx('text-[17px] font-semibold tabular-nums', tone === 'accent' && 'text-accent-content')}>
-        {value.toLocaleString()}
-      </div>
-    </div>
-  )
-}

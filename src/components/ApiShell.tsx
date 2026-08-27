@@ -5,7 +5,7 @@ import { ArrowsClockwise, ArrowsLeftRight } from '@phosphor-icons/react'
 import { useI18n } from '../i18n'
 import { errorText } from '../lib/api'
 import type { Connection } from '../types'
-import { Button, Checkbox, Spinner, cx } from './ui'
+import { Button, cx, Spinner, Toggle } from './ui'
 
 /**
  * Общая обвязка для экранов раздела API: все они читают что-то с сервера,
@@ -185,13 +185,5 @@ export function FilterChip({ active, count, activeClass, className, title, onCli
 /** Переключатель автообновления — один и тот же на всех живых экранах. */
 export function AutoRefreshToggle({ checked, onChange }: { checked: boolean; onChange: (value: boolean) => void }) {
   const { t } = useI18n()
-  return (
-    <label
-      title={t('logs.autoHint')}
-      className="flex h-9 cursor-pointer items-center gap-2 rounded-lg border border-line-strong bg-surface px-3 text-[12.5px] text-content-muted"
-    >
-      <Checkbox checked={checked} onChange={(event) => onChange(event.target.checked)} />
-      {t('logs.auto')}
-    </label>
-  )
+  return <Toggle checked={checked} onChange={onChange} label={t('logs.auto')} title={t('logs.autoHint')} />
 }

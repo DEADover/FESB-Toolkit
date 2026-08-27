@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-import { ArrowsClockwise, DownloadSimple } from '@phosphor-icons/react'
+import { DownloadSimple } from '@phosphor-icons/react'
 
 import { AuditScreen } from './components/AuditScreen'
 import { ConnectionScreen } from './components/ConnectionScreen'
@@ -14,6 +14,7 @@ import { PropertiesScreen } from './components/PropertiesScreen'
 import { QueuesScreen } from './components/QueuesScreen'
 import { RoutesScreen } from './components/RoutesScreen'
 import { Sidebar, type ScreenId } from './components/Sidebar'
+import { RefreshButton } from './components/ApiShell'
 import { TraceScreen } from './components/TraceScreen'
 import { Badge, Button, Spinner, cx } from './components/ui'
 import { useI18n, type MessageKey } from './i18n'
@@ -322,9 +323,7 @@ export default function App() {
             onConfigure={configure}
           />
           {!isApiScreen && !isLinksScreen && root && (
-            <Button onClick={rescan} disabled={busy}>
-              {scanning ? <Spinner className="size-4" /> : <ArrowsClockwise size={14} weight="bold" />} {t('action.refresh')}
-            </Button>
+            <RefreshButton busy={scanning} disabled={busy} onClick={rescan} />
           )}
           {!isApiScreen && !isLinksScreen && (
             <>

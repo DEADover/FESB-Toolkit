@@ -6,7 +6,7 @@ import { useI18n } from '../i18n'
 import type { DomainGroup, SortDir, SortKey, TraceEntry } from '../lib/rows'
 import { changeKey, routeSummary, routesUsingBean, selectableKeys } from '../lib/rows'
 import type { DomainRecord, RouteInfo, TraceBean, TraceUpdate } from '../types'
-import { Badge, Checkbox, SortHead, cx } from './ui'
+import { Badge, Checkbox, cx, SortHead, Th } from './ui'
 
 interface Props {
   groups: DomainGroup[]
@@ -57,6 +57,8 @@ export function TraceTable({
 
   return (
     <div className="min-h-0 flex-1 overflow-auto rounded-xl border border-line bg-surface">
+      {/* Своя оболочка, не `DataTable`: липкая шапка с видимыми рамками
+          требует border-separate, при border-collapse рамка уезжает при прокрутке. */}
       <table className="w-full table-fixed border-separate border-spacing-0 text-[12.5px]">
         {/* Домен и маршруты получают всё свободное место, брокеру хватает узкой колонки. */}
         <colgroup>
@@ -73,7 +75,7 @@ export function TraceTable({
 
         <thead className="sticky top-0 z-10">
           <tr className="bg-surface-2 text-left text-[11.5px] text-content-subtle">
-            <th className="border-b border-line px-3 py-2.5">
+            <Th className="border-b border-line py-2.5">
               <LineBox>
               <Checkbox
                 ref={headCheckbox}
@@ -83,19 +85,19 @@ export function TraceTable({
                 aria-label={t('filter.all')}
               />
               </LineBox>
-            </th>
-            <th className="border-b border-line px-2 py-2.5 text-center font-medium" title={t('table.changed')}>
+            </Th>
+            <Th className="border-b border-line px-2 py-2.5 text-center" title={t('table.changed')}>
               <PencilIcon />
-            </th>
+            </Th>
             <SortHead label={t('table.domain')} sortKey="domain" active={sortKey} dir={sortDir} onSort={onSort} />
             <SortHead label={t('table.traceBean')} sortKey="bean" active={sortKey} dir={sortDir} onSort={onSort} />
             <SortHead label={t('table.broker')} sortKey="broker" active={sortKey} dir={sortDir} onSort={onSort} />
-            <th className="border-b border-line px-3 py-2.5 font-medium">{t('table.queue')}</th>
-            <th className="border-b border-line px-3 py-2.5 font-medium">{t('table.traceMode')}</th>
+            <Th className="border-b border-line py-2.5">{t('table.queue')}</Th>
+            <Th className="border-b border-line py-2.5">{t('table.traceMode')}</Th>
             <SortHead label={t('table.routes')} sortKey="routes" active={sortKey} dir={sortDir} onSort={onSort} />
-            <th className="border-b border-line px-3 py-2.5 font-medium">{t('table.file')}</th>
+            <Th className="border-b border-line py-2.5">{t('table.file')}</Th>
           </tr>
-        </thead>
+            </thead>
 
         {groups.map((group) => {
           const domain = group.domain

@@ -44,7 +44,7 @@ const API_PROGRESS_EVENT: &str = "api:progress";
 #[serde(rename_all = "camelCase")]
 pub struct AppInfo {
     version: String,
-    tauri: String,
+    /// Не для показа: по нему интерфейс решает, отступать ли под кнопки macOS.
     platform: String,
 }
 
@@ -52,7 +52,6 @@ pub struct AppInfo {
 fn app_info(app: AppHandle) -> AppInfo {
     AppInfo {
         version: app.package_info().version.to_string(),
-        tauri: tauri::VERSION.to_string(),
         platform: std::env::consts::OS.to_string(),
     }
 }

@@ -182,30 +182,33 @@ export function Sidebar({ screen, onScreen, info, isMac, collapsed, onCollapse, 
           Кнопки остаются и в узком режиме: сворачивают панель как раз тогда,
           когда нужно место под таблицу, а тему при этом переключают не реже.
         */}
-        <div className={cx('flex shrink-0 gap-1 pt-3', collapsed ? 'flex-col items-center px-2 pb-4' : 'items-center px-4 pb-2')}>
-          <FooterButton
-            icon={THEME_ICON[themeMode]}
-            label={t(THEME_LABEL[themeMode])}
-            onClick={() => onThemeMode(NEXT_THEME[themeMode])}
-          />
-          <FooterButton
-            text={language.toUpperCase()}
-            label={LANGUAGES.find((item) => item.id !== language)?.label ?? ''}
-            onClick={() => setLanguage(LANGUAGES.find((item) => item.id !== language)?.id ?? language)}
-          />
-          <FooterButton
-            icon={GithubLogo}
-            label={`${t('settings.repository')} · ${REPOSITORY_URL}`}
-            onClick={() => void openRepository()}
-            className={collapsed ? '' : 'ml-auto'}
-          />
-        </div>
-
-        {!collapsed && (
-          <div className="px-4 pb-4 text-[10.5px] leading-relaxed text-content-subtle">
-            {info ? `v${info.version} · Tauri ${info.tauri} · ${info.platform}` : '—'}
+        <div className={cx('flex shrink-0 flex-col gap-1 pb-4 pt-3', collapsed ? 'items-center px-2' : 'px-4')}>
+          <div className={cx('flex gap-1', collapsed ? 'flex-col items-center' : 'items-center')}>
+            <FooterButton
+              icon={THEME_ICON[themeMode]}
+              label={t(THEME_LABEL[themeMode])}
+              onClick={() => onThemeMode(NEXT_THEME[themeMode])}
+            />
+            <FooterButton
+              text={language.toUpperCase()}
+              label={LANGUAGES.find((item) => item.id !== language)?.label ?? ''}
+              onClick={() => setLanguage(LANGUAGES.find((item) => item.id !== language)?.id ?? language)}
+            />
           </div>
-        )}
+
+          {/* Версия читается вместе со ссылкой на репозиторий: за номером
+              идут туда же, где лежат исходники. */}
+          <div className={cx('flex items-center gap-1', collapsed && 'flex-col')}>
+            <FooterButton
+              icon={GithubLogo}
+              label={`${t('settings.repository')} · ${REPOSITORY_URL}`}
+              onClick={() => void openRepository()}
+            />
+            {!collapsed && info && (
+              <span className="font-mono text-[12px] tabular-nums text-content-subtle">v{info.version}</span>
+            )}
+          </div>
+        </div>
       </div>
     </aside>
   )

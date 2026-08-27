@@ -8,7 +8,7 @@ import type { ApiDomain, Connection, PropertyRow, PropertyScope, ServerInfo } fr
 import {
   ErrorBar, NotConnected, Panel, RefreshButton, TableMessage, useApiData,
 } from './ApiShell'
-import { Badge, Button, Checkbox, cx, Modal, SearchInput, Segmented, Spinner, SuggestInput, TextInput } from './ui'
+import { Badge, Button, Checkbox, cx, DataTable, Modal, SearchInput, Segmented, Spinner, SuggestInput, TextInput, Th, THead } from './ui'
 
 interface Props {
   connection: Connection | null
@@ -153,7 +153,7 @@ export function PropertiesScreen({ connection, server, onGoToConnection }: Props
       <ErrorBar error={error ?? domains.error} />
 
       <Panel className="flex-1">
-        <table className="w-full table-fixed border-collapse text-[12.5px]">
+        <DataTable>
           <colgroup>
             {/* Имя и значение делят остаток поровну: оба длинные, и жёсткая
                 ширина у имени на узком окне съедала значение целиком. */}
@@ -161,13 +161,11 @@ export function PropertiesScreen({ connection, server, onGoToConnection }: Props
             <col />
             <col className="w-56" />
           </colgroup>
-          <thead className="sticky top-0 z-10 bg-surface-2 text-[11px] tracking-wide text-content-subtle">
-            <tr className="border-b border-line">
-              <th className="px-3 py-2 text-left font-medium">{t('properties.key')}</th>
-              <th className="px-3 py-2 text-left font-medium">{t('properties.value')}</th>
-              <th className="px-3 py-2 text-left font-medium">{t('properties.comment')}</th>
-            </tr>
-          </thead>
+          <THead>
+              <Th>{t('properties.key')}</Th>
+              <Th>{t('properties.value')}</Th>
+              <Th>{t('properties.comment')}</Th>
+            </THead>
           <tbody>
             {visible.map((property) => (
               <tr key={property.key} className="border-b border-line/60 align-top hover:bg-surface-2">
@@ -212,7 +210,7 @@ export function PropertiesScreen({ connection, server, onGoToConnection }: Props
               </TableMessage>
             )}
           </tbody>
-        </table>
+        </DataTable>
       </Panel>
 
       <Modal

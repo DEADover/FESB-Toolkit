@@ -161,7 +161,7 @@ export interface ApplyProgress {
 
 export interface AppInfo {
   version: string
-  tauri: string
+  /** Не для показа: по нему интерфейс решает, отступать ли под кнопки macOS. */
   platform: string
 }
 

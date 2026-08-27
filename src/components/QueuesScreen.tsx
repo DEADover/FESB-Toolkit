@@ -8,7 +8,7 @@ import type { Connection, QueueManager, QueueMessage, QueueRow, ServerInfo } fro
 import {
   AutoRefreshToggle, ErrorBar, NotConnected, Panel, RefreshButton, TableMessage, useApiData, useAutoRefresh,
 } from './ApiShell'
-import { Badge, Button, Checkbox, cx, IconButton, SearchInput, Spinner } from './ui'
+import { Badge, Button, Checkbox, cx, DataTable, IconButton, SearchInput, Spinner, Th, THead } from './ui'
 
 interface Props {
   connection: Connection | null
@@ -183,7 +183,7 @@ export function QueuesScreen({ connection, server, onGoToConnection }: Props) {
             />
           ) : (
           <Panel className="flex-1">
-            <table className="w-full table-fixed border-collapse text-[12.5px]">
+            <DataTable>
               <colgroup>
                 {/* Накопительные счётчики уходят на узком окне: имя очереди
                     и текущее число сообщений нужнее, чем «положено за всё время». */}
@@ -194,16 +194,14 @@ export function QueuesScreen({ connection, server, onGoToConnection }: Props) {
                 <col className="hidden w-24 xl:table-column" />
                 <col className="w-28" />
               </colgroup>
-              <thead className="sticky top-0 z-10 bg-surface-2 text-[11px] tracking-wide text-content-subtle">
-                <tr className="border-b border-line">
-                  <th className="px-3 py-2 text-left font-medium">{t('queues.queue')}</th>
-                  <th className="px-3 py-2 text-right font-medium">{t('queues.messages')}</th>
-                  <th className="px-3 py-2 text-right font-medium">{t('queues.consumers')}</th>
-                  <th className="hidden px-3 py-2 text-right font-medium xl:table-cell">{t('queues.enqueued')}</th>
-                  <th className="hidden px-3 py-2 text-right font-medium xl:table-cell">{t('queues.dequeued')}</th>
-                  <th className="px-3 py-2 text-left font-medium">{t('table.state')}</th>
-                </tr>
-              </thead>
+              <THead>
+                  <Th>{t('queues.queue')}</Th>
+                  <Th align="right">{t('queues.messages')}</Th>
+                  <Th align="right">{t('queues.consumers')}</Th>
+                  <Th align="right" className="hidden xl:table-cell">{t('queues.enqueued')}</Th>
+                  <Th align="right" className="hidden xl:table-cell">{t('queues.dequeued')}</Th>
+                  <Th>{t('table.state')}</Th>
+                </THead>
               <tbody>
                 {visible.map((queue) => (
                   <tr
@@ -238,7 +236,7 @@ export function QueuesScreen({ connection, server, onGoToConnection }: Props) {
                   </TableMessage>
                 )}
               </tbody>
-            </table>
+            </DataTable>
           </Panel>
           )}
         </div>
@@ -321,7 +319,7 @@ function Messages({ connection, manager, queue, onBack }: {
       <ErrorBar error={error} />
 
       <Panel className="flex-1">
-        <table className="w-full table-fixed border-collapse text-[12.5px]">
+        <DataTable>
           <colgroup>
             <col className="w-44" />
             <col />
@@ -329,15 +327,13 @@ function Messages({ connection, manager, queue, onBack }: {
             <col className="w-24" />
             <col className="w-20" />
           </colgroup>
-          <thead className="sticky top-0 z-10 bg-surface-2 text-[11px] tracking-wide text-content-subtle">
-            <tr className="border-b border-line">
-              <th className="px-3 py-2 text-left font-medium">{t('logs.time')}</th>
-              <th className="px-3 py-2 text-left font-medium">{t('queues.messageId')}</th>
-              <th className="px-3 py-2 text-left font-medium">{t('queues.messageType')}</th>
-              <th className="px-3 py-2 text-right font-medium">{t('zip.size')}</th>
-              <th className="px-3 py-2 text-left font-medium">{t('table.state')}</th>
-            </tr>
-          </thead>
+          <THead>
+              <Th>{t('logs.time')}</Th>
+              <Th>{t('queues.messageId')}</Th>
+              <Th>{t('queues.messageType')}</Th>
+              <Th align="right">{t('zip.size')}</Th>
+              <Th>{t('table.state')}</Th>
+            </THead>
           <tbody>
             {messages.map((message) => {
               const loaded = full[message.id]
@@ -380,7 +376,7 @@ function Messages({ connection, manager, queue, onBack }: {
               <TableMessage colSpan={5}>{loading ? t('empty.scanning') : t('queues.noMessages')}</TableMessage>
             )}
           </tbody>
-        </table>
+        </DataTable>
       </Panel>
     </div>
   )
@@ -392,7 +388,7 @@ function MessageBody({ message }: { message: QueueMessage }) {
     <div className="flex flex-col gap-3">
       {message.properties.length > 0 && (
         <div className="overflow-hidden rounded-lg border border-line">
-          <table className="w-full table-fixed border-collapse text-[11.5px]">
+          <DataTable dense>
             <colgroup>
               <col className="w-56" />
               <col />
@@ -407,7 +403,7 @@ function MessageBody({ message }: { message: QueueMessage }) {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </DataTable>
         </div>
       )}
 

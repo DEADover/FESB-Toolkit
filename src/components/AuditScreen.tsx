@@ -7,7 +7,7 @@ import type { AuditEntry, Connection, ServerInfo } from '../types'
 import {
   AutoRefreshToggle, ErrorBar, FilterChip, LimitSelect, NotConnected, Panel, RefreshButton, TableMessage, useAutoRefresh,
 } from './ApiShell'
-import { Badge, CodePill, cx, SearchInput } from './ui'
+import { Badge, CodePill, cx, DataTable, SearchInput, Th, THead } from './ui'
 
 interface Props {
   connection: Connection | null
@@ -118,7 +118,7 @@ export function AuditScreen({ connection, server, onGoToConnection }: Props) {
       <ErrorBar error={error} />
 
       <Panel className="flex-1">
-        <table className="w-full table-fixed border-collapse text-[12.5px]">
+        <DataTable>
           <colgroup>
             <col className="w-44" />
             <col className="w-32" />
@@ -126,15 +126,13 @@ export function AuditScreen({ connection, server, onGoToConnection }: Props) {
             <col />
             <col className="w-20" />
           </colgroup>
-          <thead className="sticky top-0 z-10 bg-surface-2 text-[11px] tracking-wide text-content-subtle">
-            <tr className="border-b border-line">
-              <th className="px-3 py-2 text-left font-medium">{t('logs.time')}</th>
-              <th className="px-3 py-2 text-left font-medium">{t('api.info.user')}</th>
-              <th className="px-3 py-2 text-left font-medium">{t('audit.ip')}</th>
-              <th className="px-3 py-2 text-left font-medium">{t('audit.action')}</th>
-              <th className="px-3 py-2 text-right font-medium">{t('audit.result')}</th>
-            </tr>
-          </thead>
+          <THead>
+              <Th>{t('logs.time')}</Th>
+              <Th>{t('api.info.user')}</Th>
+              <Th>{t('audit.ip')}</Th>
+              <Th>{t('audit.action')}</Th>
+              <Th align="right">{t('audit.result')}</Th>
+            </THead>
           <tbody>
             {visible.map((entry, index) => {
               const shown = open === index
@@ -188,7 +186,7 @@ export function AuditScreen({ connection, server, onGoToConnection }: Props) {
               <TableMessage colSpan={5}>{loading ? t('empty.scanning') : t('audit.empty')}</TableMessage>
             )}
           </tbody>
-        </table>
+        </DataTable>
       </Panel>
     </div>
   )

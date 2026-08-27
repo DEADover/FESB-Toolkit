@@ -1,7 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent, type ReactNode } from 'react'
 
-import { MagnifyingGlass, X } from '@phosphor-icons/react'
-
 import { useI18n } from '../i18n'
 import {
   apiPush, apiQueueManagers, apiQueues, apiVerify, applyTrace, buildArchive, errorText,
@@ -21,7 +19,7 @@ import type {
 import { ReportDialog } from './ReportDialog'
 import { RouteViewer } from './RouteViewer'
 import { TraceTable } from './TraceTable'
-import { Badge, Button, Checkbox, Modal, ScrollStrip, Spinner, Stat, SuggestInput, TextInput, cx } from './ui'
+import { Badge, Button, cx, DataTable, Modal, ScrollStrip, SearchInput, Spinner, Stat, SuggestInput, Th, THead, Toggle } from './ui'
 
 interface Props {
   scan: ScanResult
@@ -506,26 +504,13 @@ export function TraceScreen({ scan, isMac, sourcePath, server, onRescan }: Props
         </ScrollStrip>
       </div>
 
-      <div className="relative">
-        <TextInput
-          ref={searchRef}
-          value={filters.query}
-          onChange={(event) => setFilters((prev) => ({ ...prev, query: event.target.value }))}
-          placeholder={t('search.placeholder', { shortcut })}
-          className="pl-8"
-        />
-        <MagnifyingGlass size={14} weight="bold" className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-content-subtle" />
-        {filters.query && (
-          <button
-            type="button"
-            aria-label={t('action.clearSearch')}
-            onClick={() => setFilters((prev) => ({ ...prev, query: '' }))}
-            className="absolute right-2 top-1/2 -translate-y-1/2 rounded px-1 text-content-subtle hover:text-content"
-          >
-            <X size={13} weight="bold" />
-          </button>
-        )}
-      </div>
+      <SearchInput
+        inputRef={searchRef}
+        value={filters.query}
+        onChange={(query) => setFilters((prev) => ({ ...prev, query }))}
+        placeholder={t('search.placeholder', { shortcut })}
+        clearLabel={t('action.clearSearch')}
+      />
 
       {/* Фильтры слева, счётчики справа: появление «выбрано» не двигает ни то, ни другое. */}
       <div className="flex items-center gap-2">
@@ -909,7 +894,7 @@ function VerifyReport({ result }: { result: VerifyResult }) {
             {t('verify.dirty', { count: result.mismatches.length })}
           </p>
           <div className="max-h-64 overflow-auto rounded-lg border border-line">
-            <table className="w-full table-fixed border-collapse text-[12px]">
+            <DataTable>
               <colgroup>
                 <col />
                 <col className="w-32" />
@@ -917,15 +902,13 @@ function VerifyReport({ result }: { result: VerifyResult }) {
                 <col className="w-40" />
                 <col className="w-40" />
               </colgroup>
-              <thead className="sticky top-0 bg-surface-2 text-[11px] tracking-wide text-content-subtle">
-                <tr className="border-b border-line">
-                  <th className="px-2 py-1.5 text-left font-medium">{t('table.domain')}</th>
-                  <th className="px-2 py-1.5 text-left font-medium">{t('table.traceBean')}</th>
-                  <th className="px-2 py-1.5 text-left font-medium">{t('verify.field')}</th>
-                  <th className="px-2 py-1.5 text-left font-medium">{t('verify.expected')}</th>
-                  <th className="px-2 py-1.5 text-left font-medium">{t('verify.actual')}</th>
-                </tr>
-              </thead>
+              <THead>
+                  <Th className="px-2 py-1.5">{t('table.domain')}</Th>
+                  <Th className="px-2 py-1.5">{t('table.traceBean')}</Th>
+                  <Th className="px-2 py-1.5">{t('verify.field')}</Th>
+                  <Th className="px-2 py-1.5">{t('verify.expected')}</Th>
+                  <Th className="px-2 py-1.5">{t('verify.actual')}</Th>
+              </THead>
               <tbody>
                 {result.mismatches.map((item, index) => (
                   <tr key={`${item.domain}-${item.bean}-${item.field}-${index}`} className="border-b border-line/60">
@@ -943,7 +926,7 @@ function VerifyReport({ result }: { result: VerifyResult }) {
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </DataTable>
           </div>
         </>
       )}
@@ -1003,26 +986,6 @@ function Field({ label, htmlFor, className, children }: {
   )
 }
 
-function Toggle({ checked, onChange, label, disabled, title }: {
-  checked: boolean
-  onChange: (value: boolean) => void
-  label: string
-  disabled?: boolean
-  title?: string
-}) {
-  return (
-    <label
-      title={title}
-      className={cx(
-        'flex h-9 items-center gap-2 rounded-lg border border-line-strong bg-surface px-3 text-content-muted',
-        disabled ? 'cursor-not-allowed opacity-45' : 'cursor-pointer',
-      )}
-    >
-      <Checkbox checked={checked} disabled={disabled} onChange={(event) => onChange(event.target.checked)} />
-      {label}
-    </label>
-  )
-}
 
 function FilterChip({ active, mono, children, ...rest }: {
   active: boolean

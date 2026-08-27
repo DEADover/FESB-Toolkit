@@ -11,7 +11,7 @@ import type { Connection, ModuleAction, ModuleRow, SavePoint, ServerInfo } from 
 import {
   ErrorBar, NotConnected, Panel, RefreshButton, TableMessage, useApiData,
 } from './ApiShell'
-import { Badge, Button, IconButton, Modal, Spinner, cx } from './ui'
+import { Badge, Button, cx, DataTable, IconButton, Modal, Spinner, Th, THead } from './ui'
 
 interface Props {
   connection: Connection | null
@@ -80,7 +80,7 @@ export function ModulesScreen({ connection, server, onGoToConnection }: Props) {
       <ErrorBar error={error} />
 
       <Panel className="shrink-0">
-        <table className="w-full table-fixed border-collapse text-[12.5px]">
+        <DataTable>
           <colgroup>
             {/* Имя модуля забирает остаток: колонки под ним подобраны так,
                 чтобы на минимальной ширине окна (1020) ему оставалось место. */}
@@ -90,15 +90,13 @@ export function ModulesScreen({ connection, server, onGoToConnection }: Props) {
             <col className="w-32" />
             <col className="w-28" />
           </colgroup>
-          <thead className="sticky top-0 z-10 bg-surface-2 text-[11px] tracking-wide text-content-subtle">
-            <tr className="border-b border-line">
-              <th className="px-3 py-2 text-left font-medium">{t('modules.module')}</th>
-              <th className="px-3 py-2 text-left font-medium">{t('modules.code')}</th>
-              <th className="px-3 py-2 text-left font-medium">{t('modules.dependencies')}</th>
-              <th className="px-3 py-2 text-left font-medium">{t('table.state')}</th>
-              <th className="px-3 py-2 text-left font-medium">{t('modules.actions')}</th>
-            </tr>
-          </thead>
+          <THead>
+              <Th>{t('modules.module')}</Th>
+              <Th>{t('modules.code')}</Th>
+              <Th>{t('modules.dependencies')}</Th>
+              <Th>{t('table.state')}</Th>
+              <Th>{t('modules.actions')}</Th>
+            </THead>
           <tbody>
             {modules.map((module) => (
               <tr key={module.name} className={cx('border-b border-line/60', !module.active && 'text-content-subtle')}>
@@ -153,7 +151,7 @@ export function ModulesScreen({ connection, server, onGoToConnection }: Props) {
               <TableMessage colSpan={5}>{loading ? t('empty.scanning') : t('table.empty')}</TableMessage>
             )}
           </tbody>
-        </table>
+        </DataTable>
       </Panel>
 
       <SavePoints connection={connection} />

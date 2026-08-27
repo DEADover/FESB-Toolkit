@@ -6,7 +6,7 @@ import { useI18n, type MessageKey } from '../i18n'
 import { revealPath } from '../lib/api'
 import { routeSummary, routesUsingBean } from '../lib/rows'
 import type { ApplyReport, DomainRecord, ScanResult } from '../types'
-import { Badge, Button, Modal, Spinner, Stat, cx } from './ui'
+import { Badge, Button, cx, Modal, Spinner, Stat, Th } from './ui'
 
 interface Props {
   report: ApplyReport | null
@@ -63,16 +63,17 @@ export function ReportDialog({ report, scan, archiving, onBuildArchive, onClose 
       </div>
 
       <div className="overflow-hidden rounded-xl border border-line">
+        {/* Своя оболочка, не `DataTable`: см. TraceTable — та же причина. */}
         <table className="w-full border-separate border-spacing-0 text-[12.5px]">
           <thead>
             <tr className="bg-surface-2 text-left text-[11.5px] text-content-subtle">
-              <th className="w-64 border-b border-line px-3 py-2 font-medium">{t('table.domain')}</th>
-              <th className="w-24 border-b border-line px-3 py-2 font-medium">{t('report.status')}</th>
-              <th className="border-b border-line px-3 py-2 font-medium">{t('report.details')}</th>
-              <th className="w-24 border-b border-line px-3 py-2 font-medium">{t('table.routes')}</th>
-              <th className="w-20 border-b border-line px-3 py-2 text-center font-medium">{t('report.backup')}</th>
+              <Th className="w-64 border-b border-line">{t('table.domain')}</Th>
+              <Th className="w-24 border-b border-line">{t('report.status')}</Th>
+              <Th className="border-b border-line">{t('report.details')}</Th>
+              <Th className="w-24 border-b border-line">{t('table.routes')}</Th>
+              <Th className="w-20 border-b border-line text-center">{t('report.backup')}</Th>
             </tr>
-          </thead>
+            </thead>
           <tbody>
             {results.map((result) => {
               const domain = domainsByPath.get(result.domainXmlPath)

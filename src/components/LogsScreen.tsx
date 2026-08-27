@@ -7,7 +7,7 @@ import type { Connection, LogEntry, LogFileRow, ServerInfo } from '../types'
 import {
   AutoRefreshToggle, ErrorBar, FilterChip, LimitSelect, NotConnected, Panel, RefreshButton, TableMessage, useApiData, useAutoRefresh,
 } from './ApiShell'
-import { Badge, Button, CodePill, cx, ScrollStrip, SearchInput, TONES, type Tone } from './ui'
+import { Badge, Button, CodePill, cx, DataTable, ScrollStrip, SearchInput, Th, THead, TONES, type Tone } from './ui'
 
 interface Props {
   connection: Connection | null
@@ -173,21 +173,19 @@ export function LogsScreen({ connection, server, onGoToConnection }: Props) {
       <ErrorBar error={error ?? files.error} />
 
       <Panel className="flex-1">
-        <table className="w-full table-fixed border-collapse text-[12.5px]">
+        <DataTable>
           <colgroup>
             <col className="w-44" />
             <col className="w-16" />
             <col className="w-56" />
             <col />
           </colgroup>
-          <thead className="sticky top-0 z-10 bg-surface-2 text-[11px] tracking-wide text-content-subtle">
-            <tr className="border-b border-line">
-              <th className="px-3 py-2 text-left font-medium">{t('logs.time')}</th>
-              <th className="px-3 py-2 text-left font-medium">{t('logs.level')}</th>
-              <th className="px-3 py-2 text-left font-medium">{t('logs.source')}</th>
-              <th className="px-3 py-2 text-left font-medium">{t('logs.message')}</th>
-            </tr>
-          </thead>
+          <THead>
+              <Th>{t('logs.time')}</Th>
+              <Th>{t('logs.level')}</Th>
+              <Th>{t('logs.source')}</Th>
+              <Th>{t('logs.message')}</Th>
+            </THead>
           <tbody>
             {rows.map((entry, index) => {
               const message = entry.message ?? ''
@@ -261,7 +259,7 @@ export function LogsScreen({ connection, server, onGoToConnection }: Props) {
               </TableMessage>
             )}
           </tbody>
-        </table>
+        </DataTable>
       </Panel>
     </div>
   )

@@ -9,7 +9,7 @@ import {
   writeStore, type ConnectionProfile, type ConnectionStore, type Environment,
 } from '../lib/connection'
 import type { ServerInfo } from '../types'
-import { Badge, Button, Checkbox, Modal, Segmented, Spinner, TextInput, cx } from './ui'
+import { Badge, Button, Checkbox, cx, Modal, Segmented, Spinner, TextInput, TextReadout, Toggle } from './ui'
 
 interface Props {
   store: ConnectionStore
@@ -358,14 +358,14 @@ export function ConnectionScreen({ store, onStore, server, activeProfileId, focu
                 </p>
               )}
 
-              <div className="mt-4 flex items-center gap-2 border-t border-line px-5 py-3">
+              <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-line px-5 py-3">
                 {!isNew && (
                   <Button variant="ghost" onClick={() => stored && setConfirmDelete(stored)}>
                     {t('profiles.delete')}
                   </Button>
                 )}
 
-                <div className="ml-auto flex items-center gap-2">
+                <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
                   <Button onClick={() => void test()} disabled={!isReady(draft) || busy !== null}>
                     {busy === 'test' ? <><Spinner className="size-4" /> {t('profiles.testing')}</> : t('profiles.test')}
                   </Button>
@@ -463,10 +463,10 @@ function ServerCard({ server }: { server: ServerInfo }) {
         </code>
       </div>
       <div className="grid grid-cols-4 gap-4 px-5 py-4">
-        <Info label={t('api.info.user')} value={server.user} />
-        <Info label={t('api.info.roles')} value={server.roles.join(', ') || '—'} />
-        <Info label={t('api.info.permissions')} value={String(server.permissions)} />
-        <Info label={t('api.info.domains')} value={`${server.domains} · ${t('api.info.active', { count: server.activeDomains })}`} />
+        <TextReadout label={t('api.info.user')} value={server.user} />
+        <TextReadout label={t('api.info.roles')} value={server.roles.join(', ') || '—'} />
+        <TextReadout label={t('api.info.permissions')} value={String(server.permissions)} />
+        <TextReadout label={t('api.info.domains')} value={`${server.domains} · ${t('api.info.active', { count: server.activeDomains })}`} />
       </div>
 
       {server.missingPermissions.length > 0 && (
@@ -513,14 +513,6 @@ function formatWhen(value: string): string {
   return match ? `${match[3]}.${match[2]} ${match[4]}` : value
 }
 
-function Info({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="min-w-0">
-      <div className="text-[11px] tracking-wide text-content-subtle">{label}</div>
-      <div className="truncate text-[13px] font-medium" title={value}>{value}</div>
-    </div>
-  )
-}
 
 function Field({ label, htmlFor, hint, children }: {
   label: string
@@ -537,19 +529,3 @@ function Field({ label, htmlFor, hint, children }: {
   )
 }
 
-function Toggle({ checked, onChange, label, title }: {
-  checked: boolean
-  onChange: (value: boolean) => void
-  label: string
-  title?: string
-}) {
-  return (
-    <label
-      title={title}
-      className="flex h-9 cursor-pointer items-center gap-2 rounded-lg border border-line-strong bg-surface px-3 text-[12.5px] text-content-muted"
-    >
-      <Checkbox checked={checked} onChange={(event) => onChange(event.target.checked)} />
-      {label}
-    </label>
-  )
-}

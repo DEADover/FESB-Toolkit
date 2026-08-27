@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
-import { ArrowCounterClockwise, ArrowsClockwise, Play, Stop } from '@phosphor-icons/react'
+import { ArrowCounterClockwise, Play, Stop } from '@phosphor-icons/react'
 
 import { useI18n } from '../i18n'
 import {
@@ -12,9 +12,11 @@ import type {
   ApiProgress, Connection, DomainRouteNames, DomainRoutes, DomainStat, LinkGraph, RouteAction,
   RouteFile, RouteState, ServerInfo,
 } from '../types'
-import { AutoRefreshToggle, ErrorBar, NotConnected, Panel, TableMessage, useApiData, useAutoRefresh } from './ApiShell'
+import {
+  AutoRefreshToggle, ErrorBar, NotConnected, Panel, RefreshButton, TableMessage, useApiData, useAutoRefresh,
+} from './ApiShell'
 import { RouteViewer } from './RouteViewer'
-import { Badge, Button, IconButton, SearchInput, Spinner, cx } from './ui'
+import { Badge, cx, DataTable, IconButton, SearchInput, Spinner, Th, THead } from './ui'
 
 interface Props {
   connection: Connection | null
@@ -251,17 +253,16 @@ export function RoutesScreen({ connection, server, isMac, initialGuid, onGoToCon
             <span className="text-[11.5px] text-content-subtle">{t('routes.count', { count: routes.length })}</span>
             <div className="ml-auto flex items-center gap-2">
               <AutoRefreshToggle checked={auto} onChange={setAuto} />
-              <Button
-                onClick={() => selected && void openDomain(selected)}
+              <RefreshButton
+                busy={loading}
                 disabled={loading || !selected}
-              >
-                {loading ? <Spinner className="size-4" /> : <ArrowsClockwise size={14} weight="bold" />} {t('action.refresh')}
-              </Button>
+                onClick={() => selected && void openDomain(selected)}
+              />
             </div>
           </div>
 
           <Panel className="flex-1">
-            <table className="w-full table-fixed border-collapse text-[12.5px]">
+            <DataTable>
               <colgroup>
                 <col />
                 <col className="w-24" />
@@ -270,16 +271,14 @@ export function RoutesScreen({ connection, server, isMac, initialGuid, onGoToCon
                 <col className="hidden w-16 xl:table-column" />
                 <col className="w-28" />
               </colgroup>
-              <thead className="sticky top-0 z-10 bg-surface-2 text-[11px] tracking-wide text-content-subtle">
-                <tr className="border-b border-line">
-                  <th className="px-3 py-2 text-left font-medium">{t('table.route')}</th>
-                  <th className="px-3 py-2 text-left font-medium">{t('table.state')}</th>
-                  <th className="px-3 py-2 text-right font-medium">{t('routes.processed')}</th>
-                  <th className="px-3 py-2 text-right font-medium">{t('map.errors')}</th>
-                  <th className="hidden px-3 py-2 text-right font-medium xl:table-cell">{t('map.inflight')}</th>
-                  <th className="px-3 py-2 text-left font-medium">{t('modules.actions')}</th>
-                </tr>
-              </thead>
+              <THead>
+                  <Th>{t('table.route')}</Th>
+                  <Th>{t('table.state')}</Th>
+                  <Th align="right">{t('routes.processed')}</Th>
+                  <Th align="right">{t('map.errors')}</Th>
+                  <Th align="right" className="hidden xl:table-cell">{t('map.inflight')}</Th>
+                  <Th>{t('modules.actions')}</Th>
+                </THead>
               <tbody>
                 {routes.map((route, index) => {
                   const state = route.id ? states[route.id] : undefined
@@ -344,7 +343,7 @@ export function RoutesScreen({ connection, server, isMac, initialGuid, onGoToCon
                   <TableMessage colSpan={6}>{loading ? t('empty.scanning') : t('routes.pickDomain')}</TableMessage>
                 )}
               </tbody>
-            </table>
+            </DataTable>
           </Panel>
         </div>
       </div>
