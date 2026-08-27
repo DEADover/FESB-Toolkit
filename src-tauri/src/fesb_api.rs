@@ -749,6 +749,8 @@ pub async fn endpoint_report<F: FnMut(ApiProgress)>(
     .await?;
 
     let mut points: Vec<crate::api_report::Endpoint> = per_domain.into_iter().flatten().collect();
+    // REST-домены живут отдельно от СОПС, но слушают свои порты так же.
+    points.extend(crate::api_report::rest_endpoints(connection).await);
     let guids: Vec<String> = points.iter().map(|point| point.domain_guid.clone()).collect();
     let mut unique = guids.clone();
     unique.sort();

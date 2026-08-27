@@ -34,6 +34,13 @@ const NOT_A_POINT: [&str; 30] = [
     "velocity", "freemarker", "jsonpath", "xquery", "string-template",
 ];
 
+/// Параметры, по которым видно, что вызов защищён и как именно.
+///
+/// У точки, описанной фабрикой Jetty, всё это отдаёт шина. У обычного СОПС
+/// фабрики нет, и единственный источник — сам адрес: там стоит и ссылка
+/// на именованный контекст TLS, и логин с паролем.
+const TLS_PARAM: &str = "sslcontextparameters";
+
 /// Параметры адреса, значения которых в отчёт попадать не должны.
 const SECRETS: [&str; 8] = [
     "password", "passwd", "pass", "secret", "privatekey", "publickey", "token", "authtoken",
@@ -187,11 +194,50 @@ pub fn point_kind(scheme: &str) -> String {
         "sql" | "sql-stored" | "jdbc" | "jpa" | "mybatis" => "SQL",
         "file" => "FILE",
         "jms" | "activemq" | "amqp" | "kafka" | "rabbitmq" => "MQ",
-        "eik-xi" | "eik-idoc" | "eik-rfc" | "eik-is" => "SAP",
-        "eik-ed" => "EDI",
-        other => return other.to_ascii_uppercase(),
+        // Адаптеры FESB называются `eik-<протокол>`, и протокол — это то,
+        // как точку зовёт соседняя система: XI, RFC, AS2, IDOC.
+        // Единственное исключение — `eik-ed`: это обмен с 1С.
+        "eik-ed" => "1C ED",
+        other => {
+            return match other.strip_prefix("eik-") {
+                Some(protocol) => protocol.to_ascii_uppercase(),
+                None => other.to_ascii_uppercase(),
+            }
+        }
     }
     .to_string()
+}
+
+/// Что известно о защите вызова из самого адреса.
+///
+/// Возвращает «настроен ли TLS» и вид авторизации. Вид выведен из имён
+/// параметров, а не придуман: `httpLogin` с `httpPasswd` — это basic,
+/// `authToken` — токен, один контекст TLS без логина — сертификат.
+pub fn security_of_uri(uri: &str) -> (Option<bool>, Option<String>) {
+    let Some((_, query)) = uri.split_once('?') else { return (None, None) };
+    let names: Vec<String> = query
+        .split('&')
+        .filter_map(|pair| pair.split_once('=').map(|(name, _)| name.to_ascii_lowercase()))
+        .collect();
+
+    let tls = names.iter().any(|name| name.contains(TLS_PARAM));
+    let has = |needle: &str| names.iter().any(|name| name.contains(needle));
+
+    let auth = if has("token") {
+        Some("Token".to_string())
+    } else if (has("login") || has("username") || has("user")) && (has("passwd") || has("password")) {
+        Some("Basic".to_string())
+    } else if has("passwd") || has("password") {
+        Some("Password".to_string())
+    } else if has("privatekey") || has("keystore") || has("certificate") {
+        Some("Certificate".to_string())
+    } else if tls {
+        Some("TLS".to_string())
+    } else {
+        None
+    };
+
+    (tls.then_some(true), auth)
 }
 
 /// Смотрит ли адрес наружу.
@@ -274,6 +320,7 @@ fn collect(
         if let (Some(direction), Some(uri)) = (direction, node.uri.as_deref()) {
             let (scheme, host, port) = split_uri(uri);
             if is_external(&scheme) {
+                let (tls, auth) = security_of_uri(uri);
                 out.push(Endpoint {
                     domain: domain.to_string(),
                     domain_guid: domain_guid.to_string(),
@@ -286,10 +333,10 @@ fn collect(
                     uri: readable_uri(uri),
                     host,
                     port,
-                    ssl: None,
+                    ssl: tls,
                     protocol: None,
                     ciphers: None,
-                    auth: None,
+                    auth,
                     state: None,
                     uptime: None,
                     busy_threads: None,
@@ -391,15 +438,84 @@ pub async fn port_facts(
     facts
 }
 
+/// Точки входа REST-доменов.
+///
+/// REST-домен — это не СОПС: он описан отдельной сущностью шины и слушает
+/// свой порт. В обходе маршрутов он не появится никогда, а точкой входа
+/// является ровно так же, как `from` у любого СОПС.
+pub async fn rest_endpoints(connection: &Connection) -> Vec<Endpoint> {
+    let Ok(client) = connection.client() else { return Vec::new() };
+    let Ok(list) = crate::fesb_api::get_json(connection, &client, "/api/rest/domain").await else {
+        return Vec::new();
+    };
+
+    list.as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(|domain| {
+            let configuration = domain.get("configuration")?;
+            let text = |value: Option<&serde_json::Value>| {
+                value.and_then(|v| v.as_str()).map(str::to_string)
+            };
+            let host = text(configuration.get("host"));
+            let port: Option<u32> = configuration
+                .get("port")
+                .and_then(|value| value.as_str().and_then(|s| s.parse().ok()).or_else(|| value.as_u64().map(|v| v as u32)));
+            let https = configuration.get("httpsScheme").and_then(serde_json::Value::as_bool).unwrap_or(false);
+            let scheme = if https { "https" } else { "http" };
+            let path = text(configuration.get("contextPath")).unwrap_or_default();
+            let name = text(domain.get("name")).unwrap_or_else(|| "REST".into());
+
+            Some(Endpoint {
+                domain: name.clone(),
+                domain_guid: text(domain.get("guid")).unwrap_or_default(),
+                route: name,
+                route_id: String::new(),
+                component: "REST".into(),
+                direction: "in",
+                kind: "REST".into(),
+                scheme: scheme.into(),
+                uri: format!(
+                    "{scheme}://{}{}{}",
+                    host.clone().unwrap_or_else(|| "0.0.0.0".into()),
+                    port.map(|value| format!(":{value}")).unwrap_or_default(),
+                    if path.starts_with('/') || path.is_empty() { path.clone() } else { format!("/{path}") },
+                ),
+                host,
+                port,
+                ssl: Some(https),
+                protocol: None,
+                ciphers: None,
+                auth: None,
+                state: domain
+                    .get("active")
+                    .and_then(serde_json::Value::as_bool)
+                    .map(|active| if active { "active".into() } else { "stopped".into() }),
+                uptime: None,
+                busy_threads: None,
+                utilized_threads: None,
+                ready_threads: None,
+                min_threads: None,
+                max_threads: None,
+                queue_size: None,
+                idle_timeout: None,
+                idle_threads: None,
+            })
+        })
+        .collect()
+}
+
 /// Дополняет точки сведениями о портах.
 pub fn enrich(endpoints: &mut [Endpoint], facts: &BTreeMap<u32, PortFacts>) {
     for point in endpoints.iter_mut() {
         let Some(port) = point.port else { continue };
         let Some(known) = facts.get(&port) else { continue };
-        point.ssl = known.ssl;
-        point.protocol = known.protocol.clone();
-        point.ciphers = known.ciphers.clone();
-        point.auth = known.auth.clone();
+        // Фабрика знает больше, но молчание фабрики не отменяет того,
+        // что уже прочитано из адреса.
+        point.ssl = known.ssl.or(point.ssl);
+        point.protocol = known.protocol.clone().or_else(|| point.protocol.take());
+        point.ciphers = known.ciphers.clone().or_else(|| point.ciphers.take());
+        point.auth = known.auth.clone().or_else(|| point.auth.take());
         point.state = known.state.clone();
         point.busy_threads = known.busy_threads;
         point.utilized_threads = known.utilized_threads;
@@ -540,8 +656,13 @@ mod kind_tests {
         assert_eq!(point_kind("https"), "HTTP");
         assert_eq!(point_kind("sftp"), "FTP");
         assert_eq!(point_kind("sql-stored"), "SQL");
-        assert_eq!(point_kind("eik-xi"), "SAP");
-        assert_eq!(point_kind("eik-ed"), "EDI");
+        assert_eq!(point_kind("eik-xi"), "XI");
+        assert_eq!(point_kind("eik-rfc"), "RFC");
+        assert_eq!(point_kind("eik-as2"), "AS2");
+        assert_eq!(point_kind("eik-idoc"), "IDOC");
+        assert_eq!(point_kind("eik-is"), "IS");
+        // Обмен с 1С называется не по адаптеру.
+        assert_eq!(point_kind("eik-ed"), "1C ED");
         // Незнакомый адаптер остаётся собой, а не притворяется протоколом.
         assert_eq!(point_kind("telegram"), "TELEGRAM");
     }
@@ -564,5 +685,42 @@ mod kind_tests {
         assert_eq!(point.queue_size, Some(0));
         assert_eq!(point.idle_timeout, Some(60000));
         assert_eq!(point.idle_threads, Some(11));
+    }
+}
+
+#[cfg(test)]
+mod security_tests {
+    use super::*;
+
+    #[test]
+    fn tls_and_auth_are_read_from_the_address() {
+        // Именованный контекст TLS — это и есть «настроен SSL».
+        let (tls, auth) = security_of_uri("cxf://{{const.url}}?sslContextParameters=%23conf.SSLContext");
+        assert_eq!(tls, Some(true));
+        assert_eq!(auth.as_deref(), Some("TLS"));
+
+        let (_, auth) = security_of_uri("eik-xi://none?httpLogin=tech&httpPasswd=x");
+        assert_eq!(auth.as_deref(), Some("Basic"));
+
+        let (_, auth) = security_of_uri("eik-is://x?authToken=true");
+        assert_eq!(auth.as_deref(), Some("Token"));
+
+        let (_, auth) = security_of_uri("eik-is://x?privateKey=abc");
+        assert_eq!(auth.as_deref(), Some("Certificate"));
+
+        // Ничего про защиту не сказано — и мы ничего не выдумываем.
+        assert_eq!(security_of_uri("https://x/y"), (None, None));
+    }
+
+    /// Молчание фабрики не отменяет того, что прочитано из адреса.
+    #[test]
+    fn the_factory_does_not_erase_what_the_address_said() {
+        let mut points = endpoints_of_route(
+            r#"<routes><route id="r"><from uri="cxf://x?sslContextParameters=%23conf.SSLContext"/></route></routes>"#,
+            "d", "g");
+        assert_eq!(points[0].ssl, Some(true));
+        enrich(&mut points, &BTreeMap::new());
+        assert_eq!(points[0].ssl, Some(true));
+        assert_eq!(points[0].auth.as_deref(), Some("TLS"));
     }
 }

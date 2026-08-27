@@ -8,7 +8,7 @@ import { localStamp } from '../lib/paths'
 import type { ApiEndpoint, ApiProgress, Connection, ServerInfo } from '../types'
 import { ErrorBar, NotConnected, Panel, ScreenBody, TableMessage, useDebounced } from './ApiShell'
 import {
-  Badge, Button, ButtonGlyph, CodePill, cx, DataTable, EmptyState, MultiSelect, Readout, rowClick, SearchInput, Select, Spinner, Th, THead, Toggle,
+  Badge, Button, ButtonGlyph, CodePill, cx, DataTable, EmptyState, FOCUS_RING, MultiSelect, Readout, rowClick, SearchInput, Select, Spinner, Th, THead, Toggle,
 } from './ui'
 
 interface Props {
@@ -44,11 +44,11 @@ const COLUMNS: Array<{
   cell?: (row: ApiEndpoint, t: Translate) => ReactNode
   text: (row: ApiEndpoint, t: Translate) => string
 }> = [
-  { key: 'table.domain', width: 'w-44', text: (row) => row.domain },
-  { key: 'endpoints.domainGuid', width: 'w-64', text: (row) => row.domainGuid,
+  { key: 'table.domain', width: 'w-52', text: (row) => row.domain },
+  { key: 'endpoints.domainGuid', width: 'w-72', text: (row) => row.domainGuid,
     cell: (row) => <span className="font-mono text-[10.5px] text-content-subtle">{row.domainGuid}</span> },
-  { key: 'table.route', width: 'w-56', text: (row) => row.route },
-  { key: 'endpoints.routeId', width: 'w-64', text: (row) => row.routeId,
+  { key: 'table.route', width: 'w-64', text: (row) => row.route },
+  { key: 'endpoints.routeId', width: 'w-72', text: (row) => row.routeId,
     cell: (row) => <span className="font-mono text-[10.5px] text-content-subtle">{row.routeId}</span> },
   { key: 'endpoints.kind', width: 'w-24', text: (row) => row.kind,
     cell: (row) => <CodePill>{row.kind}</CodePill> },
@@ -59,9 +59,11 @@ const COLUMNS: Array<{
         {row.direction === 'in' ? t('endpoints.in') : t('endpoints.out')}
       </Badge>
     ) },
-  { key: 'route.uri', width: 'w-[28rem]', text: (row) => row.uri,
-    cell: (row) => <span className="break-all font-mono text-[11px] text-content-muted">{row.uri}</span> },
-  { key: 'endpoints.port', width: 'w-20', align: 'right',
+  { key: 'route.uri', width: 'w-[34rem]', text: (row) => row.uri,
+    cell: (row) => (
+      <span className="line-clamp-2 break-all font-mono text-[11px] leading-4 text-content-muted">{row.uri}</span>
+    ) },
+  { key: 'endpoints.port', width: 'w-16', align: 'right',
     text: (row) => (row.port === null ? '' : String(row.port)) },
   { key: 'endpoints.protocol', width: 'w-32', text: (row) => row.protocol ?? '' },
   { key: 'endpoints.ssl', width: 'w-20',
@@ -69,10 +71,10 @@ const COLUMNS: Array<{
     cell: (row, t) => (row.ssl === null
       ? <span className="text-content-subtle">—</span>
       : <Badge tone={row.ssl ? 'ok' : 'warn'}>{row.ssl ? t('endpoints.yes') : t('endpoints.no')}</Badge>) },
-  { key: 'endpoints.ciphers', width: 'w-64', text: (row) => row.ciphers ?? '' },
+  { key: 'endpoints.ciphers', width: 'w-56', text: (row) => row.ciphers ?? '' },
   { key: 'endpoints.auth', width: 'w-32', text: (row) => row.auth ?? '' },
   { key: 'table.state', width: 'w-28', text: (row) => row.state ?? '' },
-  { key: 'endpoints.uptime', width: 'w-28', text: (row) => row.uptime ?? '' },
+  { key: 'endpoints.uptime', width: 'w-24', text: (row) => row.uptime ?? '' },
   { key: 'endpoints.busy', width: 'w-24', align: 'right', text: (row) => number(row.busyThreads) },
   { key: 'endpoints.utilized', width: 'w-28', align: 'right', text: (row) => number(row.utilizedThreads) },
   { key: 'endpoints.ready', width: 'w-28', align: 'right', text: (row) => number(row.readyThreads) },
@@ -181,6 +183,8 @@ export function EndpointsScreen({ connection, server, onGoToConnection }: Props)
       })
   }, [visible, grouping, t])
 
+  const allCollapsed = groups.length > 0 && groups.every((group) => collapsed.has(group.key))
+
   const toggleGroup = useCallback((key: string) => {
     setCollapsed((prev) => {
       const next = new Set(prev)
@@ -287,6 +291,14 @@ export function EndpointsScreen({ connection, server, onGoToConnection }: Props)
           onChange={setSchemes}
         />
         <Toggle checked={onlySecured} onChange={setOnlySecured} label={t('endpoints.onlySecured')} />
+        {grouping !== 'none' && (
+          <Button
+            className="min-w-36"
+            onClick={() => setCollapsed(allCollapsed ? new Set() : new Set(groups.map((group) => group.key)))}
+          >
+            {allCollapsed ? t('endpoints.expandAll') : t('endpoints.collapseAll')}
+          </Button>
+        )}
         <Select<Grouping>
           ariaLabel={t('endpoints.group')}
           label={t('endpoints.group')}
@@ -329,11 +341,22 @@ export function EndpointsScreen({ connection, server, onGoToConnection }: Props)
                   >
                     <td colSpan={COLUMNS.length} className="px-3 py-1.5">
                       <div className="flex items-center gap-2">
-                        <CaretRight
-                          size={11}
-                          weight="bold"
-                          className={cx('shrink-0 text-content-subtle transition-transform', !collapsed.has(group.key) && 'rotate-90')}
-                        />
+                        {/* Кнопка, а не только клик по строке: с клавиатуры
+                            до сворачивания иначе не добраться. */}
+                        <button
+                          type="button"
+                          aria-expanded={!collapsed.has(group.key)}
+                          aria-label={collapsed.has(group.key) ? t('endpoints.expand') : t('endpoints.collapse')}
+                          title={collapsed.has(group.key) ? t('endpoints.expand') : t('endpoints.collapse')}
+                          onClick={(event) => { event.stopPropagation(); toggleGroup(group.key) }}
+                          className={cx('grid size-5 shrink-0 place-items-center rounded transition hover:bg-surface-3', FOCUS_RING)}
+                        >
+                          <CaretRight
+                            size={11}
+                            weight="bold"
+                            className={cx('text-content-subtle transition-transform', !collapsed.has(group.key) && 'rotate-90')}
+                          />
+                        </button>
                         <span className={cx('min-w-0 truncate text-[12.5px] font-semibold', !group.key && 'text-content-subtle')}>
                           {group.title}
                         </span>

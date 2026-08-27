@@ -188,13 +188,27 @@ pub fn write_sheet(
     sheet.push_str(r#"<sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/><selection pane="bottomLeft" activeCell="A2" sqref="A2"/></sheetView></sheetViews>"#);
     sheet.push_str(r#"<sheetFormatPr defaultRowHeight="15"/>"#);
 
-    // Ширины на глаз: имя домена и адрес длинные, остальное короткое.
+    // Ширина колонки — по её содержимому, а не по заголовку.
+    //
+    // Раньше считалось по длине шапки: у колонки «Адрес» заголовок из шести
+    // букв, а внутри адреса на триста символов — они лезли на соседей и лист
+    // выглядел кашей. Берём типичную длину (девять из десяти строк короче),
+    // а не самую большую: один запредельный адрес не должен растягивать
+    // колонку на весь экран.
     sheet.push_str("<cols>");
     for (index, header) in headers.iter().enumerate() {
-        let width = (header.chars().count() + 6).clamp(12, 46);
+        let mut lengths: Vec<usize> = rows
+            .iter()
+            .filter_map(|row| row.get(index))
+            .map(|value| value.chars().count())
+            .collect();
+        lengths.sort_unstable();
+        let typical = lengths.get(lengths.len().saturating_mul(9) / 10).copied().unwrap_or(0);
+        let width = header.chars().count().max(typical) + 3;
         sheet.push_str(&format!(
-            r#"<col min="{0}" max="{0}" width="{width}" customWidth="1"/>"#,
-            index + 1
+            r#"<col min="{0}" max="{0}" width="{1}" customWidth="1"/>"#,
+            index + 1,
+            width.clamp(10, 60),
         ));
     }
     sheet.push_str("</cols>");
