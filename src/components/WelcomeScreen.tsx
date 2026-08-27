@@ -1,15 +1,21 @@
-import { ArrowsLeftRight, Crosshair, FlowArrow, FolderOpen, Plugs, Stack, type Icon } from '@phosphor-icons/react'
+import { useMemo } from 'react'
+
+import {
+  ArrowRight, ArrowsLeftRight, Crosshair, Cube, FingerprintSimple, FlowArrow, FolderOpen,
+  ListDashes, Plugs, Queue, SlidersHorizontal, Stack, type Icon,
+} from '@phosphor-icons/react'
 
 import { useI18n } from '../i18n'
-import type { ConnectionProfile, ConnectionStore } from '../lib/connection'
-import { byEnvironment } from '../lib/connection'
-import type { ServerInfo } from '../types'
+import { byEnvironment, type ConnectionProfile, type ConnectionStore } from '../lib/connection'
+import type { ScanResult, ServerInfo } from '../types'
 import { ENVIRONMENT_LABEL, ENVIRONMENT_TONE } from './HeaderBar'
 import type { ScreenId } from './Sidebar'
-import { Badge, Button, cx, FOCUS_RING } from './ui'
+import { Badge, Button, cx, FOCUS_RING, Readout } from './ui'
 
 interface Props {
   server: ServerInfo | null
+  scan: ScanResult | null
+  sourcePath: string | null
   connections: ConnectionStore
   connecting: boolean
   onScreen: (screen: ScreenId) => void
@@ -22,53 +28,116 @@ interface Props {
  * Первый экран.
  *
  * Раньше приложение открывалось сразу в настройках трассировки — с пустой
- * таблицей и просьбой выбрать папку. Начинать с одного из двух способов
- * работы честнее: с файлами на диске или с живым сервером. Отсюда же видно,
- * какие стенды заведены, и к любому можно подключиться в одно нажатие.
+ * таблицей и просьбой выбрать папку. Начинать с состояния честнее: что уже
+ * открыто, к чему подключены и куда отсюда можно пойти. Пока ничего не
+ * открыто, экран показывает два способа начать; как только появляется
+ * выгрузка или сервер, на их месте оказываются цифры и продолжение работы.
  */
 export function WelcomeScreen({
-  server, connections, connecting, onScreen, onOpenFolder, onOpenArchive, onConnect,
+  server, scan, sourcePath, connections, connecting,
+  onScreen, onOpenFolder, onOpenArchive, onConnect,
 }: Props) {
   const { t } = useI18n()
+
+  const files = useMemo(() => {
+    if (!scan) return null
+    let traces = 0
+    let routes = 0
+    for (const domain of scan.domains) {
+      traces += domain.traces.length
+      routes += domain.routes.length
+    }
+    return { domains: scan.domains.length, traces, routes }
+  }, [scan])
+
+  const runningModules = server ? server.modules.filter((module) => module.running).length : 0
   const groups = byEnvironment(connections.profiles)
 
   return (
-    <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-8">
-      <div className="mx-auto flex max-w-4xl flex-col gap-6 pt-4">
-        {/* Название приложения уже стоит в шапке страницы — здесь только суть. */}
-        <p className="max-w-2xl text-[12.5px] leading-relaxed text-content-subtle">{t('welcome.text')}</p>
-
-        <div className="grid gap-3 md:grid-cols-2">
-          {/* Два способа работы, и оба начинаются здесь. */}
-          <Card
+    <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-10">
+      <div className="mx-auto flex max-w-5xl flex-col gap-8">
+        {/*
+          Первое, что видно, — состояние, а не приветствие. Если работа уже
+          начата, тут её цифры; если нет, тут два способа её начать.
+        */}
+        <section className="grid gap-4 lg:grid-cols-2">
+          <Panel
             icon={FolderOpen}
             title={t('welcome.files')}
-            text={t('welcome.files.text')}
-            action={
+            open={files !== null}
+            caption={sourcePath}
+          >
+            {files ? (
               <>
-                <Button variant="primary" onClick={onOpenFolder}>{t('action.selectFolder')}</Button>
-                <Button onClick={onOpenArchive}>{t('action.openArchive')}</Button>
+                <div className="flex flex-wrap items-center gap-x-8 gap-y-3">
+                  <Readout label={t('stats.domains')} value={files.domains.toLocaleString()} />
+                  <Readout label={t('stats.traceBeans')} value={files.traces.toLocaleString()} />
+                  <Readout label={t('stats.routes')} value={files.routes.toLocaleString()} />
+                  {scan?.fesbVersion && (
+                    <Readout label="FESB" value={scan.fesbVersion} hint={t('header.fesbVersion')} />
+                  )}
+                </div>
+                <Actions>
+                  <Button variant="primary" onClick={() => onScreen('files.trace')}>
+                    {t('welcome.continue')} <ArrowRight size={13} weight="bold" />
+                  </Button>
+                  <Button onClick={() => onScreen('files.links')}>{t('nav.files.links')}</Button>
+                  <Button variant="ghost" onClick={onOpenFolder}>{t('welcome.another')}</Button>
+                </Actions>
               </>
-            }
-          />
-          <Card
+            ) : (
+              <>
+                <p className="text-[12px] leading-relaxed text-content-subtle">{t('welcome.files.text')}</p>
+                <Actions>
+                  <Button variant="primary" onClick={onOpenFolder}>{t('action.selectFolder')}</Button>
+                  <Button onClick={onOpenArchive}>{t('action.openArchive')}</Button>
+                </Actions>
+              </>
+            )}
+          </Panel>
+
+          <Panel
             icon={Plugs}
             title={t('welcome.server')}
-            text={t('welcome.server.text')}
-            action={
-              server
-                ? <Button variant="primary" onClick={() => onScreen('api.domains')}>{t('nav.api.domains.title')}</Button>
-                : <Button variant="primary" onClick={() => onScreen('api.connection')}>{t('nav.api.connection')}</Button>
-            }
-          />
-        </div>
+            open={server !== null}
+            caption={server?.baseUrl ?? null}
+          >
+            {server ? (
+              <>
+                <div className="flex flex-wrap items-center gap-x-8 gap-y-3">
+                  <Readout
+                    label={t('map.domains')}
+                    value={`${server.activeDomains} / ${server.domains}`}
+                    hint={t('map.domains.hint')}
+                  />
+                  <Readout label={t('nav.api.modules')} value={`${runningModules} / ${server.modules.length}`} />
+                  <Readout label={t('api.info.user')} value={server.user} />
+                  {server.apiVersion && <Readout label="FESB" value={server.apiVersion} />}
+                </div>
+                <Actions>
+                  <Button variant="primary" onClick={() => onScreen('api.domains')}>
+                    {t('nav.api.domains.title')} <ArrowRight size={13} weight="bold" />
+                  </Button>
+                  <Button onClick={() => onScreen('api.endpoints')}>{t('nav.api.endpoints')}</Button>
+                  <Button variant="ghost" onClick={() => onScreen('api.connection')}>{t('nav.api.connection')}</Button>
+                </Actions>
+              </>
+            ) : (
+              <>
+                <p className="text-[12px] leading-relaxed text-content-subtle">{t('welcome.server.text')}</p>
+                <Actions>
+                  <Button variant="primary" onClick={() => onScreen('api.connection')}>
+                    {t('welcome.connect')}
+                  </Button>
+                </Actions>
+              </>
+            )}
+          </Panel>
+        </section>
 
         {connections.profiles.length > 0 && !server && (
-          <section>
-            <h3 className="mb-2 text-[11px] font-semibold tracking-wide text-content-subtle">
-              {t('welcome.stands')}
-            </h3>
-            <div className="flex flex-col gap-1.5">
+          <Section title={t('welcome.stands')}>
+            <div className="grid gap-2 md:grid-cols-2">
               {groups.map(([environment, profiles]) => profiles.map((profile) => {
                 // Без сохранённого пароля подключиться молча нельзя —
                 // такой профиль ведёт на экран подключения, а не в тупик.
@@ -80,82 +149,172 @@ export function WelcomeScreen({
                     disabled={connecting}
                     onClick={() => (ready ? onConnect(profile) : onScreen('api.connection'))}
                     className={cx(
-                      'flex items-center gap-3 rounded-xl border border-line bg-surface px-4 py-2.5 text-left transition',
-                      'hover:border-line-strong hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-50',
+                      'group flex items-center gap-3 rounded-xl border border-line bg-surface px-4 py-3 text-left transition',
+                      'hover:border-accent/40 hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-50',
                       FOCUS_RING,
                     )}
                   >
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-[12.5px] font-medium">{profile.name}</span>
-                      <span className="block truncate font-mono text-[10.5px] text-content-subtle">{profile.url}</span>
+                      <span className="flex items-center gap-2">
+                        <span className="min-w-0 truncate text-[12.5px] font-medium">{profile.name}</span>
+                        <Badge className={ENVIRONMENT_TONE[environment]}>{t(ENVIRONMENT_LABEL[environment])}</Badge>
+                      </span>
+                      <span className="mt-0.5 block truncate font-mono text-[10.5px] text-content-subtle">
+                        {profile.url}
+                      </span>
                     </span>
-                    <Badge className={ENVIRONMENT_TONE[environment]}>{t(ENVIRONMENT_LABEL[environment])}</Badge>
-                    <span className="shrink-0 text-[11.5px] text-content-subtle">
-                      {ready ? t('welcome.connect') : t('switch.needsPassword')}
+                    <span className="shrink-0 text-right">
+                      <span className="block text-[11px] text-content-subtle">
+                        {ready ? t('welcome.connect') : t('switch.needsPassword')}
+                      </span>
+                      {profile.lastUsedAt && (
+                        <span className="block text-[10.5px] text-content-subtle/70">
+                          {t('welcome.lastUsed', { when: shortDate(profile.lastUsedAt) })}
+                        </span>
+                      )}
                     </span>
+                    <ArrowRight
+                      size={13}
+                      weight="bold"
+                      className="shrink-0 text-content-subtle transition group-hover:text-accent-content"
+                    />
                   </button>
                 )
               }))}
             </div>
-          </section>
+          </Section>
         )}
 
-        <section>
-          <h3 className="mb-2 text-[11px] font-semibold tracking-wide text-content-subtle">
-            {t('welcome.whatFor')}
-          </h3>
+        {/*
+          Плитки разложены теми же двумя разделами, что и боковая панель:
+          десять одинаковых карточек подряд читаются как стена, а так видно,
+          что половина из них про файлы, а половина — про живой сервер.
+        */}
+        <Section title={t('nav.files')}>
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-            <Hint icon={Crosshair} title={t('nav.files.trace')} text={t('welcome.hint.trace')} onClick={() => onScreen('files.trace')} />
-            <Hint icon={Stack} title={t('nav.api.domains.title')} text={t('welcome.hint.domains')} onClick={() => onScreen('api.domains')} />
-            <Hint icon={FlowArrow} title={t('nav.api.routes.title')} text={t('welcome.hint.routes')} onClick={() => onScreen('api.routes')} />
-            <Hint icon={ArrowsLeftRight} title={t('nav.api.endpoints.title')} text={t('welcome.hint.endpoints')} onClick={() => onScreen('api.endpoints')} />
+            <Tile icon={Crosshair} title={t('nav.files.trace')} text={t('welcome.hint.trace')}
+              onClick={() => onScreen('files.trace')} />
+            <Tile icon={ArrowsLeftRight} title={t('nav.files.links.title')} text={t('welcome.hint.links')}
+              onClick={() => onScreen('files.links')} />
           </div>
-        </section>
+        </Section>
+
+        <Section title={t('nav.api')} note={server ? undefined : t('welcome.needsServer')}>
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+            <Tile icon={Stack} title={t('nav.api.domains')} text={t('welcome.hint.domains')}
+              onClick={() => onScreen('api.domains')} dim={!server} />
+            <Tile icon={FlowArrow} title={t('nav.api.routes')} text={t('welcome.hint.routes')}
+              onClick={() => onScreen('api.routes')} dim={!server} />
+            <Tile icon={Plugs} title={t('nav.api.endpoints.title')} text={t('welcome.hint.endpoints')}
+              onClick={() => onScreen('api.endpoints')} dim={!server} />
+            <Tile icon={Queue} title={t('nav.api.queues')} text={t('welcome.hint.queues')}
+              onClick={() => onScreen('api.queues')} dim={!server} />
+            <Tile icon={Cube} title={t('nav.api.modules')} text={t('welcome.hint.modules')}
+              onClick={() => onScreen('api.modules')} dim={!server} />
+            <Tile icon={SlidersHorizontal} title={t('nav.api.properties')} text={t('welcome.hint.properties')}
+              onClick={() => onScreen('api.properties')} dim={!server} />
+            <Tile icon={ListDashes} title={t('nav.api.logs')} text={t('welcome.hint.logs')}
+              onClick={() => onScreen('api.logs')} dim={!server} />
+            <Tile icon={FingerprintSimple} title={t('nav.api.audit')} text={t('welcome.hint.audit')}
+              onClick={() => onScreen('api.audit')} dim={!server} />
+          </div>
+        </Section>
       </div>
     </div>
   )
 }
 
-function Card({ icon: Glyph, title, text, action }: {
+/** Одна из двух главных карточек: значок, название, подпись и содержимое. */
+function Panel({ icon: Glyph, title, caption, open, children }: {
   icon: Icon
   title: string
-  text: string
-  action: React.ReactNode
+  caption: string | null
+  /** Работа уже начата: карточку стоит выделить, а не оставлять серой. */
+  open: boolean
+  children: React.ReactNode
 }) {
   return (
-    <div className="flex flex-col rounded-2xl border border-line bg-surface p-5">
-      <span className="grid size-10 place-items-center rounded-xl bg-surface-2 text-accent-content">
-        <Glyph size={20} weight="regular" />
-      </span>
-      <h3 className="mt-3 text-[14px] font-semibold">{title}</h3>
-      <p className="mt-1.5 flex-1 text-[12px] leading-relaxed text-content-subtle">{text}</p>
-      <div className="mt-4 flex flex-wrap items-center gap-2">{action}</div>
+    <div
+      className={cx(
+        'flex flex-col gap-4 rounded-2xl border p-5 transition',
+        open ? 'border-accent/30 bg-surface' : 'border-line bg-surface',
+      )}
+    >
+      <div className="flex items-start gap-3">
+        <span
+          className={cx(
+            'grid size-9 shrink-0 place-items-center rounded-xl',
+            open ? 'bg-accent/15 text-accent-content' : 'bg-surface-2 text-content-subtle',
+          )}
+        >
+          <Glyph size={18} weight="regular" />
+        </span>
+        <span className="min-w-0 flex-1 pt-0.5">
+          <span className="block text-[13.5px] font-semibold">{title}</span>
+          {caption && (
+            <span className="mt-0.5 block truncate font-mono text-[10.5px] text-content-subtle" title={caption}>
+              {caption}
+            </span>
+          )}
+        </span>
+      </div>
+      {children}
     </div>
   )
 }
 
-/** Короткая карточка «что здесь делают»: заголовок, строка пояснения и переход. */
-function Hint({ icon: Glyph, title, text, onClick }: {
+function Actions({ children }: { children: React.ReactNode }) {
+  return <div className="mt-auto flex flex-wrap items-center gap-2 pt-1">{children}</div>
+}
+
+function Section({ title, note, children }: {
+  title: string
+  /** Приписка справа от заголовка: например, что раздел ждёт подключения. */
+  note?: string
+  children: React.ReactNode
+}) {
+  return (
+    <section>
+      <div className="mb-2.5 flex items-baseline gap-2">
+        <h3 className="text-[11px] font-semibold tracking-wide text-content-subtle">{title}</h3>
+        {note && <span className="text-[10.5px] text-content-subtle/70">{note}</span>}
+      </div>
+      {children}
+    </section>
+  )
+}
+
+/** Плитка раздела: куда пойти и зачем. */
+function Tile({ icon: Glyph, title, text, onClick, dim }: {
   icon: Icon
   title: string
   text: string
   onClick: () => void
+  /** Раздел ждёт подключения: приглушаем, но не запрещаем — зайти можно. */
+  dim?: boolean
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
       className={cx(
-        'flex flex-col rounded-xl border border-line bg-surface px-3.5 py-3 text-left transition',
-        'hover:border-line-strong hover:bg-surface-2',
+        'group flex flex-col rounded-xl border border-line bg-surface px-4 py-3.5 text-left transition',
+        'hover:border-accent/40 hover:bg-surface-2',
+        dim && 'opacity-60 hover:opacity-100',
         FOCUS_RING,
       )}
     >
-      <span className="flex items-center gap-2">
-        <Glyph size={15} weight="regular" className="shrink-0 text-content-subtle" />
-        <span className="min-w-0 truncate text-[12px] font-medium">{title}</span>
+      <span className="grid size-7 place-items-center rounded-lg bg-surface-2 text-content-subtle transition group-hover:bg-accent/15 group-hover:text-accent-content">
+        <Glyph size={15} weight="regular" />
       </span>
+      <span className="mt-2.5 truncate text-[12.5px] font-medium">{title}</span>
       <span className="mt-1 text-[11px] leading-relaxed text-content-subtle">{text}</span>
     </button>
   )
+}
+
+/** `2026-08-27T13:22:31` → `27.08 13:22`. */
+function shortDate(value: string): string {
+  const match = /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}:\d{2})/.exec(value)
+  return match ? `${match[3]}.${match[2]} ${match[4]}` : value
 }

@@ -284,7 +284,7 @@ export default function App() {
     'api.audit': 'nav.api.audit.title',
     'api.routes': 'nav.api.routes.title',
     'api.endpoints': 'nav.api.endpoints.title',
-    welcome: 'welcome.title',
+    welcome: 'nav.welcome',
     'api.queues': 'nav.api.queues.title',
     'api.modules': 'nav.api.modules.title',
     'api.properties': 'nav.api.properties.title',
@@ -310,7 +310,7 @@ export default function App() {
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
               <h1 className="text-[15px] font-semibold leading-tight">{screenTitle}</h1>
-              {scan?.fesbVersion && !isApiScreen && (
+              {scan?.fesbVersion && !isApiScreen && !isWelcome && (
                 <Badge tone="accent" className="font-mono">
                   <span title={t('header.fesbVersion')}>FESB {scan.fesbVersion}</span>
                 </Badge>
@@ -354,6 +354,8 @@ export default function App() {
         {screen === 'welcome' ? (
           <WelcomeScreen
             server={session?.server ?? null}
+            scan={scan}
+            sourcePath={source?.path ?? null}
             connections={connections}
             connecting={connecting}
             onScreen={setScreen}
