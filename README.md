@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="public/favicon.svg" alt="FESB Toolkit" width="88" />
+  <img src="src-tauri/icons/128x128@2x.png" alt="FESB Toolkit" width="88" />
 </p>
 
 <p align="center">
