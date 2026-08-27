@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { createContext, Fragment, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 
 import { en, type MessageKey } from './en'
 import { ru } from './ru'
@@ -54,6 +54,35 @@ export function I18nProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo(() => ({ language, setLanguage, t }), [language, setLanguage, t])
   return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>
+}
+
+/**
+ * Строка перевода, в которую подставлены не значения, а узлы.
+ *
+ * «Причина в журналах» должна быть не советом, а ссылкой: в подсказках
+ * приложение то и дело просит сходить в другой раздел, и ходить туда
+ * пусть будет одним нажатием, а не поиском по меню. Место подстановки
+ * помечается в словаре так же, как обычный плейсхолдер: `{logs}`.
+ */
+export function useRichText(): (key: MessageKey, slots: Record<string, ReactNode>) => ReactNode[] {
+  const { t } = useI18n()
+  return useCallback(
+    (key, slots) => {
+      // Обычные значения подставляет `t`, узлы — мы; в одной строке
+      // встречается и то и другое: «не запустил {name}, причина в {logs}».
+      const plain = Object.fromEntries(
+        Object.entries(slots).filter(([, value]) => typeof value === 'string' || typeof value === 'number'),
+      ) as Record<string, string | number>
+      return t(key, plain)
+      .split(/(\{\w+\})/)
+      .map((part, index) => {
+        const name = /^\{(\w+)\}$/.exec(part)?.[1]
+        const slot = name ? slots[name] : undefined
+        return <Fragment key={index}>{slot ?? part}</Fragment>
+      })
+    },
+    [t],
+  )
 }
 
 export function useI18n(): I18nValue {

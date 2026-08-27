@@ -2,13 +2,13 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import { ArrowsClockwise, CaretDown, Play, Stop } from '@phosphor-icons/react'
 
-import { useI18n } from '../i18n'
+import { useI18n, useRichText } from '../i18n'
 import { apiDomainAction, apiDomains, apiDomainStatistics, errorText } from '../lib/api'
 import type { ApiDomain, ApiProgress, Connection, DomainAction, DomainStat, ServerInfo } from '../types'
 import {
   AutoRefreshToggle, NotConnected, RefreshButton, ScreenBody, TableMessage, useAutoRefresh,
 } from './ApiShell'
-import { Badge, Button, Checkbox, cx, DataTable, FOCUS_RING, IconButton, Modal, Notice, Readout, SearchInput, Spinner, Th, THead, Toggle } from './ui'
+import { ActionLink, Badge, Button, Checkbox, cx, DataTable, FOCUS_RING, IconButton, Modal, Notice, Readout, SearchInput, Spinner, Th, THead, Toggle } from './ui'
 
 /** Что делать с доменами после выгрузки. */
 export type PullIntent = 'edit' | 'archive'
@@ -36,6 +36,8 @@ interface Props {
   onPull: (guids: string[] | null, intent: PullIntent) => void
   /** Переход к СОПС домена: видно, что часть не запущена — лечат уже там. */
   onOpenRoutes: (guid: string) => void
+  /** Отказ шины объясняется только в журнале — туда и ведём. */
+  onGoToLogs: () => void
   onGoToConnection: () => void
 }
 
@@ -45,8 +47,11 @@ interface Props {
  * Выгрузка всех доменов сразу занимает минуты, поэтому выбор нескольких —
  * основной путь, а «забрать все» вынесено отдельной кнопкой с предупреждением.
  */
-export function DomainsScreen({ connection, server, pulling, progress, error: pullError, onPull, onOpenRoutes, onGoToConnection }: Props) {
+export function DomainsScreen({ connection, server, pulling, progress, error: pullError, onPull, onOpenRoutes, onGoToLogs, onGoToConnection }: Props) {
   const { t } = useI18n()
+  const rich = useRichText()
+  // Причина отказа лежит в журнале, и ходить туда должно быть одним нажатием.
+  const logsLink = <ActionLink onClick={onGoToLogs}>{t('link.logs')}</ActionLink>
   const [domains, setDomains] = useState<ApiDomain[] | null>(null)
   const [stats, setStats] = useState<DomainStat[]>([])
   const [onlyTrouble, setOnlyTrouble] = useState(false)
@@ -288,7 +293,7 @@ export function DomainsScreen({ connection, server, pulling, progress, error: pu
 
       {refused && (
         <Notice tone="warn">
-          {t('domains.refused', { name: refused.name })}
+          {rich('domains.refused', { name: refused.name, logs: logsLink })}
         </Notice>
       )}
 
@@ -525,7 +530,7 @@ export function DomainsScreen({ connection, server, pulling, progress, error: pu
             </div>
             {bulk.finished && bulk.results.some((item) => !item.done) && (
               <Notice tone="warn">
-                {t('domains.refusedMany')}
+                {rich('domains.refusedMany', { logs: logsLink })}
               </Notice>
             )}
           </div>

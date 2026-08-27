@@ -396,6 +396,28 @@ export function MultiSelect({ label, options, selected, onChange, className = 'w
 }
 
 /**
+ * Ссылка внутри текста: ведёт в раздел приложения или запускает действие.
+ *
+ * Подсказки то и дело просят сходить куда-то ещё — «причина в журналах»,
+ * «сначала откройте папку». Ходить туда должно быть одним нажатием.
+ */
+export function ActionLink({ onClick, children }: { onClick: () => void; children: ReactNode }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cx(
+        'rounded font-medium text-accent-content underline decoration-accent-content/40 underline-offset-2',
+        'transition hover:decoration-accent-content',
+        FOCUS_RING,
+      )}
+    >
+      {children}
+    </button>
+  )
+}
+
+/**
  * Пустая страница: значок, заголовок, пояснение и, если есть куда, кнопка.
  *
  * Лежала пятью копиями с разъехавшимися отступами — на экране подключений
@@ -404,7 +426,8 @@ export function MultiSelect({ label, options, selected, onChange, className = 'w
 export function EmptyState({ icon: Glyph, title, text, action, children }: {
   icon: Icon
   title: string
-  text?: string
+  /** Не только строка: в пояснении бывают ссылки на разделы. */
+  text?: ReactNode
   action?: ReactNode
   children?: ReactNode
 }) {

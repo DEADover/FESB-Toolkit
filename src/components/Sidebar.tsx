@@ -1,4 +1,4 @@
-import { ArrowsLeftRight, CaretLeft, CaretRight, CircleHalf, Crosshair, Cube, FingerprintSimple, FlowArrow, Gear, GithubLogo, ListDashes, Moon, Plugs, Queue, SlidersHorizontal, Stack, Sun, type Icon } from '@phosphor-icons/react'
+import { ArrowsLeftRight, CaretLeft, CaretRight, CircleHalf, Crosshair, Cube, FingerprintSimple, FlowArrow, Gear, GithubLogo, House, ListDashes, Moon, Plugs, Queue, SlidersHorizontal, Stack, Sun, type Icon } from '@phosphor-icons/react'
 
 import { LANGUAGES, useI18n, type MessageKey } from '../i18n'
 import { openRepository, REPOSITORY_URL } from '../lib/api'
@@ -7,6 +7,7 @@ import type { AppInfo } from '../types'
 import { cx, FOCUS_RING } from './ui'
 
 export type ScreenId =
+  | 'welcome'
   | 'files.trace'
   | 'files.links'
   | 'api.connection'
@@ -21,12 +22,21 @@ export type ScreenId =
 
 interface Section {
   title: MessageKey
+  /** Раздел без заголовка: один пункт, подписывать его дважды незачем. */
+  bare?: boolean
   /** Экран настроек раздела — открывается шестерёнкой у заголовка. */
   settings?: { screen: ScreenId; title: MessageKey }
   items: Array<{ id: ScreenId; label: MessageKey; icon: Icon; disabled?: boolean }>
 }
 
 const SECTIONS: Section[] = [
+  {
+    // Первый экран стоит над разделами: он не про файлы и не про API,
+    // он про выбор между ними.
+    title: 'nav.welcome',
+    bare: true,
+    items: [{ id: 'welcome', label: 'nav.welcome', icon: House }],
+  },
   {
     title: 'nav.files',
     items: [
@@ -94,7 +104,7 @@ export function Sidebar({ screen, onScreen, info, isMac, collapsed, onCollapse, 
         <nav className={cx('flex min-h-0 flex-1 flex-col overflow-y-auto', collapsed ? 'gap-2 px-2' : 'gap-5 px-2')}>
           {SECTIONS.map((section) => (
             <div key={section.title}>
-              {collapsed ? (
+              {section.bare ? null : collapsed ? (
                 // В узком режиме заголовок раздела не помещается — вместо него разделитель.
                 <div className="mx-auto mb-2 h-px w-6 bg-line" />
               ) : (

@@ -2,10 +2,10 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 
 import { ArrowsClockwise, ArrowsLeftRight } from '@phosphor-icons/react'
 
-import { useI18n } from '../i18n'
+import { useI18n, useRichText } from '../i18n'
 import { errorText } from '../lib/api'
 import type { Connection } from '../types'
-import { Button, ButtonGlyph, cx, EmptyState, FOCUS_RING, Notice, Select, Toggle } from './ui'
+import { ActionLink, Button, ButtonGlyph, cx, EmptyState, FOCUS_RING, Notice, Select, Toggle } from './ui'
 
 /**
  * Общая обвязка для экранов раздела API: все они читают что-то с сервера,
@@ -15,11 +15,14 @@ import { Button, ButtonGlyph, cx, EmptyState, FOCUS_RING, Notice, Select, Toggle
 /** Заглушка для экрана, открытого до подключения к серверу. */
 export function NotConnected({ onGoToConnection }: { onGoToConnection: () => void }) {
   const { t } = useI18n()
+  const rich = useRichText()
   return (
     <EmptyState
       icon={ArrowsLeftRight}
       title={t('api.notConnected')}
-      text={t('api.notConnected.text')}
+      text={rich('api.notConnected.text', {
+        connection: <ActionLink onClick={onGoToConnection}>{t('link.connection')}</ActionLink>,
+      })}
       action={<Button variant="primary" onClick={onGoToConnection}>{t('nav.api.connection')}</Button>}
     />
   )

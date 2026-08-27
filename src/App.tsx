@@ -7,6 +7,7 @@ import { ConnectionScreen } from './components/ConnectionScreen'
 import { DomainLinksScreen } from './components/DomainLinksScreen'
 import { ServerSwitch } from './components/HeaderBar'
 import { DomainsScreen, type PullIntent } from './components/DomainsScreen'
+import { WelcomeScreen } from './components/WelcomeScreen'
 import { EndpointsScreen } from './components/EndpointsScreen'
 import { LogsScreen } from './components/LogsScreen'
 import { ModulesScreen } from './components/ModulesScreen'
@@ -50,7 +51,7 @@ export default function App() {
   const { t } = useI18n()
 
   const [info, setInfo] = useState<AppInfo | null>(null)
-  const [screen, setScreen] = useState<ScreenId>('files.trace')
+  const [screen, setScreen] = useState<ScreenId>('welcome')
   const [themeMode, setThemeMode] = useState<ThemeMode>(readThemeMode)
   const [sidebarHidden, setSidebarHidden] = useState(() => localStorage.getItem(SIDEBAR_KEY) === 'hidden')
 
@@ -265,6 +266,9 @@ export default function App() {
 
   const isApiScreen = screen.startsWith('api.')
   const isLinksScreen = screen === 'files.links'
+  // На первом экране кнопки шапки не нужны: те же действия стоят карточками
+  // в самом экране, и дублировать их — только сбивать с толку.
+  const isWelcome = screen === 'welcome'
   const apiScreenProps = {
     connection: session?.connection ?? null,
     server: session?.server ?? null,
@@ -280,6 +284,7 @@ export default function App() {
     'api.audit': 'nav.api.audit.title',
     'api.routes': 'nav.api.routes.title',
     'api.endpoints': 'nav.api.endpoints.title',
+    welcome: 'welcome.title',
     'api.queues': 'nav.api.queues.title',
     'api.modules': 'nav.api.modules.title',
     'api.properties': 'nav.api.properties.title',
@@ -316,7 +321,7 @@ export default function App() {
               в подзаголовке остаётся только то, чего там нет: откуда взята
               конфигурация в файловом режиме.
             */}
-            {!isApiScreen && !isLinksScreen && (
+            {!isApiScreen && !isLinksScreen && !isWelcome && (
               <p className="truncate text-[11.5px] text-content-subtle" title={source?.path}>
                 {source
                   ? source.kind === 'server'
@@ -335,10 +340,10 @@ export default function App() {
             onDisconnect={disconnect}
             onConfigure={configure}
           />
-          {!isApiScreen && !isLinksScreen && root && (
+          {!isApiScreen && !isLinksScreen && !isWelcome && root && (
             <RefreshButton busy={scanning} disabled={busy} onClick={rescan} />
           )}
-          {!isApiScreen && !isLinksScreen && (
+          {!isApiScreen && !isLinksScreen && !isWelcome && (
             <>
               <Button onClick={pickArchive} disabled={busy}>{t('action.openArchive')}</Button>
               <Button variant="primary" onClick={pickFolder} disabled={busy}>{t('action.selectFolder')}</Button>
@@ -346,7 +351,17 @@ export default function App() {
           )}
         </header>
 
-        {screen === 'api.connection' ? (
+        {screen === 'welcome' ? (
+          <WelcomeScreen
+            server={session?.server ?? null}
+            connections={connections}
+            connecting={connecting}
+            onScreen={setScreen}
+            onOpenFolder={pickFolder}
+            onOpenArchive={pickArchive}
+            onConnect={switchProfile}
+          />
+        ) : screen === 'api.connection' ? (
           <ConnectionScreen
             store={connections}
             onStore={setConnections}
@@ -365,6 +380,7 @@ export default function App() {
             error={pullError}
             onPull={pull}
             onOpenRoutes={(guid) => { setRoutesDomain(guid); setScreen('api.routes') }}
+            onGoToLogs={() => setScreen('api.logs')}
             onGoToConnection={() => setScreen('api.connection')}
           />
         ) : screen === 'api.routes' ? (
@@ -382,7 +398,12 @@ export default function App() {
         ) : screen === 'api.audit' ? (
           <AuditScreen {...apiScreenProps} />
         ) : isLinksScreen ? (
-          <DomainLinksScreen scan={scan} isMac={isMac} />
+          <DomainLinksScreen
+            scan={scan}
+            isMac={isMac}
+            onOpenFolder={pickFolder}
+            onGoToDomains={() => setScreen('api.domains')}
+          />
         ) : !scan ? (
           <EmptyState
             busy={busy}

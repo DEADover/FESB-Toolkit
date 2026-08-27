@@ -2,18 +2,21 @@ import { Fragment, useCallback, useEffect, useMemo, useState } from 'react'
 
 import { ArrowRight, ArrowsLeftRight } from '@phosphor-icons/react'
 
-import { useI18n } from '../i18n'
+import { useI18n, useRichText } from '../i18n'
 import { errorText, routeLinks } from '../lib/api'
 import type { LinkGraph, ScanResult } from '../types'
 import { RouteViewer } from './RouteViewer'
 import {
   RefreshButton, ScreenBody,
 } from './ApiShell'
-import { Badge, cx, DataTable, EmptyState, Notice, Readout, rowClick, SearchInput, Th, THead, Toggle } from './ui'
+import { ActionLink, Badge, cx, DataTable, EmptyState, Notice, Readout, rowClick, SearchInput, Th, THead, Toggle } from './ui'
 
 interface Props {
   scan: ScanResult | null
   isMac: boolean
+  /** Ссылки из пустого экрана: связи считать не из чего, пока нет выгрузки. */
+  onOpenFolder: () => void
+  onGoToDomains: () => void
 }
 
 /** Одна связь между парой доменов: какой маршрут кого зовёт и каким адресом. */
@@ -43,8 +46,9 @@ interface DomainPair {
  * с половиной сотнях доменов это единственный способ увидеть, что домен,
  * который считали независимым, на самом деле кормит половину шины.
  */
-export function DomainLinksScreen({ scan, isMac }: Props) {
+export function DomainLinksScreen({ scan, isMac, onOpenFolder, onGoToDomains }: Props) {
   const { t } = useI18n()
+  const rich = useRichText()
   const [graph, setGraph] = useState<LinkGraph | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -132,7 +136,10 @@ export function DomainLinksScreen({ scan, isMac }: Props) {
       <EmptyState
         icon={ArrowsLeftRight}
         title={t('domainLinks.noScan')}
-        text={t('domainLinks.noScan.text')}
+        text={rich('domainLinks.noScan.text', {
+          folder: <ActionLink onClick={onOpenFolder}>{t('link.openFolder')}</ActionLink>,
+          domains: <ActionLink onClick={onGoToDomains}>{t('link.downloadDomains')}</ActionLink>,
+        })}
       />
     )
   }
