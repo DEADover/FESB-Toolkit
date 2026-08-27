@@ -11,7 +11,9 @@ import type { Connection, ModuleAction, ModuleRow, SavePoint, ServerInfo } from 
 import {
   ErrorBar, NotConnected, Panel, RefreshButton, TableMessage, useApiData,
 } from './ApiShell'
-import { Badge, Button, cx, DataTable, IconButton, Modal, Notice, Spinner, Th, THead } from './ui'
+import {
+  Badge, Button, ButtonGlyph, cx, DataTable, IconButton, Modal, Notice, Spinner, Th, THead,
+} from './ui'
 
 interface Props {
   connection: Connection | null
@@ -250,7 +252,7 @@ function SavePoints({ connection }: { connection: Connection }) {
           {busy === 'create' ? <><Spinner className="size-3.5" /> {t('savepoints.creating')}</> : t('savepoints.create')}
         </Button>
         <Button size="sm" variant="ghost" onClick={() => void reload()} disabled={loading || busy !== null}>
-          {loading ? <Spinner className="size-3.5" /> : <ArrowsClockwise size={13} weight="bold" />}
+          <ButtonGlyph busy={loading}><ArrowsClockwise size={13} weight="bold" /></ButtonGlyph>
         </Button>
       </div>
 

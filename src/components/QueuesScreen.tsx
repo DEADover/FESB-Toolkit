@@ -8,7 +8,9 @@ import type { Connection, QueueManager, QueueMessage, QueueRow, ServerInfo } fro
 import {
   AutoRefreshToggle, ErrorBar, NotConnected, Panel, RefreshButton, ScreenBody, TableMessage, useApiData, useAutoRefresh,
 } from './ApiShell'
-import { Badge, Button, cx, DataTable, IconButton, Notice, rowClick, SearchInput, Spinner, Th, THead, Toggle } from './ui'
+import {
+  Badge, Button, ButtonGlyph, cx, DataTable, IconButton, Notice, rowClick, SearchInput, Spinner, Th, THead, Toggle,
+} from './ui'
 
 interface Props {
   connection: Connection | null
@@ -109,7 +111,7 @@ export function QueuesScreen({ connection, server, onGoToConnection }: Props) {
               onClick={() => void managers.reload()}
               disabled={managers.loading}
             >
-              {managers.loading ? <Spinner className="size-3.5" /> : <ArrowsClockwise size={13} weight="bold" />}
+              <ButtonGlyph busy={managers.loading}><ArrowsClockwise size={13} weight="bold" /></ButtonGlyph>
             </Button>
           </div>
           <div className="flex flex-col p-1.5">

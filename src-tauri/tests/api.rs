@@ -578,3 +578,30 @@ fn builds_the_endpoint_report() {
     // Внутренних адресов в отчёте быть не должно — он про внешний мир.
     assert!(points.iter().all(|p| p.scheme != "direct" && p.scheme != "localmq"));
 }
+
+/// Настоящий отчёт настоящим файлом: битый xlsx ловится только на объёме.
+#[test]
+#[ignore]
+fn writes_the_real_report_to_excel() {
+    let Some(connection) = connection() else { return };
+    let Ok(out) = std::env::var("XLSX_REPORT") else { return };
+    let points = block(fesb_toolkit_lib::testing::endpoint_report(&connection, |_| {})).unwrap();
+
+    let headers: Vec<String> = ["Домен", "СОПС", "Компонент", "Направление", "Адаптер", "Адрес",
+        "Хост", "Порт", "TLS", "Протокол", "Шифры", "Авторизация", "Состояние", "Потоки"]
+        .iter().map(|s| s.to_string()).collect();
+    let rows: Vec<Vec<String>> = points.iter().map(|p| vec![
+        p.domain.clone(), p.route.clone(), p.component.clone(),
+        if p.direction == "in" { "Вход".into() } else { "Выход".into() },
+        p.scheme.clone(), p.uri.clone(), p.host.clone().unwrap_or_default(),
+        p.port.map(|v| v.to_string()).unwrap_or_default(),
+        p.ssl.map(|v| if v { "Да".to_string() } else { "Нет".to_string() }).unwrap_or_default(),
+        p.protocol.clone().unwrap_or_default(), p.ciphers.clone().unwrap_or_default(),
+        p.auth.clone().unwrap_or_default(), p.state.clone().unwrap_or_default(),
+        p.busy_threads.map(|v| format!("{v} / {}", p.max_threads.unwrap_or(0))).unwrap_or_default(),
+    ]).collect();
+
+    println!("строк {}, самая длинная ячейка {}", rows.len(),
+        rows.iter().flatten().map(|c| c.chars().count()).max().unwrap_or(0));
+    fesb_toolkit_lib::testing::write_xlsx(std::path::Path::new(&out), "Точки Входа и Выхода", &headers, &rows).unwrap();
+}

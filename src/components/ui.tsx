@@ -38,6 +38,20 @@ export function Button({ variant = 'secondary', size = 'md', className, ...rest 
 }
 
 /**
+ * Место под значок кнопки: одна ширина для значка и для крутилки.
+ *
+ * Без него кнопка на время работы становилась чуть уже или шире, и ряд
+ * с кнопками заметно вздрагивал.
+ */
+export function ButtonGlyph({ busy, children }: { busy?: boolean; children: ReactNode }) {
+  return (
+    <span className="grid size-4 shrink-0 place-items-center">
+      {busy ? <Spinner className="size-4" /> : children}
+    </span>
+  )
+}
+
+/**
  * Кнопка-иконка для действий в строке таблицы.
  *
  * Подписи вроде «Перезапустить» съедают половину строки и в русском языке
@@ -240,7 +254,7 @@ export function useClickAway(ref: React.RefObject<HTMLElement | null>, close: ()
  * в светлом оформлении — на тёмной теме это выглядело чужой заплатой,
  * да и рядом с `MultiSelect` два разных списка бросались в глаза.
  */
-export function Select<T extends string | number>({ value, options, onChange, ariaLabel, label, className }: {
+export function Select<T extends string | number>({ value, options, onChange, ariaLabel, label, className = 'w-44' }: {
   value: T
   options: Array<{ id: T; label: string }>
   onChange: (value: T) => void
@@ -311,7 +325,7 @@ export function Select<T extends string | number>({ value, options, onChange, ar
  * файлах ряд переставал помещаться и уезжал под горизонтальную прокрутку.
  * Список занимает одну кнопку и показывает, сколько выбрано.
  */
-export function MultiSelect({ label, options, selected, onChange, className, emptyLabel }: {
+export function MultiSelect({ label, options, selected, onChange, className = 'w-52', emptyLabel }: {
   label: string
   options: Array<{ id: string; label: string; hint?: string; tone?: Tone }>
   selected: Set<string>

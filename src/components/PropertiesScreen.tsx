@@ -221,7 +221,7 @@ export function PropertiesScreen({ connection, server, onGoToConnection }: Props
         footer={
           <>
             <Button variant="ghost" onClick={() => setAdding(null)}>{t('action.cancel')}</Button>
-            <Button variant="primary" disabled={saving || !adding?.key.trim()} onClick={() => void create()}>
+            <Button variant="primary" className="min-w-28" disabled={saving || !adding?.key.trim()} onClick={() => void create()}>
               {saving ? <Spinner className="size-4" /> : t('properties.save')}
             </Button>
           </>

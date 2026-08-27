@@ -454,6 +454,7 @@ pub mod testing {
         PropertyScope,
     };
     pub use crate::archive::create_archive;
+    pub use crate::xlsx::write_sheet as write_xlsx;
     pub use crate::domain_xml::{parse_domain_xml, BeanTarget, TraceUpdate};
     pub use crate::route_graph::{parse_route_graphs, RouteNode};
     pub use crate::route_links::build_links;

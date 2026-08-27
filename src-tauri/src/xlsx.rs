@@ -34,6 +34,23 @@ fn escape(text: &str) -> String {
     out
 }
 
+/// Имя листа по правилам Excel: не длиннее 31 символа и без `:\\/?*[]`.
+///
+/// Имя приходит из словаря интерфейса, и там вполне может оказаться
+/// «Точки Входа и Выхода» — а Excel на запрещённом символе или лишней
+/// длине отказывается открывать книгу целиком.
+fn sheet_title(name: &str) -> String {
+    let cleaned: String = name
+        .chars()
+        .map(|c| if matches!(c, ':' | '\\' | '/' | '?' | '*' | '[' | ']') { ' ' } else { c })
+        .collect();
+    let trimmed = cleaned.trim();
+    if trimmed.is_empty() {
+        return "Sheet1".into();
+    }
+    trimmed.chars().take(31).collect()
+}
+
 /// `0` → `A`, `25` → `Z`, `26` → `AA`.
 fn column_name(index: usize) -> String {
     let mut index = index + 1;
@@ -91,6 +108,8 @@ pub fn write_sheet(
 <Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
 <Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
 <Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>
+<Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>
+<Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/>
 </Types>"#,
     )?;
 
@@ -99,6 +118,8 @@ pub fn write_sheet(
         r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
 <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>
+<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/>
+<Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties" Target="docProps/app.xml"/>
 </Relationships>"#,
     )?;
 
@@ -110,10 +131,8 @@ pub fn write_sheet(
             r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
 <sheets><sheet name="{}" sheetId="1" r:id="rId1"/></sheets>
-<definedNames><definedName name="_xlnm._FilterDatabase" localSheetId="0" hidden="1">'{}'!$A$1:${last_column}${last_row}</definedName></definedNames>
 </workbook>"#,
-            escape(sheet_name),
-            escape(sheet_name),
+            escape(&sheet_title(sheet_name)),
         ),
     )?;
 
@@ -131,12 +150,29 @@ pub fn write_sheet(
         "xl/styles.xml",
         r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
-<fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts>
-<fills count="1"><fill><patternFill patternType="none"/></fill></fills>
-<borders count="1"><border/></borders>
+<fonts count="2"><font><sz val="11"/><color rgb="FF000000"/><name val="Calibri"/><family val="2"/></font><font><b/><sz val="11"/><color rgb="FF000000"/><name val="Calibri"/><family val="2"/></font></fonts>
+<fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills>
+<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>
 <cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
 <cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/></cellXfs>
+<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>
 </styleSheet>"#,
+    )?;
+
+    put(
+        "docProps/core.xml",
+        r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<dc:creator>FESB Toolkit</dc:creator><cp:lastModifiedBy>FESB Toolkit</cp:lastModifiedBy>
+</cp:coreProperties>"#,
+    )?;
+
+    put(
+        "docProps/app.xml",
+        r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties" xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes">
+<Application>FESB Toolkit</Application>
+</Properties>"#,
     )?;
 
     let mut sheet = String::with_capacity(rows.len() * 256);
@@ -144,6 +180,14 @@ pub fn write_sheet(
         r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">"#,
     );
+    // Порядок элементов задан схемой, и Excel относится к нему строго:
+    // dimension, sheetViews, sheetFormatPr, cols, sheetData, autoFilter.
+    // Перепутанные местами cols и sheetViews он считает книгу испорченной,
+    // хотя другие читатели такой файл открывают без единого слова.
+    sheet.push_str(&format!(r#"<dimension ref="A1:{last_column}{last_row}"/>"#));
+    sheet.push_str(r#"<sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/><selection pane="bottomLeft" activeCell="A2" sqref="A2"/></sheetView></sheetViews>"#);
+    sheet.push_str(r#"<sheetFormatPr defaultRowHeight="15"/>"#);
+
     // Ширины на глаз: имя домена и адрес длинные, остальное короткое.
     sheet.push_str("<cols>");
     for (index, header) in headers.iter().enumerate() {
@@ -154,7 +198,6 @@ pub fn write_sheet(
         ));
     }
     sheet.push_str("</cols>");
-    sheet.push_str(r#"<sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>"#);
     sheet.push_str("<sheetData>");
 
     sheet.push_str(r#"<row r="1">"#);
@@ -213,7 +256,7 @@ mod tests {
 
     #[test]
     fn writes_a_file_excel_can_open() {
-        let dir = std::env::temp_dir().join(format!("fesb-xlsx-{}", std::process::id()));
+        let dir = std::path::PathBuf::from(std::env::var("XLSX_OUT").unwrap_or_else(|_| std::env::temp_dir().join("fesb-xlsx").to_string_lossy().into()));
         std::fs::create_dir_all(&dir).unwrap();
         let path = dir.join("report.xlsx");
         write_sheet(
@@ -235,6 +278,67 @@ mod tests {
         assert!(sheet.contains("EDI &amp; Co"));
         assert!(sheet.contains("<v>8443</v>"));
         assert!(sheet.contains("autoFilter"));
+        if std::env::var("XLSX_OUT").is_err() { let _ = std::fs::remove_dir_all(&dir); }
+    }
+}
+
+#[cfg(test)]
+mod order_tests {
+    use super::*;
+
+    /// Excel строг к порядку элементов внутри листа, другие читатели — нет.
+    /// Этот тест — единственное, что отделяет нас от «файл повреждён».
+    #[test]
+    fn the_sheet_follows_the_schema_order() {
+        let dir = std::env::temp_dir().join("fesb-xlsx-order");
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("order.xlsx");
+        write_sheet(&path, "Лист", &["A".into(), "B".into()], &[vec!["1".into(), "x".into()]]).unwrap();
+
+        let mut zip = zip::ZipArchive::new(std::fs::File::open(&path).unwrap()).unwrap();
+        let mut sheet = String::new();
+        std::io::Read::read_to_string(&mut zip.by_name("xl/worksheets/sheet1.xml").unwrap(), &mut sheet).unwrap();
+
+        let order = ["<dimension", "<sheetViews", "<sheetFormatPr", "<cols", "<sheetData", "<autoFilter"];
+        let mut previous = 0;
+        for element in order {
+            let at = sheet.find(element).unwrap_or_else(|| panic!("нет {element}"));
+            assert!(at > previous, "{element} стоит не на своём месте");
+            previous = at;
+        }
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// Ссылка на часть, которой в файле нет, — ровно то, что Excel зовёт
+    /// «файл повреждён». Тема сюда однажды уже пробралась.
+    #[test]
+    fn nothing_points_at_a_part_we_do_not_write() {
+        let dir = std::env::temp_dir().join("fesb-xlsx-refs");
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("refs.xlsx");
+        write_sheet(&path, "Лист", &["A".into()], &[vec!["x".into()]]).unwrap();
+
+        let mut zip = zip::ZipArchive::new(std::fs::File::open(&path).unwrap()).unwrap();
+        let names: Vec<String> = (0..zip.len()).map(|i| zip.by_index(i).unwrap().name().to_string()).collect();
+        let mut styles = String::new();
+        std::io::Read::read_to_string(&mut zip.by_name("xl/styles.xml").unwrap(), &mut styles).unwrap();
+        assert!(!styles.contains("theme="), "стили ссылаются на тему, а темы в файле нет");
+
+        // Всё, что объявлено в описи, должно лежать в архиве.
+        let mut types = String::new();
+        std::io::Read::read_to_string(&mut zip.by_name("[Content_Types].xml").unwrap(), &mut types).unwrap();
+        for part in types.split("PartName=\"").skip(1) {
+            let declared = part.split('"').next().unwrap().trim_start_matches('/');
+            assert!(names.iter().any(|n| n == declared), "объявлен {declared}, но его нет");
+        }
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn sheet_names_are_trimmed_to_what_excel_accepts() {
+        assert_eq!(sheet_title("Точки Входа и Выхода"), "Точки Входа и Выхода");
+        assert_eq!(sheet_title("отчёт: [2026]/итог"), "отчёт   2026  итог");
+        assert_eq!(sheet_title("").as_str(), "Sheet1");
+        assert_eq!(sheet_title(&"я".repeat(40)).chars().count(), 31);
     }
 }

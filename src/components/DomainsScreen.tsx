@@ -451,13 +451,14 @@ export function DomainsScreen({ connection, server, pulling, progress, error: pu
               {t('api.pull.progress', { current: progress?.current ?? 0, total: progress?.total ?? selected.size })}
             </span>
           )}
-          <Button onClick={() => setAsking(null)} disabled={pulling} title={t('api.pull.allHint')}>
+          <Button className="min-w-40" onClick={() => setAsking(null)} disabled={pulling} title={t('api.pull.allHint')}>
             {t('api.pull.all', { count: domains?.length ?? 0 })}
           </Button>
           <Button
             variant="primary"
             // Выбраны все домены — это и есть «забрать всё»: перечислять их незачем.
             onClick={() => setAsking(selected.size === domains?.length ? null : [...selected])}
+            className="min-w-52"
             disabled={pulling || selected.size === 0}
           >
             {pulling

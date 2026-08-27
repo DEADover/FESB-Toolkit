@@ -364,7 +364,7 @@ export function ConnectionScreen({ store, onStore, server, activeProfileId, focu
                 )}
 
                 <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
-                  <Button onClick={() => void test()} disabled={!isReady(draft) || busy !== null}>
+                  <Button className="min-w-36" onClick={() => void test()} disabled={!isReady(draft) || busy !== null}>
                     {busy === 'test' ? <><Spinner className="size-4" /> {t('profiles.testing')}</> : t('profiles.test')}
                   </Button>
                   <Button onClick={() => save(draft)} disabled={!dirty || draft.url.trim() === ''}>
@@ -372,7 +372,7 @@ export function ConnectionScreen({ store, onStore, server, activeProfileId, focu
                   </Button>
                   {/* Скрытая кнопка нужна, чтобы работал Enter в полях формы. */}
                   <button type="submit" hidden aria-hidden tabIndex={-1} />
-                  <Button variant="primary" onClick={() => void connect()} disabled={!isReady(draft) || busy !== null}>
+                  <Button variant="primary" className="min-w-36" onClick={() => void connect()} disabled={!isReady(draft) || busy !== null}>
                     {busy === 'connect'
                       ? <><Spinner className="size-4" /> {t('api.connecting')}</>
                       : t('api.connect')}

@@ -1,6 +1,6 @@
-import { useCallback, useMemo, useState } from 'react'
+import { Fragment, useCallback, useMemo, useState } from 'react'
 
-import { DownloadSimple } from '@phosphor-icons/react'
+import { CaretRight, DownloadSimple } from '@phosphor-icons/react'
 
 import { useI18n } from '../i18n'
 import { apiEndpointReport, errorText, onApiProgress, saveReport, saveXlsxAs } from '../lib/api'
@@ -8,8 +8,7 @@ import { localStamp } from '../lib/paths'
 import type { ApiEndpoint, ApiProgress, Connection, ServerInfo } from '../types'
 import { ErrorBar, NotConnected, Panel, ScreenBody, TableMessage, useDebounced } from './ApiShell'
 import {
-  Badge, Button, CodePill, cx, DataTable, EmptyState, MultiSelect, Readout, SearchInput, Select,
-  Spinner, Th, THead, Toggle,
+  Badge, Button, ButtonGlyph, CodePill, cx, DataTable, EmptyState, MultiSelect, Readout, rowClick, SearchInput, Select, Spinner, Th, THead, Toggle,
 } from './ui'
 
 interface Props {
@@ -19,6 +18,14 @@ interface Props {
 }
 
 type Direction = 'all' | 'in' | 'out'
+type Grouping = 'none' | 'host' | 'domain'
+
+/** Группа строк отчёта: заголовок и то, что под ним. */
+interface Group {
+  key: string
+  title: string
+  rows: ApiEndpoint[]
+}
 
 /**
  * Отчёт по внешним точкам входа и выхода.
@@ -40,6 +47,8 @@ export function EndpointsScreen({ connection, server, onGoToConnection }: Props)
   const [direction, setDirection] = useState<Direction>('all')
   const [schemes, setSchemes] = useState<Set<string>>(new Set())
   const [onlySecured, setOnlySecured] = useState(false)
+  const [grouping, setGrouping] = useState<Grouping>('host')
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
   const query = useDebounced(search, 250)
 
   const build = useCallback(async () => {
@@ -85,6 +94,41 @@ export function EndpointsScreen({ connection, server, onGoToConnection }: Props)
       )
     })
   }, [all, query, direction, schemes, onlySecured])
+
+  /**
+   * Группировка списка.
+   *
+   * Отчёт читают не подряд, а по системам: «с кем мы вообще разговариваем
+   * и сколько раз». Хост для этого — главный ключ, домен — второй по частоте.
+   * Адреса из констант хоста не имеют, и складывать их в «без хоста» честнее,
+   * чем прятать.
+   */
+  const groups = useMemo<Group[]>(() => {
+    if (grouping === 'none') return [{ key: '', title: '', rows: visible }]
+    const buckets = new Map<string, ApiEndpoint[]>()
+    for (const row of visible) {
+      const key = grouping === 'host' ? row.host ?? '' : row.domain
+      const list = buckets.get(key)
+      if (list) list.push(row)
+      else buckets.set(key, [row])
+    }
+    return [...buckets.entries()]
+      .map(([key, rows]) => ({ key, title: key || t('endpoints.noHost'), rows }))
+      .sort((a, b) => {
+        // Безымянная группа всегда внизу: это не система, а «не разобрали».
+        if (!a.key !== !b.key) return a.key ? -1 : 1
+        return b.rows.length - a.rows.length || a.title.localeCompare(b.title)
+      })
+  }, [visible, grouping, t])
+
+  const toggleGroup = useCallback((key: string) => {
+    setCollapsed((prev) => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }, [])
 
   const totals = useMemo(() => ({
     points: all.length,
@@ -134,7 +178,7 @@ export function EndpointsScreen({ connection, server, onGoToConnection }: Props)
           title={t('endpoints.empty')}
           text={t('endpoints.empty.text')}
           action={
-            <Button variant="primary" disabled={building} onClick={() => void build()}>
+            <Button variant="primary" className="min-w-44" disabled={building} onClick={() => void build()}>
               {building ? <><Spinner className="size-4" /> {t('endpoints.building')}</> : t('endpoints.build')}
             </Button>
           }
@@ -157,11 +201,11 @@ export function EndpointsScreen({ connection, server, onGoToConnection }: Props)
         <Readout label={t('endpoints.systems')} value={totals.systems.toLocaleString()} hint={t('endpoints.systems.hint')} />
         <Readout label={t('endpoints.secured')} value={totals.secured.toLocaleString()} />
         <div className="ml-auto flex items-center gap-2">
-          <Button disabled={building} onClick={() => void build()}>
+          <Button className="min-w-36" disabled={building} onClick={() => void build()}>
             {building ? <><Spinner className="size-4" /> {t('endpoints.building')}</> : t('endpoints.rebuild')}
           </Button>
-          <Button variant="primary" disabled={saving || visible.length === 0} onClick={() => void exportXlsx()}>
-            {saving ? <Spinner className="size-4" /> : <DownloadSimple size={14} weight="bold" />}
+          <Button variant="primary" className="min-w-52" disabled={saving || visible.length === 0} onClick={() => void exportXlsx()}>
+            <ButtonGlyph busy={saving}><DownloadSimple size={14} weight="bold" /></ButtonGlyph>
             {t('endpoints.export', { count: visible.length })}
           </Button>
         </div>
@@ -195,6 +239,17 @@ export function EndpointsScreen({ connection, server, onGoToConnection }: Props)
           onChange={setSchemes}
         />
         <Toggle checked={onlySecured} onChange={setOnlySecured} label={t('endpoints.onlySecured')} />
+        <Select<Grouping>
+          ariaLabel={t('endpoints.group')}
+          label={t('endpoints.group')}
+          value={grouping}
+          onChange={setGrouping}
+          options={[
+            { id: 'host', label: t('endpoints.host') },
+            { id: 'domain', label: t('table.domain') },
+            { id: 'none', label: t('endpoints.group.none') },
+          ]}
+        />
       </div>
 
       <ErrorBar error={error} />
@@ -223,7 +278,37 @@ export function EndpointsScreen({ connection, server, onGoToConnection }: Props)
             <Th className="hidden 2xl:table-cell">{t('endpoints.protocol')}</Th>
           </THead>
           <tbody>
-            {visible.map((row, index) => (
+            {groups.map((group) => (
+              <Fragment key={group.key || 'all'}>
+                {/* Заголовок группы — строка таблицы, а не отдельный список:
+                    иначе колонки под каждой группой разъезжались бы. */}
+                {grouping !== 'none' && (
+                  <tr
+                    onClick={rowClick(() => toggleGroup(group.key))}
+                    className="cursor-pointer border-b border-line bg-surface-2/70 hover:bg-surface-3"
+                  >
+                    <td colSpan={8} className="px-3 py-1.5">
+                      <div className="flex items-center gap-2">
+                        <CaretRight
+                          size={11}
+                          weight="bold"
+                          className={cx('shrink-0 text-content-subtle transition-transform', !collapsed.has(group.key) && 'rotate-90')}
+                        />
+                        <span className={cx('min-w-0 truncate text-[12.5px] font-semibold', !group.key && 'text-content-subtle')}>
+                          {group.title}
+                        </span>
+                        <Badge>{group.rows.length}</Badge>
+                        {group.rows.some((row) => row.direction === 'in') && (
+                          <Badge tone="accent">
+                            {t('endpoints.in')} · {group.rows.filter((row) => row.direction === 'in').length}
+                          </Badge>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                )}
+
+                {!collapsed.has(group.key) && group.rows.map((row, index) => (
               <tr key={`${row.domainGuid}-${row.routeId}-${index}`} className="border-b border-line/60 align-top hover:bg-surface-2">
                 <td className="truncate px-3 py-1.5" title={row.domain}>{row.domain}</td>
                 <td className="px-3 py-1.5">
@@ -252,6 +337,8 @@ export function EndpointsScreen({ connection, server, onGoToConnection }: Props)
                   {row.protocol ?? '—'}
                 </td>
               </tr>
+                ))}
+              </Fragment>
             ))}
             {visible.length === 0 && <TableMessage colSpan={8}>{t('endpoints.nothing')}</TableMessage>}
           </tbody>

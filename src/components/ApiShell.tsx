@@ -5,7 +5,7 @@ import { ArrowsClockwise, ArrowsLeftRight } from '@phosphor-icons/react'
 import { useI18n } from '../i18n'
 import { errorText } from '../lib/api'
 import type { Connection } from '../types'
-import { Button, cx, EmptyState, FOCUS_RING, Notice, Select, Spinner, Toggle } from './ui'
+import { Button, ButtonGlyph, cx, EmptyState, FOCUS_RING, Notice, Select, Toggle } from './ui'
 
 /**
  * Общая обвязка для экранов раздела API: все они читают что-то с сервера,
@@ -145,7 +145,8 @@ export function RefreshButton({ busy, disabled, className, onClick }: {
   const { t } = useI18n()
   return (
     <Button className={className} onClick={onClick} disabled={disabled ?? busy}>
-      {busy ? <Spinner className="size-4" /> : <ArrowsClockwise size={14} weight="bold" />} {t('action.refresh')}
+      <ButtonGlyph busy={busy}><ArrowsClockwise size={14} weight="bold" /></ButtonGlyph>
+      {t('action.refresh')}
     </Button>
   )
 }
