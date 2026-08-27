@@ -69,3 +69,53 @@ jobs:
           gh release upload "$GITHUB_REF_NAME" release/* --clobber
         env:
           GH_TOKEN: ${{ github.token }}
+
+  macos:
+    name: macOS build (Apple Silicon)
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+
+      - run: npm ci
+
+      - name: Run backend tests
+        run: cargo test --manifest-path src-tauri/Cargo.toml
+
+      - name: Build app
+        run: npm run build -- --target aarch64-apple-darwin
+
+      - name: Upload build
+        uses: actions/upload-artifact@v4
+        with:
+          name: fesb-toolkit-macos-arm64
+          if-no-files-found: error
+          path: src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.dmg
+
+      # Сборка не подписана: у Apple на это нужен платный сертификат.
+      # Первый запуск снимается через «Открыть» в контекстном меню или
+      # `xattr -dr com.apple.quarantine`, о чём сказано в описании релиза.
+      - name: Attach builds to the release
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          mkdir -p release
+          cp src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.dmg \
+             "release/FESB-Toolkit-$version-macos-arm64.dmg"
+          gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 || gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --generate-notes
+          gh release upload "$GITHUB_REF_NAME" release/* --clobber
+        env:
+          GH_TOKEN: ${{ github.token }}
