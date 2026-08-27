@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
+import { ArrowsClockwise } from '@phosphor-icons/react'
+
 import { AuditScreen } from './components/AuditScreen'
 import { ConnectionScreen } from './components/ConnectionScreen'
 import { DomainLinksScreen } from './components/DomainLinksScreen'
@@ -321,7 +323,7 @@ export default function App() {
           />
           {!isApiScreen && !isLinksScreen && root && (
             <Button onClick={rescan} disabled={busy}>
-              {scanning ? <Spinner className="size-4" /> : '↻'} {t('action.refresh')}
+              {scanning ? <Spinner className="size-4" /> : <ArrowsClockwise size={14} weight="bold" />} {t('action.refresh')}
             </Button>
           )}
           {!isApiScreen && !isLinksScreen && (

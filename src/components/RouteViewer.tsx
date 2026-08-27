@@ -1,5 +1,11 @@
 import { useCallback, useEffect, useState } from 'react'
 
+import {
+  ArrowElbowUpRight, ArrowLineDown, ArrowLineRight, ArrowRight, ArrowsClockwise, ArrowsLeftRight,
+  ArrowsMerge, ArrowsSplit, Backspace, Circle, Database, Diamond, Function as FunctionIcon, Funnel,
+  Gear, NotePencil, Play, PlusSquare, ShareNetwork, ShieldCheck, Stop, Warning, XCircle, type Icon,
+} from '@phosphor-icons/react'
+
 import { useI18n } from '../i18n'
 import { errorText, readRoute, revealPath } from '../lib/api'
 import type { RouteGraph, RouteNeighbours, RouteNode, RouteState } from '../types'
@@ -298,7 +304,7 @@ function Details({ node }: { node: RouteNode }) {
     <div className="flex flex-col gap-4 px-5 py-4">
       <div className="flex items-start gap-3">
         <span className="grid size-10 shrink-0 place-items-center rounded-xl border border-line-strong bg-surface-2 text-[17px] text-content-muted">
-          {STEP_ICON[node.kind] ?? '▪'}
+          <StepIcon kind={node.kind} />
         </span>
         <span className="min-w-0 pt-0.5">
           <span className="block text-[10px] uppercase tracking-wide text-content-subtle">
@@ -357,18 +363,25 @@ function Details({ node }: { node: RouteNode }) {
 }
 
 /** Те же значки, что и на схеме: панель должна узнаваться с одного взгляда. */
-const STEP_ICON: Record<string, string> = {
-  from: '▶', to: '➔', toD: '➔', log: '✎',
-  setHeader: '⊞', setProperty: '⊞', setBody: '⊞',
-  removeHeaders: '⌫', removeHeader: '⌫', removeProperties: '⌫',
-  transform: 'ƒ', bean: '⚙', process: '⚙',
-  marshal: '⇄', unmarshal: '⇄', convertBodyTo: '⇄',
-  choice: '◈', when: '◈', otherwise: '◈', filter: '▽',
-  split: '⑂', loop: '↻',
-  doTry: '⛊', doCatch: '⚠', doFinally: '⤓', onException: '⚠',
-  throwException: '✖', stop: '■',
-  wireTap: '⑃', recipientList: '⋔', pollEnrich: '⇤', enrich: '⇤',
-  aggregate: '⊕', transacted: '⛁',
+const STEP_ICONS: Record<string, Icon> = {
+  from: Play, to: ArrowRight, toD: ArrowRight, log: NotePencil,
+  setHeader: PlusSquare, setProperty: PlusSquare, setBody: PlusSquare,
+  removeHeaders: Backspace, removeHeader: Backspace, removeProperties: Backspace,
+  transform: FunctionIcon, bean: Gear, process: Gear,
+  marshal: ArrowsLeftRight, unmarshal: ArrowsLeftRight, convertBodyTo: ArrowsLeftRight,
+  choice: Diamond, when: Diamond, otherwise: Diamond, filter: Funnel,
+  split: ArrowsSplit, loop: ArrowsClockwise,
+  doTry: ShieldCheck, doCatch: Warning, doFinally: ArrowLineDown, onException: Warning,
+  throwException: XCircle, stop: Stop,
+  wireTap: ArrowElbowUpRight, recipientList: ShareNetwork,
+  pollEnrich: ArrowLineRight, enrich: ArrowLineRight,
+  aggregate: ArrowsMerge, transacted: Database,
+}
+
+/** Шаг, которого нет в списке, рисуется точкой — лучше, чем пустое место. */
+function StepIcon({ kind, size = 12 }: { kind: string; size?: number }) {
+  const Glyph = STEP_ICONS[kind] ?? Circle
+  return <Glyph size={size} weight="bold" />
 }
 
 function Block({ label, children }: { label: string; children: React.ReactNode }) {

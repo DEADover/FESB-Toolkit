@@ -1,5 +1,11 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 
+import {
+  ArrowElbowUpRight, ArrowLineDown, ArrowLineRight, ArrowRight, ArrowsClockwise, ArrowsLeftRight,
+  ArrowsMerge, ArrowsSplit, Backspace, Circle, Database, Diamond, Function as FunctionIcon, Funnel,
+  Gear, NotePencil, Play, PlusSquare, ShareNetwork, ShieldCheck, Stop, Warning, XCircle, type Icon,
+} from '@phosphor-icons/react'
+
 import { useI18n, type MessageKey, type Translate } from '../i18n'
 import { normalizeUri } from '../lib/links'
 import type { RouteNeighbour, RouteNode } from '../types'
@@ -40,18 +46,25 @@ const FRAMES = new Set([
 const HANDLERS = new Set(['doCatch', 'doFinally'])
 const ENDS = new Set(['stop', 'throwException'])
 
-const ICONS: Record<string, string> = {
-  from: '▶', to: '➔', toD: '➔', log: '✎',
-  setHeader: '⊞', setProperty: '⊞', setBody: '⊞',
-  removeHeaders: '⌫', removeHeader: '⌫', removeProperties: '⌫',
-  transform: 'ƒ', bean: '⚙', process: '⚙',
-  marshal: '⇄', unmarshal: '⇄', convertBodyTo: '⇄',
-  choice: '◈', when: '◈', otherwise: '◈', filter: '▽',
-  split: '⑂', loop: '↻',
-  doTry: '⛊', doCatch: '⚠', doFinally: '⤓', onException: '⚠',
-  throwException: '✖', stop: '■',
-  wireTap: '⑃', recipientList: '⋔', pollEnrich: '⇤', enrich: '⇤',
-  aggregate: '⊕', transacted: '⛁',
+const STEP_ICONS: Record<string, Icon> = {
+  from: Play, to: ArrowRight, toD: ArrowRight, log: NotePencil,
+  setHeader: PlusSquare, setProperty: PlusSquare, setBody: PlusSquare,
+  removeHeaders: Backspace, removeHeader: Backspace, removeProperties: Backspace,
+  transform: FunctionIcon, bean: Gear, process: Gear,
+  marshal: ArrowsLeftRight, unmarshal: ArrowsLeftRight, convertBodyTo: ArrowsLeftRight,
+  choice: Diamond, when: Diamond, otherwise: Diamond, filter: Funnel,
+  split: ArrowsSplit, loop: ArrowsClockwise,
+  doTry: ShieldCheck, doCatch: Warning, doFinally: ArrowLineDown, onException: Warning,
+  throwException: XCircle, stop: Stop,
+  wireTap: ArrowElbowUpRight, recipientList: ShareNetwork,
+  pollEnrich: ArrowLineRight, enrich: ArrowLineRight,
+  aggregate: ArrowsMerge, transacted: Database,
+}
+
+/** Шаг, которого нет в списке, рисуется точкой — лучше, чем пустое место. */
+function StepIcon({ kind, size = 12 }: { kind: string; size?: number }) {
+  const Glyph = STEP_ICONS[kind] ?? Circle
+  return <Glyph size={size} weight="bold" />
 }
 
 export type Shape = 'start' | 'end' | 'task' | 'gateway' | 'branch' | 'group' | 'stub'
@@ -651,7 +664,7 @@ function BoxView({ box, selected, onSelect, neighbours, onOpenRoute, t }: {
             selected ? 'bg-accent/20 text-accent-content' : 'text-content-muted hover:bg-surface-3',
           )}
         >
-          <span className="shrink-0">{ICONS[node.kind] ?? '▪'}</span>
+          <StepIcon kind={node.kind} />
           <span className="shrink-0 whitespace-nowrap font-medium">
             {box.frameLabel === node.kind ? kindLabel(node.kind, t) : box.frameLabel}
           </span>
@@ -682,7 +695,7 @@ function BoxView({ box, selected, onSelect, neighbours, onOpenRoute, t }: {
         )}
         title={node.label ?? kindLabel(node.kind, t)}
       >
-        <span>{ICONS[node.kind] ?? '▪'}</span>
+        <StepIcon kind={node.kind} />
         <span
           className="pointer-events-none absolute left-1/2 top-full mt-1 w-44 -translate-x-1/2 truncate text-center text-[11px] font-medium text-content"
         >
@@ -712,7 +725,7 @@ function BoxView({ box, selected, onSelect, neighbours, onOpenRoute, t }: {
             selected ? 'ring-2 ring-accent' : 'hover:border-content-subtle',
           )}
         >
-          <span className="-rotate-45 text-[13px]">{ICONS[node.kind] ?? '◈'}</span>
+          <span className="-rotate-45"><StepIcon kind={node.kind} size={13} /></span>
         </span>
       </button>
     )
@@ -757,7 +770,7 @@ function BoxView({ box, selected, onSelect, neighbours, onOpenRoute, t }: {
     >
       <span className="flex items-center gap-1.5">
         <span className="grid size-5 shrink-0 place-items-center rounded bg-surface-2 text-[11px] text-content-muted">
-          {ICONS[node.kind] ?? '▪'}
+          <StepIcon kind={node.kind} />
         </span>
         <span className="min-w-0 flex-1 truncate text-[10px] uppercase tracking-wide text-content-subtle">
           {kindLabel(node.kind, t)}

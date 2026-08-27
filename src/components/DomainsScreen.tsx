@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
+import { ArrowsClockwise, ArrowsLeftRight, Play, Stop } from '@phosphor-icons/react'
+
 import { useI18n } from '../i18n'
 import { apiDomainAction, apiDomains, errorText } from '../lib/api'
 import type { ApiDomain, ApiProgress, Connection, DomainAction, ServerInfo } from '../types'
-import { Badge, Button, Checkbox, IconButton, Modal, Spinner, TextInput, cx } from './ui'
+import { Badge, Button, Checkbox, cx, IconButton, Modal, SearchInput, Spinner } from './ui'
 
 interface Props {
   connection: Connection | null
@@ -163,7 +165,9 @@ export function DomainsScreen({ connection, server, pulling, progress, error: pu
     return (
       <div className="flex flex-1 items-center justify-center px-6 pb-10">
         <div className="max-w-md text-center">
-          <div className="mx-auto grid size-14 place-items-center rounded-2xl bg-surface-2 text-[22px] text-accent-content">⇄</div>
+          <div className="mx-auto grid size-14 place-items-center rounded-2xl bg-surface-2 text-accent-content">
+          <ArrowsLeftRight size={24} weight="regular" />
+        </div>
           <h2 className="mt-4 text-[15px] font-semibold">{t('api.notConnected')}</h2>
           <p className="mt-2 text-content-subtle">{t('api.notConnected.text')}</p>
           <Button variant="primary" className="mt-5" onClick={onGoToConnection}>{t('nav.api.connection')}</Button>
@@ -177,21 +181,17 @@ export function DomainsScreen({ connection, server, pulling, progress, error: pu
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3 px-6 pb-4">
       <div className="flex items-center gap-2">
-        <div className="relative min-w-0 flex-1">
-          <TextInput
-            value={query}
-            placeholder={t('api.domains.search')}
-            className="pl-8"
-            onChange={(event) => setQuery(event.target.value)}
-          />
-          <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-content-subtle">⌕</span>
-        </div>
+        <SearchInput
+          value={query}
+          placeholder={t('api.domains.search')}
+          onChange={setQuery}
+        />
         <label className="flex h-9 cursor-pointer items-center gap-2 rounded-lg border border-line-strong bg-surface px-3 text-[12.5px] text-content-muted">
           <Checkbox checked={onlyActive} onChange={(event) => setOnlyActive(event.target.checked)} />
           {t('api.domains.onlyActive')}
         </label>
         <Button onClick={() => void load()} disabled={loading || pulling}>
-          {loading ? <Spinner className="size-4" /> : '↻'} {t('action.refresh')}
+          {loading ? <Spinner className="size-4" /> : <ArrowsClockwise size={14} weight="bold" />} {t('action.refresh')}
         </Button>
       </div>
 
@@ -269,21 +269,21 @@ export function DomainsScreen({ connection, server, pulling, progress, error: pu
                 <td className="px-2 py-1.5" onClick={(event) => event.stopPropagation()}>
                   <div className="flex items-center gap-1">
                     <IconButton
-                      icon="▶"
+                      icon={Play}
                       label={t('modules.start')}
                       busy={pending === `${domain.guid}:start`}
                       disabled={pending !== null || pulling || domain.active}
                       onClick={() => startAction(domain, 'start')}
                     />
                     <IconButton
-                      icon="■"
+                      icon={Stop}
                       label={t('modules.stop')}
                       busy={pending === `${domain.guid}:stop`}
                       disabled={pending !== null || pulling || !domain.active}
                       onClick={() => startAction(domain, 'stop')}
                     />
                     <IconButton
-                      icon="↻"
+                      icon={ArrowsClockwise}
                       label={t('modules.restart')}
                       busy={pending === `${domain.guid}:restart`}
                       disabled={pending !== null || pulling || !domain.active}

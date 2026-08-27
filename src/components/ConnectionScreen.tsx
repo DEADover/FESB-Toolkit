@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react'
 
+import { ArrowsLeftRight, Check } from '@phosphor-icons/react'
+
 import { useI18n, type MessageKey } from '../i18n'
 import { apiConnect, errorText } from '../lib/api'
 import {
@@ -383,7 +385,9 @@ export function ConnectionScreen({ store, onStore, server, activeProfileId, focu
           ) : (
             <div className="flex h-full items-center justify-center rounded-xl border border-dashed border-line-strong bg-surface/60 px-8 py-12 text-center">
               <div className="max-w-md">
-                <div className="mx-auto grid size-14 place-items-center rounded-2xl bg-surface-2 text-[22px] text-accent-content">⇄</div>
+                <div className="mx-auto grid size-14 place-items-center rounded-2xl bg-surface-2 text-accent-content">
+          <ArrowsLeftRight size={24} weight="regular" />
+        </div>
                 <h2 className="mt-4 text-[15px] font-semibold">{t('profiles.pick')}</h2>
                 <p className="mt-2 text-[12.5px] leading-relaxed text-content-subtle">{t('api.intro')}</p>
                 <Button variant="primary" className="mt-5" onClick={addProfile}>{t('profiles.add')}</Button>
@@ -429,7 +433,7 @@ function ConnectedStrip({ server, profile, onDisconnect }: {
   const { t } = useI18n()
   return (
     <div className="flex items-center gap-2 rounded-xl border border-positive/35 bg-positive/8 px-4 py-2.5">
-      <span className="grid size-6 place-items-center rounded-full bg-positive/15 text-[12px] text-positive">✓</span>
+      <span className="grid size-6 place-items-center rounded-full bg-positive/15 text-positive"><Check size={13} weight="bold" /></span>
       <span className="text-[13px] font-semibold">{profile?.name ?? t('api.connected')}</span>
       {profile && <Badge tone={ENVIRONMENT_TONE[profile.environment]}>{t(ENVIRONMENT_LABEL[profile.environment])}</Badge>}
       {server.apiVersion && <Badge tone="accent" className="font-mono">FESB {server.apiVersion}</Badge>}

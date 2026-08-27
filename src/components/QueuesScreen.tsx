@@ -1,10 +1,12 @@
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react'
 
+import { ArrowLeft, ArrowsClockwise } from '@phosphor-icons/react'
+
 import { useI18n } from '../i18n'
 import { apiQueueManagers, apiQueueMessage, apiQueueMessages, apiQueues, errorText } from '../lib/api'
 import type { Connection, QueueManager, QueueMessage, QueueRow, ServerInfo } from '../types'
 import { AutoRefreshToggle, ErrorBar, NotConnected, Panel, TableMessage, useApiData, useAutoRefresh } from './ApiShell'
-import { Badge, Button, Checkbox, Spinner, TextInput, cx } from './ui'
+import { Badge, Button, Checkbox, cx, SearchInput, Spinner } from './ui'
 
 interface Props {
   connection: Connection | null
@@ -105,7 +107,7 @@ export function QueuesScreen({ connection, server, onGoToConnection }: Props) {
               onClick={() => void managers.reload()}
               disabled={managers.loading}
             >
-              {managers.loading ? <Spinner className="size-3.5" /> : '↻'}
+              {managers.loading ? <Spinner className="size-3.5" /> : <ArrowsClockwise size={13} weight="bold" />}
             </Button>
           </div>
           <div className="flex flex-col p-1.5">
@@ -138,15 +140,11 @@ export function QueuesScreen({ connection, server, onGoToConnection }: Props) {
 
         <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3">
           <div className="flex items-center gap-2">
-            <div className="relative min-w-0 flex-1">
-              <TextInput
-                value={query}
-                placeholder={t('queues.search')}
-                className="pl-8"
-                onChange={(event) => setQuery(event.target.value)}
-              />
-              <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-content-subtle">⌕</span>
-            </div>
+            <SearchInput
+          value={query}
+          placeholder={t('queues.search')}
+          onChange={setQuery}
+        />
             <label className="flex h-9 cursor-pointer items-center gap-2 rounded-lg border border-line-strong bg-surface px-3 text-[12.5px] text-content-muted">
               <Checkbox checked={hideInternal} onChange={(event) => setHideInternal(event.target.checked)} />
               {t('queues.hideInternal')}
@@ -160,7 +158,7 @@ export function QueuesScreen({ connection, server, onGoToConnection }: Props) {
               </Button>
             )}
             <Button onClick={() => void openQueues(selected)} disabled={loadingQueues || !selected}>
-              {loadingQueues ? <Spinner className="size-4" /> : '↻'} {t('action.refresh')}
+              {loadingQueues ? <Spinner className="size-4" /> : <ArrowsClockwise size={14} weight="bold" />} {t('action.refresh')}
             </Button>
           </div>
 
@@ -299,7 +297,7 @@ function Messages({ connection, manager, queue, onBack }: {
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3">
       <div className="flex items-center gap-3">
-        <Button size="sm" onClick={onBack}>← {t('queues.backToQueues')}</Button>
+        <Button size="sm" onClick={onBack}><ArrowLeft size={14} weight="bold" /> {t('queues.backToQueues')}</Button>
         <span className="min-w-0 truncate font-mono text-[12.5px] font-semibold">{queue.name}</span>
         <span className="text-[11.5px] text-content-subtle">
           {t('queues.messagesCount', { count: messages.length })}
@@ -307,7 +305,7 @@ function Messages({ connection, manager, queue, onBack }: {
         <div className="ml-auto flex items-center gap-2">
           <AutoRefreshToggle checked={auto} onChange={setAuto} />
           <Button onClick={() => void load()} disabled={loading}>
-            {loading ? <Spinner className="size-4" /> : '↻'} {t('action.refresh')}
+            {loading ? <Spinner className="size-4" /> : <ArrowsClockwise size={14} weight="bold" />} {t('action.refresh')}
           </Button>
         </div>
       </div>

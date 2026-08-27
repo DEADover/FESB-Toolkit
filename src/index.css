@@ -19,8 +19,12 @@
   --color-caution: #fbbf24;
   --color-negative: #fb7185;
 
-  --font-sans: "Inter", "SF Pro Text", "Segoe UI", system-ui, -apple-system, sans-serif;
-  --font-mono: "JetBrains Mono", "SF Mono", "Cascadia Code", ui-monospace, monospace;
+  /* Шрифты лежат в сборке, а не берутся из системы: приложение собирается под
+     Windows, macOS и Linux, и таблицы свёрстаны по месту, которое занимает текст.
+     Раньше здесь стояли Inter и JetBrains Mono, которых в сборке не было, —
+     каждая система подставляла своё, и ширины колонок расходились. */
+  --font-sans: "Geist Variable", system-ui, sans-serif;
+  --font-mono: "Geist Mono Variable", ui-monospace, monospace;
 }
 
 :root[data-theme="light"] {

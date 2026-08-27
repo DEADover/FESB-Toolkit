@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
+import { ArrowsClockwise } from '@phosphor-icons/react'
+
 import { useI18n } from '../i18n'
 import { apiDomains, apiProperties, apiSaveProperty, errorText } from '../lib/api'
 import { humanizeKey } from '../lib/propertyName'
 import type { ApiDomain, Connection, PropertyRow, PropertyScope, ServerInfo } from '../types'
 import { ErrorBar, NotConnected, Panel, TableMessage, useApiData } from './ApiShell'
-import { Badge, Button, Checkbox, Modal, Segmented, Spinner, SuggestInput, TextInput, cx } from './ui'
+import { Badge, Button, Checkbox, cx, Modal, SearchInput, Segmented, Spinner, SuggestInput, TextInput } from './ui'
 
 interface Props {
   connection: Connection | null
@@ -130,21 +132,17 @@ export function PropertiesScreen({ connection, server, onGoToConnection }: Props
           </div>
         )}
 
-        <div className="relative min-w-0 flex-1">
-          <TextInput
-            value={query}
-            placeholder={t('properties.search')}
-            className="pl-8"
-            onChange={(event) => setQuery(event.target.value)}
-          />
-          <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-content-subtle">⌕</span>
-        </div>
+        <SearchInput
+          value={query}
+          placeholder={t('properties.search')}
+          onChange={setQuery}
+        />
 
         <Button variant="primary" disabled={!scope} onClick={() => setAdding({ ...EMPTY })}>
           {t('properties.add')}
         </Button>
         <Button onClick={() => void reload()} disabled={loading || !scope}>
-          {loading ? <Spinner className="size-4" /> : '↻'} {t('action.refresh')}
+          {loading ? <Spinner className="size-4" /> : <ArrowsClockwise size={14} weight="bold" />} {t('action.refresh')}
         </Button>
       </div>
 

@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 
+import { CaretDown } from '@phosphor-icons/react'
+
 import { useI18n, type MessageKey } from '../i18n'
 import { byEnvironment, type ConnectionProfile, type ConnectionStore, type Environment } from '../lib/connection'
 import type { ServerInfo } from '../types'
@@ -68,7 +70,7 @@ export function ServerSwitch({ store, active, server, connecting, onConnect, onD
             {t(ENVIRONMENT_LABEL[active.environment])}
           </span>
         )}
-        <span className="shrink-0 text-[9px] text-content-subtle">▾</span>
+        <CaretDown size={10} weight="bold" className="shrink-0 text-content-subtle" />
       </button>
 
       {open && (

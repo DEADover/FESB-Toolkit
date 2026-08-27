@@ -1,10 +1,12 @@
 import { useCallback, useMemo, useState } from 'react'
 
+import { ArrowsClockwise } from '@phosphor-icons/react'
+
 import { useI18n } from '../i18n'
 import { apiDomainStatistics } from '../lib/api'
 import type { Connection, DomainStat, ServerInfo } from '../types'
 import { AutoRefreshToggle, ErrorBar, NotConnected, Panel, TableMessage, useApiData, useAutoRefresh } from './ApiShell'
-import { Badge, Button, Checkbox, Spinner, TextInput, cx } from './ui'
+import { Badge, Button, Checkbox, cx, SearchInput, Spinner } from './ui'
 
 interface Props {
   connection: Connection | null
@@ -84,21 +86,17 @@ export function MapScreen({ connection, server, onOpenRoutes, onGoToConnection }
         <div className="ml-auto flex items-center gap-2">
           <AutoRefreshToggle checked={auto} onChange={setAuto} />
           <Button onClick={() => void reload()} disabled={loading}>
-            {loading ? <Spinner className="size-4" /> : '↻'} {t('action.refresh')}
+            {loading ? <Spinner className="size-4" /> : <ArrowsClockwise size={14} weight="bold" />} {t('action.refresh')}
           </Button>
         </div>
       </div>
 
       <div className="flex items-center gap-2">
-        <div className="relative min-w-0 flex-1">
-          <TextInput
-            value={query}
-            placeholder={t('map.search')}
-            className="pl-8"
-            onChange={(event) => setQuery(event.target.value)}
-          />
-          <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-content-subtle">⌕</span>
-        </div>
+        <SearchInput
+          value={query}
+          placeholder={t('map.search')}
+          onChange={setQuery}
+        />
         <label
           title={t('map.onlyTrouble.hint')}
           className="flex h-9 cursor-pointer items-center gap-2 rounded-lg border border-line-strong bg-surface px-3 text-[12.5px] text-content-muted"

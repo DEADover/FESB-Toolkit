@@ -1,5 +1,7 @@
 import { useEffect, useRef, type MouseEvent, type ReactNode } from 'react'
 
+import { ArrowRight, CaretRight } from '@phosphor-icons/react'
+
 import { useI18n } from '../i18n'
 import type { DomainGroup, SortDir, SortKey, TraceEntry } from '../lib/rows'
 import { changeKey, routeSummary, routesUsingBean, selectableKeys } from '../lib/rows'
@@ -131,7 +133,7 @@ export function TraceTable({
 
                 <Cell>
                   <div className="flex items-center gap-2">
-                    <span className={cx('w-3 shrink-0 text-[10px] text-content-subtle transition-transform', isOpen && 'rotate-90')}>▶</span>
+                    <CaretRight size={11} weight="bold" className={cx('shrink-0 text-content-subtle transition-transform', isOpen && 'rotate-90')} />
                     <span className="select-text truncate font-medium text-content">{domain.domainName}</span>
                     {domain.errors.length > 0 && <Badge tone="danger">{t('table.readError')}</Badge>}
                   </div>
@@ -498,7 +500,7 @@ function ValueCell({ current, editable, next }: { current: string | null; editab
       </code>
       {willChange && (
         <>
-          <span className="text-accent-content">→</span>
+          <ArrowRight size={12} weight="bold" className="text-accent-content" />
           <code className="rounded bg-accent/15 px-1.5 py-0.5 font-mono text-[11.5px] text-accent-content">{next}</code>
         </>
       )}

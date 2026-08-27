@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
+import { ArrowCounterClockwise, ArrowsClockwise, Play, Stop } from '@phosphor-icons/react'
+
 import { useI18n } from '../i18n'
 import {
   apiDomainRoutes, apiDomainStatistics, apiRouteAction, apiRouteIndex, apiRouteState, errorText,
@@ -253,7 +255,7 @@ export function RoutesScreen({ connection, server, isMac, initialGuid, onGoToCon
                 onClick={() => selected && void openDomain(selected)}
                 disabled={loading || !selected}
               >
-                {loading ? <Spinner className="size-4" /> : '↻'} {t('action.refresh')}
+                {loading ? <Spinner className="size-4" /> : <ArrowsClockwise size={14} weight="bold" />} {t('action.refresh')}
               </Button>
             </div>
           </div>
@@ -313,21 +315,21 @@ export function RoutesScreen({ connection, server, isMac, initialGuid, onGoToCon
                       <td className="px-3 py-1.5">
                         <div className="flex items-center gap-1">
                           <IconButton
-                            icon="▶"
+                            icon={Play}
                             label={t('modules.start')}
                             busy={pending === `${route.id}:start`}
                             disabled={pending !== null || started}
                             onClick={() => void act(route, 'start')}
                           />
                           <IconButton
-                            icon="■"
+                            icon={Stop}
                             label={t('modules.stop')}
                             busy={pending === `${route.id}:stop`}
                             disabled={pending !== null || !started}
                             onClick={() => void act(route, 'stop')}
                           />
                           <IconButton
-                            icon="⟲"
+                            icon={ArrowCounterClockwise}
                             label={t('routes.reset')}
                             busy={pending === `${route.id}:reset`}
                             disabled={pending !== null || !state}

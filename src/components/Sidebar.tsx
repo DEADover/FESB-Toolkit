@@ -1,3 +1,8 @@
+import {
+  ArrowsLeftRight, Crosshair, Cube, FingerprintSimple, FlowArrow, ListDashes, Queue,
+  SlidersHorizontal, SquaresFour, Stack, type Icon,
+} from '@phosphor-icons/react'
+
 import { LANGUAGES, useI18n, type Language, type MessageKey } from '../i18n'
 import type { ThemeMode } from '../lib/theme'
 import type { AppInfo } from '../types'
@@ -20,29 +25,30 @@ interface Section {
   title: MessageKey
   /** Экран настроек раздела — открывается шестерёнкой у заголовка. */
   settings?: { screen: ScreenId; title: MessageKey }
-  items: Array<{ id: ScreenId; label: MessageKey; icon: string; disabled?: boolean }>
+  items: Array<{ id: ScreenId; label: MessageKey; icon: Icon; disabled?: boolean }>
 }
 
 const SECTIONS: Section[] = [
   {
     title: 'nav.files',
     items: [
-      { id: 'files.trace', label: 'nav.files.trace', icon: '◎' },
-      { id: 'files.links', label: 'nav.files.links', icon: '⇄' },
+      { id: 'files.trace', label: 'nav.files.trace', icon: Crosshair },
+      { id: 'files.links', label: 'nav.files.links', icon: ArrowsLeftRight },
     ],
   },
   {
     title: 'nav.api',
     settings: { screen: 'api.connection', title: 'nav.api.connection.title' },
     items: [
-      { id: 'api.map', label: 'nav.api.map', icon: '◫' },
-      { id: 'api.domains', label: 'nav.api.domains', icon: '▤' },
-      { id: 'api.routes', label: 'nav.api.routes', icon: '⇉' },
-      { id: 'api.queues', label: 'nav.api.queues', icon: '≡' },
-      { id: 'api.modules', label: 'nav.api.modules', icon: '⬒' },
-      { id: 'api.properties', label: 'nav.api.properties', icon: '◈' },
-      { id: 'api.logs', label: 'nav.api.logs', icon: '☰' },
-      { id: 'api.audit', label: 'nav.api.audit', icon: '✓' },
+      { id: 'api.map', label: 'nav.api.map', icon: SquaresFour },
+      { id: 'api.domains', label: 'nav.api.domains', icon: Stack },
+      { id: 'api.routes', label: 'nav.api.routes', icon: FlowArrow },
+      { id: 'api.queues', label: 'nav.api.queues', icon: Queue },
+      { id: 'api.modules', label: 'nav.api.modules', icon: Cube },
+      { id: 'api.properties', label: 'nav.api.properties', icon: SlidersHorizontal },
+      { id: 'api.logs', label: 'nav.api.logs', icon: ListDashes },
+      // Щит для аудита — штамп; отпечаток точнее: аудит отвечает «кто это сделал».
+      { id: 'api.audit', label: 'nav.api.audit', icon: FingerprintSimple },
     ],
   },
 ]
@@ -161,7 +167,7 @@ export function Sidebar({ screen, onScreen, info, isMac, collapsed, onCollapse, 
                         screen === item.id ? 'bg-accent/20 text-accent-content' : 'bg-surface-2 text-content-subtle',
                       )}
                     >
-                      {item.icon}
+                      <item.icon size={16} weight="regular" />
                     </span>
                     {!collapsed && (
                       <span className="min-w-0 flex-1 truncate text-[12.5px] font-medium">{t(item.label)}</span>

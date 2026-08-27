@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ComponentProps, type ReactNode } from 'react'
 
+import { MagnifyingGlass, X, type Icon } from '@phosphor-icons/react'
+
 export function cx(...parts: Array<string | false | null | undefined>): string {
   return parts.filter(Boolean).join(' ')
 }
@@ -29,8 +31,8 @@ export function Button({ variant = 'secondary', size = 'md', className, ...rest 
  * заметно шире английских — на трёх действиях это уже целая колонка.
  * Значение при этом остаётся в подсказке и в имени для экранного диктора.
  */
-export function IconButton({ icon, label, busy, disabled, tone, onClick }: {
-  icon: string
+export function IconButton({ icon: Glyph, label, busy, disabled, tone, onClick }: {
+  icon: Icon
   label: string
   busy?: boolean
   disabled?: boolean
@@ -51,7 +53,7 @@ export function IconButton({ icon, label, busy, disabled, tone, onClick }: {
         tone === 'danger' ? 'text-negative' : 'text-content-muted',
       )}
     >
-      {busy ? <Spinner className="size-3.5" /> : icon}
+      {busy ? <Spinner className="size-3.5" /> : <Glyph size={15} weight="bold" />}
     </button>
   )
 }
@@ -122,6 +124,35 @@ export function Checkbox({ className, ...rest }: ComponentProps<'input'>) {
       )}
       {...rest}
     />
+  )
+}
+
+/**
+ * Поле поиска: то же `TextInput`, но с лупой внутри.
+ *
+ * Эта пара — поле плюс значок в абсолютной позиции — была скопирована
+ * на восьми экранах. Один компонент дешевле, и лупа теперь везде одна и та же.
+ */
+export function SearchInput({ value, placeholder, onChange, className }: {
+  value: string
+  placeholder: string
+  onChange: (value: string) => void
+  className?: string
+}) {
+  return (
+    <div className={cx('relative min-w-0 flex-1', className)}>
+      <TextInput
+        value={value}
+        placeholder={placeholder}
+        className="pl-8"
+        onChange={(event) => onChange(event.target.value)}
+      />
+      <MagnifyingGlass
+        size={14}
+        weight="bold"
+        className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-content-subtle"
+      />
+    </div>
   )
 }
 
@@ -413,7 +444,7 @@ export function Modal({ open, onClose, title, children, footer, wide, closeLabel
       >
         <div className="flex items-center justify-between border-b border-line px-5 py-4">
           <h2 className="text-[15px] font-semibold">{title}</h2>
-          <Button variant="ghost" size="sm" onClick={onClose} aria-label={closeLabel}>✕</Button>
+          <Button variant="ghost" size="sm" onClick={onClose} aria-label={closeLabel}><X size={14} weight="bold" /></Button>
         </div>
         <div className="flex-1 overflow-auto px-5 py-4">{children}</div>
         {footer && <div className="flex items-center justify-end gap-2 border-t border-line bg-surface-2 px-5 py-3">{footer}</div>}

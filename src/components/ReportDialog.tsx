@@ -1,5 +1,7 @@
 import { useMemo } from 'react'
 
+import { ArrowRight, Check } from '@phosphor-icons/react'
+
 import { useI18n, type MessageKey } from '../i18n'
 import { revealPath } from '../lib/api'
 import { routeSummary, routesUsingBean } from '../lib/rows'
@@ -110,7 +112,7 @@ export function ReportDialog({ report, scan, archiving, onBuildArchive, onClose 
                           <div key={field.field} className="flex flex-wrap items-center gap-1.5 pl-3 font-mono text-[11.5px]">
                             <span className="text-content-subtle">{field.field}</span>
                             <span className="text-content-subtle line-through">{field.from}</span>
-                            <span className="text-accent-content">→ {field.to}</span>
+                            <span className="inline-flex items-center gap-1 text-accent-content"><ArrowRight size={11} weight="bold" /> {field.to}</span>
                           </div>
                         ))}
                       </div>
@@ -145,7 +147,7 @@ export function ReportDialog({ report, scan, archiving, onBuildArchive, onClose 
                         ? t('report.backupDone', { name: result.backupPath.split(/[/\\]/).pop() ?? '' })
                         : t('report.backupNone')}
                     >
-                      {result.backupPath ? '✓' : '—'}
+                      {result.backupPath ? <Check size={13} weight="bold" className="inline text-positive" /> : '—'}
                     </span>
                   </td>
                 </tr>

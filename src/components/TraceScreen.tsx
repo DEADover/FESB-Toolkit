@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent, type ReactNode } from 'react'
 
+import { MagnifyingGlass, X } from '@phosphor-icons/react'
+
 import { useI18n } from '../i18n'
 import {
   apiPush, apiQueueManagers, apiQueues, apiVerify, applyTrace, buildArchive, errorText,
@@ -512,7 +514,7 @@ export function TraceScreen({ scan, isMac, sourcePath, server, onRescan }: Props
           placeholder={t('search.placeholder', { shortcut })}
           className="pl-8"
         />
-        <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-content-subtle">⌕</span>
+        <MagnifyingGlass size={14} weight="bold" className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-content-subtle" />
         {filters.query && (
           <button
             type="button"
@@ -520,7 +522,7 @@ export function TraceScreen({ scan, isMac, sourcePath, server, onRescan }: Props
             onClick={() => setFilters((prev) => ({ ...prev, query: '' }))}
             className="absolute right-2 top-1/2 -translate-y-1/2 rounded px-1 text-content-subtle hover:text-content"
           >
-            ✕
+            <X size={13} weight="bold" />
           </button>
         )}
       </div>

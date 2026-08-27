@@ -1,10 +1,12 @@
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react'
 
+import { ArrowRight, ArrowsClockwise, ArrowsLeftRight } from '@phosphor-icons/react'
+
 import { useI18n } from '../i18n'
 import { errorText, routeLinks } from '../lib/api'
 import type { LinkGraph, ScanResult } from '../types'
 import { RouteViewer } from './RouteViewer'
-import { Badge, Button, Checkbox, Spinner, TextInput, cx } from './ui'
+import { Badge, Button, Checkbox, cx, SearchInput, Spinner } from './ui'
 
 interface Props {
   scan: ScanResult | null
@@ -126,7 +128,9 @@ export function DomainLinksScreen({ scan, isMac }: Props) {
     return (
       <div className="flex flex-1 items-center justify-center px-6 pb-10">
         <div className="max-w-md text-center">
-          <div className="mx-auto grid size-14 place-items-center rounded-2xl bg-surface-2 text-[22px] text-accent-content">⇄</div>
+          <div className="mx-auto grid size-14 place-items-center rounded-2xl bg-surface-2 text-accent-content">
+          <ArrowsLeftRight size={24} weight="regular" />
+        </div>
           <h2 className="mt-4 text-[15px] font-semibold">{t('domainLinks.noScan')}</h2>
           <p className="mt-2 text-content-subtle">{t('domainLinks.noScan.text')}</p>
         </div>
@@ -142,20 +146,16 @@ export function DomainLinksScreen({ scan, isMac }: Props) {
         <Total label={t('domainLinks.pairs')} value={totals.pairs} />
         <Total label={t('domainLinks.domains')} value={totals.domains} />
         <Button className="ml-auto" onClick={() => void load()} disabled={loading}>
-          {loading ? <Spinner className="size-4" /> : '↻'} {t('action.refresh')}
+          {loading ? <Spinner className="size-4" /> : <ArrowsClockwise size={14} weight="bold" />} {t('action.refresh')}
         </Button>
       </div>
 
       <div className="flex items-center gap-2">
-        <div className="relative min-w-0 flex-1">
-          <TextInput
-            value={query}
-            placeholder={t('domainLinks.search')}
-            className="pl-8"
-            onChange={(event) => setQuery(event.target.value)}
-          />
-          <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-content-subtle">⌕</span>
-        </div>
+        <SearchInput
+          value={query}
+          placeholder={t('domainLinks.search')}
+          onChange={setQuery}
+        />
         <label
           title={t('domainLinks.onlyCross.hint')}
           className="flex h-9 cursor-pointer items-center gap-2 rounded-lg border border-line-strong bg-surface px-3 text-[12.5px] text-content-muted"
@@ -201,7 +201,7 @@ export function DomainLinksScreen({ scan, isMac }: Props) {
                     )}
                   >
                     <td className="truncate px-3 py-1.5 font-medium" title={pair.from}>{pair.from}</td>
-                    <td className="px-1 py-1.5 text-center text-content-subtle">→</td>
+                    <td className="px-1 py-1.5 text-center text-content-subtle"><ArrowRight size={12} weight="bold" className="inline" /></td>
                     <td className="px-3 py-1.5">
                       <div className="flex items-center gap-2">
                         <span className="min-w-0 flex-1 truncate font-medium" title={pair.to}>{pair.to}</span>
@@ -229,7 +229,7 @@ export function DomainLinksScreen({ scan, isMac }: Props) {
                                 {link.fromRoute}
                               </button>
                               <span className="shrink-0 font-mono text-[10.5px] text-content-subtle">{link.uri}</span>
-                              <span className="shrink-0 text-content-subtle">→</span>
+                              <ArrowRight size={12} weight="bold" className="shrink-0 text-content-subtle" />
                               <button
                                 type="button"
                                 onClick={() => setRoute({ path: link.toPath, domain: pair.to })}

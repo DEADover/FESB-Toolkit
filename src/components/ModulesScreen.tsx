@@ -1,5 +1,7 @@
 import { useCallback, useState } from 'react'
 
+import { ArrowCounterClockwise, ArrowsClockwise, Play, Stop, Trash } from '@phosphor-icons/react'
+
 import { useI18n } from '../i18n'
 import {
   apiCreateSavePoint, apiDeleteSavePoint, apiModuleAction, apiModules, apiRollbackSavePoint,
@@ -67,7 +69,7 @@ export function ModulesScreen({ connection, server, onGoToConnection }: Props) {
           <Badge tone="warn">{t('modules.awaitRestartHint')}</Badge>
         )}
         <Button className="ml-auto" onClick={() => void reload()} disabled={loading || pending !== null}>
-          {loading ? <Spinner className="size-4" /> : '↻'} {t('action.refresh')}
+          {loading ? <Spinner className="size-4" /> : <ArrowsClockwise size={14} weight="bold" />} {t('action.refresh')}
         </Button>
       </div>
 
@@ -117,21 +119,21 @@ export function ModulesScreen({ connection, server, onGoToConnection }: Props) {
                 <td className="px-3 py-2">
                   <div className="flex items-center gap-1">
                     <IconButton
-                      icon="▶"
+                      icon={Play}
                       label={t('modules.start')}
                       busy={pending === `${module.name}:start`}
                       disabled={pending !== null || module.running}
                       onClick={() => start(module, 'start')}
                     />
                     <IconButton
-                      icon="■"
+                      icon={Stop}
                       label={t('modules.stop')}
                       busy={pending === `${module.name}:stop`}
                       disabled={pending !== null || !module.running}
                       onClick={() => start(module, 'stop')}
                     />
                     <IconButton
-                      icon="↻"
+                      icon={ArrowsClockwise}
                       label={t('modules.restart')}
                       busy={pending === `${module.name}:restart`}
                       disabled={pending !== null || !module.running}
@@ -244,7 +246,7 @@ function SavePoints({ connection }: { connection: Connection }) {
           {busy === 'create' ? <><Spinner className="size-3.5" /> {t('savepoints.creating')}</> : t('savepoints.create')}
         </Button>
         <Button size="sm" variant="ghost" onClick={() => void reload()} disabled={loading || busy !== null}>
-          {loading ? <Spinner className="size-3.5" /> : '↻'}
+          {loading ? <Spinner className="size-3.5" /> : <ArrowsClockwise size={13} weight="bold" />}
         </Button>
       </div>
 
@@ -267,13 +269,13 @@ function SavePoints({ connection }: { connection: Connection }) {
                   </span>
                 </span>
                 <IconButton
-                  icon="⟲"
+                  icon={ArrowCounterClockwise}
                   label={t('savepoints.rollback')}
                   disabled={busy !== null}
                   onClick={() => setConfirm({ point, action: 'rollback' })}
                 />
                 <IconButton
-                  icon="✕"
+                  icon={Trash}
                   label={t('properties.delete')}
                   tone="danger"
                   disabled={busy !== null}

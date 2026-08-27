@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 
+import { ArrowsLeftRight } from '@phosphor-icons/react'
+
 import { useI18n } from '../i18n'
 import { errorText } from '../lib/api'
 import type { Connection } from '../types'
@@ -16,7 +18,9 @@ export function NotConnected({ onGoToConnection }: { onGoToConnection: () => voi
   return (
     <div className="flex flex-1 items-center justify-center px-6 pb-10">
       <div className="max-w-md text-center">
-        <div className="mx-auto grid size-14 place-items-center rounded-2xl bg-surface-2 text-[22px] text-accent-content">⇄</div>
+        <div className="mx-auto grid size-14 place-items-center rounded-2xl bg-surface-2 text-accent-content">
+          <ArrowsLeftRight size={24} weight="regular" />
+        </div>
         <h2 className="mt-4 text-[15px] font-semibold">{t('api.notConnected')}</h2>
         <p className="mt-2 text-content-subtle">{t('api.notConnected.text')}</p>
         <Button variant="primary" className="mt-5" onClick={onGoToConnection}>{t('nav.api.connection')}</Button>
