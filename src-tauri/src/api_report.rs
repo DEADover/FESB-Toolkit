@@ -54,6 +54,8 @@ pub struct Endpoint {
     pub component: String,
     /// `in` — точка входа, `out` — точка выхода.
     pub direction: &'static str,
+    /// Что это за точка: HTTP, SOAP, FTP, SQL… — по схеме адреса.
+    pub kind: String,
     pub scheme: String,
     pub uri: String,
     pub host: Option<String>,
@@ -65,9 +67,18 @@ pub struct Endpoint {
     pub auth: Option<String>,
     /// Состояние пула Jetty на этом порту: работает или порт не слушают.
     pub state: Option<String>,
-    /// Занятые потоки Jetty на порту — по ним видно, что точка под нагрузкой.
+    /// Время непрерывной работы. Ни один метод шины его не отдаёт, поэтому
+    /// колонка есть, а значения нет: пустая ячейка честнее выдуманной.
+    pub uptime: Option<String>,
+    /// Пул потоков Jetty на порту — вся восьмёрка счётчиков из `jetty_usage`.
     pub busy_threads: Option<i64>,
+    pub utilized_threads: Option<i64>,
+    pub ready_threads: Option<i64>,
+    pub min_threads: Option<i64>,
     pub max_threads: Option<i64>,
+    pub queue_size: Option<i64>,
+    pub idle_timeout: Option<i64>,
+    pub idle_threads: Option<i64>,
 }
 
 /// Сведения о порте: собираются один раз на сервер и раздаются точкам.
@@ -79,30 +90,108 @@ pub struct PortFacts {
     pub auth: Option<String>,
     pub state: Option<String>,
     pub busy_threads: Option<i64>,
+    pub utilized_threads: Option<i64>,
+    pub ready_threads: Option<i64>,
+    pub min_threads: Option<i64>,
     pub max_threads: Option<i64>,
+    pub queue_size: Option<i64>,
+    pub idle_timeout: Option<i64>,
+    pub idle_threads: Option<i64>,
 }
 
-/// Разбирает `scheme://host:port/path` настолько, насколько это вообще возможно.
+/// Схемы, у которых после `://` действительно стоит сетевой адрес.
 ///
-/// В адресах СОПС встречается и `{{const.url.system}}`, и `bean:...`, поэтому
-/// разбор нестрогий: что удалось узнать — вернули, остальное осталось пустым.
+/// У остальных адаптеров там имя ресурса: `eik-is://InterchangeAuthToken`
+/// — это не хост, и складывать такие имена в колонку «хост» значит
+/// придумать полсотни несуществующих систем.
+const NETWORK: [&str; 16] = [
+    "http", "https", "http4", "https4", "jetty", "netty-http", "netty4-http", "servlet",
+    "undertow", "ahc", "ftp", "ftps", "sftp", "smtp", "smtps", "cxf",
+];
+
+/// Параметры, в которых адаптеры прячут настоящий адрес вызова.
+const ADDRESS_PARAMS: [&str; 5] = ["httpuri", "url", "uri", "host", "address"];
+
+/// Разбирает адрес настолько, насколько это вообще возможно.
+///
+/// В адресах СОПС встречается и `{{const.url.system}}`, и вложенная схема
+/// (`jetty://http://0.0.0.0:8085/in`), и имя ресурса вместо хоста. Разбор
+/// нестрогий: что удалось узнать — вернули, остальное осталось пустым.
+/// Пустой хост честнее выдуманного: по нему группируют отчёт.
 pub fn split_uri(uri: &str) -> (String, Option<String>, Option<u32>) {
     let uri = uri.trim();
-    let (scheme, rest) = match uri.split_once(':') {
-        Some((scheme, rest)) => (scheme.to_ascii_lowercase(), rest.trim_start_matches('/')),
-        None => return (String::new(), None, None),
+    let Some((scheme, rest)) = uri.split_once(':') else { return (String::new(), None, None) };
+    let scheme = scheme.to_ascii_lowercase();
+    let rest = rest.trim_start_matches('/');
+
+    let (head, query) = match rest.split_once('?') {
+        Some((head, query)) => (head, Some(query)),
+        None => (rest, None),
     };
-    // `http://{{const.host}}/path` — хост подставляется константой, порт неизвестен.
-    let authority = rest.split(['/', '?']).next().unwrap_or("");
-    if authority.is_empty() || authority.contains("{{") {
-        return (scheme, None, None);
+
+    // `jetty://http://0.0.0.0:8085/in` — снаружи адаптер, внутри настоящий адрес.
+    // Искать вложенную схему нужно до знака вопроса: в параметрах `://`
+    // встречается сплошь и рядом, и это уже другой случай.
+    if head.contains("://") {
+        let (_, host, port) = split_uri(head);
+        return (scheme, host, port);
     }
-    match authority.rsplit_once(':') {
-        Some((host, port)) if port.chars().all(|c| c.is_ascii_digit()) && !port.is_empty() => {
-            (scheme, Some(host.to_string()), port.parse().ok())
+
+    let authority = head.split('/').next().unwrap_or("");
+
+    // Порт адаптеры пишут и параметром: `eik-is://…?port=8086`.
+    let param = |names: &[&str]| -> Option<String> {
+        query?.split('&').find_map(|pair| {
+            let (name, value) = pair.split_once('=')?;
+            names.contains(&name.to_ascii_lowercase().as_str()).then(|| value.to_string())
+        })
+    };
+    let port_from_query = param(&["port"]).and_then(|value| value.parse().ok());
+
+    let (host, port) = if NETWORK.contains(&scheme.as_str()) && !authority.is_empty() {
+        match authority.rsplit_once(':') {
+            Some((host, port)) if !port.is_empty() && port.chars().all(|c| c.is_ascii_digit()) => {
+                (Some(host.to_string()), port.parse().ok())
+            }
+            _ => (Some(authority.to_string()), None),
         }
-        _ => (scheme, Some(authority.to_string()), None),
+    } else {
+        // У адаптера настоящий адрес спрятан в параметре — если он там есть.
+        match param(&ADDRESS_PARAMS) {
+            Some(value) => {
+                let (_, host, port) = split_uri(&value);
+                (host, port)
+            }
+            None => (None, None),
+        }
+    };
+
+    // Хост из константы разобрать нельзя, и притворяться не надо.
+    let host = host.filter(|value| !value.contains("{{") && !value.contains("${") && !value.is_empty());
+    (scheme, host, port.or(port_from_query))
+}
+
+/// Что это за точка: под каким протоколом её знает внешняя система.
+///
+/// Схема адреса называет адаптер Camel (`cxf`, `eik-xi`, `netty-http`),
+/// а в отчёте нужен протокол — тот, о котором договариваются с соседней
+/// системой. Всё, что не опознано, остаётся под своим именем: выдумывать
+/// протокол за адаптер, которого мы не знаем, хуже, чем назвать его как есть.
+pub fn point_kind(scheme: &str) -> String {
+    match scheme {
+        "cxf" | "cxfrs" | "cxfbean" => "SOAP",
+        "http" | "https" | "http4" | "https4" | "jetty" | "netty-http" | "netty4-http"
+        | "servlet" | "rest" | "undertow" | "ahc" => "HTTP",
+        "ftp" | "ftps" | "sftp" => "FTP",
+        "smtp" | "smtps" | "imap" | "imaps" | "pop3" => "MAIL",
+        "sql" | "sql-stored" | "jdbc" | "jpa" | "mybatis" => "SQL",
+        "file" => "FILE",
+        "jms" | "activemq" | "amqp" | "kafka" | "rabbitmq" => "MQ",
+        "eik-xi" | "eik-idoc" | "eik-rfc" | "eik-is" => "SAP",
+        "eik-ed" => "EDI",
+        other => return other.to_ascii_uppercase(),
     }
+    .to_string()
 }
 
 /// Смотрит ли адрес наружу.
@@ -192,6 +281,7 @@ fn collect(
                     route_id: route_id.to_string(),
                     component: node.label.clone().unwrap_or_else(|| node.kind.clone()),
                     direction,
+                    kind: point_kind(&scheme),
                     scheme,
                     uri: readable_uri(uri),
                     host,
@@ -201,8 +291,15 @@ fn collect(
                     ciphers: None,
                     auth: None,
                     state: None,
+                    uptime: None,
                     busy_threads: None,
+                    utilized_threads: None,
+                    ready_threads: None,
+                    min_threads: None,
                     max_threads: None,
+                    queue_size: None,
+                    idle_timeout: None,
+                    idle_threads: None,
                 });
             }
         }
@@ -246,8 +343,15 @@ pub async fn port_facts(
             for pool in usage.get(group).and_then(|v| v.as_array()).into_iter().flatten() {
                 let Some(port) = pool.get("port").and_then(serde_json::Value::as_u64) else { continue };
                 let entry = facts.entry(port as u32).or_default();
-                entry.busy_threads = pool.get("busyThreads").and_then(serde_json::Value::as_i64);
-                entry.max_threads = pool.get("maxThreads").and_then(serde_json::Value::as_i64);
+                let number = |name: &str| pool.get(name).and_then(serde_json::Value::as_i64);
+                entry.busy_threads = number("busyThreads");
+                entry.utilized_threads = number("utilizedThreads");
+                entry.ready_threads = number("readyThreads");
+                entry.min_threads = number("minThreads");
+                entry.max_threads = number("maxThreads");
+                entry.queue_size = number("queueSize");
+                entry.idle_timeout = number("idleTimeout");
+                entry.idle_threads = number("idleThreads");
                 // Пул есть — значит, порт слушают.
                 entry.state = Some("listening".into());
             }
@@ -298,7 +402,13 @@ pub fn enrich(endpoints: &mut [Endpoint], facts: &BTreeMap<u32, PortFacts>) {
         point.auth = known.auth.clone();
         point.state = known.state.clone();
         point.busy_threads = known.busy_threads;
+        point.utilized_threads = known.utilized_threads;
+        point.ready_threads = known.ready_threads;
+        point.min_threads = known.min_threads;
         point.max_threads = known.max_threads;
+        point.queue_size = known.queue_size;
+        point.idle_timeout = known.idle_timeout;
+        point.idle_threads = known.idle_threads;
     }
     // Схема сама по себе говорит про TLS больше, чем молчание фабрики.
     for point in endpoints.iter_mut() {
@@ -318,8 +428,28 @@ mod tests {
         assert_eq!(split_uri("http://localhost/path"), ("http".into(), Some("localhost".into()), None));
         // Хост из константы: схему знаем, адрес — нет.
         assert_eq!(split_uri("http://{{const.url.sap}}/rec"), ("http".into(), None, None));
-        assert_eq!(split_uri("direct://step"), ("direct".into(), Some("step".into()), None));
+        assert_eq!(split_uri("https://${exchangeProperty.uri}"), ("https".into(), None, None));
         assert_eq!(split_uri("нечто"), (String::new(), None, None));
+    }
+
+    /// Имя ресурса — не хост, а вложенная схема — хост.
+    #[test]
+    fn the_authority_of_an_adapter_is_not_a_host() {
+        // Снаружи адаптер, внутри настоящий адрес.
+        assert_eq!(split_uri("jetty://http://0.0.0.0:8085/in"), ("jetty".into(), Some("0.0.0.0".into()), Some(8085)));
+        // `InterchangeAuthToken` — имя точки, а не система; порт лежит параметром.
+        assert_eq!(
+            split_uri("eik-is://InterchangeAuthToken?port=8086&authToken=true"),
+            ("eik-is".into(), None, Some(8086))
+        );
+        // Адрес вызова спрятан в параметре.
+        assert_eq!(
+            split_uri("eik-xi://none?httpUri=https://sap.corp:44300/xi"),
+            ("eik-xi".into(), Some("sap.corp".into()), Some(44300))
+        );
+        // Хост из константы даже в параметре разобрать нельзя.
+        assert_eq!(split_uri("eik-xi://none?httpUri=RAW({{const.URI.SAPBW}})").1, None);
+        assert_eq!(split_uri("sql://?dataSource=%23conf.ds.X").1, None);
     }
 
     #[test]
@@ -352,9 +482,11 @@ mod tests {
     fn tls_is_read_from_the_scheme_when_the_factory_says_nothing() {
         let mut points = vec![Endpoint {
             domain: "d".into(), domain_guid: "g".into(), route: "r".into(), route_id: "id".into(),
-            component: "c".into(), direction: "out", scheme: "https".into(),
+            component: "c".into(), direction: "out", kind: "HTTP".into(), scheme: "https".into(),
             uri: "https://x/y".into(), host: None, port: None, ssl: None, protocol: None,
-            ciphers: None, auth: None, state: None, busy_threads: None, max_threads: None,
+            ciphers: None, auth: None, state: None, uptime: None, busy_threads: None,
+            utilized_threads: None, ready_threads: None, min_threads: None, max_threads: None,
+            queue_size: None, idle_timeout: None, idle_threads: None,
         }];
         enrich(&mut points, &BTreeMap::new());
         assert_eq!(points[0].ssl, Some(true));
@@ -394,5 +526,43 @@ mod uri_tests {
     #[test]
     fn plain_addresses_are_left_alone() {
         assert_eq!(readable_uri("https://partner.example:443/accept"), "https://partner.example:443/accept");
+    }
+}
+
+#[cfg(test)]
+mod kind_tests {
+    use super::*;
+
+    #[test]
+    fn names_the_protocol_the_neighbour_system_knows() {
+        assert_eq!(point_kind("cxf"), "SOAP");
+        assert_eq!(point_kind("jetty"), "HTTP");
+        assert_eq!(point_kind("https"), "HTTP");
+        assert_eq!(point_kind("sftp"), "FTP");
+        assert_eq!(point_kind("sql-stored"), "SQL");
+        assert_eq!(point_kind("eik-xi"), "SAP");
+        assert_eq!(point_kind("eik-ed"), "EDI");
+        // Незнакомый адаптер остаётся собой, а не притворяется протоколом.
+        assert_eq!(point_kind("telegram"), "TELEGRAM");
+    }
+
+    #[test]
+    fn the_whole_jetty_pool_reaches_the_point() {
+        let facts = BTreeMap::from([(8443u32, PortFacts {
+            busy_threads: Some(17), utilized_threads: Some(1), ready_threads: Some(13),
+            min_threads: Some(30), max_threads: Some(1000), queue_size: Some(0),
+            idle_timeout: Some(60000), idle_threads: Some(11), ..PortFacts::default()
+        })]);
+        let mut points = endpoints_of_route(
+            r#"<routes><route id="r"><from uri="https://x:8443/in"/></route></routes>"#, "d", "g");
+        enrich(&mut points, &facts);
+        let point = &points[0];
+        assert_eq!(point.busy_threads, Some(17));
+        assert_eq!(point.utilized_threads, Some(1));
+        assert_eq!(point.ready_threads, Some(13));
+        assert_eq!(point.min_threads, Some(30));
+        assert_eq!(point.queue_size, Some(0));
+        assert_eq!(point.idle_timeout, Some(60000));
+        assert_eq!(point.idle_threads, Some(11));
     }
 }

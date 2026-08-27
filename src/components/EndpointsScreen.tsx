@@ -1,8 +1,8 @@
-import { Fragment, useCallback, useMemo, useState } from 'react'
+import { Fragment, useCallback, useMemo, useState, type ReactNode } from 'react'
 
 import { CaretRight, DownloadSimple } from '@phosphor-icons/react'
 
-import { useI18n } from '../i18n'
+import { useI18n, type MessageKey, type Translate } from '../i18n'
 import { apiEndpointReport, errorText, onApiProgress, saveReport, saveXlsxAs } from '../lib/api'
 import { localStamp } from '../lib/paths'
 import type { ApiEndpoint, ApiProgress, Connection, ServerInfo } from '../types'
@@ -25,6 +25,66 @@ interface Group {
   key: string
   title: string
   rows: ApiEndpoint[]
+}
+
+
+/**
+ * Колонки отчёта: один список на таблицу и на файл.
+ *
+ * Раньше они задавались в двух местах и разошлись: в таблице было восемь
+ * колонок, в файле — четырнадцать. `width` — ширина в таблице; таблица
+ * прокручивается по горизонтали, поэтому прятать колонки на узком окне
+ * не нужно, а вот сжимать их до нечитаемости — нельзя.
+ */
+const COLUMNS: Array<{
+  key: MessageKey
+  width: string
+  align?: 'right'
+  /** Как значение выглядит в таблице. По умолчанию — как в файле. */
+  cell?: (row: ApiEndpoint, t: Translate) => ReactNode
+  text: (row: ApiEndpoint, t: Translate) => string
+}> = [
+  { key: 'table.domain', width: 'w-44', text: (row) => row.domain },
+  { key: 'endpoints.domainGuid', width: 'w-64', text: (row) => row.domainGuid,
+    cell: (row) => <span className="font-mono text-[10.5px] text-content-subtle">{row.domainGuid}</span> },
+  { key: 'table.route', width: 'w-56', text: (row) => row.route },
+  { key: 'endpoints.routeId', width: 'w-64', text: (row) => row.routeId,
+    cell: (row) => <span className="font-mono text-[10.5px] text-content-subtle">{row.routeId}</span> },
+  { key: 'endpoints.kind', width: 'w-24', text: (row) => row.kind,
+    cell: (row) => <CodePill>{row.kind}</CodePill> },
+  { key: 'endpoints.direction', width: 'w-24',
+    text: (row, t) => (row.direction === 'in' ? t('endpoints.in') : t('endpoints.out')),
+    cell: (row, t) => (
+      <Badge tone={row.direction === 'in' ? 'accent' : 'neutral'}>
+        {row.direction === 'in' ? t('endpoints.in') : t('endpoints.out')}
+      </Badge>
+    ) },
+  { key: 'route.uri', width: 'w-[28rem]', text: (row) => row.uri,
+    cell: (row) => <span className="break-all font-mono text-[11px] text-content-muted">{row.uri}</span> },
+  { key: 'endpoints.port', width: 'w-20', align: 'right',
+    text: (row) => (row.port === null ? '' : String(row.port)) },
+  { key: 'endpoints.protocol', width: 'w-32', text: (row) => row.protocol ?? '' },
+  { key: 'endpoints.ssl', width: 'w-20',
+    text: (row, t) => (row.ssl === null ? '' : row.ssl ? t('endpoints.yes') : t('endpoints.no')),
+    cell: (row, t) => (row.ssl === null
+      ? <span className="text-content-subtle">—</span>
+      : <Badge tone={row.ssl ? 'ok' : 'warn'}>{row.ssl ? t('endpoints.yes') : t('endpoints.no')}</Badge>) },
+  { key: 'endpoints.ciphers', width: 'w-64', text: (row) => row.ciphers ?? '' },
+  { key: 'endpoints.auth', width: 'w-32', text: (row) => row.auth ?? '' },
+  { key: 'table.state', width: 'w-28', text: (row) => row.state ?? '' },
+  { key: 'endpoints.uptime', width: 'w-28', text: (row) => row.uptime ?? '' },
+  { key: 'endpoints.busy', width: 'w-24', align: 'right', text: (row) => number(row.busyThreads) },
+  { key: 'endpoints.utilized', width: 'w-28', align: 'right', text: (row) => number(row.utilizedThreads) },
+  { key: 'endpoints.ready', width: 'w-28', align: 'right', text: (row) => number(row.readyThreads) },
+  { key: 'endpoints.min', width: 'w-28', align: 'right', text: (row) => number(row.minThreads) },
+  { key: 'endpoints.max', width: 'w-28', align: 'right', text: (row) => number(row.maxThreads) },
+  { key: 'endpoints.queue', width: 'w-28', align: 'right', text: (row) => number(row.queueSize) },
+  { key: 'endpoints.idleTimeout', width: 'w-28', align: 'right', text: (row) => number(row.idleTimeout) },
+  { key: 'endpoints.idle', width: 'w-28', align: 'right', text: (row) => number(row.idleThreads) },
+]
+
+function number(value: number | null): string {
+  return value === null ? '' : String(value)
 }
 
 /**
@@ -139,20 +199,8 @@ export function EndpointsScreen({ connection, server, onGoToConnection }: Props)
 
   /** В файл уходит то, что видно на экране: фильтры — часть отчёта. */
   const exportXlsx = useCallback(async () => {
-    const headers = [
-      t('table.domain'), t('table.route'), t('endpoints.component'), t('endpoints.direction'),
-      t('endpoints.scheme'), t('route.uri'), t('endpoints.host'), t('endpoints.port'),
-      t('endpoints.ssl'), t('endpoints.protocol'), t('endpoints.ciphers'), t('endpoints.auth'),
-      t('table.state'), t('endpoints.threads'),
-    ]
-    const body = visible.map((row) => [
-      row.domain, row.route, row.component,
-      row.direction === 'in' ? t('endpoints.in') : t('endpoints.out'),
-      row.scheme, row.uri, row.host ?? '', row.port === null ? '' : String(row.port),
-      row.ssl === null ? '' : row.ssl ? t('endpoints.yes') : t('endpoints.no'),
-      row.protocol ?? '', row.ciphers ?? '', row.auth ?? '', row.state ?? '',
-      row.busyThreads === null ? '' : `${row.busyThreads} / ${row.maxThreads ?? '?'}`,
-    ])
+    const headers = COLUMNS.map((column) => t(column.key))
+    const body = visible.map((row) => COLUMNS.map((column) => column.text(row, t)))
 
     const output = await saveXlsxAs(t('endpoints.save'), `fesb-endpoints-${localStamp()}.xlsx`)
     if (!output) return
@@ -255,27 +303,19 @@ export function EndpointsScreen({ connection, server, onGoToConnection }: Props)
       <ErrorBar error={error} />
 
       <Panel className="flex-1">
-        <DataTable>
-          {/* Адрес — главное в отчёте, ему остаток; шифры уходят на узком окне. */}
+        <DataTable wide>
+          {/* Все колонки видны всегда: таблица прокручивается по горизонтали.
+              Прятать их на узком окне нельзя — отчёт затем и нужен, чтобы
+              увидеть весь набор, а сдвинувшиеся заголовки уже путали. */}
           <colgroup>
-            <col className="w-44" />
-            <col className="w-44" />
-            <col className="w-20" />
-            <col className="w-24" />
-            <col />
-            <col className="w-16" />
-            <col className="hidden w-20 xl:table-column" />
-            <col className="hidden w-32 2xl:table-column" />
+            {COLUMNS.map((column) => <col key={column.key} className={column.width} />)}
           </colgroup>
           <THead>
-            <Th>{t('table.domain')}</Th>
-            <Th>{t('table.route')}</Th>
-            <Th>{t('endpoints.direction')}</Th>
-            <Th>{t('endpoints.scheme')}</Th>
-            <Th>{t('route.uri')}</Th>
-            <Th align="right">{t('endpoints.port')}</Th>
-            <Th className="hidden xl:table-cell">{t('endpoints.ssl')}</Th>
-            <Th className="hidden 2xl:table-cell">{t('endpoints.protocol')}</Th>
+            {COLUMNS.map((column) => (
+              <Th key={column.key} align={column.align} className="whitespace-nowrap">
+                {t(column.key)}
+              </Th>
+            ))}
           </THead>
           <tbody>
             {groups.map((group) => (
@@ -287,7 +327,7 @@ export function EndpointsScreen({ connection, server, onGoToConnection }: Props)
                     onClick={rowClick(() => toggleGroup(group.key))}
                     className="cursor-pointer border-b border-line bg-surface-2/70 hover:bg-surface-3"
                   >
-                    <td colSpan={8} className="px-3 py-1.5">
+                    <td colSpan={COLUMNS.length} className="px-3 py-1.5">
                       <div className="flex items-center gap-2">
                         <CaretRight
                           size={11}
@@ -310,37 +350,20 @@ export function EndpointsScreen({ connection, server, onGoToConnection }: Props)
 
                 {!collapsed.has(group.key) && group.rows.map((row, index) => (
               <tr key={`${row.domainGuid}-${row.routeId}-${index}`} className="border-b border-line/60 align-top hover:bg-surface-2">
-                <td className="truncate px-3 py-1.5" title={row.domain}>{row.domain}</td>
-                <td className="px-3 py-1.5">
-                  <div className="truncate" title={row.route}>{row.route}</div>
-                  <div className="truncate text-[10.5px] text-content-subtle" title={row.component}>{row.component}</div>
-                </td>
-                <td className="px-3 py-1.5">
-                  <Badge tone={row.direction === 'in' ? 'accent' : 'neutral'}>
-                    {row.direction === 'in' ? t('endpoints.in') : t('endpoints.out')}
-                  </Badge>
-                </td>
-                <td className="px-3 py-1.5">
-                  <CodePill>{row.scheme}</CodePill>
-                </td>
-                <td className="px-3 py-1.5">
-                  <div className="break-all font-mono text-[11px] text-content-muted">{row.uri}</div>
-                </td>
-                <td className="px-3 py-1.5 text-right tabular-nums">{row.port ?? '—'}</td>
-                <td className="hidden px-3 py-1.5 xl:table-cell">
-                  {row.ssl === null
-                    ? <span className="text-content-subtle">—</span>
-                    : <Badge tone={row.ssl ? 'ok' : 'warn'}>{row.ssl ? t('endpoints.yes') : t('endpoints.no')}</Badge>}
-                </td>
-                <td className={cx('hidden truncate px-3 py-1.5 font-mono text-[11px] text-content-subtle 2xl:table-cell')}
-                  title={row.ciphers ?? ''}>
-                  {row.protocol ?? '—'}
-                </td>
+                {COLUMNS.map((column) => (
+                  <td
+                    key={column.key}
+                    className={cx('px-3 py-1.5', column.align === 'right' ? 'text-right tabular-nums' : 'truncate')}
+                    title={column.text(row, t)}
+                  >
+                    {column.cell ? column.cell(row, t) : column.text(row, t) || '—'}
+                  </td>
+                ))}
               </tr>
                 ))}
               </Fragment>
             ))}
-            {visible.length === 0 && <TableMessage colSpan={8}>{t('endpoints.nothing')}</TableMessage>}
+            {visible.length === 0 && <TableMessage colSpan={COLUMNS.length}>{t('endpoints.nothing')}</TableMessage>}
           </tbody>
         </DataTable>
       </Panel>

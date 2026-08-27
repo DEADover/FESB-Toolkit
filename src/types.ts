@@ -541,6 +541,8 @@ export interface ApiEndpoint {
   component: string
   /** `in` — точка входа, `out` — точка выхода. */
   direction: 'in' | 'out'
+  /** Что это за точка: HTTP, SOAP, FTP, SQL… — по схеме адреса. */
+  kind: string
   scheme: string
   uri: string
   host: string | null
@@ -550,6 +552,14 @@ export interface ApiEndpoint {
   ciphers: string | null
   auth: string | null
   state: string | null
+  /** Время непрерывной работы: шина его не отдаёт, поэтому всегда пусто. */
+  uptime: string | null
   busyThreads: number | null
+  utilizedThreads: number | null
+  readyThreads: number | null
+  minThreads: number | null
   maxThreads: number | null
+  queueSize: number | null
+  idleTimeout: number | null
+  idleThreads: number | null
 }

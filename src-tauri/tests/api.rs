@@ -587,21 +587,40 @@ fn writes_the_real_report_to_excel() {
     let Ok(out) = std::env::var("XLSX_REPORT") else { return };
     let points = block(fesb_toolkit_lib::testing::endpoint_report(&connection, |_| {})).unwrap();
 
-    let headers: Vec<String> = ["Домен", "СОПС", "Компонент", "Направление", "Адаптер", "Адрес",
-        "Хост", "Порт", "TLS", "Протокол", "Шифры", "Авторизация", "Состояние", "Потоки"]
+    let headers: Vec<String> = ["Домен", "guid Домена", "СОПС", "id СОПС", "Название точки",
+        "Тип точки", "Endpoint (URL)", "Порт", "Протокол", "SSL", "Cipher suites", "Авторизация",
+        "Состояние", "Uptime", "Занятые потоки", "Используемые потоки", "Свободные потоки",
+        "Минимум потоков", "Максимум потоков", "Размер очереди", "Таймаут простоя", "Запас свободных"]
         .iter().map(|s| s.to_string()).collect();
+    let number = |value: Option<i64>| value.map(|v| v.to_string()).unwrap_or_default();
     let rows: Vec<Vec<String>> = points.iter().map(|p| vec![
-        p.domain.clone(), p.route.clone(), p.component.clone(),
+        p.domain.clone(), p.domain_guid.clone(), p.route.clone(), p.route_id.clone(),
+        p.kind.clone(),
         if p.direction == "in" { "Вход".into() } else { "Выход".into() },
-        p.scheme.clone(), p.uri.clone(), p.host.clone().unwrap_or_default(),
-        p.port.map(|v| v.to_string()).unwrap_or_default(),
+        p.uri.clone(), p.port.map(|v| v.to_string()).unwrap_or_default(),
+        p.protocol.clone().unwrap_or_default(),
         p.ssl.map(|v| if v { "Да".to_string() } else { "Нет".to_string() }).unwrap_or_default(),
-        p.protocol.clone().unwrap_or_default(), p.ciphers.clone().unwrap_or_default(),
-        p.auth.clone().unwrap_or_default(), p.state.clone().unwrap_or_default(),
-        p.busy_threads.map(|v| format!("{v} / {}", p.max_threads.unwrap_or(0))).unwrap_or_default(),
+        p.ciphers.clone().unwrap_or_default(), p.auth.clone().unwrap_or_default(),
+        p.state.clone().unwrap_or_default(), p.uptime.clone().unwrap_or_default(),
+        number(p.busy_threads), number(p.utilized_threads), number(p.ready_threads),
+        number(p.min_threads), number(p.max_threads), number(p.queue_size),
+        number(p.idle_timeout), number(p.idle_threads),
     ]).collect();
 
     println!("строк {}, самая длинная ячейка {}", rows.len(),
         rows.iter().flatten().map(|c| c.chars().count()).max().unwrap_or(0));
     fesb_toolkit_lib::testing::write_xlsx(std::path::Path::new(&out), "Точки Входа и Выхода", &headers, &rows).unwrap();
+}
+
+/// Несколько строк отчёта для фикстуры dev-preview.
+#[test]
+#[ignore]
+fn dump_endpoint_sample() {
+    let Some(connection) = connection() else { return };
+    if std::env::var("ENDPOINT_SAMPLE").is_err() { return }
+    let points = block(fesb_toolkit_lib::testing::endpoint_report(&connection, |_| {})).unwrap();
+    let mut sample: Vec<_> = points.iter().filter(|p| p.direction == "in").take(3).collect();
+    sample.extend(points.iter().filter(|p| p.port.is_some()).take(3));
+    sample.extend(points.iter().filter(|p| p.scheme == "https").take(3));
+    println!("{}", serde_json::to_string(&sample).unwrap());
 }

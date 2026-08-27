@@ -806,9 +806,17 @@ export function Stat({ label, value, tone, hint }: {
  * Теперь это одно место, и `colgroup` каждый экран задаёт себе сам —
  * ширины у всех разные и общими быть не могут.
  */
-export function DataTable({ dense, children }: { dense?: boolean; children: ReactNode }) {
+export function DataTable({ dense, wide, children }: { dense?: boolean; wide?: boolean; children: ReactNode }) {
   return (
-    <table className={cx('w-full table-fixed border-collapse', dense ? 'text-[11.5px]' : 'text-[12.5px]')}>
+    <table
+      className={cx(
+        'table-fixed border-collapse',
+        // Обычная таблица ужимается под панель; широкая живёт по своим
+        // ширинам колонок, а панель под ней прокручивается по горизонтали.
+        wide ? 'w-max min-w-full' : 'w-full',
+        dense ? 'text-[11.5px]' : 'text-[12.5px]',
+      )}
+    >
       {children}
     </table>
   )
