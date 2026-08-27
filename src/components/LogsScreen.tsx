@@ -6,7 +6,7 @@ import type { Connection, LogEntry, LogFileRow, ServerInfo } from '../types'
 import {
   AutoRefreshToggle, ErrorBar, FilterChip, NotConnected, Panel, TableMessage, useApiData, useAutoRefresh,
 } from './ApiShell'
-import { Badge, Button, ScrollStrip, Spinner, TextInput, cx } from './ui'
+import { Badge, Button, CodePill, ScrollStrip, Spinner, TONES, TextInput, cx, type Tone } from './ui'
 
 interface Props {
   connection: Connection | null
@@ -149,7 +149,7 @@ export function LogsScreen({ connection, server, onGoToConnection }: Props) {
             <FilterChip
               key={level}
               active={levels.has(level)}
-              activeClass={levelTone(level)}
+              activeClass={TONES[levelTone(level)]}
               count={counts.get(level)}
               onClick={() => toggleLevel(level)}
             >
@@ -216,9 +216,7 @@ export function LogsScreen({ connection, server, onGoToConnection }: Props) {
                     {formatTime(entry.timestamp)}
                   </td>
                   <td className="px-3 py-1.5">
-                    <span className={cx('rounded px-1.5 py-0.5 font-mono text-[10.5px]', levelTone(entry.level ?? ''))}>
-                      {entry.level ?? '—'}
-                    </span>
+                    <CodePill tone={levelTone(entry.level ?? '')}>{entry.level ?? '—'}</CodePill>
                   </td>
                   <td className="px-3 py-1.5">
                     <div className="truncate font-mono text-[11px]" title={entry.className ?? ''}>
@@ -278,12 +276,13 @@ export function LogsScreen({ connection, server, onGoToConnection }: Props) {
   )
 }
 
-function levelTone(level: string): string {
+/** Красное и жёлтое в журнале несут смысл — уровень окрашивается и в фильтре, и в строке. */
+function levelTone(level: string): Tone {
   switch (level) {
-    case 'ERROR': return 'border border-negative/40 bg-negative/12 text-negative'
-    case 'WARN': return 'border border-caution/40 bg-caution/12 text-caution'
-    case 'INFO': return 'border border-accent/40 bg-accent/12 text-accent-content'
-    default: return 'border border-line-strong bg-surface-3 text-content-muted'
+    case 'ERROR': return 'danger'
+    case 'WARN': return 'warn'
+    case 'INFO': return 'accent'
+    default: return 'neutral'
   }
 }
 

@@ -56,23 +56,50 @@ export function IconButton({ icon, label, busy, disabled, tone, onClick }: {
   )
 }
 
+export type Tone = 'neutral' | 'accent' | 'warn' | 'danger' | 'ok'
+
+/** Один набор цветов на все капсулы: и на подписи, и на коды в таблицах. */
+export const TONES: Record<Tone, string> = {
+  neutral: 'border-line-strong bg-surface-3 text-content-muted',
+  accent: 'border-accent/35 bg-accent/12 text-accent-content',
+  ok: 'border-positive/35 bg-positive/12 text-positive',
+  warn: 'border-caution/35 bg-caution/12 text-caution',
+  danger: 'border-negative/35 bg-negative/12 text-negative',
+}
+
 export function Badge({ children, tone = 'neutral', className, title }: {
   children: ReactNode
-  tone?: 'neutral' | 'accent' | 'warn' | 'danger' | 'ok'
+  tone?: Tone
   className?: string
   title?: string
 }) {
-  const tones = {
-    neutral: 'border-line-strong bg-surface-3 text-content-muted',
-    accent: 'border-accent/35 bg-accent/12 text-accent-content',
-    ok: 'border-positive/35 bg-positive/12 text-positive',
-    warn: 'border-caution/35 bg-caution/12 text-caution',
-    danger: 'border-negative/35 bg-negative/12 text-negative',
-  }
   return (
     <span
       title={title}
-      className={cx('inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[11px] font-medium leading-none', tones[tone], className)}
+      className={cx('inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[11px] font-medium leading-none', TONES[tone], className)}
+    >
+      {children}
+    </span>
+  )
+}
+
+/**
+ * Капсула с машинным значением: уровень записи, код ответа.
+ *
+ * Отдельная от `Badge` — здесь моноширинный шрифт, потому что значение
+ * читают как код, а не как подпись. Общая, чтобы в журналах и в аудите
+ * такие капсулы были одного размера: одна с рамкой, другая без неё
+ * различались на два пикселя, и это было видно.
+ */
+export function CodePill({ children, tone = 'neutral', title }: {
+  children: ReactNode
+  tone?: Tone
+  title?: string
+}) {
+  return (
+    <span
+      title={title}
+      className={cx('inline-flex items-center rounded border px-1.5 py-0.5 font-mono text-[10.5px] leading-none', TONES[tone])}
     >
       {children}
     </span>

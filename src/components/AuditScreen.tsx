@@ -6,7 +6,7 @@ import type { AuditEntry, Connection, ServerInfo } from '../types'
 import {
   AutoRefreshToggle, ErrorBar, FilterChip, NotConnected, Panel, TableMessage, useAutoRefresh,
 } from './ApiShell'
-import { Badge, Button, Spinner, TextInput, cx } from './ui'
+import { Badge, Button, CodePill, Spinner, TextInput, cx } from './ui'
 
 interface Props {
   connection: Connection | null
@@ -174,14 +174,7 @@ export function AuditScreen({ connection, server, onGoToConnection }: Props) {
                     </td>
                     <td className="px-3 py-1.5 text-right">
                       {entry.status !== null ? (
-                        <span className={cx(
-                          'rounded px-1.5 py-0.5 font-mono text-[10.5px]',
-                          entry.status >= 400
-                            ? 'bg-negative/12 text-negative'
-                            : 'bg-positive/12 text-positive',
-                        )}>
-                          {entry.status}
-                        </span>
+                        <CodePill tone={entry.status >= 400 ? 'danger' : 'ok'}>{entry.status}</CodePill>
                       ) : (
                         <span className="text-[11px] text-content-subtle">—</span>
                       )}
