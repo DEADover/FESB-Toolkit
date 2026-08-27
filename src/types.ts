@@ -559,6 +559,13 @@ export interface ApiEndpoint {
   ciphers: string | null
   auth: string | null
   state: string | null
+  /**
+   * Слушает ли шина этот порт на самом деле.
+   *
+   * Только у точек входа: проверка идёт на хосте шины, а порт исходящей
+   * точки принадлежит чужой системе.
+   */
+  listening: boolean | null
   /** Время непрерывной работы: шина его не отдаёт, поэтому всегда пусто. */
   uptime: string | null
   busyThreads: number | null
@@ -642,6 +649,8 @@ export interface DiskUsage {
 /** Обмен, который шина ещё не довела до конца. */
 export interface InflightExchange {
   id: string
+  /** Откуда обмен: домен брокера, REST или веб-сервис. */
+  kind: 'broker' | 'rest' | 'ws'
   domain: string
   domainGuid: string
   route: string
@@ -651,6 +660,8 @@ export interface InflightExchange {
   /** Шаг, на котором оно стоит. */
   node: string | null
   thread: string | null
+  /** Подробность своего вида: `GET /users/42` у REST, имя операции у веб-сервиса. */
+  detail: string | null
   duration: number | null
   elapsed: number | null
   interrupted: boolean

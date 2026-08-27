@@ -9,9 +9,17 @@
 //!
 //! Вторая — **незавершённые обмены**. Счётчик «в работе» есть и у домена,
 //! и у СОПС, но он отвечает только «сколько», а спрашивают обычно «что
-//! и где застряло». `/api/broker/analytics/inflight-exchanges` отвечает
-//! именно на это: домен, СОПС, шаг, поток и сколько времени сообщение
+//! и где застряло»: домен, СОПС, шаг, поток и сколько времени сообщение
 //! там уже висит.
+//!
+//! Списков таких обменов у шины три, по видам доменов, и одного мало:
+//!
+//! * `/api/broker/analytics/inflight-exchanges` — домены брокера;
+//! * `/api/ws/domain/inflight-exchanges` — веб-сервисы;
+//! * `/api/rest/domain/{guid}/inflight-exchanges` — REST, по домену.
+//!
+//! Поля у них общие, а различают их подробности: у REST это метод и адрес,
+//! у веб-сервиса — операция и точка. Они и попадают в `detail`.
 
 use serde::Serialize;
 
@@ -54,6 +62,8 @@ pub struct DiskUsage {
 #[serde(rename_all = "camelCase")]
 pub struct InflightExchange {
     pub id: String,
+    /// Откуда обмен: `broker`, `rest` или `ws`.
+    pub kind: String,
     pub domain: String,
     pub domain_guid: String,
     /// СОПС, в котором сообщение появилось.
@@ -64,6 +74,8 @@ pub struct InflightExchange {
     /// Шаг, на котором оно стоит.
     pub node: Option<String>,
     pub thread: Option<String>,
+    /// Подробность своего вида: `GET /users/{id}` у REST, имя операции у веб-сервиса.
+    pub detail: Option<String>,
     /// Сколько миллисекунд обмен живёт целиком и сколько стоит на текущем шаге.
     pub duration: Option<u64>,
     pub elapsed: Option<u64>,
@@ -140,21 +152,65 @@ pub async fn server_usage(connection: &Connection) -> Result<ServerUsage, String
 /// застрявшее, а не пересчитать всё.
 pub async fn inflight_exchanges(connection: &Connection) -> Result<Vec<InflightExchange>, String> {
     let client = connection.client()?;
-    let body = get_json(connection, &client, "/api/broker/analytics/inflight-exchanges").await?;
+    let mut rows = Vec::new();
 
-    let mut rows: Vec<InflightExchange> =
-        body.as_array().into_iter().flatten().map(read_exchange).collect();
+    // Домены брокера — главный список, и только его отсутствие считается
+    // ошибкой: остальные два бывают закрыты правами или выключенным модулем.
+    let body = get_json(connection, &client, "/api/broker/analytics/inflight-exchanges").await?;
+    rows.extend(body.as_array().into_iter().flatten().map(|value| read_exchange(value, "broker")));
+
+    if let Ok(body) = get_json(connection, &client, "/api/ws/domain/inflight-exchanges").await {
+        rows.extend(body.as_array().into_iter().flatten().map(|value| read_exchange(value, "ws")));
+    }
+
+    // У REST список свой на каждый домен, поэтому сначала нужен их перечень.
+    if let Ok(domains) = get_json(connection, &client, "/api/rest/domain").await {
+        for domain in domains.as_array().into_iter().flatten() {
+            let Some(guid) = text(domain, "guid") else { continue };
+            let path = format!("/api/rest/domain/{guid}/inflight-exchanges");
+            let Ok(body) = get_json(connection, &client, &path).await else { continue };
+            let name = text(domain, "name").unwrap_or_else(|| guid.clone());
+            for value in body.as_array().into_iter().flatten() {
+                let mut item = read_exchange(value, "rest");
+                // REST-домен сам себя в обмене не называет.
+                if item.domain.is_empty() {
+                    item.domain = name.clone();
+                    item.domain_guid = guid.clone();
+                }
+                rows.push(item);
+            }
+        }
+    }
+
     rows.sort_by(|a, b| b.duration.unwrap_or(0).cmp(&a.duration.unwrap_or(0)));
     Ok(rows)
 }
 
-fn read_exchange(value: &serde_json::Value) -> InflightExchange {
+/// Подробность, по которой обмен узнают в своём виде домена.
+///
+/// У REST это вызов целиком, у веб-сервиса — операция или точка; у брокера
+/// такой подписи нет, там всё сказано шагом.
+fn detail_of(value: &serde_json::Value) -> Option<String> {
+    if let Some(url) = text(value, "url") {
+        return Some(match text(value, "method") {
+            Some(method) => format!("{method} {url}"),
+            None => url,
+        });
+    }
+    text(value, "operationName")
+        .or_else(|| text(value, "endpointName"))
+        .or_else(|| text(value, "to"))
+        .or_else(|| text(value, "group"))
+}
+
+fn read_exchange(value: &serde_json::Value, kind: &str) -> InflightExchange {
     let source = value.get("source");
     let domain = source.and_then(|item| item.get("domain"));
     let route = source.and_then(|item| item.get("route"));
 
     InflightExchange {
         id: text(value, "exchangeId").unwrap_or_default(),
+        kind: kind.to_string(),
         domain: domain.and_then(|item| text(item, "name")).unwrap_or_default(),
         domain_guid: domain.and_then(|item| text(item, "guid")).unwrap_or_default(),
         route: route
@@ -168,6 +224,7 @@ fn read_exchange(value: &serde_json::Value) -> InflightExchange {
         at: value.get("at").and_then(|item| text(item, "name")),
         node: value.get("node").and_then(|item| text(item, "name")),
         thread: value.get("thread").and_then(|item| text(item, "name")),
+        detail: detail_of(value),
         duration: number(value, "duration"),
         elapsed: number(value, "elapsed"),
         interrupted: value.get("interrupted").and_then(serde_json::Value::as_bool).unwrap_or(false),
@@ -210,8 +267,9 @@ mod tests {
             "elapsed": 61_000,
             "interrupted": false,
         });
-        let row = read_exchange(&value);
+        let row = read_exchange(&value, "broker");
         assert_eq!(row.id, "ID-7f2c");
+        assert_eq!(row.kind, "broker");
         assert_eq!(row.domain, "1C.IS");
         assert_eq!(row.route, "InterchangeAuthToken");
         assert_eq!(row.at.as_deref(), Some("Atlas.CallAPI"));
@@ -225,7 +283,7 @@ mod tests {
             "exchangeId": "ID-1",
             "from": { "id": "route-1", "name": "Приём заявки" },
         });
-        let row = read_exchange(&value);
+        let row = read_exchange(&value, "broker");
         assert_eq!(row.route, "Приём заявки");
         assert_eq!(row.route_id, "route-1");
         assert_eq!(row.domain, "");
@@ -233,16 +291,36 @@ mod tests {
 
     #[test]
     fn a_bare_exchange_does_not_break_the_reader() {
-        let row = read_exchange(&json!({}));
-        assert_eq!(row, InflightExchange::default());
+        let row = read_exchange(&json!({}), "broker");
+        assert_eq!(row, InflightExchange { kind: "broker".into(), ..InflightExchange::default() });
     }
 
     #[test]
     fn empty_strings_from_the_bus_count_as_missing() {
         let value = json!({ "exchangeId": "  ", "node": { "name": "" } });
-        let row = read_exchange(&value);
+        let row = read_exchange(&value, "broker");
         assert_eq!(row.id, "");
         assert_eq!(row.node, None);
+    }
+
+    #[test]
+    fn a_rest_exchange_is_named_by_the_call_it_is_serving() {
+        let value = json!({ "exchangeId": "ID-2", "method": "POST", "url": "/users/42" });
+        assert_eq!(read_exchange(&value, "rest").detail.as_deref(), Some("POST /users/42"));
+        // Без метода остаётся один адрес — это всё ещё узнаваемо.
+        assert_eq!(detail_of(&json!({ "url": "/users" })).as_deref(), Some("/users"));
+    }
+
+    #[test]
+    fn a_web_service_exchange_is_named_by_its_operation() {
+        let value = json!({ "exchangeId": "ID-3", "operationName": "GetBalance", "endpointName": "SoapPort" });
+        assert_eq!(read_exchange(&value, "ws").detail.as_deref(), Some("GetBalance"));
+        assert_eq!(detail_of(&json!({ "endpointName": "SoapPort" })).as_deref(), Some("SoapPort"));
+    }
+
+    #[test]
+    fn a_broker_exchange_has_no_extra_name() {
+        assert_eq!(detail_of(&json!({ "exchangeId": "ID-1" })), None);
     }
 
     #[test]

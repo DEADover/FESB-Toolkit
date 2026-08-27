@@ -501,6 +501,7 @@ pub mod testing {
     pub use crate::fesb_api::{endpoint_report, fetch_domain_routes, route_index};
     pub use crate::certificates::{certificates, common_name, read_certificate};
     pub use crate::analytics::{inflight_exchanges, server_usage};
+    pub use crate::api_report::listening_ports;
     pub use crate::security::access;
     pub use crate::fesb_ops::{
         delete_property, domain_statistics, log_entries, log_files, modules, properties,

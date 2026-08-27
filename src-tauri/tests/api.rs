@@ -11,14 +11,12 @@
 use std::path::PathBuf;
 
 use fesb_toolkit_lib::testing::{
-    apply_trace_change, connect, domains, log_entries, log_files, modules, properties, pull, push,
-    queue_managers, queues, save_property, delete_property, verify, domain_statistics,
-    access, audit, certificates, fetch_domain_routes, inflight_exchanges, queue_message,
-    queue_messages,
-    queue_search, server_usage,
-    route_index, route_state,
-    ApplyRequest, ApplyTarget,
-    BeanTarget, Connection, LogRequest, ManagerKind, PropertyRow, PropertyScope, TraceUpdate,
+    access, apply_trace_change, audit, certificates, connect, delete_property, domain_statistics,
+    domains, fetch_domain_routes, inflight_exchanges, listening_ports, log_entries, log_files,
+    modules, properties, pull, push, queue_managers, queue_message, queue_messages, queue_search,
+    queues, route_index, route_state, save_property, server_usage, verify,
+    ApplyRequest, ApplyTarget, BeanTarget, Connection, LogRequest, ManagerKind, PropertyRow,
+    PropertyScope, TraceUpdate,
 };
 
 /// Обёртка над рантаймом: приложение вызывает те же функции из команд Tauri.
@@ -779,4 +777,19 @@ fn reads_who_can_do_what() {
             assert!(known.contains(permission.as_str()), "право {permission} не описано в справочнике");
         }
     }
+}
+
+/// Проверка портов: шина отвечает, свободен ли порт на её хосте.
+#[test]
+#[ignore]
+fn tells_which_ports_are_actually_taken() {
+    let Some(connection) = connection() else {
+        eprintln!("FESB_URL не задан — пропускаем");
+        return;
+    };
+    // 8181 занят самой шиной; 9999 на тестовом стенде никем не занят.
+    let known = block(listening_ports(&connection, &[8181, 9999]));
+    println!("{known:?}");
+    assert_eq!(known.get(&8181), Some(&true), "порт менеджера должен быть занят");
+    assert_eq!(known.get(&9999), Some(&false), "9999 никем не слушается");
 }

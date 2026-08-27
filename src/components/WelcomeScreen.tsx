@@ -1,9 +1,6 @@
 import { useCallback, useMemo } from 'react'
 
-import {
-  ArrowRight, ArrowsLeftRight, Broadcast, Certificate, Crosshair, Cube, FingerprintSimple, FlowArrow,
-  FolderOpen, Key, ListDashes, Plugs, Queue, SlidersHorizontal, Stack, type Icon,
-} from '@phosphor-icons/react'
+import { ArrowRight, FolderOpen, Plugs, type Icon } from '@phosphor-icons/react'
 
 import { useI18n } from '../i18n'
 import { apiServerUsage } from '../lib/api'
@@ -12,7 +9,7 @@ import { useApiData } from './ApiShell'
 import { byEnvironment, type ConnectionProfile, type ConnectionStore } from '../lib/connection'
 import type { Connection, ScanResult, ServerInfo, ServerUsage } from '../types'
 import { ENVIRONMENT_LABEL, ENVIRONMENT_TONE } from './HeaderBar'
-import type { ScreenId } from './Sidebar'
+import { API_SCREENS, FILE_SCREENS, sortByLabel, type ScreenEntry, type ScreenId } from './Sidebar'
 import { Badge, Button, cx, FOCUS_RING, Readout } from './ui'
 
 interface Props {
@@ -42,7 +39,7 @@ export function WelcomeScreen({
   server, connection, scan, sourcePath, connections, connecting,
   onScreen, onOpenFolder, onOpenArchive, onConnect,
 }: Props) {
-  const { t } = useI18n()
+  const { t, language } = useI18n()
 
   const files = useMemo(() => {
     if (!scan) return null
@@ -198,37 +195,19 @@ export function WelcomeScreen({
         */}
         <Section title={t('nav.files')}>
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-            <Tile icon={Crosshair} title={t('nav.files.trace')} text={t('welcome.hint.trace')}
-              onClick={() => onScreen('files.trace')} />
-            <Tile icon={ArrowsLeftRight} title={t('nav.files.links.title')} text={t('welcome.hint.links')}
-              onClick={() => onScreen('files.links')} />
+            {FILE_SCREENS.map((entry) => (
+              <Tile key={entry.id} entry={entry} onClick={() => onScreen(entry.id)} />
+            ))}
           </div>
         </Section>
 
+        {/* Разделы по алфавиту — так же, как в боковой панели. Алфавит
+            зависит от языка, поэтому порядок считается при отрисовке. */}
         <Section title={t('nav.api')} note={server ? undefined : t('welcome.needsServer')}>
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-            <Tile icon={Stack} title={t('nav.api.domains')} text={t('welcome.hint.domains')}
-              onClick={() => onScreen('api.domains')} dim={!server} />
-            <Tile icon={FlowArrow} title={t('nav.api.routes')} text={t('welcome.hint.routes')}
-              onClick={() => onScreen('api.routes')} dim={!server} />
-            <Tile icon={Plugs} title={t('nav.api.endpoints.title')} text={t('welcome.hint.endpoints')}
-              onClick={() => onScreen('api.endpoints')} dim={!server} />
-            <Tile icon={Broadcast} title={t('nav.api.inflight')} text={t('welcome.hint.inflight')}
-              onClick={() => onScreen('api.inflight')} dim={!server} />
-            <Tile icon={Certificate} title={t('nav.api.certificates')} text={t('welcome.hint.certificates')}
-              onClick={() => onScreen('api.certificates')} dim={!server} />
-            <Tile icon={Queue} title={t('nav.api.queues')} text={t('welcome.hint.queues')}
-              onClick={() => onScreen('api.queues')} dim={!server} />
-            <Tile icon={Cube} title={t('nav.api.modules')} text={t('welcome.hint.modules')}
-              onClick={() => onScreen('api.modules')} dim={!server} />
-            <Tile icon={SlidersHorizontal} title={t('nav.api.properties')} text={t('welcome.hint.properties')}
-              onClick={() => onScreen('api.properties')} dim={!server} />
-            <Tile icon={ListDashes} title={t('nav.api.logs')} text={t('welcome.hint.logs')}
-              onClick={() => onScreen('api.logs')} dim={!server} />
-            <Tile icon={Key} title={t('nav.api.access')} text={t('welcome.hint.access')}
-              onClick={() => onScreen('api.access')} dim={!server} />
-            <Tile icon={FingerprintSimple} title={t('nav.api.audit')} text={t('welcome.hint.audit')}
-              onClick={() => onScreen('api.audit')} dim={!server} />
+            {sortByLabel(API_SCREENS, (entry) => t(entry.title ?? entry.label), language).map((entry) => (
+              <Tile key={entry.id} entry={entry} dim={!server} onClick={() => onScreen(entry.id)} />
+            ))}
           </div>
         </Section>
       </div>
@@ -297,14 +276,14 @@ function Section({ title, note, children }: {
 }
 
 /** Плитка раздела: куда пойти и зачем. */
-function Tile({ icon: Glyph, title, text, onClick, dim }: {
-  icon: Icon
-  title: string
-  text: string
+function Tile({ entry, onClick, dim }: {
+  entry: ScreenEntry
   onClick: () => void
   /** Раздел ждёт подключения: приглушаем, но не запрещаем — зайти можно. */
   dim?: boolean
 }) {
+  const { t } = useI18n()
+  const Glyph = entry.icon
   return (
     <button
       type="button"
@@ -319,8 +298,8 @@ function Tile({ icon: Glyph, title, text, onClick, dim }: {
       <span className="grid size-7 place-items-center rounded-lg bg-surface-2 text-content-subtle transition group-hover:bg-accent/15 group-hover:text-accent-content">
         <Glyph size={15} weight="regular" />
       </span>
-      <span className="mt-2.5 truncate text-[12.5px] font-medium">{title}</span>
-      <span className="mt-1 text-[11px] leading-relaxed text-content-subtle">{text}</span>
+      <span className="mt-2.5 truncate text-[12.5px] font-medium">{t(entry.title ?? entry.label)}</span>
+      <span className="mt-1 text-[11px] leading-relaxed text-content-subtle">{t(entry.hint)}</span>
     </button>
   )
 }

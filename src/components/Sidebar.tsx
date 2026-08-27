@@ -23,13 +23,63 @@ export type ScreenId =
   | 'api.audit'
   | 'api.access'
 
+/**
+ * Экран раздела: подпись, значок и пояснение для первого экрана.
+ *
+ * Список один на боковую панель и на «Начало»: раньше он лежал в двух
+ * местах и уже расходился — новый раздел появлялся в меню и не появлялся
+ * плиткой. `title` заводится только там, где короткой подписи мало:
+ * «Точки» в узкой панели — это всё, что влезает, а на плитке помещается
+ * «Точки Входа и Выхода».
+ */
+export interface ScreenEntry {
+  id: ScreenId
+  label: MessageKey
+  /** Длинный заголовок для плитки, если короткой подписи мало. */
+  title?: MessageKey
+  /** Одна строка о том, зачем сюда заходят, — на первом экране. */
+  hint: MessageKey
+  icon: Icon
+}
+
+export const FILE_SCREENS: ScreenEntry[] = [
+  { id: 'files.trace', label: 'nav.files.trace', hint: 'welcome.hint.trace', icon: Crosshair },
+  { id: 'files.links', label: 'nav.files.links', title: 'nav.files.links.title', hint: 'welcome.hint.links', icon: ArrowsLeftRight },
+]
+
+export const API_SCREENS: ScreenEntry[] = [
+  { id: 'api.access', label: 'nav.api.access', hint: 'welcome.hint.access', icon: Key },
+  // Щит для аудита — штамп; отпечаток точнее: аудит отвечает «кто это сделал».
+  { id: 'api.audit', label: 'nav.api.audit', hint: 'welcome.hint.audit', icon: FingerprintSimple },
+  { id: 'api.certificates', label: 'nav.api.certificates', hint: 'welcome.hint.certificates', icon: Certificate },
+  { id: 'api.domains', label: 'nav.api.domains', hint: 'welcome.hint.domains', icon: Stack },
+  { id: 'api.endpoints', label: 'nav.api.endpoints', title: 'nav.api.endpoints.title', hint: 'welcome.hint.endpoints', icon: Plugs },
+  { id: 'api.inflight', label: 'nav.api.inflight', hint: 'welcome.hint.inflight', icon: Broadcast },
+  { id: 'api.logs', label: 'nav.api.logs', hint: 'welcome.hint.logs', icon: ListDashes },
+  { id: 'api.modules', label: 'nav.api.modules', hint: 'welcome.hint.modules', icon: Cube },
+  { id: 'api.properties', label: 'nav.api.properties', hint: 'welcome.hint.properties', icon: SlidersHorizontal },
+  { id: 'api.queues', label: 'nav.api.queues', hint: 'welcome.hint.queues', icon: Queue },
+  { id: 'api.routes', label: 'nav.api.routes', hint: 'welcome.hint.routes', icon: FlowArrow },
+]
+
+/**
+ * Разделы API — по алфавиту, и алфавит здесь зависит от языка: по-русски
+ * первым идёт «Аудит», по-английски — «Access». Поэтому порядок считается
+ * при отрисовке по видимой подписи, а не задаётся порядком в коде.
+ */
+export function sortByLabel<T>(items: T[], label: (item: T) => string, language: string): T[] {
+  return [...items].sort((a, b) => label(a).localeCompare(label(b), language))
+}
+
 interface Section {
   title: MessageKey
   /** Раздел без заголовка: один пункт, подписывать его дважды незачем. */
   bare?: boolean
   /** Экран настроек раздела — открывается шестерёнкой у заголовка. */
   settings?: { screen: ScreenId; title: MessageKey }
-  items: Array<{ id: ScreenId; label: MessageKey; icon: Icon; disabled?: boolean }>
+  /** Порядок пунктов — по алфавиту текущего языка. */
+  sorted?: boolean
+  items: ScreenEntry[]
 }
 
 const SECTIONS: Section[] = [
@@ -38,36 +88,19 @@ const SECTIONS: Section[] = [
     // он про выбор между ними.
     title: 'nav.welcome',
     bare: true,
-    items: [{ id: 'welcome', label: 'nav.welcome', icon: House }],
+    items: [{ id: 'welcome', label: 'nav.welcome', hint: 'nav.welcome', icon: House }],
   },
   {
+    // Здесь порядок не алфавитный, а рабочий: сначала открывают папку
+    // и правят трассировку, и только потом смотрят, кто с кем связан.
     title: 'nav.files',
-    items: [
-      { id: 'files.trace', label: 'nav.files.trace', icon: Crosshair },
-      { id: 'files.links', label: 'nav.files.links', icon: ArrowsLeftRight },
-    ],
+    items: FILE_SCREENS,
   },
   {
     title: 'nav.api',
     settings: { screen: 'api.connection', title: 'nav.api.connection.title' },
-    items: [
-      { id: 'api.domains', label: 'nav.api.domains', icon: Stack },
-      { id: 'api.routes', label: 'nav.api.routes', icon: FlowArrow },
-      // Сразу за СОПС: это они и есть, только в движении.
-      { id: 'api.inflight', label: 'nav.api.inflight', icon: Broadcast },
-      { id: 'api.endpoints', label: 'nav.api.endpoints', icon: Plugs },
-      // Сертификаты стоят сразу за точками: точки говорят, что связь
-      // защищена, сертификаты — чем именно и до какого числа.
-      { id: 'api.certificates', label: 'nav.api.certificates', icon: Certificate },
-      { id: 'api.queues', label: 'nav.api.queues', icon: Queue },
-      { id: 'api.modules', label: 'nav.api.modules', icon: Cube },
-      { id: 'api.properties', label: 'nav.api.properties', icon: SlidersHorizontal },
-      { id: 'api.logs', label: 'nav.api.logs', icon: ListDashes },
-      // Щит для аудита — штамп; отпечаток точнее: аудит отвечает «кто это сделал».
-      { id: 'api.audit', label: 'nav.api.audit', icon: FingerprintSimple },
-      // Рядом с аудитом: тот отвечает «кто сделал», этот — «кто может».
-      { id: 'api.access', label: 'nav.api.access', icon: Key },
-    ],
+    sorted: true,
+    items: API_SCREENS,
   },
 ]
 
@@ -165,20 +198,18 @@ export function Sidebar({ screen, onScreen, info, isMac, collapsed, onCollapse, 
                     </span>
                   </button>
                 )}
-                {section.items.map((item) => (
+                {(section.sorted ? sortByLabel(section.items, (item) => t(item.label), language) : section.items).map((item) => (
                   <button
                     key={item.id}
                     type="button"
-                    disabled={item.disabled}
                     onClick={() => onScreen(item.id)}
                     title={collapsed ? t(item.label) : undefined}
                     className={cx(
                       'flex w-full items-center gap-2.5 rounded-lg py-1.5 text-left transition',
                       FOCUS_RING,
                       collapsed ? 'justify-center px-0' : 'px-2.5',
-                      item.disabled && 'cursor-not-allowed opacity-45',
                       screen === item.id ? 'bg-accent/12 text-content' : 'text-content-muted',
-                      !item.disabled && screen !== item.id && 'hover:bg-surface-3',
+                      screen !== item.id && 'hover:bg-surface-3',
                     )}
                   >
                     <span

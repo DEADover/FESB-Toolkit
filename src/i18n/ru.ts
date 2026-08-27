@@ -556,6 +556,16 @@ export const ru: Record<keyof typeof en, string> = {
   'scope.propertiesHistoryClear': 'очистка истории констант',
   'scope.messageDownload': 'чтение сообщений',
 
+  'endpoints.listening': 'Слушается',
+  'endpoints.listening.hint': 'Занят ли порт на хосте шины. Проверяется только у точек входа',
+  'endpoints.listening.no': 'Свободен',
+  'endpoints.onlyDeaf': 'Только неслушающие',
+  'endpoints.onlyDeaf.hint': 'Точки входа, порт которых никто не занял',
+  'inflight.kind': 'Вид домена',
+  'inflight.kind.broker': 'Брокер',
+  'inflight.kind.rest': 'REST',
+  'inflight.kind.ws': 'Веб-сервис',
+
   'nav.api.queues': 'Очереди',
   'nav.api.queues.title': 'Менеджеры Очередей',
   'nav.api.modules': 'Модули',

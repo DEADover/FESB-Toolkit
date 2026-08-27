@@ -556,6 +556,16 @@ export const en = {
   'scope.propertiesHistoryClear': 'clearing constant history',
   'scope.messageDownload': 'reading messages',
 
+  'endpoints.listening': 'Listening',
+  'endpoints.listening.hint': 'Whether the port is actually taken on the bus host. Only checked for entry points',
+  'endpoints.listening.no': 'Free',
+  'endpoints.onlyDeaf': 'Only not listening',
+  'endpoints.onlyDeaf.hint': 'Entry points whose port nobody has taken',
+  'inflight.kind': 'Domain kind',
+  'inflight.kind.broker': 'Broker',
+  'inflight.kind.rest': 'REST',
+  'inflight.kind.ws': 'Web service',
+
   'nav.api.queues': 'Queues',
   'nav.api.queues.title': 'Queue Managers',
   'nav.api.modules': 'Modules',

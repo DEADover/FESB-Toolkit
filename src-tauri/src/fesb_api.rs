@@ -759,6 +759,18 @@ pub async fn endpoint_report<F: FnMut(ApiProgress)>(
     let facts = crate::api_report::port_facts(connection, &unique).await;
     crate::api_report::enrich(&mut points, &facts);
 
+    // Слушается ли порт на самом деле — вопрос только ко входу, и спрашивать
+    // его нужно один раз на порт: точек на одном порту бывают десятки.
+    let mut ports: Vec<u32> = points
+        .iter()
+        .filter(|point| point.direction == "in")
+        .filter_map(|point| point.port)
+        .collect();
+    ports.sort_unstable();
+    ports.dedup();
+    let listening = crate::api_report::listening_ports(connection, &ports).await;
+    crate::api_report::mark_listening(&mut points, &listening);
+
     points.sort_by(|a, b| {
         a.domain
             .to_lowercase()

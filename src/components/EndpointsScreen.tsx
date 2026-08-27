@@ -67,6 +67,16 @@ const COLUMNS: Array<{
     ) },
   { key: 'endpoints.port', width: 'w-16', align: 'right',
     text: (row) => (row.port === null ? '' : String(row.port)) },
+  { key: 'endpoints.listening', width: 'w-28', hint: 'endpoints.listening.hint',
+    text: (row, t) => (row.listening === null
+      ? ''
+      : row.listening ? t('endpoints.yes') : t('endpoints.listening.no')),
+    cell: (row, t) => (row.listening === null
+      ? <span className="text-content-subtle">—</span>
+      // Свободный порт у точки входа — находка: там никто не слушает.
+      : <Badge tone={row.listening ? 'ok' : 'warn'}>
+          {row.listening ? t('endpoints.yes') : t('endpoints.listening.no')}
+        </Badge>) },
   { key: 'endpoints.protocol', width: 'w-32', hint: 'endpoints.protocol.hint', text: (row) => row.protocol ?? '' },
   { key: 'endpoints.ssl', width: 'w-20',
     text: (row, t) => (row.ssl === null ? '' : row.ssl ? t('endpoints.yes') : t('endpoints.no')),
@@ -111,6 +121,7 @@ export function EndpointsScreen({ connection, server, onGoToConnection }: Props)
   const [direction, setDirection] = useState<Direction>('all')
   const [schemes, setSchemes] = useState<Set<string>>(new Set())
   const [onlySecured, setOnlySecured] = useState(false)
+  const [onlyDeaf, setOnlyDeaf] = useState(false)
   const [grouping, setGrouping] = useState<Grouping>('host')
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
   const query = useDebounced(search, 250)
@@ -149,6 +160,7 @@ export function EndpointsScreen({ connection, server, onGoToConnection }: Props)
       if (direction !== 'all' && row.direction !== direction) return false
       if (schemes.size > 0 && !schemes.has(row.scheme)) return false
       if (onlySecured && row.ssl !== true) return false
+      if (onlyDeaf && row.listening !== false) return false
       if (!needle) return true
       return (
         row.domain.toLowerCase().includes(needle) ||
@@ -157,7 +169,7 @@ export function EndpointsScreen({ connection, server, onGoToConnection }: Props)
         (row.host ?? '').toLowerCase().includes(needle)
       )
     })
-  }, [all, query, direction, schemes, onlySecured])
+  }, [all, query, direction, schemes, onlySecured, onlyDeaf])
 
   /**
    * Группировка списка.
@@ -293,6 +305,12 @@ export function EndpointsScreen({ connection, server, onGoToConnection }: Props)
           onChange={setSchemes}
         />
         <Toggle checked={onlySecured} onChange={setOnlySecured} label={t('endpoints.onlySecured')} />
+        <Toggle
+          checked={onlyDeaf}
+          onChange={setOnlyDeaf}
+          label={t('endpoints.onlyDeaf')}
+          title={t('endpoints.onlyDeaf.hint')}
+        />
         {grouping !== 'none' && (
           <Button
             className="min-w-36"

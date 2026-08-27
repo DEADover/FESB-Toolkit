@@ -2,7 +2,7 @@ import { useCallback, useMemo, useState } from 'react'
 
 import { CheckCircle } from '@phosphor-icons/react'
 
-import { useI18n } from '../i18n'
+import { useI18n, type MessageKey } from '../i18n'
 import { apiInflight } from '../lib/api'
 import type { Connection, InflightExchange, ServerInfo } from '../types'
 import {
@@ -10,7 +10,7 @@ import {
   useApiData, useAutoRefresh, useDebounced,
 } from './ApiShell'
 import {
-  Badge, cx, DataTable, EmptyState, Readout, SearchInput, Th, THead, Toggle,
+  Badge, cx, DataTable, EmptyState, Readout, SearchInput, Select, Th, THead, Toggle,
 } from './ui'
 
 interface Props {
@@ -28,6 +28,15 @@ interface Props {
  * систему, либо уже никого не дождётся.
  */
 const SLOW_MS = 60_000
+
+/** Вид домена, из которого пришёл обмен. */
+type Kind = 'all' | 'broker' | 'rest' | 'ws'
+
+const KIND_LABEL: Record<Exclude<Kind, 'all'>, MessageKey> = {
+  broker: 'inflight.kind.broker',
+  rest: 'inflight.kind.rest',
+  ws: 'inflight.kind.ws',
+}
 
 /** `184000` → `3 мин 4 с`: миллисекунды в таблице не читаются. */
 function duration(ms: number | null): string {
@@ -55,6 +64,7 @@ export function InflightScreen({ connection, server, onGoToConnection, onOpenRou
 
   const [search, setSearch] = useState('')
   const [onlySlow, setOnlySlow] = useState(false)
+  const [kind, setKind] = useState<Kind>('all')
   const [auto, setAuto] = useState(false)
   const query = useDebounced(search, 250)
 
@@ -66,16 +76,18 @@ export function InflightScreen({ connection, server, onGoToConnection, onOpenRou
     const needle = query.trim().toLowerCase()
     return all.filter((row) => {
       if (onlySlow && (row.duration ?? 0) < SLOW_MS) return false
+      if (kind !== 'all' && row.kind !== kind) return false
       if (!needle) return true
       return (
         row.domain.toLowerCase().includes(needle) ||
         row.route.toLowerCase().includes(needle) ||
         (row.at ?? '').toLowerCase().includes(needle) ||
         (row.node ?? '').toLowerCase().includes(needle) ||
+        (row.detail ?? '').toLowerCase().includes(needle) ||
         row.id.toLowerCase().includes(needle)
       )
     })
-  }, [all, query, onlySlow])
+  }, [all, query, onlySlow, kind])
 
   const totals = useMemo(() => ({
     total: all.length,
@@ -138,6 +150,19 @@ export function InflightScreen({ connection, server, onGoToConnection, onOpenRou
           label={t('inflight.onlySlow')}
           title={t('inflight.slow.hint')}
         />
+        <Select<Kind>
+          ariaLabel={t('inflight.kind')}
+          label={t('inflight.kind')}
+          className="w-52"
+          value={kind}
+          onChange={setKind}
+          options={[
+            { id: 'all', label: t('filter.all') },
+            { id: 'broker', label: t('inflight.kind.broker') },
+            { id: 'rest', label: t('inflight.kind.rest') },
+            { id: 'ws', label: t('inflight.kind.ws') },
+          ]}
+        />
       </div>
 
       <ErrorBar error={error} />
@@ -175,7 +200,12 @@ export function InflightScreen({ connection, server, onGoToConnection, onOpenRou
                     row.domainGuid ? 'cursor-pointer hover:bg-surface-2' : undefined,
                   )}
                 >
-                  <td className="truncate px-3 py-1.5">{row.domain || '—'}</td>
+                  <td className="truncate px-3 py-1.5">
+                    <span className="flex items-center gap-1.5">
+                      <span className="min-w-0 truncate">{row.domain || '—'}</span>
+                      {row.kind !== 'broker' && <Badge>{t(KIND_LABEL[row.kind])}</Badge>}
+                    </span>
+                  </td>
                   <td className="px-3 py-1.5" title={t('map.openRoutes')}>
                     <div className="flex items-center gap-1.5">
                       <span className="min-w-0 truncate">{row.route || '—'}</span>
@@ -184,7 +214,11 @@ export function InflightScreen({ connection, server, onGoToConnection, onOpenRou
                     {/* Идентификатор обмена нужен, чтобы найти его же в журналах. */}
                     <div className="truncate font-mono text-[10.5px] text-content-subtle">{row.id}</div>
                   </td>
-                  <td className="truncate px-3 py-1.5 text-content-muted">{row.at ?? '—'}</td>
+                  <td className="truncate px-3 py-1.5 text-content-muted" title={row.detail ?? row.at ?? undefined}>
+                    {/* У REST и веб-сервисов «сейчас в» пусто, зато есть вызов:
+                        `POST /users/42` говорит о застрявшем обмене больше. */}
+                    {row.at ?? row.detail ?? '—'}
+                  </td>
                   <td className="truncate px-3 py-1.5">{row.node ?? '—'}</td>
                   <td className="hidden truncate px-3 py-1.5 font-mono text-[11px] text-content-subtle xl:table-cell">
                     {row.thread ?? '—'}

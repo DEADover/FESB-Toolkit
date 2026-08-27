@@ -74,6 +74,11 @@ pub struct Endpoint {
     pub auth: Option<String>,
     /// Состояние пула Jetty на этом порту: работает или порт не слушают.
     pub state: Option<String>,
+    /// Слушает ли шина этот порт на самом деле.
+    ///
+    /// Имеет смысл только у точек входа: проверка идёт на хосте шины,
+    /// а порт исходящей точки принадлежит чужой системе.
+    pub listening: Option<bool>,
     /// Время непрерывной работы. Ни один метод шины его не отдаёт, поэтому
     /// колонка есть, а значения нет: пустая ячейка честнее выдуманной.
     pub uptime: Option<String>,
@@ -104,6 +109,24 @@ pub struct PortFacts {
     pub queue_size: Option<i64>,
     pub idle_timeout: Option<i64>,
     pub idle_threads: Option<i64>,
+}
+
+/// Проверяет, слушает ли шина перечисленные порты.
+///
+/// `/api/json/stat/port/{port}` отвечает, **свободен** ли порт, — значение
+/// приходится перевернуть: свободный порт у точки входа означает, что там
+/// никто не слушает, а это и есть находка. Проверка идёт на хосте шины,
+/// поэтому исходящие точки спрашивать бессмысленно и они сюда не попадают.
+pub async fn listening_ports(connection: &Connection, ports: &[u32]) -> BTreeMap<u32, bool> {
+    let mut out = BTreeMap::new();
+    let Ok(client) = connection.client() else { return out };
+    for port in ports {
+        let path = format!("/api/json/stat/port/{port}");
+        let Ok(value) = crate::fesb_api::get_json(connection, &client, &path).await else { continue };
+        let Some(free) = value.as_bool() else { continue };
+        out.insert(*port, !free);
+    }
+    out
 }
 
 /// Схемы, у которых после `://` действительно стоит сетевой адрес.
@@ -338,6 +361,7 @@ fn collect(
                     ciphers: None,
                     auth,
                     state: None,
+        listening: None,
                     uptime: None,
                     busy_threads: None,
                     utilized_threads: None,
@@ -491,6 +515,7 @@ pub async fn rest_endpoints(connection: &Connection) -> Vec<Endpoint> {
                     .get("active")
                     .and_then(serde_json::Value::as_bool)
                     .map(|active| if active { "active".into() } else { "stopped".into() }),
+                listening: None,
                 uptime: None,
                 busy_threads: None,
                 utilized_threads: None,
@@ -526,7 +551,8 @@ pub fn enrich(endpoints: &mut [Endpoint], facts: &BTreeMap<u32, PortFacts>) {
         point.idle_timeout = known.idle_timeout;
         point.idle_threads = known.idle_threads;
     }
-    // Схема сама по себе говорит про TLS больше, чем молчание фабрики.
+    // Проверка порта относится только ко входу: у исходящей точки порт
+    // чужой, и «свободен» про него ничего не говорит.
     for point in endpoints.iter_mut() {
         if point.ssl.is_none() && (point.scheme.ends_with('s') || point.scheme.contains("https")) {
             point.ssl = Some(point.scheme.starts_with("https") || point.scheme.starts_with("ftps"));
@@ -600,12 +626,46 @@ mod tests {
             domain: "d".into(), domain_guid: "g".into(), route: "r".into(), route_id: "id".into(),
             component: "c".into(), direction: "out", kind: "HTTP".into(), scheme: "https".into(),
             uri: "https://x/y".into(), host: None, port: None, ssl: None, protocol: None,
-            ciphers: None, auth: None, state: None, uptime: None, busy_threads: None,
-            utilized_threads: None, ready_threads: None, min_threads: None, max_threads: None,
-            queue_size: None, idle_timeout: None, idle_threads: None,
+            ciphers: None, auth: None, state: None, listening: None, uptime: None,
+            busy_threads: None, utilized_threads: None, ready_threads: None, min_threads: None,
+            max_threads: None, queue_size: None, idle_timeout: None, idle_threads: None,
         }];
         enrich(&mut points, &BTreeMap::new());
         assert_eq!(points[0].ssl, Some(true));
+    }
+
+    #[test]
+    fn a_free_port_on_an_entry_point_means_nobody_is_listening() {
+        let point = |direction: &'static str, port: u32| Endpoint {
+            domain: "d".into(), domain_guid: "g".into(), route: "r".into(), route_id: "id".into(),
+            component: "c".into(), direction, kind: "HTTP".into(), scheme: "https".into(),
+            uri: "https://x/y".into(), host: None, port: Some(port), ssl: None, protocol: None,
+            ciphers: None, auth: None, state: None, listening: None, uptime: None,
+            busy_threads: None, utilized_threads: None, ready_threads: None, min_threads: None,
+            max_threads: None, queue_size: None, idle_timeout: None, idle_threads: None,
+        };
+        let mut points = vec![point("in", 8181), point("in", 9999), point("out", 8181)];
+        // `listening_ports` уже перевернула ответ шины: здесь true — «слушают».
+        let known = BTreeMap::from([(8181u32, true), (9999u32, false)]);
+        mark_listening(&mut points, &known);
+        assert_eq!(points[0].listening, Some(true));
+        assert_eq!(points[1].listening, Some(false), "порт свободен — там никто не слушает");
+        // У исходящей точки порт чужой, и проверка на хосте шины про него молчит.
+        assert_eq!(points[2].listening, None);
+    }
+
+    #[test]
+    fn an_unchecked_port_stays_unknown_rather_than_becoming_false() {
+        let mut points = vec![Endpoint {
+            domain: "d".into(), domain_guid: "g".into(), route: "r".into(), route_id: "id".into(),
+            component: "c".into(), direction: "in", kind: "HTTP".into(), scheme: "https".into(),
+            uri: "https://x/y".into(), host: None, port: Some(7777), ssl: None, protocol: None,
+            ciphers: None, auth: None, state: None, listening: None, uptime: None,
+            busy_threads: None, utilized_threads: None, ready_threads: None, min_threads: None,
+            max_threads: None, queue_size: None, idle_timeout: None, idle_threads: None,
+        }];
+        mark_listening(&mut points, &BTreeMap::new());
+        assert_eq!(points[0].listening, None);
     }
 }
 
@@ -722,5 +782,16 @@ mod security_tests {
         enrich(&mut points, &BTreeMap::new());
         assert_eq!(points[0].ssl, Some(true));
         assert_eq!(points[0].auth.as_deref(), Some("TLS"));
+    }
+}
+
+/// Раскладывает проверку портов по точкам входа.
+pub fn mark_listening(endpoints: &mut [Endpoint], listening: &BTreeMap<u32, bool>) {
+    for point in endpoints.iter_mut() {
+        if point.direction != "in" {
+            continue;
+        }
+        let Some(port) = point.port else { continue };
+        point.listening = listening.get(&port).copied();
     }
 }
