@@ -5,8 +5,10 @@ import { ArrowsClockwise, ArrowsLeftRight, Play, Stop } from '@phosphor-icons/re
 import { useI18n } from '../i18n'
 import { apiDomainAction, apiDomains, errorText } from '../lib/api'
 import type { ApiDomain, ApiProgress, Connection, DomainAction, ServerInfo } from '../types'
-import { RefreshButton } from './ApiShell'
-import { Badge, Button, Checkbox, cx, DataTable, IconButton, Modal, SearchInput, Spinner, Th, THead, Toggle } from './ui'
+import {
+  RefreshButton, ScreenBody,
+} from './ApiShell'
+import { Badge, Button, Checkbox, cx, DataTable, IconButton, Modal, Notice, SearchInput, Spinner, Th, THead, Toggle } from './ui'
 
 interface Props {
   connection: Connection | null
@@ -180,7 +182,7 @@ export function DomainsScreen({ connection, server, pulling, progress, error: pu
   const allVisibleSelected = visible.length > 0 && visible.every((domain) => selected.has(domain.guid))
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-3 px-6 pb-4">
+    <ScreenBody>
       <div className="flex items-center gap-2">
         <SearchInput
           className="flex-1"
@@ -197,15 +199,15 @@ export function DomainsScreen({ connection, server, pulling, progress, error: pu
       </div>
 
       {refused && (
-        <div className="rounded-lg border border-caution/40 bg-caution/10 px-3 py-2 text-caution">
+        <Notice tone="warn">
           {t('domains.refused', { name: refused.name })}
-        </div>
+        </Notice>
       )}
 
       {(listError ?? pullError) && (
-        <div className="rounded-lg border border-negative/40 bg-negative/10 px-3 py-2 text-negative">
+        <Notice tone="danger">
           {listError ?? pullError}
-        </div>
+        </Notice>
       )}
 
       <div className="min-h-0 flex-1 overflow-auto rounded-xl border border-line bg-surface">
@@ -361,9 +363,9 @@ export function DomainsScreen({ connection, server, pulling, progress, error: pu
       >
         <div className="space-y-3 text-[13px] leading-relaxed">
           <p className="text-content-muted">{t('domains.confirm.manyText', { count: selected.size })}</p>
-          <p className="rounded-lg border border-caution/35 bg-caution/10 px-3 py-2 text-caution">
+          <Notice tone="warn">
             {t('domains.confirm.text')}
-          </p>
+          </Notice>
         </div>
       </Modal>
 
@@ -402,9 +404,9 @@ export function DomainsScreen({ connection, server, pulling, progress, error: pu
               ))}
             </div>
             {bulk.finished && bulk.results.some((item) => !item.done) && (
-              <p className="rounded-lg border border-caution/35 bg-caution/10 px-3 py-2 text-caution">
+              <Notice tone="warn">
                 {t('domains.refusedMany')}
-              </p>
+              </Notice>
             )}
           </div>
         )}
@@ -433,7 +435,7 @@ export function DomainsScreen({ connection, server, pulling, progress, error: pu
           </div>
         )}
       </Modal>
-    </div>
+    </ScreenBody>
   )
 }
 

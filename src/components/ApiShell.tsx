@@ -5,7 +5,7 @@ import { ArrowsClockwise, ArrowsLeftRight } from '@phosphor-icons/react'
 import { useI18n } from '../i18n'
 import { errorText } from '../lib/api'
 import type { Connection } from '../types'
-import { Button, cx, Spinner, Toggle } from './ui'
+import { Button, cx, FOCUS_RING, Notice, Spinner, Toggle } from './ui'
 
 /**
  * Общая обвязка для экранов раздела API: все они читают что-то с сервера,
@@ -31,7 +31,17 @@ export function NotConnected({ onGoToConnection }: { onGoToConnection: () => voi
 
 export function ErrorBar({ error }: { error: string | null }) {
   if (!error) return null
-  return <div className="rounded-lg border border-negative/40 bg-negative/10 px-3 py-2 text-negative">{error}</div>
+  return <Notice tone="danger">{error}</Notice>
+}
+
+/**
+ * Тело экрана: колонка на всю оставшуюся высоту с полями по краям.
+ *
+ * Одинаково у всех десяти экранов, и именно от него зависит, что таблица
+ * прокручивается внутри себя, а не тянет за собой всю страницу.
+ */
+export function ScreenBody({ children }: { children: ReactNode }) {
+  return <div className="flex min-h-0 flex-1 flex-col gap-3 px-6 pb-4">{children}</div>
 }
 
 /** Пустая таблица и «идёт загрузка» выглядят одинаково на всех экранах. */
@@ -168,6 +178,7 @@ export function FilterChip({ active, count, activeClass, className, title, onCli
       onClick={onClick}
       className={cx(
         'flex shrink-0 items-center gap-1.5 rounded-lg border px-2 py-1 text-[11.5px] transition',
+        FOCUS_RING,
         active
           ? activeClass ?? 'border-accent/50 bg-accent/12 text-accent-content'
           : 'border-line-strong text-content-muted hover:bg-surface-3',

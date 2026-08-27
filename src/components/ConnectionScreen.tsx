@@ -9,7 +9,8 @@ import {
   writeStore, type ConnectionProfile, type ConnectionStore, type Environment,
 } from '../lib/connection'
 import type { ServerInfo } from '../types'
-import { Badge, Button, Checkbox, cx, Modal, Segmented, Spinner, TextInput, TextReadout, Toggle } from './ui'
+import { ScreenBody } from './ApiShell'
+import { Badge, Button, Checkbox, cx, Modal, Notice, Segmented, Spinner, TextInput, TextReadout, Toggle } from './ui'
 
 interface Props {
   store: ConnectionStore
@@ -173,7 +174,7 @@ export function ConnectionScreen({ store, onStore, server, activeProfileId, focu
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-3 px-6 pb-4">
+    <ScreenBody>
       {server && (
         <ConnectedStrip
           server={server}
@@ -338,24 +339,21 @@ export function ConnectionScreen({ store, onStore, server, activeProfileId, focu
               </div>
 
               {draft.environment === 'prod' && (
-                <p className="mx-5 mt-3 rounded-lg border border-negative/40 bg-negative/10 px-3 py-2 text-[11.5px] text-negative">
+                <Notice tone="danger" small className="mx-5 mt-3">
                   {t('profiles.prodWarning')}
-                </p>
+                </Notice>
               )}
 
               {testResult && (
-                <p className={cx('mx-5 mt-3 rounded-lg border px-3 py-2 text-[11.5px]',
-                  testResult.ok
-                    ? 'border-positive/35 bg-positive/10 text-positive'
-                    : 'border-negative/40 bg-negative/10 text-negative')}>
+                <Notice tone={testResult.ok ? 'ok' : 'danger'} small className="mx-5 mt-3">
                   {testResult.text}
-                </p>
+                </Notice>
               )}
 
               {error && (
-                <p className="mx-5 mt-3 rounded-lg border border-negative/40 bg-negative/10 px-3 py-2 text-[11.5px] text-negative">
+                <Notice tone="danger" small className="mx-5 mt-3">
                   {error}
-                </p>
+                </Notice>
               )}
 
               <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-line px-5 py-3">
@@ -420,7 +418,7 @@ export function ConnectionScreen({ store, onStore, server, activeProfileId, focu
           </div>
         )}
       </Modal>
-    </div>
+    </ScreenBody>
   )
 }
 
@@ -470,9 +468,9 @@ function ServerCard({ server }: { server: ServerInfo }) {
       </div>
 
       {server.missingPermissions.length > 0 && (
-        <p className="mx-5 mb-4 rounded-lg border border-caution/35 bg-caution/10 px-3 py-2 text-[11.5px] text-caution">
+        <Notice tone="warn" small className="mx-5 mb-4">
           {t('api.missingPermissions', { list: server.missingPermissions.join(', ') })}
-        </p>
+        </Notice>
       )}
 
       <div className="border-t border-line px-5 py-3">

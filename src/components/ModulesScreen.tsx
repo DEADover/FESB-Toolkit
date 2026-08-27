@@ -11,7 +11,7 @@ import type { Connection, ModuleAction, ModuleRow, SavePoint, ServerInfo } from 
 import {
   ErrorBar, NotConnected, Panel, RefreshButton, TableMessage, useApiData,
 } from './ApiShell'
-import { Badge, Button, cx, DataTable, IconButton, Modal, Spinner, Th, THead } from './ui'
+import { Badge, Button, cx, DataTable, IconButton, Modal, Notice, Spinner, Th, THead } from './ui'
 
 interface Props {
   connection: Connection | null
@@ -177,9 +177,9 @@ export function ModulesScreen({ connection, server, onGoToConnection }: Props) {
             </code>
             <p className="text-content-muted">{t('modules.confirm.text')}</p>
             {confirm.module.name === 'factor-broker' && (
-              <p className="rounded-lg border border-caution/35 bg-caution/10 px-3 py-2 text-caution">
+              <Notice tone="warn">
                 {t('modules.confirm.broker')}
-              </p>
+              </Notice>
             )}
           </div>
         )}
@@ -254,7 +254,7 @@ function SavePoints({ connection }: { connection: Connection }) {
         </Button>
       </div>
 
-      {error && <p className="mx-5 mt-3 rounded-lg border border-negative/40 bg-negative/10 px-3 py-2 text-negative">{error}</p>}
+      {error && <Notice tone="danger" className="mx-5 mt-3">{error}</Notice>}
 
       <div className="px-5 py-3">
         {points.length === 0 ? (
@@ -311,9 +311,9 @@ function SavePoints({ connection }: { connection: Connection }) {
               {confirm.point.filename}
             </code>
             {confirm.action === 'rollback' ? (
-              <p className="rounded-lg border border-negative/40 bg-negative/10 px-3 py-2 text-negative">
+              <Notice tone="danger">
                 {t('savepoints.confirm.rollbackText')}
-              </p>
+              </Notice>
             ) : (
               <p className="text-content-muted">{t('savepoints.confirm.deleteText')}</p>
             )}

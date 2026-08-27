@@ -5,7 +5,7 @@ import { useI18n } from '../i18n'
 import { apiDomainStatistics } from '../lib/api'
 import type { Connection, DomainStat, ServerInfo } from '../types'
 import {
-  AutoRefreshToggle, ErrorBar, NotConnected, Panel, RefreshButton, TableMessage, useApiData, useAutoRefresh,
+  AutoRefreshToggle, ErrorBar, NotConnected, Panel, RefreshButton, ScreenBody, TableMessage, useApiData, useAutoRefresh,
 } from './ApiShell'
 import { Badge, cx, DataTable, Readout, SearchInput, Th, THead, Toggle } from './ui'
 
@@ -77,7 +77,7 @@ export function MapScreen({ connection, server, onOpenRoutes, onGoToConnection }
   if (!connection || !server) return <NotConnected onGoToConnection={onGoToConnection} />
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-3 px-6 pb-4">
+    <ScreenBody>
       <div className="flex items-center gap-7 rounded-xl border border-line bg-surface px-5 py-3.5">
         <Readout label={t('map.domains')} value={`${totals.active} / ${totals.domains}`} hint={t('map.domains.hint')} />
         <Readout label={t('map.routes')} value={`${totals.running} / ${totals.routes}`} hint={t('map.routes.hint')} />
@@ -177,7 +177,7 @@ export function MapScreen({ connection, server, onOpenRoutes, onGoToConnection }
           </tbody>
         </DataTable>
       </Panel>
-    </div>
+    </ScreenBody>
   )
 }
 

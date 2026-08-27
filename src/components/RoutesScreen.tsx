@@ -13,7 +13,7 @@ import type {
   RouteFile, RouteState, ServerInfo,
 } from '../types'
 import {
-  AutoRefreshToggle, ErrorBar, NotConnected, Panel, RefreshButton, TableMessage, useApiData, useAutoRefresh,
+  AutoRefreshToggle, ErrorBar, NotConnected, Panel, RefreshButton, ScreenBody, TableMessage, useApiData, useAutoRefresh,
 } from './ApiShell'
 import { RouteViewer } from './RouteViewer'
 import { Badge, cx, DataTable, IconButton, SearchInput, Spinner, Th, THead } from './ui'
@@ -177,7 +177,7 @@ export function RoutesScreen({ connection, server, isMac, initialGuid, onGoToCon
   const openState = open?.id ? states[open.id] ?? null : null
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-3 px-6 pb-4">
+    <ScreenBody>
       <ErrorBar error={stats.error ?? error} />
 
       <div className="flex min-h-0 flex-1 gap-3">
@@ -360,7 +360,7 @@ export function RoutesScreen({ connection, server, isMac, initialGuid, onGoToCon
         }}
         onClose={() => setOpen(null)}
       />
-    </div>
+    </ScreenBody>
   )
 }
 

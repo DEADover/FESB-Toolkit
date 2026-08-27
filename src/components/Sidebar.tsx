@@ -4,7 +4,7 @@ import { LANGUAGES, useI18n, type MessageKey } from '../i18n'
 import { openRepository, REPOSITORY_URL } from '../lib/api'
 import type { ThemeMode } from '../lib/theme'
 import type { AppInfo } from '../types'
-import { cx } from './ui'
+import { cx, FOCUS_RING } from './ui'
 
 export type ScreenId =
   | 'files.trace'
@@ -85,7 +85,7 @@ export function Sidebar({ screen, onScreen, info, isMac, collapsed, onCollapse, 
             onClick={onCollapse}
             aria-label={collapsed ? t('action.showSidebar') : t('action.hideSidebar')}
             title={collapsed ? t('action.showSidebar') : t('action.hideSidebar')}
-            className="grid size-6 shrink-0 place-items-center rounded-md text-content-subtle transition hover:bg-surface-3 hover:text-content"
+            className={cx('grid size-6 shrink-0 place-items-center rounded-md text-content-subtle transition hover:bg-surface-3 hover:text-content', FOCUS_RING)}
           >
             {collapsed ? <CaretRight size={13} weight="bold" /> : <CaretLeft size={13} weight="bold" />}
           </button>
@@ -110,6 +110,7 @@ export function Sidebar({ screen, onScreen, info, isMac, collapsed, onCollapse, 
                       aria-label={t(section.settings.title)}
                       className={cx(
                         'ml-auto grid size-7 place-items-center rounded-md transition',
+                        FOCUS_RING,
                         screen === section.settings.screen
                           ? 'bg-accent/20 text-accent-content'
                           : 'text-content-subtle hover:bg-surface-3 hover:text-content',
@@ -153,6 +154,7 @@ export function Sidebar({ screen, onScreen, info, isMac, collapsed, onCollapse, 
                     title={collapsed ? t(item.label) : undefined}
                     className={cx(
                       'flex w-full items-center gap-2.5 rounded-lg py-1.5 text-left transition',
+                      FOCUS_RING,
                       collapsed ? 'justify-center px-0' : 'px-2.5',
                       item.disabled && 'cursor-not-allowed opacity-45',
                       screen === item.id ? 'bg-accent/12 text-content' : 'text-content-muted',
@@ -240,7 +242,7 @@ function FooterButton({ icon: Glyph, text, label, onClick, className }: {
       className={cx(
         'grid size-8 shrink-0 place-items-center rounded-lg text-content-subtle transition',
         'hover:bg-surface-3 hover:text-content',
-        'focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent',
+        FOCUS_RING,
         className,
       )}
     >

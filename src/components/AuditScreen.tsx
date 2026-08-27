@@ -5,7 +5,7 @@ import { useI18n } from '../i18n'
 import { apiAudit, errorText } from '../lib/api'
 import type { AuditEntry, Connection, ServerInfo } from '../types'
 import {
-  AutoRefreshToggle, ErrorBar, FilterChip, LimitSelect, NotConnected, Panel, RefreshButton, TableMessage, useAutoRefresh,
+  AutoRefreshToggle, ErrorBar, FilterChip, LimitSelect, NotConnected, Panel, RefreshButton, ScreenBody, TableMessage, useAutoRefresh,
 } from './ApiShell'
 import { Badge, CodePill, cx, DataTable, SearchInput, Th, THead } from './ui'
 
@@ -78,7 +78,7 @@ export function AuditScreen({ connection, server, onGoToConnection }: Props) {
   if (!connection || !server) return <NotConnected onGoToConnection={onGoToConnection} />
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-3 px-6 pb-4">
+    <ScreenBody>
       <div className="flex items-center gap-2">
         <SearchInput
           className="flex-1"
@@ -188,7 +188,7 @@ export function AuditScreen({ connection, server, onGoToConnection }: Props) {
           </tbody>
         </DataTable>
       </Panel>
-    </div>
+    </ScreenBody>
   )
 }
 

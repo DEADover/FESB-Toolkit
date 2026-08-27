@@ -6,9 +6,9 @@ import { apiDomains, apiProperties, apiSaveProperty, errorText } from '../lib/ap
 import { humanizeKey } from '../lib/propertyName'
 import type { ApiDomain, Connection, PropertyRow, PropertyScope, ServerInfo } from '../types'
 import {
-  ErrorBar, NotConnected, Panel, RefreshButton, TableMessage, useApiData,
+  ErrorBar, NotConnected, Panel, RefreshButton, ScreenBody, TableMessage, useApiData,
 } from './ApiShell'
-import { Badge, Button, Checkbox, cx, DataTable, Modal, SearchInput, Segmented, Spinner, SuggestInput, TextInput, Th, THead } from './ui'
+import { Badge, Button, Checkbox, cx, DataTable, Modal, Notice, SearchInput, Segmented, Spinner, SuggestInput, TextInput, Th, THead } from './ui'
 
 interface Props {
   connection: Connection | null
@@ -104,7 +104,7 @@ export function PropertiesScreen({ connection, server, onGoToConnection }: Props
   const selectedDomain = (domains.data ?? []).find((domain) => domain.guid === domainGuid)
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-3 px-6 pb-4">
+    <ScreenBody>
       <div className="flex items-center gap-2">
         <Segmented<ScopeId>
           ariaLabel={t('properties.scope')}
@@ -260,15 +260,15 @@ export function PropertiesScreen({ connection, server, onGoToConnection }: Props
               {t('properties.secured')}
             </label>
             {adding.secured && (
-              <p className="rounded-lg border border-caution/35 bg-caution/10 px-3 py-2 text-[11.5px] text-caution">
+              <Notice tone="warn" small>
                 {t('properties.securedHint')}
-              </p>
+              </Notice>
             )}
           </div>
         )}
       </Modal>
 
-    </div>
+    </ScreenBody>
   )
 }
 

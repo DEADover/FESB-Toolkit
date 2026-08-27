@@ -2,10 +2,10 @@
 export const en = {
   'app.name': 'FESB Toolkit',
 
-  'nav.files': 'Configuration files',
-  'nav.files.trace': 'Trace configuration',
-  'nav.files.links': 'Domain links',
-  'nav.files.links.title': 'Links between domains',
+  'nav.files': 'Configuration Files',
+  'nav.files.trace': 'Trace Configuration',
+  'nav.files.links': 'Domain Links',
+  'nav.files.links.title': 'Links Between Domains',
 
   'domainLinks.noScan': 'No configuration open',
   'domainLinks.noScan.text': 'Links are built from the whole export. Open a folder, or download domains from a server first.',
@@ -52,7 +52,6 @@ export const en = {
   'settings.theme.dark': 'Dark',
   'settings.language': 'Language',
 
-  'header.trace': 'Trace configuration',
   'header.fesbVersion': 'FESB version from the version file',
   'header.noFolder': 'No folder selected',
   'header.folder': 'Folder',
@@ -257,8 +256,8 @@ export const en = {
   'skip.already-set': 'Value was already correct',
 
 
-  'nav.api.connection.title': 'Server connection',
-  'nav.api.domains.title': 'Server domains',
+  'nav.api.connection.title': 'Server Connection',
+  'nav.api.domains.title': 'Server Domains',
 
   'header.server': 'Server',
 
@@ -294,7 +293,7 @@ export const en = {
   'profiles.confirmDelete': 'Delete the connection?',
   'profiles.confirmDeleteText': 'The profile disappears from the list. The server itself is not touched.',
   'profiles.prodWarning': 'This is a production stand. Everything you send from the trace screen lands on it.',
-  'profiles.serverDetails': 'Details of the open connection',
+  'profiles.serverDetails': 'Details of the Open Connection',
   'profiles.autoConnect': 'Connect to the last used server on start',
   'profiles.autoConnect.hint': 'Only works for a connection whose password is remembered',
   'profiles.autoConnect.blocked': 'The last used connection has no saved password, so nothing will connect on start.',
@@ -362,13 +361,13 @@ export const en = {
   'push.reloadedOff': 'The files were written, but running domains still use the old configuration until they are restarted.',
 
   'nav.api.queues': 'Queues',
-  'nav.api.queues.title': 'Queue managers',
+  'nav.api.queues.title': 'Queue Managers',
   'nav.api.modules': 'Modules',
-  'nav.api.modules.title': 'Bus modules',
+  'nav.api.modules.title': 'Bus Modules',
   'nav.api.properties': 'Constants',
   'nav.api.properties.title': 'Constants',
   'nav.api.logs': 'Logs',
-  'nav.api.logs.title': 'Server logs',
+  'nav.api.logs.title': 'Server Logs',
 
   'domains.confirm.stopMany': 'Stop the selected domains?',
   'domains.confirm.restartMany': 'Restart the selected domains?',
@@ -382,13 +381,13 @@ export const en = {
   'domains.confirm.stop': 'Stop the domain?',
   'domains.confirm.restart': 'Restart the domain?',
   'domains.confirm.text': 'Its routes stop processing messages until the domain is back up.',
-  'nav.api.map': 'Domain map',
-  'nav.api.map.title': 'Domain map',
+  'nav.api.map': 'Domain Map',
+  'nav.api.map.title': 'Domain Map',
   'nav.api.routes': 'Routes',
-  'nav.api.routes.title': 'Server routes',
+  'nav.api.routes.title': 'Server Routes',
 
   'nav.api.audit': 'Audit',
-  'nav.api.audit.title': 'Audit trail',
+  'nav.api.audit.title': 'Audit Trail',
 
   'audit.search': 'Search in the audit trail',
   'audit.ip': 'Address',
@@ -434,7 +433,7 @@ export const en = {
   'routes.last': 'Last message',
   'routes.noAutoStart': 'Does not start with the domain',
 
-  'savepoints.title': 'Restore points',
+  'savepoints.title': 'Restore Points',
   'savepoints.hint': 'A snapshot of the whole server configuration',
   'savepoints.create': 'Take a restore point',
   'savepoints.create.hint': 'Takes a while: the bus packs the whole configuration',
@@ -465,7 +464,7 @@ export const en = {
   'modules.confirm.text': 'Message processing in this module stops until it comes back up.',
   'modules.confirm.broker': 'This is the Broker: every domain and route stops with it, then starts again.',
 
-  'queues.managers': 'Queue managers',
+  'queues.managers': 'Queue Managers',
   'queues.noManagers': 'The server has no queue managers',
   'queues.autoStart': 'Starts with the bus',
   'queues.openMessages': 'Open the messages of this queue',

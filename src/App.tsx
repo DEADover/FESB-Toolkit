@@ -16,7 +16,7 @@ import { RoutesScreen } from './components/RoutesScreen'
 import { Sidebar, type ScreenId } from './components/Sidebar'
 import { RefreshButton } from './components/ApiShell'
 import { TraceScreen } from './components/TraceScreen'
-import { Badge, Button, Spinner, cx } from './components/ui'
+import { Badge, Button, cx, Notice, Spinner } from './components/ui'
 import { useI18n, type MessageKey } from './i18n'
 import {
   apiConnect, apiPull, appInfo, errorText, onApiProgress, onExtractProgress, onFileDrop,
@@ -272,7 +272,7 @@ export default function App() {
     'api.properties': 'nav.api.properties.title',
     'api.logs': 'nav.api.logs.title',
   }
-  const screenTitle = t(API_TITLES[screen] ?? 'header.trace')
+  const screenTitle = t(API_TITLES[screen] ?? 'nav.files.trace')
 
   return (
     <div className="relative flex h-full">
@@ -456,7 +456,7 @@ function EmptyState({ busy, unpacking, progress, extractProgress, onPickFolder, 
               <Button variant="primary" onClick={onPickFolder}>{t('action.selectFolder')}</Button>
               <Button onClick={onPickArchive}>{t('action.openArchive')}</Button>
             </div>
-            {error && <p className="mt-4 rounded-lg border border-negative/40 bg-negative/10 px-3 py-2 text-negative">{error}</p>}
+            {error && <Notice tone="danger" className="mt-4">{error}</Notice>}
           </>
         )}
       </div>

@@ -6,6 +6,16 @@ export function cx(...parts: Array<string | false | null | undefined>): string {
   return parts.filter(Boolean).join(' ')
 }
 
+/**
+ * Кольцо фокуса с клавиатуры.
+ *
+ * Одно на все органы управления: до этого оно было у трёх из семи, и по Tab
+ * половина интерфейса шла вслепую. Отступ в один пиксель — чтобы кольцо
+ * не наезжало на соседей в плотных рядах.
+ */
+export const FOCUS_RING =
+  'focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent'
+
 type ButtonProps = ComponentProps<'button'> & {
   variant?: 'primary' | 'secondary' | 'ghost'
   size?: 'sm' | 'md'
@@ -14,7 +24,7 @@ type ButtonProps = ComponentProps<'button'> & {
 export function Button({ variant = 'secondary', size = 'md', className, ...rest }: ButtonProps) {
   const base =
     'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg font-medium transition ' +
-    'disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent'
+    'disabled:cursor-not-allowed disabled:opacity-40 ' + FOCUS_RING
   const sizes = { sm: 'h-7 px-2.5 text-[12px]', md: 'h-9 px-3.5 text-[13px]' }
   const variants = {
     primary: 'bg-accent-strong text-white hover:bg-accent shadow-sm shadow-accent-strong/25',
@@ -49,7 +59,7 @@ export function IconButton({ icon: Glyph, label, busy, disabled, tone, onClick }
       className={cx(
         'grid size-7 shrink-0 place-items-center rounded-md border border-line-strong bg-surface-2 text-[12px] transition',
         'hover:bg-surface-3 hover:text-content disabled:cursor-not-allowed disabled:opacity-35',
-        'focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent',
+        FOCUS_RING,
         tone === 'danger' ? 'text-negative' : 'text-content-muted',
       )}
     >
@@ -119,7 +129,7 @@ export function Checkbox({ className, ...rest }: ComponentProps<'input'>) {
         'indeterminate:border-accent indeterminate:bg-accent-strong',
         "indeterminate:after:block indeterminate:after:h-full indeterminate:after:w-full indeterminate:after:bg-[url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22 fill=%22white%22><rect x=%224%22 y=%227%22 width=%228%22 height=%222%22 rx=%221%22/></svg>')] indeterminate:after:bg-contain",
         'disabled:cursor-not-allowed disabled:opacity-40',
-        'focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent',
+        FOCUS_RING,
         className,
       )}
       {...rest}
@@ -172,6 +182,31 @@ export function SearchInput({ value, placeholder, onChange, className, inputRef,
 }
 
 /**
+ * Полоса-уведомление: ошибка, предупреждение, подтверждение.
+ *
+ * Лежала восемнадцатью копиями с разной прозрачностью рамки (/40 против /35)
+ * и разным кеглем. Отступы снаружи задаёт тот, кто ставит полосу: она
+ * встречается и в потоке экрана, и внутри панели с собственными полями.
+ */
+export function Notice({ tone, small, className, children }: {
+  tone: 'danger' | 'warn' | 'ok'
+  small?: boolean
+  className?: string
+  children: ReactNode
+}) {
+  const tones = {
+    danger: 'border-negative/35 bg-negative/10 text-negative',
+    warn: 'border-caution/35 bg-caution/10 text-caution',
+    ok: 'border-positive/35 bg-positive/10 text-positive',
+  }
+  return (
+    <div className={cx('rounded-lg border px-3 py-2', small && 'text-[11.5px]', tones[tone], className)}>
+      {children}
+    </div>
+  )
+}
+
+/**
  * Переключатель-пилюля: чекбокс с подписью в рамке высотой с поле ввода.
  *
  * Лежал шестью копиями — «только активные», «только проблемные», «скрыть
@@ -191,6 +226,7 @@ export function Toggle({ checked, onChange, label, disabled, title }: {
       className={cx(
         'flex h-9 shrink-0 items-center gap-2 whitespace-nowrap rounded-lg border border-line-strong',
         'bg-surface px-3 text-[12.5px] text-content-muted',
+        'has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-1 has-[:focus-visible]:outline-accent',
         disabled ? 'cursor-not-allowed opacity-45' : 'cursor-pointer',
       )}
     >
@@ -231,6 +267,7 @@ export function Segmented<T extends string>({ value, options, onChange, ariaLabe
           onClick={() => onChange(option.id)}
           className={cx(
             'rounded-[6px] px-2 py-1 text-[11.5px] font-medium transition',
+            FOCUS_RING,
             value === option.id ? 'bg-accent-strong text-white' : 'text-content-muted hover:text-content',
           )}
         >

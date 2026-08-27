@@ -19,7 +19,8 @@ import type {
 import { ReportDialog } from './ReportDialog'
 import { RouteViewer } from './RouteViewer'
 import { TraceTable } from './TraceTable'
-import { Badge, Button, cx, DataTable, Modal, ScrollStrip, SearchInput, Spinner, Stat, SuggestInput, Th, THead, Toggle } from './ui'
+import { ScreenBody } from './ApiShell'
+import { Badge, Button, cx, DataTable, Modal, Notice, ScrollStrip, SearchInput, Spinner, Stat, SuggestInput, Th, THead, Toggle } from './ui'
 
 interface Props {
   scan: ScanResult
@@ -464,7 +465,7 @@ export function TraceScreen({ scan, isMac, sourcePath, server, onRescan }: Props
   const shortcut = isMac ? '⌘' : 'Ctrl'
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-3 px-6 pb-4">
+    <ScreenBody>
       <div className="flex items-center gap-7 rounded-xl border border-line bg-surface px-5 py-3.5">
         <Stat label={t('stats.domains')} value={summary.domains} />
         <Stat label={t('stats.traceBeans')} value={summary.traces} />
@@ -570,7 +571,7 @@ export function TraceScreen({ scan, isMac, sourcePath, server, onRescan }: Props
         </div>
       </div>
 
-      {error && <div className="rounded-lg border border-negative/40 bg-negative/10 px-3 py-2 text-negative">{error}</div>}
+      {error && <Notice tone="danger">{error}</Notice>}
 
       <TraceTable
         groups={visible}
@@ -696,10 +697,9 @@ export function TraceScreen({ scan, isMac, sourcePath, server, onRescan }: Props
             <li>{t('confirm.beans', { count: selectedEntries.length })}</li>
             <li>{t('confirm.values', { count: valuesToChange })}</li>
           </ul>
-          <p className={cx('rounded-lg border px-3 py-2',
-            makeBackup ? 'border-positive/35 bg-positive/10 text-positive' : 'border-caution/35 bg-caution/10 text-caution')}>
+          <Notice tone={makeBackup ? 'ok' : 'warn'}>
             {makeBackup ? t('confirm.backupOn') : t('confirm.backupOff')}
-          </p>
+          </Notice>
           {dryRun && <p className="text-content-muted">{t('confirm.dryRunNote')}</p>}
         </div>
       </Modal>
@@ -812,12 +812,9 @@ export function TraceScreen({ scan, isMac, sourcePath, server, onRescan }: Props
             {pushResult.message && (
               <p className="rounded-lg border border-line px-3 py-2 text-content-muted">{pushResult.message}</p>
             )}
-            <p className={cx('rounded-lg border px-3 py-2',
-              pushResult.reloaded
-                ? 'border-positive/35 bg-positive/10 text-positive'
-                : 'border-caution/35 bg-caution/10 text-caution')}>
+            <Notice tone={pushResult.reloaded ? 'ok' : 'warn'}>
               {pushResult.reloaded ? t('push.reloadedOn') : t('push.reloadedOff')}
-            </p>
+            </Notice>
           </div>
         )}
 
@@ -851,12 +848,12 @@ export function TraceScreen({ scan, isMac, sourcePath, server, onRescan }: Props
             </div>
             <p className="text-content-muted">{t('zip.hint')}</p>
             {!archive.hasVersion && (
-              <p className="rounded-lg border border-caution/35 bg-caution/10 px-3 py-2 text-caution">{t('zip.noVersion')}</p>
+              <Notice tone="warn">{t('zip.noVersion')}</Notice>
             )}
           </div>
         )}
       </Modal>
-    </div>
+    </ScreenBody>
   )
 }
 
@@ -885,14 +882,14 @@ function VerifyReport({ result }: { result: VerifyResult }) {
       </div>
 
       {clean ? (
-        <p className="rounded-lg border border-positive/35 bg-positive/10 px-3 py-2 text-positive">
+        <Notice tone="ok">
           {t('verify.clean', { count: result.values })}
-        </p>
+        </Notice>
       ) : (
         <>
-          <p className="rounded-lg border border-negative/40 bg-negative/10 px-3 py-2 text-negative">
+          <Notice tone="danger">
             {t('verify.dirty', { count: result.mismatches.length })}
-          </p>
+          </Notice>
           <div className="max-h-64 overflow-auto rounded-lg border border-line">
             <DataTable>
               <colgroup>

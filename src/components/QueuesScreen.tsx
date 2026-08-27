@@ -6,9 +6,9 @@ import { useI18n } from '../i18n'
 import { apiQueueManagers, apiQueueMessage, apiQueueMessages, apiQueues, errorText } from '../lib/api'
 import type { Connection, QueueManager, QueueMessage, QueueRow, ServerInfo } from '../types'
 import {
-  AutoRefreshToggle, ErrorBar, NotConnected, Panel, RefreshButton, TableMessage, useApiData, useAutoRefresh,
+  AutoRefreshToggle, ErrorBar, NotConnected, Panel, RefreshButton, ScreenBody, TableMessage, useApiData, useAutoRefresh,
 } from './ApiShell'
-import { Badge, Button, Checkbox, cx, DataTable, IconButton, SearchInput, Spinner, Th, THead } from './ui'
+import { Badge, Button, Checkbox, cx, DataTable, IconButton, Notice, SearchInput, Spinner, Th, THead } from './ui'
 
 interface Props {
   connection: Connection | null
@@ -95,7 +95,7 @@ export function QueuesScreen({ connection, server, onGoToConnection }: Props) {
   const list = managers.data ?? []
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-3 px-6 pb-4">
+    <ScreenBody>
       <ErrorBar error={managers.error} />
 
       <div className="flex min-h-0 flex-1 gap-3">
@@ -169,9 +169,9 @@ export function QueuesScreen({ connection, server, onGoToConnection }: Props) {
           <ErrorBar error={queueError} />
 
           {selected && !selected.running && (
-            <p className="rounded-lg border border-caution/35 bg-caution/10 px-3 py-2 text-[11.5px] text-caution">
+            <Notice tone="warn" small>
               {t('queues.stoppedHint', { broker: selected.broker })}
-            </p>
+            </Notice>
           )}
 
           {inbox && selected ? (
@@ -241,7 +241,7 @@ export function QueuesScreen({ connection, server, onGoToConnection }: Props) {
           )}
         </div>
       </div>
-    </div>
+    </ScreenBody>
   )
 }
 

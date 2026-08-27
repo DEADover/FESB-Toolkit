@@ -5,7 +5,7 @@ import { useI18n } from '../i18n'
 import { apiLog, apiLogFiles, errorText } from '../lib/api'
 import type { Connection, LogEntry, LogFileRow, ServerInfo } from '../types'
 import {
-  AutoRefreshToggle, ErrorBar, FilterChip, LimitSelect, NotConnected, Panel, RefreshButton, TableMessage, useApiData, useAutoRefresh,
+  AutoRefreshToggle, ErrorBar, FilterChip, LimitSelect, NotConnected, Panel, RefreshButton, ScreenBody, TableMessage, useApiData, useAutoRefresh,
 } from './ApiShell'
 import { Badge, Button, CodePill, cx, DataTable, ScrollStrip, SearchInput, Th, THead, TONES, type Tone } from './ui'
 
@@ -117,7 +117,7 @@ export function LogsScreen({ connection, server, onGoToConnection }: Props) {
   if (!connection || !server) return <NotConnected onGoToConnection={onGoToConnection} />
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-3 px-6 pb-4">
+    <ScreenBody>
       <div className="flex items-center gap-2">
         <SearchInput
           className="flex-1"
@@ -261,7 +261,7 @@ export function LogsScreen({ connection, server, onGoToConnection }: Props) {
           </tbody>
         </DataTable>
       </Panel>
-    </div>
+    </ScreenBody>
   )
 }
 

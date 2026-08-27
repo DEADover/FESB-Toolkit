@@ -6,8 +6,10 @@ import { useI18n } from '../i18n'
 import { errorText, routeLinks } from '../lib/api'
 import type { LinkGraph, ScanResult } from '../types'
 import { RouteViewer } from './RouteViewer'
-import { RefreshButton } from './ApiShell'
-import { Badge, cx, DataTable, Readout, SearchInput, Th, THead, Toggle } from './ui'
+import {
+  RefreshButton, ScreenBody,
+} from './ApiShell'
+import { Badge, cx, DataTable, Notice, Readout, SearchInput, Th, THead, Toggle } from './ui'
 
 interface Props {
   scan: ScanResult | null
@@ -140,7 +142,7 @@ export function DomainLinksScreen({ scan, isMac }: Props) {
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-3 px-6 pb-4">
+    <ScreenBody>
       <div className="flex items-center gap-7 rounded-xl border border-line bg-surface px-5 py-3.5">
         <Readout label={t('domainLinks.total')} value={totals.links.toLocaleString()} />
         <Readout label={t('domainLinks.cross')} value={totals.crossLinks.toLocaleString()} tone="accent" />
@@ -171,7 +173,7 @@ export function DomainLinksScreen({ scan, isMac }: Props) {
         </span>
       </div>
 
-      {error && <div className="rounded-lg border border-negative/40 bg-negative/10 px-3 py-2 text-negative">{error}</div>}
+      {error && <Notice tone="danger">{error}</Notice>}
 
       <div className="min-h-0 flex-1 overflow-auto rounded-xl border border-line bg-surface">
         <DataTable>
@@ -271,7 +273,7 @@ export function DomainLinksScreen({ scan, isMac }: Props) {
         live={null}
         onClose={() => setRoute(null)}
       />
-    </div>
+    </ScreenBody>
   )
 }
 

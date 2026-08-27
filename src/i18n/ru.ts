@@ -3,10 +3,10 @@ import type { en } from './en'
 export const ru: Record<keyof typeof en, string> = {
   'app.name': 'FESB Toolkit',
 
-  'nav.files': 'Файлы конфигурации',
-  'nav.files.trace': 'Настройки трассировки',
-  'nav.files.links': 'Связи доменов',
-  'nav.files.links.title': 'Связи между доменами',
+  'nav.files': 'Файлы Конфигурации',
+  'nav.files.trace': 'Настройки Трассировки',
+  'nav.files.links': 'Связи Доменов',
+  'nav.files.links.title': 'Связи Между Доменами',
 
   'domainLinks.noScan': 'Конфигурация не открыта',
   'domainLinks.noScan.text': 'Связи считаются по всей выгрузке — сначала откройте папку или заберите домены с сервера.',
@@ -53,7 +53,6 @@ export const ru: Record<keyof typeof en, string> = {
   'settings.theme.dark': 'Тёмная',
   'settings.language': 'Язык',
 
-  'header.trace': 'Настройки трассировки',
   'header.fesbVersion': 'Версия FESB из файла version',
   'header.noFolder': 'Папка не выбрана',
   'header.folder': 'Папка',
@@ -257,8 +256,8 @@ export const ru: Record<keyof typeof en, string> = {
   'skip.value-changed': 'Значение изменилось с момента сканирования',
   'skip.already-set': 'Значение уже было нужным',
 
-  'nav.api.connection.title': 'Подключение к серверу',
-  'nav.api.domains.title': 'Домены сервера',
+  'nav.api.connection.title': 'Подключение К Серверу',
+  'nav.api.domains.title': 'Домены Сервера',
 
   'header.server': 'Сервер',
 
@@ -294,7 +293,7 @@ export const ru: Record<keyof typeof en, string> = {
   'profiles.confirmDelete': 'Удалить подключение?',
   'profiles.confirmDeleteText': 'Профиль пропадёт из списка. Сам сервер при этом не трогается.',
   'profiles.prodWarning': 'Это боевой стенд. Всё, что вы отправите с экрана трассировки, попадёт на него.',
-  'profiles.serverDetails': 'Подробности открытого подключения',
+  'profiles.serverDetails': 'Подробности Открытого Подключения',
   'profiles.autoConnect': 'Подключаться к последнему серверу при запуске',
   'profiles.autoConnect.hint': 'Работает только для подключения с сохранённым паролем',
   'profiles.autoConnect.blocked': 'У последнего подключения не сохранён пароль, поэтому при запуске ничего не подключится.',
@@ -362,13 +361,13 @@ export const ru: Record<keyof typeof en, string> = {
   'push.reloadedOff': 'Файлы записаны, но запущенные домены будут работать со старой конфигурацией до перезапуска.',
 
   'nav.api.queues': 'Очереди',
-  'nav.api.queues.title': 'Менеджеры очередей',
+  'nav.api.queues.title': 'Менеджеры Очередей',
   'nav.api.modules': 'Модули',
-  'nav.api.modules.title': 'Модули шины',
+  'nav.api.modules.title': 'Модули Шины',
   'nav.api.properties': 'Константы',
   'nav.api.properties.title': 'Константы',
   'nav.api.logs': 'Журналы',
-  'nav.api.logs.title': 'Журналы сервера',
+  'nav.api.logs.title': 'Журналы Сервера',
 
   'domains.confirm.stopMany': 'Остановить выбранные домены?',
   'domains.confirm.restartMany': 'Перезапустить выбранные домены?',
@@ -382,13 +381,13 @@ export const ru: Record<keyof typeof en, string> = {
   'domains.confirm.stop': 'Остановить домен?',
   'domains.confirm.restart': 'Перезапустить домен?',
   'domains.confirm.text': 'СОПС домена перестанут обрабатывать сообщения до его возврата в работу.',
-  'nav.api.map': 'Карта доменов',
-  'nav.api.map.title': 'Карта доменов',
+  'nav.api.map': 'Карта Доменов',
+  'nav.api.map.title': 'Карта Доменов',
   'nav.api.routes': 'СОПС',
-  'nav.api.routes.title': 'СОПС сервера',
+  'nav.api.routes.title': 'СОПС Сервера',
 
   'nav.api.audit': 'Аудит',
-  'nav.api.audit.title': 'Журнал аудита',
+  'nav.api.audit.title': 'Журнал Аудита',
 
   'audit.search': 'Поиск по аудиту',
   'audit.ip': 'Адрес',
@@ -434,7 +433,7 @@ export const ru: Record<keyof typeof en, string> = {
   'routes.last': 'Последнее сообщение',
   'routes.noAutoStart': 'не стартует вместе с доменом',
 
-  'savepoints.title': 'Точки восстановления',
+  'savepoints.title': 'Точки Восстановления',
   'savepoints.hint': 'снимок всей конфигурации сервера',
   'savepoints.create': 'Снять точку',
   'savepoints.create.hint': 'Займёт время: шина упаковывает всю конфигурацию',
@@ -465,7 +464,7 @@ export const ru: Record<keyof typeof en, string> = {
   'modules.confirm.text': 'Обработка сообщений в модуле прекратится до его возврата в работу.',
   'modules.confirm.broker': 'Это брокер: вместе с ним остановятся и снова запустятся все домены и СОПС.',
 
-  'queues.managers': 'Менеджеры очередей',
+  'queues.managers': 'Менеджеры Очередей',
   'queues.noManagers': 'На сервере нет менеджеров очередей',
   'queues.autoStart': 'стартует вместе с шиной',
   'queues.openMessages': 'Открыть сообщения этой очереди',

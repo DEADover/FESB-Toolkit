@@ -7,7 +7,7 @@ import { errorText, readRoute, revealPath } from '../lib/api'
 import type { RouteGraph, RouteNeighbours, RouteNode, RouteState } from '../types'
 import { byUri } from '../lib/links'
 import { kindLabel, RouteDiagram, scheme, shortUri } from './RouteDiagram'
-import { Badge, Button, cx, DataTable, Spinner } from './ui'
+import { Badge, Button, cx, DataTable, Notice, Spinner } from './ui'
 
 interface Props {
   /** Путь к файлу СОПС; `null` — просмотрщик закрыт. */
@@ -132,7 +132,7 @@ export function RouteViewer({ path, domainName, isMac, live, links, onOpenRoute,
             </div>
           )}
           {error && (
-            <div className="m-5 rounded-lg border border-negative/40 bg-negative/10 px-3 py-2 text-negative">{error}</div>
+            <Notice tone="danger" className="m-5">{error}</Notice>
           )}
           {!loading && !error && graph && (
             <RouteDiagram
@@ -182,9 +182,9 @@ function LiveStrip({ live }: { live: RouteState }) {
       <Metric label={t('routes.time')} value={`${live.minMs} / ${live.meanMs} / ${live.maxMs} ${t('routes.ms')}`} />
       {live.lastProcessed && <Metric label={t('routes.last')} value={live.lastProcessed.replace('T', ' ').slice(0, 19)} />}
       {!live.autoStartup && (
-        <span className="ml-auto rounded-md border border-caution/35 bg-caution/10 px-2 py-0.5 text-[10.5px] text-caution">
+        <Badge tone="warn" className="ml-auto">
           {t('routes.noAutoStart')}
-        </span>
+        </Badge>
       )}
     </div>
   )
