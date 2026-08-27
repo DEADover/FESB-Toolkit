@@ -1,10 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 
-import {
-  ArrowElbowUpRight, ArrowLineDown, ArrowLineRight, ArrowRight, ArrowsClockwise, ArrowsLeftRight,
-  ArrowsMerge, ArrowsSplit, Backspace, Circle, Database, Diamond, Function as FunctionIcon, Funnel,
-  Gear, NotePencil, Play, PlusSquare, ShareNetwork, ShieldCheck, Stop, Warning, XCircle, type Icon,
-} from '@phosphor-icons/react'
+import { ArrowElbowUpRight, ArrowLeft, ArrowLineDown, ArrowLineRight, ArrowRight, ArrowsClockwise, ArrowsLeftRight, ArrowsMerge, ArrowsSplit, Backspace, Circle, Database, Diamond, Function as FunctionIcon, Funnel, Gear, Minus, NotePencil, Play, Plus, PlusSquare, ShareNetwork, ShieldCheck, Stop, Warning, XCircle, type Icon } from '@phosphor-icons/react'
 
 import { useI18n, type MessageKey, type Translate } from '../i18n'
 import { normalizeUri } from '../lib/links'
@@ -537,7 +533,7 @@ export function RouteDiagram({ nodes, selected, onSelect, outgoing, incoming, on
       </div>
 
       <div className="absolute bottom-4 left-4 flex items-center gap-1 rounded-xl border border-line bg-surface/90 px-1.5 py-1 backdrop-blur">
-        <ToolButton label="−" title={t('route.zoomOut')} onClick={() => zoom(1 / 1.2)} />
+        <ToolButton icon={Minus} title={t('route.zoomOut')} onClick={() => zoom(1 / 1.2)} />
         <button
           type="button"
           onClick={fit}
@@ -546,7 +542,7 @@ export function RouteDiagram({ nodes, selected, onSelect, outgoing, incoming, on
         >
           {Math.round(view.scale * 100)}%
         </button>
-        <ToolButton label="+" title={t('route.zoomIn')} onClick={() => zoom(1.2)} />
+        <ToolButton icon={Plus} title={t('route.zoomIn')} onClick={() => zoom(1.2)} />
       </div>
 
       <p className="pointer-events-none absolute bottom-4 right-4 text-[10.5px] text-content-subtle">
@@ -556,16 +552,16 @@ export function RouteDiagram({ nodes, selected, onSelect, outgoing, incoming, on
   )
 }
 
-function ToolButton({ label, title, onClick }: { label: string; title: string; onClick: () => void }) {
+function ToolButton({ icon: Glyph, title, onClick }: { icon: Icon; title: string; onClick: () => void }) {
   return (
     <button
       type="button"
       onClick={onClick}
       title={title}
       aria-label={title}
-      className="grid size-6 place-items-center rounded-md text-[13px] text-content-muted transition hover:bg-surface-3 hover:text-content"
+      className="grid size-6 place-items-center rounded-md text-content-muted transition hover:bg-surface-3 hover:text-content"
     >
-      {label}
+      <Glyph size={13} weight="bold" />
     </button>
   )
 }
@@ -617,7 +613,7 @@ function LinkChip({ neighbours, onOpen, t }: {
         onOpen && 'cursor-pointer hover:bg-accent/25',
       )}
     >
-      <span className="shrink-0">⇢</span>
+      <ArrowRight size={10} weight="bold" className="shrink-0" />
       <span className="truncate">{label}</span>
     </span>
   )
@@ -701,7 +697,7 @@ function BoxView({ box, selected, onSelect, neighbours, onOpenRoute, t }: {
         >
           {node.label ?? kindLabel(node.kind, t)}
           {box.shape === 'start' && neighbours.length > 0 && (
-            <span className="ml-1 text-accent-content">← {neighbours.length}</span>
+            <span className="ml-1 inline-flex items-center gap-0.5 align-middle text-accent-content"><ArrowLeft size={10} weight="bold" /> {neighbours.length}</span>
           )}
         </span>
       </button>

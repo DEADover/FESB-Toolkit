@@ -45,6 +45,7 @@ export const en = {
   'action.show': 'Show',
   'action.clearSearch': 'Clear search',
 
+  'settings.repository': 'Project repository',
   'settings.theme': 'Theme',
   'settings.theme.system': 'System',
   'settings.theme.light': 'Light',

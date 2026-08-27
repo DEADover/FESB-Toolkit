@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 
-import { CaretDown } from '@phosphor-icons/react'
+import { CaretDown, Key } from '@phosphor-icons/react'
 
 import { useI18n, type MessageKey } from '../i18n'
 import { byEnvironment, type ConnectionProfile, type ConnectionStore, type Environment } from '../lib/connection'
@@ -104,7 +104,7 @@ export function ServerSwitch({ store, active, server, connecting, onConnect, onD
                         <span className="block truncate text-[10.5px] text-content-subtle">{profile.url}</span>
                       </span>
                       {!ready && (
-                        <span className="shrink-0 text-[11px] text-content-subtle" title={t('switch.needsPassword')}>⚿</span>
+                        <Key size={12} weight="bold" className="shrink-0 text-content-subtle" aria-label={t('switch.needsPassword')} />
                       )}
                     </button>
                   )

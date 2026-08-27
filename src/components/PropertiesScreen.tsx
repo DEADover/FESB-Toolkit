@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
-import { ArrowsClockwise } from '@phosphor-icons/react'
 
 import { useI18n } from '../i18n'
 import { apiDomains, apiProperties, apiSaveProperty, errorText } from '../lib/api'
 import { humanizeKey } from '../lib/propertyName'
 import type { ApiDomain, Connection, PropertyRow, PropertyScope, ServerInfo } from '../types'
-import { ErrorBar, NotConnected, Panel, TableMessage, useApiData } from './ApiShell'
+import {
+  ErrorBar, NotConnected, Panel, RefreshButton, TableMessage, useApiData,
+} from './ApiShell'
 import { Badge, Button, Checkbox, cx, Modal, SearchInput, Segmented, Spinner, SuggestInput, TextInput } from './ui'
 
 interface Props {
@@ -142,9 +143,11 @@ export function PropertiesScreen({ connection, server, onGoToConnection }: Props
         <Button variant="primary" disabled={!scope} onClick={() => setAdding({ ...EMPTY })}>
           {t('properties.add')}
         </Button>
-        <Button onClick={() => void reload()} disabled={loading || !scope}>
-          {loading ? <Spinner className="size-4" /> : <ArrowsClockwise size={14} weight="bold" />} {t('action.refresh')}
-        </Button>
+        <RefreshButton
+          busy={loading}
+          disabled={loading || !scope}
+          onClick={() => void reload()}
+        />
       </div>
 
       <ErrorBar error={error ?? domains.error} />
@@ -152,9 +155,11 @@ export function PropertiesScreen({ connection, server, onGoToConnection }: Props
       <Panel className="flex-1">
         <table className="w-full table-fixed border-collapse text-[12.5px]">
           <colgroup>
-            <col className="w-96" />
+            {/* Имя и значение делят остаток поровну: оба длинные, и жёсткая
+                ширина у имени на узком окне съедала значение целиком. */}
             <col />
-            <col className="w-72" />
+            <col />
+            <col className="w-56" />
           </colgroup>
           <thead className="sticky top-0 z-10 bg-surface-2 text-[11px] tracking-wide text-content-subtle">
             <tr className="border-b border-line">

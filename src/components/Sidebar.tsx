@@ -1,12 +1,10 @@
-import {
-  ArrowsLeftRight, Crosshair, Cube, FingerprintSimple, FlowArrow, ListDashes, Queue,
-  SlidersHorizontal, SquaresFour, Stack, type Icon,
-} from '@phosphor-icons/react'
+import { ArrowsLeftRight, CaretLeft, CaretRight, CircleHalf, Crosshair, Cube, FingerprintSimple, FlowArrow, Gear, GithubLogo, ListDashes, Moon, Queue, SlidersHorizontal, SquaresFour, Stack, Sun, type Icon } from '@phosphor-icons/react'
 
-import { LANGUAGES, useI18n, type Language, type MessageKey } from '../i18n'
+import { LANGUAGES, useI18n, type MessageKey } from '../i18n'
+import { openRepository, REPOSITORY_URL } from '../lib/api'
 import type { ThemeMode } from '../lib/theme'
 import type { AppInfo } from '../types'
-import { Segmented, cx } from './ui'
+import { cx } from './ui'
 
 export type ScreenId =
   | 'files.trace'
@@ -87,13 +85,13 @@ export function Sidebar({ screen, onScreen, info, isMac, collapsed, onCollapse, 
             onClick={onCollapse}
             aria-label={collapsed ? t('action.showSidebar') : t('action.hideSidebar')}
             title={collapsed ? t('action.showSidebar') : t('action.hideSidebar')}
-            className="grid size-6 shrink-0 place-items-center rounded-md text-[13px] text-content-subtle transition hover:bg-surface-3 hover:text-content"
+            className="grid size-6 shrink-0 place-items-center rounded-md text-content-subtle transition hover:bg-surface-3 hover:text-content"
           >
-            {collapsed ? '›' : '‹'}
+            {collapsed ? <CaretRight size={13} weight="bold" /> : <CaretLeft size={13} weight="bold" />}
           </button>
         </div>
 
-        <nav className={cx('flex flex-col overflow-y-auto', collapsed ? 'gap-2 px-2' : 'gap-5 px-2')}>
+        <nav className={cx('flex min-h-0 flex-1 flex-col overflow-y-auto', collapsed ? 'gap-2 px-2' : 'gap-5 px-2')}>
           {SECTIONS.map((section) => (
             <div key={section.title}>
               {collapsed ? (
@@ -111,13 +109,13 @@ export function Sidebar({ screen, onScreen, info, isMac, collapsed, onCollapse, 
                       title={t(section.settings.title)}
                       aria-label={t(section.settings.title)}
                       className={cx(
-                        'ml-auto grid size-5 place-items-center rounded-md text-[12px] transition',
+                        'ml-auto grid size-7 place-items-center rounded-md transition',
                         screen === section.settings.screen
                           ? 'bg-accent/20 text-accent-content'
                           : 'text-content-subtle hover:bg-surface-3 hover:text-content',
                       )}
                     >
-                      ⚙
+                      <Gear size={16} weight="regular" />
                     </button>
                   )}
                 </div>
@@ -136,13 +134,13 @@ export function Sidebar({ screen, onScreen, info, isMac, collapsed, onCollapse, 
                   >
                     <span
                       className={cx(
-                        'grid size-7 place-items-center rounded-md text-[13px]',
+                        'grid size-7 place-items-center rounded-md',
                         screen === section.settings.screen
                           ? 'bg-accent/20 text-accent-content'
                           : 'bg-surface-2 text-content-subtle',
                       )}
                     >
-                      ⚙
+                      <Gear size={16} weight="regular" />
                     </span>
                   </button>
                 )}
@@ -179,37 +177,72 @@ export function Sidebar({ screen, onScreen, info, isMac, collapsed, onCollapse, 
           ))}
         </nav>
 
+        {/*
+          Тема, язык и ссылка на репозиторий — по одной кнопке на каждое.
+          Кнопки остаются и в узком режиме: сворачивают панель как раз тогда,
+          когда нужно место под таблицу, а тему при этом переключают не реже.
+        */}
+        <div className={cx('flex shrink-0 gap-1 pt-3', collapsed ? 'flex-col items-center px-2 pb-4' : 'items-center px-4 pb-2')}>
+          <FooterButton
+            icon={THEME_ICON[themeMode]}
+            label={t(THEME_LABEL[themeMode])}
+            onClick={() => onThemeMode(NEXT_THEME[themeMode])}
+          />
+          <FooterButton
+            text={language.toUpperCase()}
+            label={LANGUAGES.find((item) => item.id !== language)?.label ?? ''}
+            onClick={() => setLanguage(LANGUAGES.find((item) => item.id !== language)?.id ?? language)}
+          />
+          <FooterButton
+            icon={GithubLogo}
+            label={`${t('settings.repository')} · ${REPOSITORY_URL}`}
+            onClick={() => void openRepository()}
+            className={collapsed ? '' : 'ml-auto'}
+          />
+        </div>
+
         {!collapsed && (
-          <div className="mt-auto flex flex-col gap-2.5 px-4 py-4">
-            <div className="flex items-center justify-between gap-2">
-              <span className="whitespace-nowrap text-[11px] text-content-subtle">{t('settings.theme')}</span>
-              <Segmented<ThemeMode>
-                ariaLabel={t('settings.theme')}
-                value={themeMode}
-                onChange={onThemeMode}
-                options={[
-                  { id: 'system', label: '◐', title: t('settings.theme.system') },
-                  { id: 'light', label: '☀', title: t('settings.theme.light') },
-                  { id: 'dark', label: '☾', title: t('settings.theme.dark') },
-                ]}
-              />
-            </div>
-            <div className="flex items-center justify-between gap-2">
-              <span className="whitespace-nowrap text-[11px] text-content-subtle">{t('settings.language')}</span>
-              <Segmented<Language>
-                ariaLabel={t('settings.language')}
-                value={language}
-                onChange={setLanguage}
-                options={LANGUAGES.map((item) => ({ id: item.id, label: item.id.toUpperCase(), title: item.label }))}
-              />
-            </div>
-            <div className="text-[10.5px] leading-relaxed text-content-subtle">
-              {info ? `v${info.version} · Tauri ${info.tauri} · ${info.platform}` : '—'}
-            </div>
+          <div className="px-4 pb-4 text-[10.5px] leading-relaxed text-content-subtle">
+            {info ? `v${info.version} · Tauri ${info.tauri} · ${info.platform}` : '—'}
           </div>
         )}
       </div>
     </aside>
+  )
+}
+
+/** Тема переключается по кругу, и кнопка показывает то положение, в котором стоит. */
+const NEXT_THEME: Record<ThemeMode, ThemeMode> = { system: 'light', light: 'dark', dark: 'system' }
+const THEME_ICON: Record<ThemeMode, Icon> = { system: CircleHalf, light: Sun, dark: Moon }
+const THEME_LABEL: Record<ThemeMode, MessageKey> = {
+  system: 'settings.theme.system',
+  light: 'settings.theme.light',
+  dark: 'settings.theme.dark',
+}
+
+/** Кнопка в подвале панели: значок или пара букв, одного размера с иконками разделов. */
+function FooterButton({ icon: Glyph, text, label, onClick, className }: {
+  icon?: Icon
+  text?: string
+  label: string
+  onClick: () => void
+  className?: string
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={label}
+      aria-label={label}
+      className={cx(
+        'grid size-8 shrink-0 place-items-center rounded-lg text-content-subtle transition',
+        'hover:bg-surface-3 hover:text-content',
+        'focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent',
+        className,
+      )}
+    >
+      {Glyph ? <Glyph size={17} weight="regular" /> : <span className="font-mono text-[11px] font-semibold">{text}</span>}
+    </button>
   )
 }
 

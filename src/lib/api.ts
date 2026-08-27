@@ -2,7 +2,7 @@ import { invoke } from '@tauri-apps/api/core'
 import { listen, type UnlistenFn } from '@tauri-apps/api/event'
 import { getCurrentWebview } from '@tauri-apps/api/webview'
 import { open, save } from '@tauri-apps/plugin-dialog'
-import { revealItemInDir } from '@tauri-apps/plugin-opener'
+import { openUrl, revealItemInDir } from '@tauri-apps/plugin-opener'
 
 import type {
   ApiDomain, ApiProgress, AppInfo, ApplyProgress, ApplyReport, ApplyTarget, ArchiveProgress,
@@ -173,6 +173,18 @@ export function apiDomainStatistics(connection: Connection): Promise<DomainStat[
 /** Забирает один домен ради его СОПС — рабочую выгрузку не трогает. */
 export function apiDomainRoutes(connection: Connection, guid: string): Promise<DomainRoutes> {
   return invoke<DomainRoutes>('api_domain_routes', { connection, guid })
+}
+
+/**
+ * Репозиторий проекта.
+ *
+ * Единственный внешний адрес, который приложению разрешено открыть: права
+ * в `capabilities/default.json` выданы ровно на него, а не на «любой https».
+ */
+export const REPOSITORY_URL = 'https://github.com/DEADover/FESB-Toolkit'
+
+export function openRepository(): Promise<void> {
+  return openUrl(REPOSITORY_URL)
 }
 
 /** Имена всех СОПС сервера — по ним ищут домен. */

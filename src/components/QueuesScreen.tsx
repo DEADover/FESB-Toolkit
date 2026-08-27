@@ -1,12 +1,14 @@
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react'
 
-import { ArrowLeft, ArrowsClockwise } from '@phosphor-icons/react'
+import { ArrowLeft, ArrowsClockwise, Check, Copy } from '@phosphor-icons/react'
 
 import { useI18n } from '../i18n'
 import { apiQueueManagers, apiQueueMessage, apiQueueMessages, apiQueues, errorText } from '../lib/api'
 import type { Connection, QueueManager, QueueMessage, QueueRow, ServerInfo } from '../types'
-import { AutoRefreshToggle, ErrorBar, NotConnected, Panel, TableMessage, useApiData, useAutoRefresh } from './ApiShell'
-import { Badge, Button, Checkbox, cx, SearchInput, Spinner } from './ui'
+import {
+  AutoRefreshToggle, ErrorBar, NotConnected, Panel, RefreshButton, TableMessage, useApiData, useAutoRefresh,
+} from './ApiShell'
+import { Badge, Button, Checkbox, cx, IconButton, SearchInput, Spinner } from './ui'
 
 interface Props {
   connection: Connection | null
@@ -97,7 +99,7 @@ export function QueuesScreen({ connection, server, onGoToConnection }: Props) {
       <ErrorBar error={managers.error} />
 
       <div className="flex min-h-0 flex-1 gap-3">
-        <Panel className="w-72 shrink-0">
+        <Panel className="w-60 shrink-0 xl:w-72">
           <div className="sticky top-0 z-10 flex items-center gap-2 border-b border-line bg-surface-2 px-3 py-2">
             <span className="text-[11px] tracking-wide text-content-subtle">{t('queues.managers')}</span>
             <Button
@@ -146,21 +148,22 @@ export function QueuesScreen({ connection, server, onGoToConnection }: Props) {
           placeholder={t('queues.search')}
           onChange={setQuery}
         />
-            <label className="flex h-9 cursor-pointer items-center gap-2 rounded-lg border border-line-strong bg-surface px-3 text-[12.5px] text-content-muted">
+            <label className="flex h-9 shrink-0 cursor-pointer items-center gap-2 whitespace-nowrap rounded-lg border border-line-strong bg-surface px-3 text-[12.5px] text-content-muted">
               <Checkbox checked={hideInternal} onChange={(event) => setHideInternal(event.target.checked)} />
               {t('queues.hideInternal')}
             </label>
             {selected && (
-              <Button
+              <IconButton
+                icon={copied === selected.broker ? Check : Copy}
+                label={copied === selected.broker ? t('queues.copied') : t('queues.copyBroker')}
                 onClick={() => copy(selected.broker)}
-                title={t('queues.copyHint')}
-              >
-                {copied === selected.broker ? t('queues.copied') : t('queues.copyBroker')}
-              </Button>
+              />
             )}
-            <Button onClick={() => void openQueues(selected)} disabled={loadingQueues || !selected}>
-              {loadingQueues ? <Spinner className="size-4" /> : <ArrowsClockwise size={14} weight="bold" />} {t('action.refresh')}
-            </Button>
+            <RefreshButton
+          busy={loadingQueues}
+          disabled={loadingQueues || !selected}
+          onClick={() => void openQueues(selected)}
+        />
           </div>
 
           <ErrorBar error={queueError} />
@@ -182,11 +185,13 @@ export function QueuesScreen({ connection, server, onGoToConnection }: Props) {
           <Panel className="flex-1">
             <table className="w-full table-fixed border-collapse text-[12.5px]">
               <colgroup>
+                {/* Накопительные счётчики уходят на узком окне: имя очереди
+                    и текущее число сообщений нужнее, чем «положено за всё время». */}
                 <col />
+                <col className="w-20" />
                 <col className="w-24" />
-                <col className="w-24" />
-                <col className="w-28" />
-                <col className="w-28" />
+                <col className="hidden w-24 xl:table-column" />
+                <col className="hidden w-24 xl:table-column" />
                 <col className="w-28" />
               </colgroup>
               <thead className="sticky top-0 z-10 bg-surface-2 text-[11px] tracking-wide text-content-subtle">
@@ -194,8 +199,8 @@ export function QueuesScreen({ connection, server, onGoToConnection }: Props) {
                   <th className="px-3 py-2 text-left font-medium">{t('queues.queue')}</th>
                   <th className="px-3 py-2 text-right font-medium">{t('queues.messages')}</th>
                   <th className="px-3 py-2 text-right font-medium">{t('queues.consumers')}</th>
-                  <th className="px-3 py-2 text-right font-medium">{t('queues.enqueued')}</th>
-                  <th className="px-3 py-2 text-right font-medium">{t('queues.dequeued')}</th>
+                  <th className="hidden px-3 py-2 text-right font-medium xl:table-cell">{t('queues.enqueued')}</th>
+                  <th className="hidden px-3 py-2 text-right font-medium xl:table-cell">{t('queues.dequeued')}</th>
                   <th className="px-3 py-2 text-left font-medium">{t('table.state')}</th>
                 </tr>
               </thead>
@@ -216,8 +221,8 @@ export function QueuesScreen({ connection, server, onGoToConnection }: Props) {
                       {queue.messages}
                     </td>
                     <td className="px-3 py-1.5 text-right tabular-nums">{queue.consumers}</td>
-                    <td className="px-3 py-1.5 text-right tabular-nums text-content-subtle">{queue.enqueued ?? '—'}</td>
-                    <td className="px-3 py-1.5 text-right tabular-nums text-content-subtle">{queue.dequeued ?? '—'}</td>
+                    <td className="hidden px-3 py-1.5 text-right tabular-nums text-content-subtle xl:table-cell">{queue.enqueued ?? '—'}</td>
+                    <td className="hidden px-3 py-1.5 text-right tabular-nums text-content-subtle xl:table-cell">{queue.dequeued ?? '—'}</td>
                     <td className="px-3 py-1.5">
                       <div className="flex flex-wrap gap-1">
                         {queue.paused && <Badge tone="warn">{t('queues.paused')}</Badge>}
@@ -305,9 +310,11 @@ function Messages({ connection, manager, queue, onBack }: {
         </span>
         <div className="ml-auto flex items-center gap-2">
           <AutoRefreshToggle checked={auto} onChange={setAuto} />
-          <Button onClick={() => void load()} disabled={loading}>
-            {loading ? <Spinner className="size-4" /> : <ArrowsClockwise size={14} weight="bold" />} {t('action.refresh')}
-          </Button>
+          <RefreshButton
+          busy={loading}
+          disabled={loading}
+          onClick={() => void load()}
+        />
         </div>
       </div>
 

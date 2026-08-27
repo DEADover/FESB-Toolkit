@@ -1,12 +1,13 @@
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react'
 
-import { ArrowRight, ArrowsClockwise, ArrowsLeftRight } from '@phosphor-icons/react'
+import { ArrowRight, ArrowsLeftRight } from '@phosphor-icons/react'
 
 import { useI18n } from '../i18n'
 import { errorText, routeLinks } from '../lib/api'
 import type { LinkGraph, ScanResult } from '../types'
 import { RouteViewer } from './RouteViewer'
-import { Badge, Button, Checkbox, cx, SearchInput, Spinner } from './ui'
+import { RefreshButton } from './ApiShell'
+import { Badge, Checkbox, cx, SearchInput } from './ui'
 
 interface Props {
   scan: ScanResult | null
@@ -145,9 +146,11 @@ export function DomainLinksScreen({ scan, isMac }: Props) {
         <Total label={t('domainLinks.cross')} value={totals.crossLinks} tone="accent" />
         <Total label={t('domainLinks.pairs')} value={totals.pairs} />
         <Total label={t('domainLinks.domains')} value={totals.domains} />
-        <Button className="ml-auto" onClick={() => void load()} disabled={loading}>
-          {loading ? <Spinner className="size-4" /> : <ArrowsClockwise size={14} weight="bold" />} {t('action.refresh')}
-        </Button>
+        <RefreshButton className="ml-auto"
+          busy={loading}
+          disabled={loading}
+          onClick={() => void load()}
+        />
       </div>
 
       <div className="flex items-center gap-2">

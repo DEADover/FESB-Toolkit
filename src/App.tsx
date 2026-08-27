@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-import { ArrowsClockwise } from '@phosphor-icons/react'
+import { ArrowsClockwise, DownloadSimple } from '@phosphor-icons/react'
 
 import { AuditScreen } from './components/AuditScreen'
 import { ConnectionScreen } from './components/ConnectionScreen'
@@ -405,7 +405,7 @@ function DropOverlay() {
   return (
     <div className="pointer-events-none absolute inset-0 z-50 flex items-center justify-center bg-canvas/80 backdrop-blur-sm">
       <div className="rounded-2xl border-2 border-dashed border-accent bg-surface px-10 py-8 text-center shadow-2xl">
-        <div className="text-[28px]">⤓</div>
+        <DownloadSimple size={28} weight="regular" className="mx-auto" />
         <div className="mt-2 text-[15px] font-semibold">{t('empty.dropHere')}</div>
       </div>
     </div>
@@ -441,7 +441,7 @@ function EmptyState({ busy, unpacking, progress, extractProgress, onPickFolder, 
           </>
         ) : (
           <>
-            <div className="mx-auto grid size-14 place-items-center rounded-2xl bg-surface-2 text-[22px] text-accent-content">⤓</div>
+            <div className="mx-auto grid size-14 place-items-center rounded-2xl bg-surface-2 text-accent-content"><DownloadSimple size={24} weight="regular" /></div>
             <h2 className="mt-4 text-[15px] font-semibold">{t('empty.title')}</h2>
             <p className="mx-auto mt-2 max-w-md text-content-subtle">{t('empty.text')}</p>
 

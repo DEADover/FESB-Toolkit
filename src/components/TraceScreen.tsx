@@ -706,10 +706,10 @@ export function TraceScreen({ scan, isMac, sourcePath, server, onRescan }: Props
             {update.queue && <ConfirmValue text={t('confirm.queue', { value: update.queue })} />}
             {update.traceMode && <ConfirmValue text={t('confirm.traceMode', { value: update.traceMode })} />}
           </div>
-          <ul className="space-y-1 text-content-muted">
-            <li>· {t('confirm.domains', { count: targets.length })}</li>
-            <li>· {t('confirm.beans', { count: selectedEntries.length })}</li>
-            <li>· {t('confirm.values', { count: valuesToChange })}</li>
+          <ul className="list-disc space-y-1 pl-4 text-content-muted marker:text-content-subtle">
+            <li>{t('confirm.domains', { count: targets.length })}</li>
+            <li>{t('confirm.beans', { count: selectedEntries.length })}</li>
+            <li>{t('confirm.values', { count: valuesToChange })}</li>
           </ul>
           <p className={cx('rounded-lg border px-3 py-2',
             makeBackup ? 'border-positive/35 bg-positive/10 text-positive' : 'border-caution/35 bg-caution/10 text-caution')}>

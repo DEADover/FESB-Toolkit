@@ -1,14 +1,13 @@
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react'
 
-import { ArrowsClockwise } from '@phosphor-icons/react'
 
 import { useI18n } from '../i18n'
 import { apiAudit, errorText } from '../lib/api'
 import type { AuditEntry, Connection, ServerInfo } from '../types'
 import {
-  AutoRefreshToggle, ErrorBar, FilterChip, NotConnected, Panel, TableMessage, useAutoRefresh,
+  AutoRefreshToggle, ErrorBar, FilterChip, LimitSelect, NotConnected, Panel, RefreshButton, TableMessage, useAutoRefresh,
 } from './ApiShell'
-import { Badge, Button, CodePill, cx, SearchInput, Spinner } from './ui'
+import { Badge, CodePill, cx, SearchInput } from './ui'
 
 interface Props {
   connection: Connection | null
@@ -87,20 +86,13 @@ export function AuditScreen({ connection, server, onGoToConnection }: Props) {
           placeholder={t('audit.search')}
           onChange={setSearch}
         />
-        <select
-          value={limit}
-          onChange={(event) => setLimit(Number(event.target.value))}
-          className="h-9 rounded-lg border border-line-strong bg-surface px-2 text-[12.5px] text-content outline-none"
-          aria-label={t('logs.limit')}
-        >
-          {[50, 200, 500, 1000].map((value) => (
-            <option key={value} value={value}>{t('logs.lines', { count: value })}</option>
-          ))}
-        </select>
+        <LimitSelect value={limit} onChange={setLimit} />
         <AutoRefreshToggle checked={auto} onChange={setAuto} />
-        <Button onClick={() => void load()} disabled={loading}>
-          {loading ? <Spinner className="size-4" /> : <ArrowsClockwise size={14} weight="bold" />} {t('action.refresh')}
-        </Button>
+        <RefreshButton
+          busy={loading}
+          disabled={loading}
+          onClick={() => void load()}
+        />
       </div>
 
       <div className="flex items-center gap-1">

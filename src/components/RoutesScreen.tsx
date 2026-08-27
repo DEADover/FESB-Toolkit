@@ -179,7 +179,7 @@ export function RoutesScreen({ connection, server, isMac, initialGuid, onGoToCon
       <ErrorBar error={stats.error ?? error} />
 
       <div className="flex min-h-0 flex-1 gap-3">
-        <Panel className="flex w-72 shrink-0 flex-col">
+        <Panel className="flex w-60 shrink-0 flex-col xl:w-72">
           <div className="sticky top-0 z-10 flex flex-col gap-1.5 border-b border-line bg-surface-2 px-2 py-2">
             <SearchInput
               value={query}
@@ -264,10 +264,10 @@ export function RoutesScreen({ connection, server, isMac, initialGuid, onGoToCon
             <table className="w-full table-fixed border-collapse text-[12.5px]">
               <colgroup>
                 <col />
-                <col className="w-28" />
                 <col className="w-24" />
                 <col className="w-20" />
-                <col className="w-20" />
+                <col className="w-16" />
+                <col className="hidden w-16 xl:table-column" />
                 <col className="w-28" />
               </colgroup>
               <thead className="sticky top-0 z-10 bg-surface-2 text-[11px] tracking-wide text-content-subtle">
@@ -276,7 +276,7 @@ export function RoutesScreen({ connection, server, isMac, initialGuid, onGoToCon
                   <th className="px-3 py-2 text-left font-medium">{t('table.state')}</th>
                   <th className="px-3 py-2 text-right font-medium">{t('routes.processed')}</th>
                   <th className="px-3 py-2 text-right font-medium">{t('map.errors')}</th>
-                  <th className="px-3 py-2 text-right font-medium">{t('map.inflight')}</th>
+                  <th className="hidden px-3 py-2 text-right font-medium xl:table-cell">{t('map.inflight')}</th>
                   <th className="px-3 py-2 text-left font-medium">{t('modules.actions')}</th>
                 </tr>
               </thead>
@@ -309,7 +309,7 @@ export function RoutesScreen({ connection, server, isMac, initialGuid, onGoToCon
                       <td className={cx('px-3 py-1.5 text-right tabular-nums', (state?.failed ?? 0) > 0 && 'font-medium text-negative')}>
                         {state?.failed ?? '—'}
                       </td>
-                      <td className={cx('px-3 py-1.5 text-right tabular-nums', (state?.inflight ?? 0) > 0 && 'font-medium text-caution')}>
+                      <td className={cx('hidden px-3 py-1.5 text-right tabular-nums xl:table-cell', (state?.inflight ?? 0) > 0 && 'font-medium text-caution')}>
                         {state?.inflight ?? '—'}
                       </td>
                       <td className="px-3 py-1.5">

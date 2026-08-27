@@ -1,12 +1,13 @@
 import { useCallback, useMemo, useState } from 'react'
 
-import { ArrowsClockwise } from '@phosphor-icons/react'
 
 import { useI18n } from '../i18n'
 import { apiDomainStatistics } from '../lib/api'
 import type { Connection, DomainStat, ServerInfo } from '../types'
-import { AutoRefreshToggle, ErrorBar, NotConnected, Panel, TableMessage, useApiData, useAutoRefresh } from './ApiShell'
-import { Badge, Button, Checkbox, cx, SearchInput, Spinner } from './ui'
+import {
+  AutoRefreshToggle, ErrorBar, NotConnected, Panel, RefreshButton, TableMessage, useApiData, useAutoRefresh,
+} from './ApiShell'
+import { Badge, Checkbox, cx, SearchInput } from './ui'
 
 interface Props {
   connection: Connection | null
@@ -85,9 +86,11 @@ export function MapScreen({ connection, server, onOpenRoutes, onGoToConnection }
         <Total label={t('map.inflight')} value={totals.inflight.toLocaleString()} tone={totals.inflight > 0 ? 'warn' : undefined} />
         <div className="ml-auto flex items-center gap-2">
           <AutoRefreshToggle checked={auto} onChange={setAuto} />
-          <Button onClick={() => void reload()} disabled={loading}>
-            {loading ? <Spinner className="size-4" /> : <ArrowsClockwise size={14} weight="bold" />} {t('action.refresh')}
-          </Button>
+          <RefreshButton
+          busy={loading}
+          disabled={loading}
+          onClick={() => void reload()}
+        />
         </div>
       </div>
 

@@ -1,14 +1,13 @@
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react'
 
-import { ArrowsClockwise } from '@phosphor-icons/react'
 
 import { useI18n } from '../i18n'
 import { apiLog, apiLogFiles, errorText } from '../lib/api'
 import type { Connection, LogEntry, LogFileRow, ServerInfo } from '../types'
 import {
-  AutoRefreshToggle, ErrorBar, FilterChip, NotConnected, Panel, TableMessage, useApiData, useAutoRefresh,
+  AutoRefreshToggle, ErrorBar, FilterChip, LimitSelect, NotConnected, Panel, RefreshButton, TableMessage, useApiData, useAutoRefresh,
 } from './ApiShell'
-import { Badge, Button, CodePill, cx, ScrollStrip, SearchInput, Spinner, TONES, type Tone } from './ui'
+import { Badge, Button, CodePill, cx, ScrollStrip, SearchInput, TONES, type Tone } from './ui'
 
 interface Props {
   connection: Connection | null
@@ -126,20 +125,13 @@ export function LogsScreen({ connection, server, onGoToConnection }: Props) {
           placeholder={t('logs.search')}
           onChange={setSearch}
         />
-        <select
-          value={limit}
-          onChange={(event) => setLimit(Number(event.target.value))}
-          className="h-9 rounded-lg border border-line-strong bg-surface px-2 text-[12.5px] text-content outline-none"
-          aria-label={t('logs.limit')}
-        >
-          {[50, 200, 500, 1000].map((value) => (
-            <option key={value} value={value}>{t('logs.lines', { count: value })}</option>
-          ))}
-        </select>
+        <LimitSelect value={limit} onChange={setLimit} />
         <AutoRefreshToggle checked={auto} onChange={setAuto} />
-        <Button onClick={() => void fetchEntries()} disabled={loading}>
-          {loading ? <Spinner className="size-4" /> : <ArrowsClockwise size={14} weight="bold" />} {t('action.refresh')}
-        </Button>
+        <RefreshButton
+          busy={loading}
+          disabled={loading}
+          onClick={() => void fetchEntries()}
+        />
       </div>
 
       <div className="flex items-center gap-2">

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ComponentProps, type ReactNode } from 'react'
 
-import { MagnifyingGlass, X, type Icon } from '@phosphor-icons/react'
+import { CaretDown, CaretLeft, CaretRight, CaretUp, MagnifyingGlass, X, type Icon } from '@phosphor-icons/react'
 
 export function cx(...parts: Array<string | false | null | undefined>): string {
   return parts.filter(Boolean).join(' ')
@@ -403,9 +403,9 @@ function ScrollEdge({ side, label, onClick }: { side: 'start' | 'end'; label: st
         aria-label={label}
         title={label}
         onClick={onClick}
-        className="grid size-6 place-items-center rounded-md border border-line-strong bg-surface-2 text-[11px] text-content-muted shadow-sm transition hover:bg-surface-3 hover:text-content"
+        className="grid size-6 place-items-center rounded-md border border-line-strong bg-surface-2 text-content-muted shadow-sm transition hover:bg-surface-3 hover:text-content"
       >
-        {isStart ? '‹' : '›'}
+        {isStart ? <CaretLeft size={12} weight="bold" /> : <CaretRight size={12} weight="bold" />}
       </button>
     </div>
   )
@@ -483,8 +483,8 @@ export function SortHead<K extends string>({ label, sortKey, active, dir, onSort
     <th className={cx('border-b border-line px-3 py-2.5 text-left font-medium', className)}>
       <button type="button" onClick={() => onSort(sortKey)} className="inline-flex items-center gap-1 hover:text-content">
         {label}
-        <span className={cx('text-[9px]', isActive ? 'text-accent-content' : 'text-content-subtle/50')}>
-          {isActive && dir === 'desc' ? '▼' : '▲'}
+        <span className={cx(isActive ? 'text-accent-content' : 'text-content-subtle/50')}>
+          {isActive && dir === 'desc' ? <CaretDown size={10} weight="bold" /> : <CaretUp size={10} weight="bold" />}
         </span>
       </button>
     </th>

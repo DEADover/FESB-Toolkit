@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 
-import { ArrowsLeftRight } from '@phosphor-icons/react'
+import { ArrowsClockwise, ArrowsLeftRight } from '@phosphor-icons/react'
 
 import { useI18n } from '../i18n'
 import { errorText } from '../lib/api'
 import type { Connection } from '../types'
-import { Button, Checkbox, cx } from './ui'
+import { Button, Checkbox, Spinner, cx } from './ui'
 
 /**
  * Общая обвязка для экранов раздела API: все они читают что-то с сервера,
@@ -106,6 +106,45 @@ export function useAutoRefresh(enabled: boolean, action: () => unknown) {
     const timer = setInterval(() => { void latest.current() }, REFRESH_MS)
     return () => clearInterval(timer)
   }, [enabled])
+}
+
+/**
+ * Кнопка обновления — одна и та же на всех одиннадцати экранах.
+ *
+ * Раньше это была скопированная строка вёрстки, и любая правка значка
+ * или размера крутилки означала одиннадцать одинаковых правок.
+ */
+export function RefreshButton({ busy, disabled, className, onClick }: {
+  busy: boolean
+  disabled?: boolean
+  className?: string
+  onClick: () => void
+}) {
+  const { t } = useI18n()
+  return (
+    <Button className={className} onClick={onClick} disabled={disabled ?? busy}>
+      {busy ? <Spinner className="size-4" /> : <ArrowsClockwise size={14} weight="bold" />} {t('action.refresh')}
+    </Button>
+  )
+}
+
+/**
+ * Список «сколько строк показывать»: журналы и аудит спрашивают одно и то же.
+ */
+export function LimitSelect({ value, onChange }: { value: number; onChange: (value: number) => void }) {
+  const { t } = useI18n()
+  return (
+    <select
+      value={value}
+      onChange={(event) => onChange(Number(event.target.value))}
+      className="h-9 rounded-lg border border-line-strong bg-surface px-2 text-[12.5px] text-content outline-none"
+      aria-label={t('logs.limit')}
+    >
+      {[50, 200, 500, 1000].map((option) => (
+        <option key={option} value={option}>{t('logs.lines', { count: option })}</option>
+      ))}
+    </select>
+  )
 }
 
 /**

@@ -8,7 +8,9 @@ import {
   apiSavePoints, errorText,
 } from '../lib/api'
 import type { Connection, ModuleAction, ModuleRow, SavePoint, ServerInfo } from '../types'
-import { ErrorBar, NotConnected, Panel, TableMessage, useApiData } from './ApiShell'
+import {
+  ErrorBar, NotConnected, Panel, RefreshButton, TableMessage, useApiData,
+} from './ApiShell'
 import { Badge, Button, IconButton, Modal, Spinner, cx } from './ui'
 
 interface Props {
@@ -68,9 +70,11 @@ export function ModulesScreen({ connection, server, onGoToConnection }: Props) {
         {modules.some((module) => module.awaitRestart) && (
           <Badge tone="warn">{t('modules.awaitRestartHint')}</Badge>
         )}
-        <Button className="ml-auto" onClick={() => void reload()} disabled={loading || pending !== null}>
-          {loading ? <Spinner className="size-4" /> : <ArrowsClockwise size={14} weight="bold" />} {t('action.refresh')}
-        </Button>
+        <RefreshButton className="ml-auto"
+          busy={loading}
+          disabled={loading || pending !== null}
+          onClick={() => void reload()}
+        />
       </div>
 
       <ErrorBar error={error} />
@@ -78,10 +82,12 @@ export function ModulesScreen({ connection, server, onGoToConnection }: Props) {
       <Panel className="shrink-0">
         <table className="w-full table-fixed border-collapse text-[12.5px]">
           <colgroup>
+            {/* Имя модуля забирает остаток: колонки под ним подобраны так,
+                чтобы на минимальной ширине окна (1020) ему оставалось место. */}
             <col />
-            <col className="w-48" />
-            <col className="w-48" />
             <col className="w-44" />
+            <col className="w-28" />
+            <col className="w-32" />
             <col className="w-28" />
           </colgroup>
           <thead className="sticky top-0 z-10 bg-surface-2 text-[11px] tracking-wide text-content-subtle">

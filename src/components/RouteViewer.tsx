@@ -1,10 +1,6 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState, type ReactNode} from 'react'
 
-import {
-  ArrowElbowUpRight, ArrowLineDown, ArrowLineRight, ArrowRight, ArrowsClockwise, ArrowsLeftRight,
-  ArrowsMerge, ArrowsSplit, Backspace, Circle, Database, Diamond, Function as FunctionIcon, Funnel,
-  Gear, NotePencil, Play, PlusSquare, ShareNetwork, ShieldCheck, Stop, Warning, XCircle, type Icon,
-} from '@phosphor-icons/react'
+import { ArrowElbowUpRight, ArrowLineDown, ArrowLineRight, ArrowRight, ArrowsClockwise, ArrowsLeftRight, ArrowsMerge, ArrowsSplit, Backspace, Circle, Database, Diamond, Function as FunctionIcon, Funnel, Gear, NotePencil, Play, PlusSquare, ShareNetwork, ShieldCheck, Stop, Warning, XCircle, type Icon } from '@phosphor-icons/react'
 
 import { useI18n } from '../i18n'
 import { errorText, readRoute, revealPath } from '../lib/api'
@@ -231,13 +227,13 @@ function Links({ links, onOpen }: { links: RouteNeighbours; onOpen: (path: strin
         label={t('links.incoming', { count: links.incoming.length })}
         items={links.incoming}
         onOpen={onOpen}
-        arrow="→"
+        arrow={<ArrowRight size={11} weight="bold" />}
       />
       <Side
         label={t('links.outgoing', { count: links.outgoing.length })}
         items={links.outgoing}
         onOpen={onOpen}
-        arrow="→"
+        arrow={<ArrowRight size={11} weight="bold" />}
       />
     </div>
   )
@@ -247,7 +243,7 @@ function Side({ label, items, onOpen, arrow }: {
   label: string
   items: RouteNeighbours['incoming']
   onOpen: (path: string) => void
-  arrow: string
+  arrow: ReactNode
 }) {
   const { t } = useI18n()
   if (items.length === 0) return null

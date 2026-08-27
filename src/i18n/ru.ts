@@ -46,6 +46,7 @@ export const ru: Record<keyof typeof en, string> = {
   'action.show': 'Показать',
   'action.clearSearch': 'Очистить поиск',
 
+  'settings.repository': 'Репозиторий проекта',
   'settings.theme': 'Тема',
   'settings.theme.system': 'Системная',
   'settings.theme.light': 'Светлая',

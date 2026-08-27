@@ -5,6 +5,7 @@ import { ArrowsClockwise, ArrowsLeftRight, Play, Stop } from '@phosphor-icons/re
 import { useI18n } from '../i18n'
 import { apiDomainAction, apiDomains, errorText } from '../lib/api'
 import type { ApiDomain, ApiProgress, Connection, DomainAction, ServerInfo } from '../types'
+import { RefreshButton } from './ApiShell'
 import { Badge, Button, Checkbox, cx, IconButton, Modal, SearchInput, Spinner } from './ui'
 
 interface Props {
@@ -191,9 +192,11 @@ export function DomainsScreen({ connection, server, pulling, progress, error: pu
           <Checkbox checked={onlyActive} onChange={(event) => setOnlyActive(event.target.checked)} />
           {t('api.domains.onlyActive')}
         </label>
-        <Button onClick={() => void load()} disabled={loading || pulling}>
-          {loading ? <Spinner className="size-4" /> : <ArrowsClockwise size={14} weight="bold" />} {t('action.refresh')}
-        </Button>
+        <RefreshButton
+          busy={loading}
+          disabled={loading || pulling}
+          onClick={() => void load()}
+        />
       </div>
 
       {refused && (
