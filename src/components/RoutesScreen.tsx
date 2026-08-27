@@ -13,7 +13,8 @@ import type {
   RouteFile, RouteState, ServerInfo,
 } from '../types'
 import {
-  AutoRefreshToggle, ErrorBar, NotConnected, Panel, RefreshButton, ScreenBody, TableMessage, useApiData, useAutoRefresh,
+  AutoRefreshToggle, ErrorBar, NotConnected, Panel, RefreshButton, ScreenBody, ScreenBodyRow,
+  TableMessage, useApiData, useAutoRefresh,
 } from './ApiShell'
 import { RouteViewer } from './RouteViewer'
 import { Badge, cx, DataTable, IconButton, SearchInput, Spinner, Th, THead } from './ui'
@@ -180,7 +181,7 @@ export function RoutesScreen({ connection, server, isMac, initialGuid, onGoToCon
     <ScreenBody>
       <ErrorBar error={stats.error ?? error} />
 
-      <div className="flex min-h-0 flex-1 gap-3">
+      <ScreenBodyRow>
         <Panel className="flex w-60 shrink-0 flex-col xl:w-72">
           <div className="sticky top-0 z-10 flex flex-col gap-1.5 border-b border-line bg-surface-2 px-2 py-2">
             <SearchInput
@@ -346,7 +347,7 @@ export function RoutesScreen({ connection, server, isMac, initialGuid, onGoToCon
             </DataTable>
           </Panel>
         </div>
-      </div>
+      </ScreenBodyRow>
 
       <RouteViewer
         path={open?.path ?? null}

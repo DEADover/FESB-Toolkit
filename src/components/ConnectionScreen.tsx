@@ -10,7 +10,7 @@ import {
   writeStore, type ConnectionProfile, type ConnectionStore, type Environment,
 } from '../lib/connection'
 import type { Connection, DiskUsage, ServerInfo, ServerUsage } from '../types'
-import { ScreenBody, useApiData } from './ApiShell'
+import { ScreenBody, ScreenBodyRow, useApiData } from './ApiShell'
 import { Badge, Button, Checkbox, cx, Modal, Notice, Segmented, Spinner, TextInput, TextReadout, Toggle } from './ui'
 
 interface Props {
@@ -186,7 +186,7 @@ export function ConnectionScreen({ store, onStore, server, connection, activePro
         />
       )}
 
-      <div className="flex min-h-0 flex-1 gap-3">
+      <ScreenBodyRow>
         <div className="flex w-72 shrink-0 flex-col overflow-hidden rounded-xl border border-line bg-surface">
           <div className="flex items-center gap-2 border-b border-line bg-surface-2 px-3 py-2">
             <span className="text-[11px] tracking-wide text-content-subtle">
@@ -401,7 +401,7 @@ export function ConnectionScreen({ store, onStore, server, connection, activePro
 
           {server && connection && <ServerCard server={server} connection={connection} />}
         </div>
-      </div>
+      </ScreenBodyRow>
 
       <Modal
         open={confirmDelete !== null}

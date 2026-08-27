@@ -6,7 +6,9 @@ import { useI18n, type MessageKey, type Translate } from '../i18n'
 import { apiCertificates, errorText, saveReport, saveXlsxAs } from '../lib/api'
 import { localStamp } from '../lib/paths'
 import type { ApiCertificate, CertificateReport, Connection, ServerInfo } from '../types'
-import { ErrorBar, NotConnected, Panel, RefreshButton, ScreenBody, TableMessage, useApiData, useDebounced } from './ApiShell'
+import {
+  ErrorBar, NotConnected, Panel, RefreshButton, ScreenBody, StatsBar, TableMessage, useApiData, useDebounced,
+} from './ApiShell'
 import {
   Badge, Button, ButtonGlyph, CodePill, cx, DataTable, EmptyState, MultiSelect, Readout, rowClick,
   SearchInput, Th, THead, Toggle,
@@ -177,7 +179,7 @@ export function CertificatesScreen({ connection, server, onGoToConnection }: Pro
 
   return (
     <ScreenBody>
-      <div className="flex items-center gap-7 rounded-xl border border-line bg-surface px-5 py-3.5">
+      <StatsBar>
         <Readout label={t('certificates.total')} value={totals.total.toLocaleString()} />
         <Readout label={t('certificates.stores')} value={totals.stores.toLocaleString()} />
         <Readout
@@ -203,7 +205,7 @@ export function CertificatesScreen({ connection, server, onGoToConnection }: Pro
             {t('certificates.export', { count: visible.length })}
           </Button>
         </div>
-      </div>
+      </StatsBar>
 
       <div className="flex flex-wrap items-center gap-2">
         <SearchInput

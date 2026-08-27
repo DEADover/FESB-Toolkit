@@ -6,7 +6,7 @@ import { openUrl, revealItemInDir } from '@tauri-apps/plugin-opener'
 
 import type {
   ApiDomain, ApiProgress, AppInfo, ApplyProgress, ApplyReport, ApplyTarget, ArchiveProgress,
-  ApiEndpoint, ArchiveResult, CertificateReport, InflightExchange, ServerUsage, AuditEntry, Connection, DomainAction, DomainActionResult, DomainRouteNames,
+  AccessReport, ApiEndpoint, ArchiveResult, CertificateReport, InflightExchange, ServerUsage, AuditEntry, Connection, DomainAction, DomainActionResult, DomainRouteNames,
   DomainRoutes, DomainStat,
   ExtractResult, LinkGraph, LogEntry,
   LogFileRow, LogRequest, ManagerKind,
@@ -85,6 +85,11 @@ export function apiEndpointReport(connection: Connection): Promise<ApiEndpoint[]
  */
 export function apiCertificates(connection: Connection): Promise<CertificateReport> {
   return invoke<CertificateReport>('api_certificates', { connection })
+}
+
+/** Роли, права и открытые сеансы: кто что может делать на сервере. */
+export function apiAccess(connection: Connection): Promise<AccessReport> {
+  return invoke<AccessReport>('api_access', { connection })
 }
 
 /** Состояние сервера: время работы, память, процессор и диски. */

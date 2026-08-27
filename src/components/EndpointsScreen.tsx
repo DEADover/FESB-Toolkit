@@ -6,7 +6,7 @@ import { useI18n, type MessageKey, type Translate } from '../i18n'
 import { apiEndpointReport, errorText, onApiProgress, saveReport, saveXlsxAs } from '../lib/api'
 import { localStamp } from '../lib/paths'
 import type { ApiEndpoint, ApiProgress, Connection, ServerInfo } from '../types'
-import { ErrorBar, NotConnected, Panel, ScreenBody, TableMessage, useDebounced } from './ApiShell'
+import { ErrorBar, NotConnected, Panel, ScreenBody, StatsBar, TableMessage, useDebounced } from './ApiShell'
 import {
   Badge, Button, ButtonGlyph, CodePill, cx, DataTable, EmptyState, FOCUS_RING, MultiSelect, Readout, rowClick, SearchInput, Select, Spinner, Th, THead, Toggle,
 } from './ui'
@@ -249,7 +249,7 @@ export function EndpointsScreen({ connection, server, onGoToConnection }: Props)
 
   return (
     <ScreenBody>
-      <div className="flex items-center gap-7 rounded-xl border border-line bg-surface px-5 py-3.5">
+      <StatsBar>
         <Readout label={t('endpoints.total')} value={totals.points.toLocaleString()} />
         <Readout label={t('endpoints.in')} value={totals.inbound.toLocaleString()} tone="accent" />
         <Readout label={t('endpoints.systems')} value={totals.systems.toLocaleString()} hint={t('endpoints.systems.hint')} />
@@ -263,7 +263,7 @@ export function EndpointsScreen({ connection, server, onGoToConnection }: Props)
             {t('endpoints.export', { count: visible.length })}
           </Button>
         </div>
-      </div>
+      </StatsBar>
 
       <div className="flex flex-wrap items-center gap-2">
         <SearchInput

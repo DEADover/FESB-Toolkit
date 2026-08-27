@@ -6,7 +6,8 @@ import { useI18n } from '../i18n'
 import { apiQueueManagers, apiQueueMessage, apiQueueMessages, apiQueues, apiQueueSearch, errorText, onApiProgress } from '../lib/api'
 import type { ApiProgress, Connection, QueueManager, QueueMessage, QueueRow, ServerInfo } from '../types'
 import {
-  AutoRefreshToggle, ErrorBar, NotConnected, Panel, RefreshButton, ScreenBody, TableMessage, useApiData,
+  AutoRefreshToggle, ErrorBar, NotConnected, Panel, RefreshButton, ScreenBody, ScreenBodyRow,
+  TableMessage, useApiData,
   useAutoRefresh, useDebounced,
 } from './ApiShell'
 import {
@@ -101,7 +102,7 @@ export function QueuesScreen({ connection, server, onGoToConnection }: Props) {
     <ScreenBody>
       <ErrorBar error={managers.error} />
 
-      <div className="flex min-h-0 flex-1 gap-3">
+      <ScreenBodyRow>
         <Panel className="w-60 shrink-0 xl:w-72">
           <div className="sticky top-0 z-10 flex items-center gap-2 border-b border-line bg-surface-2 px-3 py-2">
             <span className="text-[11px] tracking-wide text-content-subtle">{t('queues.managers')}</span>
@@ -247,7 +248,7 @@ export function QueuesScreen({ connection, server, onGoToConnection }: Props) {
           </Panel>
           )}
         </div>
-      </div>
+      </ScreenBodyRow>
     </ScreenBody>
   )
 }

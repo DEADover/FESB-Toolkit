@@ -6,7 +6,7 @@ import { useI18n } from '../i18n'
 import { apiInflight } from '../lib/api'
 import type { Connection, InflightExchange, ServerInfo } from '../types'
 import {
-  AutoRefreshToggle, ErrorBar, NotConnected, Panel, RefreshButton, ScreenBody, TableMessage,
+  AutoRefreshToggle, ErrorBar, NotConnected, Panel, RefreshButton, ScreenBody, StatsBar, TableMessage,
   useApiData, useAutoRefresh, useDebounced,
 } from './ApiShell'
 import {
@@ -104,7 +104,7 @@ export function InflightScreen({ connection, server, onGoToConnection, onOpenRou
 
   return (
     <ScreenBody>
-      <div className="flex items-center gap-7 rounded-xl border border-line bg-surface px-5 py-3.5">
+      <StatsBar>
         <Readout label={t('inflight.total')} value={totals.total.toLocaleString()} tone="accent" />
         <Readout
           label={t('inflight.slow')}
@@ -122,7 +122,7 @@ export function InflightScreen({ connection, server, onGoToConnection, onOpenRou
           <AutoRefreshToggle checked={auto} onChange={setAuto} />
           <RefreshButton className="min-w-32" busy={loading} onClick={() => void reload()} />
         </div>
-      </div>
+      </StatsBar>
 
       <div className="flex flex-wrap items-center gap-2">
         <SearchInput

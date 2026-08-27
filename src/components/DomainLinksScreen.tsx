@@ -6,9 +6,7 @@ import { useI18n, useRichText } from '../i18n'
 import { errorText, routeLinks } from '../lib/api'
 import type { LinkGraph, ScanResult } from '../types'
 import { RouteViewer } from './RouteViewer'
-import {
-  RefreshButton, ScreenBody,
-} from './ApiShell'
+import { RefreshButton, ScreenBody, StatsBar } from './ApiShell'
 import { ActionLink, Badge, cx, DataTable, EmptyState, Notice, Readout, rowClick, SearchInput, Th, THead, Toggle } from './ui'
 
 interface Props {
@@ -146,7 +144,7 @@ export function DomainLinksScreen({ scan, isMac, onOpenFolder, onGoToDomains }: 
 
   return (
     <ScreenBody>
-      <div className="flex items-center gap-7 rounded-xl border border-line bg-surface px-5 py-3.5">
+      <StatsBar>
         <Readout label={t('domainLinks.total')} value={totals.links.toLocaleString()} />
         <Readout label={t('domainLinks.cross')} value={totals.crossLinks.toLocaleString()} tone="accent" />
         <Readout label={t('domainLinks.pairs')} value={totals.pairs.toLocaleString()} />
@@ -156,7 +154,7 @@ export function DomainLinksScreen({ scan, isMac, onOpenFolder, onGoToDomains }: 
           disabled={loading}
           onClick={() => void load()}
         />
-      </div>
+      </StatsBar>
 
       <div className="flex flex-wrap items-center gap-2">
         <SearchInput

@@ -1,4 +1,4 @@
-import { ArrowsLeftRight, Broadcast, CaretLeft, CaretRight, Certificate, CircleHalf, Crosshair, Cube, FingerprintSimple, FlowArrow, Gear, GithubLogo, House, ListDashes, Moon, Plugs, Queue, SlidersHorizontal, Stack, Sun, type Icon } from '@phosphor-icons/react'
+import { ArrowsLeftRight, Broadcast, CaretLeft, CaretRight, Certificate, CircleHalf, Crosshair, Cube, FingerprintSimple, FlowArrow, Gear, Key, GithubLogo, House, ListDashes, Moon, Plugs, Queue, SlidersHorizontal, Stack, Sun, type Icon } from '@phosphor-icons/react'
 
 import { LANGUAGES, useI18n, type MessageKey } from '../i18n'
 import { openRepository, REPOSITORY_URL } from '../lib/api'
@@ -21,6 +21,7 @@ export type ScreenId =
   | 'api.properties'
   | 'api.logs'
   | 'api.audit'
+  | 'api.access'
 
 interface Section {
   title: MessageKey
@@ -64,6 +65,8 @@ const SECTIONS: Section[] = [
       { id: 'api.logs', label: 'nav.api.logs', icon: ListDashes },
       // Щит для аудита — штамп; отпечаток точнее: аудит отвечает «кто это сделал».
       { id: 'api.audit', label: 'nav.api.audit', icon: FingerprintSimple },
+      // Рядом с аудитом: тот отвечает «кто сделал», этот — «кто может».
+      { id: 'api.access', label: 'nav.api.access', icon: Key },
     ],
   },
 ]

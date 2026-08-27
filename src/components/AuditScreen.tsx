@@ -102,13 +102,15 @@ export function AuditScreen({ connection, server, onGoToConnection }: Props) {
           ]}
         />
         <LimitSelect value={limit} onChange={setLimit} />
-        <AutoRefreshToggle checked={auto} onChange={setAuto} />
-        <RefreshButton busy={loading} disabled={loading} onClick={() => void load()} />
         {counts.failed > 0 && (
           <Badge tone="danger" title={t('audit.failed.hint')}>
             {t('audit.failed', { count: counts.failed })}
           </Badge>
         )}
+        <div className="ml-auto flex items-center gap-2">
+          <AutoRefreshToggle checked={auto} onChange={setAuto} />
+          <RefreshButton busy={loading} disabled={loading} onClick={() => void load()} />
+        </div>
       </div>
 
       <ErrorBar error={error} />

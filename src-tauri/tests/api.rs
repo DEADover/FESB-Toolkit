@@ -13,7 +13,8 @@ use std::path::PathBuf;
 use fesb_toolkit_lib::testing::{
     apply_trace_change, connect, domains, log_entries, log_files, modules, properties, pull, push,
     queue_managers, queues, save_property, delete_property, verify, domain_statistics,
-    audit, certificates, fetch_domain_routes, inflight_exchanges, queue_message, queue_messages,
+    access, audit, certificates, fetch_domain_routes, inflight_exchanges, queue_message,
+    queue_messages,
     queue_search, server_usage,
     route_index, route_state,
     ApplyRequest, ApplyTarget,
@@ -743,4 +744,39 @@ fn reads_what_the_server_is_doing_right_now() {
     }
     // Пустой список — нормальный ответ: значит, ничего не застряло.
     assert!(inflight.iter().all(|item| item.duration.unwrap_or(0) >= item.elapsed.unwrap_or(0)));
+}
+
+/// Роли, права и открытые сеансы.
+#[test]
+#[ignore]
+fn reads_who_can_do_what() {
+    let Some(connection) = connection() else {
+        eprintln!("FESB_URL не задан — пропускаем");
+        return;
+    };
+    let report = block(access(&connection)).expect("роли и доступ");
+    println!("ролей {} · прав {} · пользователей {}", report.roles.len(), report.permissions.len(), report.users.len());
+    for role in &report.roles {
+        println!("  {} · прав {} · областей {}", role.name, role.permissions.len(), role.scopes.len());
+        for scope in &role.scopes {
+            println!("      {}/{} → {}", scope.subject, scope.action, scope.values.join(", "));
+        }
+    }
+    for user in &report.users {
+        println!("  {} · сеансов {} · вход {:?}", user.user, user.sessions.len(), user.last_login);
+        for session in &user.sessions {
+            println!("      {} × {} · {:?}", session.ip, session.count, session.agent);
+        }
+    }
+    assert!(!report.roles.is_empty(), "шина не отдала ни одной роли");
+    assert!(!report.permissions.is_empty(), "нет справочника прав");
+    // Каждое право роли должно находиться в справочнике — иначе описание
+    // показать нечем, и колонка будет пустой.
+    let known: std::collections::HashSet<&str> =
+        report.permissions.iter().map(|item| item.name.as_str()).collect();
+    for role in &report.roles {
+        for permission in &role.permissions {
+            assert!(known.contains(permission.as_str()), "право {permission} не описано в справочнике");
+        }
+    }
 }

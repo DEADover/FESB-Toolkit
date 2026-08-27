@@ -21,7 +21,7 @@ import type {
 import { ReportDialog } from './ReportDialog'
 import { RouteViewer } from './RouteViewer'
 import { TraceTable } from './TraceTable'
-import { ScreenBody } from './ApiShell'
+import { ScreenBody, StatsBar } from './ApiShell'
 import { Badge, Button, cx, DataTable, Modal, Notice, ScrollStrip, SearchInput, Spinner, Stat, SuggestInput, Th, THead, Toggle } from './ui'
 
 interface Props {
@@ -468,7 +468,7 @@ export function TraceScreen({ scan, isMac, sourcePath, server, onRescan }: Props
 
   return (
     <ScreenBody>
-      <div className="flex items-center gap-7 rounded-xl border border-line bg-surface px-5 py-3.5">
+      <StatsBar>
         <Stat label={t('stats.domains')} value={summary.domains} />
         <Stat label={t('stats.traceBeans')} value={summary.traces} />
         <Stat label={t('stats.withBroker')} value={summary.withBroker} tone="accent" hint={t('stats.withBroker.hint')} />
@@ -505,7 +505,7 @@ export function TraceScreen({ scan, isMac, sourcePath, server, onRescan }: Props
             </FilterChip>
           ))}
         </ScrollStrip>
-      </div>
+      </StatsBar>
 
       <SearchInput
         inputRef={searchRef}

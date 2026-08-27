@@ -439,8 +439,11 @@ export function EmptyState({ icon: Glyph, title, text, action, children }: {
         </div>
         <h2 className="mt-4 text-[15px] font-semibold">{title}</h2>
         {text && <p className="mt-2 text-[12.5px] leading-relaxed text-content-subtle">{text}</p>}
-        {children}
-        {action && <div className="mt-5">{action}</div>}
+        {/* `text-center` центрирует строки, но не блоки: ряд кнопок внутри
+            растягивался на всю ширину и прижимался влево. Центрируем здесь,
+            один раз, — чтобы это нельзя было забыть на новом экране. */}
+        {children && <div className="flex flex-col items-center">{children}</div>}
+        {action && <div className="mt-5 flex justify-center">{action}</div>}
       </div>
     </div>
   )

@@ -16,6 +16,7 @@ mod route_graph;
 mod route_links;
 mod route_xml;
 mod scanner;
+mod security;
 mod xlsx;
 mod xml;
 
@@ -266,6 +267,12 @@ async fn api_endpoint_report(
     .await
 }
 
+/// Роли, права и открытые сеансы: кто что может делать на сервере.
+#[tauri::command]
+async fn api_access(connection: Connection) -> Result<security::AccessReport, String> {
+    security::access(&connection).await
+}
+
 /// Состояние сервера: время работы, память, процессор и диски.
 #[tauri::command]
 async fn api_server_usage(connection: Connection) -> Result<analytics::ServerUsage, String> {
@@ -461,6 +468,7 @@ pub fn run() {
             api_endpoint_report,
             api_certificates,
             api_server_usage,
+            api_access,
             api_inflight,
             save_report,
             api_route_state,
@@ -493,6 +501,7 @@ pub mod testing {
     pub use crate::fesb_api::{endpoint_report, fetch_domain_routes, route_index};
     pub use crate::certificates::{certificates, common_name, read_certificate};
     pub use crate::analytics::{inflight_exchanges, server_usage};
+    pub use crate::security::access;
     pub use crate::fesb_ops::{
         delete_property, domain_statistics, log_entries, log_files, modules, properties,
         audit, queue_managers, queue_message, queue_messages, queue_search, queues, route_state,

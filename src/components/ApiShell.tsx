@@ -43,6 +43,32 @@ export function ScreenBody({ children }: { children: ReactNode }) {
   return <div className="flex min-h-0 flex-1 flex-col gap-3 px-6 pb-4">{children}</div>
 }
 
+/**
+ * Полоса показателей над содержимым экрана.
+ *
+ * Слева — числа, справа — действия над ними. На узком окне переносится
+ * по строкам: четыре показателя и две кнопки в одну строку не помещаются,
+ * а уезжать за край им нельзя.
+ */
+export function StatsBar({ children }: { children: ReactNode }) {
+  return (
+    <div className="flex flex-wrap items-center gap-x-7 gap-y-3 rounded-xl border border-line bg-surface px-5 py-3.5">
+      {children}
+    </div>
+  )
+}
+
+/**
+ * Ряд «список слева — содержимое справа».
+ *
+ * Так устроены подключения, очереди, СОПС и доступ: выбор в узкой панели,
+ * подробности рядом. От него зависит, что обе половины прокручиваются
+ * внутри себя, а не тянут за собой страницу.
+ */
+export function ScreenBodyRow({ children }: { children: ReactNode }) {
+  return <div className="flex min-h-0 flex-1 gap-3">{children}</div>
+}
+
 /** Пустая таблица и «идёт загрузка» выглядят одинаково на всех экранах. */
 export function TableMessage({ colSpan, children }: { colSpan: number; children: ReactNode }) {
   return (
@@ -162,6 +188,7 @@ export function LimitSelect({ value, onChange }: { value: number; onChange: (val
   return (
     <Select<number>
       ariaLabel={t('logs.limit')}
+      className="w-32"
       value={value}
       onChange={onChange}
       options={[50, 200, 500, 1000].map((option) => ({ id: option, label: t('logs.lines', { count: option }) }))}

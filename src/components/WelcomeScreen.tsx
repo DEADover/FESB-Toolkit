@@ -2,7 +2,7 @@ import { useCallback, useMemo } from 'react'
 
 import {
   ArrowRight, ArrowsLeftRight, Broadcast, Certificate, Crosshair, Cube, FingerprintSimple, FlowArrow,
-  FolderOpen, ListDashes, Plugs, Queue, SlidersHorizontal, Stack, type Icon,
+  FolderOpen, Key, ListDashes, Plugs, Queue, SlidersHorizontal, Stack, type Icon,
 } from '@phosphor-icons/react'
 
 import { useI18n } from '../i18n'
@@ -225,6 +225,8 @@ export function WelcomeScreen({
               onClick={() => onScreen('api.properties')} dim={!server} />
             <Tile icon={ListDashes} title={t('nav.api.logs')} text={t('welcome.hint.logs')}
               onClick={() => onScreen('api.logs')} dim={!server} />
+            <Tile icon={Key} title={t('nav.api.access')} text={t('welcome.hint.access')}
+              onClick={() => onScreen('api.access')} dim={!server} />
             <Tile icon={FingerprintSimple} title={t('nav.api.audit')} text={t('welcome.hint.audit')}
               onClick={() => onScreen('api.audit')} dim={!server} />
           </div>

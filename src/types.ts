@@ -571,6 +571,48 @@ export interface ApiEndpoint {
   idleThreads: number | null
 }
 
+/** Право в том виде, в каком его описывает шина; описания приходят по-русски. */
+export interface Permission {
+  name: string
+  group: string
+  description: string
+}
+
+/** Область, на которую роль распространяет права. */
+export interface Scope {
+  /** Над чем: `domains`, `qms`, `logFilePrefixes`. */
+  subject: string
+  /** Что можно: `view`, `edit`, `action`, `export`. */
+  action: string
+  values: string[]
+}
+
+export interface Role {
+  name: string
+  permissions: string[]
+  scopes: Scope[]
+}
+
+export interface Session {
+  ip: string
+  agent: string | null
+  /** Сколько одинаковых сеансов с этого адреса. */
+  count: number
+}
+
+export interface UserAccess {
+  user: string
+  sessions: Session[]
+  /** Время последнего входа, миллисекунды эпохи. */
+  lastLogin: number | null
+}
+
+export interface AccessReport {
+  roles: Role[]
+  permissions: Permission[]
+  users: UserAccess[]
+}
+
 /** Состояние сервера: время работы, память, процессор и диски. */
 export interface ServerUsage {
   /** Сколько шина работает, в миллисекундах. */

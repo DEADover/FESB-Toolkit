@@ -156,8 +156,10 @@ export function LogsScreen({ connection, server, onGoToConnection }: Props) {
           onChange={setSelectedFiles}
         />
         <LimitSelect value={limit} onChange={setLimit} />
-        <AutoRefreshToggle checked={auto} onChange={setAuto} />
-        <RefreshButton busy={loading} disabled={loading} onClick={() => void fetchEntries()} />
+        <div className="ml-auto flex items-center gap-2">
+          <AutoRefreshToggle checked={auto} onChange={setAuto} />
+          <RefreshButton busy={loading} disabled={loading} onClick={() => void fetchEntries()} />
+        </div>
       </div>
 
       <ErrorBar error={error ?? files.error} />

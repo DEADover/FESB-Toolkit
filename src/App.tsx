@@ -8,6 +8,7 @@ import { DomainLinksScreen } from './components/DomainLinksScreen'
 import { ServerSwitch } from './components/HeaderBar'
 import { DomainsScreen, type PullIntent } from './components/DomainsScreen'
 import { WelcomeScreen } from './components/WelcomeScreen'
+import { AccessScreen } from './components/AccessScreen'
 import { CertificatesScreen } from './components/CertificatesScreen'
 import { EndpointsScreen } from './components/EndpointsScreen'
 import { InflightScreen } from './components/InflightScreen'
@@ -284,6 +285,7 @@ export default function App() {
     'api.domains': 'nav.api.domains.title',
     'files.links': 'nav.files.links.title',
     'api.audit': 'nav.api.audit.title',
+    'api.access': 'nav.api.access.title',
     'api.routes': 'nav.api.routes.title',
     'api.endpoints': 'nav.api.endpoints.title',
     'api.certificates': 'nav.api.certificates.title',
@@ -412,6 +414,8 @@ export default function App() {
           <LogsScreen {...apiScreenProps} />
         ) : screen === 'api.audit' ? (
           <AuditScreen {...apiScreenProps} />
+        ) : screen === 'api.access' ? (
+          <AccessScreen {...apiScreenProps} />
         ) : isLinksScreen ? (
           <DomainLinksScreen
             scan={scan}

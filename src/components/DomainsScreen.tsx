@@ -6,7 +6,7 @@ import { useI18n, useRichText } from '../i18n'
 import { apiDomainAction, apiDomains, apiDomainStatistics, errorText } from '../lib/api'
 import type { ApiDomain, ApiProgress, Connection, DomainAction, DomainStat, ServerInfo } from '../types'
 import {
-  AutoRefreshToggle, NotConnected, RefreshButton, ScreenBody, TableMessage, useAutoRefresh,
+  AutoRefreshToggle, NotConnected, RefreshButton, ScreenBody, StatsBar, TableMessage, useAutoRefresh,
 } from './ApiShell'
 import { ActionLink, Badge, Button, Checkbox, cx, DataTable, FOCUS_RING, IconButton, Modal, Notice, Readout, SearchInput, Spinner, Th, THead, Toggle } from './ui'
 
@@ -263,7 +263,7 @@ export function DomainsScreen({ connection, server, pulling, progress, error: pu
         и чтобы от «где болит» перейти к «останови и забери» приходилось
         менять экран. Это один и тот же список одних и тех же доменов.
       */}
-      <div className="flex items-center gap-7 rounded-xl border border-line bg-surface px-5 py-3.5">
+      <StatsBar>
         <Readout label={t('map.domains')} value={`${totals.active} / ${totals.domains}`} hint={t('map.domains.hint')} />
         <Readout label={t('map.routes')} value={`${totals.running} / ${totals.routes}`} hint={t('map.routes.hint')} />
         <Readout label={t('map.success')} value={totals.success.toLocaleString()} />
@@ -273,7 +273,7 @@ export function DomainsScreen({ connection, server, pulling, progress, error: pu
           <AutoRefreshToggle checked={auto} onChange={setAuto} />
           <RefreshButton busy={loading} disabled={loading || pulling} onClick={() => void load()} />
         </div>
-      </div>
+      </StatsBar>
 
       <div className="flex flex-wrap items-center gap-2">
         <SearchInput
