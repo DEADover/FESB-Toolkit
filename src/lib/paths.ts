@@ -7,6 +7,14 @@ export function localStamp(): string {
   return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}`
 }
 
+/** `2026-08-27T21:15:04` — местное время, тем же порядком, что у сервера. */
+export function localTime(): string {
+  const now = new Date()
+  const pad = (value: number) => String(value).padStart(2, '0')
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}` +
+    `T${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`
+}
+
 /**
  * Папка, в которую логично положить новый архив: рядом с исходной выгрузкой.
  * Для `…/config-X/domains` это `…/`, для `…/config-X.zip` — тоже `…/`.

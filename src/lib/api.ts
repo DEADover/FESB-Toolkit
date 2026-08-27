@@ -6,7 +6,8 @@ import { openUrl, revealItemInDir } from '@tauri-apps/plugin-opener'
 
 import type {
   ApiDomain, ApiProgress, AppInfo, ApplyProgress, ApplyReport, ApplyTarget, ArchiveProgress,
-  AccessReport, ApiEndpoint, ArchiveResult, CertificateReport, InflightExchange, ServerUsage, AuditEntry, Connection, DomainAction, DomainActionResult, DomainRouteNames,
+  AccessReport, ApiEndpoint, ArchiveResult, CertificateReport, InflightExchange, ReportEntry,
+  ServerUsage, StoredReport, AuditEntry, Connection, DomainAction, DomainActionResult, DomainRouteNames,
   DomainRoutes, DomainStat,
   ExtractResult, LinkGraph, LogEntry,
   LogFileRow, LogRequest, ManagerKind,
@@ -100,6 +101,33 @@ export function apiServerUsage(connection: Connection): Promise<ServerUsage> {
 /** Обмены, которые шина ещё не довела до конца. */
 export function apiInflight(connection: Connection): Promise<InflightExchange[]> {
   return invoke<InflightExchange[]>('api_inflight', { connection })
+}
+
+/**
+ * История собранных отчётов по точкам.
+ *
+ * Отчёт собирается полторы минуты, и держать его только в памяти экрана
+ * значит терять эти полторы минуты при каждом переходе. История лежит
+ * в данных приложения и переживает перезапуск.
+ */
+export function reportHistory(): Promise<ReportEntry[]> {
+  return invoke<ReportEntry[]>('report_history')
+}
+
+export function saveReportHistory(
+  server: string,
+  builtAt: string,
+  endpoints: ApiEndpoint[],
+): Promise<ReportEntry[]> {
+  return invoke<ReportEntry[]>('save_report_history', { server, builtAt, endpoints })
+}
+
+export function readReportHistory(id: string): Promise<StoredReport> {
+  return invoke<StoredReport>('read_report_history', { id })
+}
+
+export function deleteReportHistory(id: string): Promise<ReportEntry[]> {
+  return invoke<ReportEntry[]>('delete_report_history', { id })
 }
 
 /** Пишет таблицу файлом Excel: шапка приходит уже переведённой. */

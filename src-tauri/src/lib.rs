@@ -12,6 +12,7 @@ mod domain_xml;
 mod fesb_api;
 mod fesb_ops;
 mod properties;
+mod report_store;
 mod route_graph;
 mod route_links;
 mod route_xml;
@@ -23,7 +24,7 @@ mod xml;
 use std::path::PathBuf;
 
 use serde::Serialize;
-use tauri::{AppHandle, Emitter};
+use tauri::{AppHandle, Emitter, Manager};
 
 use applier::{apply_trace_change, ApplyReport, ApplyRequest};
 use archive::{create_archive, extract_archive, ArchiveResult, ExtractResult};
@@ -291,6 +292,48 @@ async fn api_certificates(connection: Connection) -> Result<certificates::Certif
     certificates::certificates(&connection).await
 }
 
+/// Каталог, в котором лежит история отчётов.
+///
+/// Временная папка для этого не годится: систему чистят, а полторы минуты
+/// сборки терять на этом нельзя. Данные приложения переживают и перезапуск,
+/// и уборку.
+fn reports_dir(app: &AppHandle) -> Result<PathBuf, String> {
+    let base = app
+        .path()
+        .app_data_dir()
+        .map_err(|err| format!("Cannot find the data folder: {err}"))?;
+    Ok(base.join("reports"))
+}
+
+/// История собранных отчётов: когда, по какому серверу и сколько точек.
+#[tauri::command]
+fn report_history(app: AppHandle) -> Result<Vec<report_store::ReportEntry>, String> {
+    Ok(report_store::list(&reports_dir(&app)?))
+}
+
+/// Кладёт собранный отчёт в историю.
+#[tauri::command]
+fn save_report_history(
+    app: AppHandle,
+    server: String,
+    built_at: String,
+    endpoints: Vec<api_report::Endpoint>,
+) -> Result<Vec<report_store::ReportEntry>, String> {
+    report_store::save(&reports_dir(&app)?, &server, &built_at, &endpoints)
+}
+
+/// Открывает отчёт из истории.
+#[tauri::command]
+fn read_report_history(app: AppHandle, id: String) -> Result<report_store::StoredReport, String> {
+    report_store::read(&reports_dir(&app)?, &id)
+}
+
+/// Убирает отчёт из истории вместе с файлом.
+#[tauri::command]
+fn delete_report_history(app: AppHandle, id: String) -> Result<Vec<report_store::ReportEntry>, String> {
+    report_store::remove(&reports_dir(&app)?, &id)
+}
+
 /// Сохраняет готовый отчёт файлом Excel.
 ///
 /// Шапка приходит с фронтенда: там она уже переведена, и дублировать словарь
@@ -471,6 +514,10 @@ pub fn run() {
             api_access,
             api_inflight,
             save_report,
+            report_history,
+            save_report_history,
+            read_report_history,
+            delete_report_history,
             api_route_state,
             api_route_action,
             api_save_points,
@@ -512,6 +559,7 @@ pub mod testing {
     };
     pub use crate::archive::create_archive;
     pub use crate::xlsx::write_sheet as write_xlsx;
+    pub use crate::report_store::{list as report_history, read as read_report, remove as remove_report, save as save_report_history};
     pub use crate::domain_xml::{parse_domain_xml, BeanTarget, TraceUpdate};
     pub use crate::route_graph::{parse_route_graphs, RouteNode};
     pub use crate::route_links::build_links;

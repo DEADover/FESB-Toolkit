@@ -15,7 +15,7 @@ use std::collections::BTreeMap;
 use std::fs;
 use std::path::Path;
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use crate::fesb_api::Connection;
 
@@ -49,7 +49,7 @@ const SECRETS: [&str; 8] = [
 /// Шаги, чей адрес считается исходящей точкой.
 const OUTGOING: [&str; 6] = ["to", "toD", "wireTap", "recipientList", "pollEnrich", "enrich"];
 
-#[derive(Debug, Clone, Serialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Endpoint {
     pub domain: String,
@@ -60,7 +60,7 @@ pub struct Endpoint {
     /// Подпись шага: `customName` в терминах API, `factor-name` в файле.
     pub component: String,
     /// `in` — точка входа, `out` — точка выхода.
-    pub direction: &'static str,
+    pub direction: String,
     /// Что это за точка: HTTP, SOAP, FTP, SQL… — по схеме адреса.
     pub kind: String,
     pub scheme: String,
@@ -350,7 +350,7 @@ fn collect(
                     route: route.to_string(),
                     route_id: route_id.to_string(),
                     component: node.label.clone().unwrap_or_else(|| node.kind.clone()),
-                    direction,
+                    direction: direction.to_string(),
                     kind: point_kind(&scheme),
                     scheme,
                     uri: readable_uri(uri),
@@ -496,7 +496,7 @@ pub async fn rest_endpoints(connection: &Connection) -> Vec<Endpoint> {
                 route: name,
                 route_id: String::new(),
                 component: "REST".into(),
-                direction: "in",
+                direction: "in".into(),
                 kind: "REST".into(),
                 scheme: scheme.into(),
                 uri: format!(
@@ -624,7 +624,7 @@ mod tests {
     fn tls_is_read_from_the_scheme_when_the_factory_says_nothing() {
         let mut points = vec![Endpoint {
             domain: "d".into(), domain_guid: "g".into(), route: "r".into(), route_id: "id".into(),
-            component: "c".into(), direction: "out", kind: "HTTP".into(), scheme: "https".into(),
+            component: "c".into(), direction: "out".into(), kind: "HTTP".into(), scheme: "https".into(),
             uri: "https://x/y".into(), host: None, port: None, ssl: None, protocol: None,
             ciphers: None, auth: None, state: None, listening: None, uptime: None,
             busy_threads: None, utilized_threads: None, ready_threads: None, min_threads: None,
@@ -636,9 +636,9 @@ mod tests {
 
     #[test]
     fn a_free_port_on_an_entry_point_means_nobody_is_listening() {
-        let point = |direction: &'static str, port: u32| Endpoint {
+        let point = |direction: &str, port: u32| Endpoint {
             domain: "d".into(), domain_guid: "g".into(), route: "r".into(), route_id: "id".into(),
-            component: "c".into(), direction, kind: "HTTP".into(), scheme: "https".into(),
+            component: "c".into(), direction: direction.into(), kind: "HTTP".into(), scheme: "https".into(),
             uri: "https://x/y".into(), host: None, port: Some(port), ssl: None, protocol: None,
             ciphers: None, auth: None, state: None, listening: None, uptime: None,
             busy_threads: None, utilized_threads: None, ready_threads: None, min_threads: None,
@@ -658,7 +658,7 @@ mod tests {
     fn an_unchecked_port_stays_unknown_rather_than_becoming_false() {
         let mut points = vec![Endpoint {
             domain: "d".into(), domain_guid: "g".into(), route: "r".into(), route_id: "id".into(),
-            component: "c".into(), direction: "in", kind: "HTTP".into(), scheme: "https".into(),
+            component: "c".into(), direction: "in".into(), kind: "HTTP".into(), scheme: "https".into(),
             uri: "https://x/y".into(), host: None, port: Some(7777), ssl: None, protocol: None,
             ciphers: None, auth: None, state: None, listening: None, uptime: None,
             busy_threads: None, utilized_threads: None, ready_threads: None, min_threads: None,

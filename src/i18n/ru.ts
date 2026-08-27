@@ -581,6 +581,16 @@ export const ru: Record<keyof typeof en, string> = {
   'action.on': 'Включена',
   'action.off': 'Выключена',
 
+  'endpoints.history.line': 'точек: {points} · узлов: {hosts}',
+  'endpoints.history.pick': 'Откройте отчёт или соберите новый',
+  'endpoints.history': 'Сохранённые Отчёты',
+  'endpoints.history.hint': 'Отчёты остаются на этом компьютере, по десять на сервер. Сборка занимает время, и терять её по дороге на соседний экран жалко.',
+  'endpoints.builtAt': 'Собран',
+  'endpoints.openStored': 'Открыть этот отчёт',
+  'endpoints.forget': 'Удалить отчёт',
+  'endpoints.backToHistory': 'Отчёты',
+  'endpoints.fromHistory': 'Отчёт собран раньше — с тех пор на сервере могло измениться.',
+
   'nav.api.queues': 'Очереди',
   'nav.api.queues.title': 'Менеджеры Очередей',
   'nav.api.modules': 'Модули',

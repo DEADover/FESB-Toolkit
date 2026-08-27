@@ -1,15 +1,19 @@
-import { Fragment, useCallback, useMemo, useState, type ReactNode } from 'react'
+import { Fragment, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 
-import { CaretRight, DownloadSimple } from '@phosphor-icons/react'
+import { CaretRight, DownloadSimple, Trash } from '@phosphor-icons/react'
 
 import { useI18n, type MessageKey, type Translate } from '../i18n'
-import { apiEndpointReport, errorText, revealPath, onApiProgress, saveReport, saveXlsxAs } from '../lib/api'
-import { localStamp } from '../lib/paths'
-import type { ApiEndpoint, ApiProgress, Connection, ServerInfo } from '../types'
+import {
+  apiEndpointReport, deleteReportHistory, errorText, onApiProgress, readReportHistory, reportHistory,
+  revealPath, saveReport, saveReportHistory, saveXlsxAs,
+} from '../lib/api'
+import { localStamp, localTime } from '../lib/paths'
+import type { ApiEndpoint, ApiProgress, Connection, ReportEntry, ServerInfo } from '../types'
 import { ErrorBar, NotConnected, Panel, ScreenBody, StatsBar, TableMessage, useDebounced } from './ApiShell'
 import { useToast } from './Toaster'
 import {
-  Badge, Button, ButtonGlyph, CodePill, cx, DataTable, EmptyState, FOCUS_RING, MultiSelect, Readout, rowClick, SearchInput, Select, Spinner, Th, THead, Toggle,
+  Badge, Button, ButtonGlyph, CodePill, cx, DataTable, EmptyState, FOCUS_RING, IconButton,
+  MultiSelect, Readout, rowClick, SearchInput, Select, Spinner, Th, THead, Toggle,
 } from './ui'
 
 interface Props {
@@ -114,6 +118,9 @@ export function EndpointsScreen({ connection, server, onGoToConnection }: Props)
   const { t } = useI18n()
   const toast = useToast()
   const [rows, setRows] = useState<ApiEndpoint[] | null>(null)
+  /** Какой отчёт сейчас открыт: собранный только что или взятый из истории. */
+  const [openedAt, setOpenedAt] = useState<string | null>(null)
+  const [history, setHistory] = useState<ReportEntry[]>([])
   const [building, setBuilding] = useState(false)
   const [progress, setProgress] = useState<ApiProgress | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -128,14 +135,26 @@ export function EndpointsScreen({ connection, server, onGoToConnection }: Props)
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
   const query = useDebounced(search, 250)
 
+  // История лежит на диске и переживает и переход, и перезапуск, поэтому
+  // читается при открытии экрана, а не собирается заново.
+  useEffect(() => {
+    reportHistory().then(setHistory).catch(() => setHistory([]))
+  }, [])
+
   const build = useCallback(async () => {
-    if (!connection) return
+    if (!connection || !server) return
     setBuilding(true)
     setError(null)
     setProgress(null)
     const stop = await onApiProgress(setProgress)
     try {
-      setRows(await apiEndpointReport(connection))
+      const points = await apiEndpointReport(connection)
+      const builtAt = localTime()
+      setRows(points)
+      setOpenedAt(builtAt)
+      // Полторы минуты работы не должны пропадать от перехода на соседний
+      // экран: отчёт сразу ложится в историю.
+      setHistory(await saveReportHistory(server.baseUrl, builtAt, points))
     } catch (err) {
       setError(errorText(err))
       setRows(null)
@@ -144,7 +163,32 @@ export function EndpointsScreen({ connection, server, onGoToConnection }: Props)
       setBuilding(false)
       setProgress(null)
     }
-  }, [connection])
+  }, [connection, server])
+
+  const openStored = useCallback(async (entry: ReportEntry) => {
+    setError(null)
+    try {
+      const stored = await readReportHistory(entry.id)
+      setRows(stored.endpoints)
+      setOpenedAt(stored.builtAt)
+    } catch (err) {
+      setError(errorText(err))
+    }
+  }, [])
+
+  const forget = useCallback(async (entry: ReportEntry) => {
+    try {
+      setHistory(await deleteReportHistory(entry.id))
+    } catch (err) {
+      setError(errorText(err))
+    }
+  }, [])
+
+  /** История этого стенда: чужие отчёты в списке только мешают. */
+  const mine = useMemo(
+    () => history.filter((entry) => entry.server === server?.baseUrl),
+    [history, server],
+  )
 
   const all = useMemo(() => rows ?? [], [rows])
 
@@ -251,7 +295,7 @@ export function EndpointsScreen({ connection, server, onGoToConnection }: Props)
         <ErrorBar error={error} />
         <EmptyState
           icon={DownloadSimple}
-          title={t('endpoints.empty')}
+          title={mine.length > 0 ? t('endpoints.history.pick') : t('endpoints.empty')}
           text={t('endpoints.empty.text')}
           action={
             <Button variant="primary" className="min-w-44" disabled={building} onClick={() => void build()}>
@@ -263,6 +307,39 @@ export function EndpointsScreen({ connection, server, onGoToConnection }: Props)
             <p className="mt-3 text-[11.5px] tabular-nums text-content-subtle">
               {t('routes.indexing', { current: progress.current, total: progress.total })}
             </p>
+          )}
+
+          {/* Собранное раньше — здесь же: заново полторы минуты ждать незачем. */}
+          {!building && mine.length > 0 && (
+            <div className="mt-7 w-[26rem] text-left">
+              <div
+                className="mb-2 text-[11px] tracking-wide text-content-subtle"
+                title={t('endpoints.history.hint')}
+              >
+                {t('endpoints.history')}
+              </div>
+              <div className="overflow-hidden rounded-xl border border-line">
+                {mine.map((entry) => (
+                  <div
+                    key={entry.id}
+                    className="flex items-center gap-2 border-b border-line/60 px-3 py-2 last:border-b-0 hover:bg-surface-2"
+                  >
+                    <button
+                      type="button"
+                      onClick={() => void openStored(entry)}
+                      title={t('endpoints.openStored')}
+                      className={cx('min-w-0 flex-1 text-left', FOCUS_RING)}
+                    >
+                      <div className="truncate text-[12.5px] tabular-nums">{readableTime(entry.builtAt)}</div>
+                      <div className="truncate text-[11px] tabular-nums text-content-subtle">
+                        {t('endpoints.history.line', { points: entry.points, hosts: entry.hosts })}
+                      </div>
+                    </button>
+                    <IconButton icon={Trash} label={t('endpoints.forget')} onClick={() => void forget(entry)} />
+                  </div>
+                ))}
+              </div>
+            </div>
           )}
         </EmptyState>
       </ScreenBody>
@@ -276,7 +353,19 @@ export function EndpointsScreen({ connection, server, onGoToConnection }: Props)
         <Readout label={t('endpoints.in')} value={totals.inbound.toLocaleString()} tone="accent" />
         <Readout label={t('endpoints.systems')} value={totals.systems.toLocaleString()} hint={t('endpoints.systems.hint')} />
         <Readout label={t('endpoints.secured')} value={totals.secured.toLocaleString()} />
+        {openedAt && (
+          <Readout
+            label={t('endpoints.builtAt')}
+            value={<span className="text-[13px] tabular-nums">{readableTime(openedAt)}</span>}
+            hint={t('endpoints.fromHistory')}
+          />
+        )}
         <div className="ml-auto flex items-center gap-2">
+          {mine.length > 0 && (
+            <Button className="min-w-32" onClick={() => { setRows(null); setOpenedAt(null) }}>
+              {t('endpoints.backToHistory')}
+            </Button>
+          )}
           <Button className="min-w-36" disabled={building} onClick={() => void build()}>
             {building ? <><Spinner className="size-4" /> {t('endpoints.building')}</> : t('endpoints.rebuild')}
           </Button>
@@ -427,4 +516,10 @@ export function EndpointsScreen({ connection, server, onGoToConnection }: Props)
       </Panel>
     </ScreenBody>
   )
+}
+
+/** `2026-08-27T21:15:04` → `27.08.2026 21:15`: секунды в списке не нужны. */
+function readableTime(value: string): string {
+  const match = /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}:\d{2})/.exec(value)
+  return match ? `${match[3]}.${match[2]}.${match[1]} ${match[4]}` : value
 }

@@ -792,7 +792,7 @@ pub async fn endpoint_report<F: FnMut(ApiProgress)>(
             .to_lowercase()
             .cmp(&b.domain.to_lowercase())
             .then_with(|| a.route.to_lowercase().cmp(&b.route.to_lowercase()))
-            .then_with(|| a.direction.cmp(b.direction))
+            .then_with(|| a.direction.cmp(&b.direction))
     });
     Ok(points)
 }

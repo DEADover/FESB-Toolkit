@@ -581,6 +581,16 @@ export const en = {
   'action.on': 'On',
   'action.off': 'Off',
 
+  'endpoints.history.line': '{points} points · {hosts} hosts',
+  'endpoints.history.pick': 'Pick a report or build a new one',
+  'endpoints.history': 'Saved Reports',
+  'endpoints.history.hint': 'Reports stay on this computer, ten per server. Building one takes a while, so it would be a pity to lose it on the way to another screen.',
+  'endpoints.builtAt': 'Built',
+  'endpoints.openStored': 'Open this report',
+  'endpoints.forget': 'Delete the report',
+  'endpoints.backToHistory': 'Reports',
+  'endpoints.fromHistory': 'This report was built earlier: the server may have changed since.',
+
   'nav.api.queues': 'Queues',
   'nav.api.queues.title': 'Queue Managers',
   'nav.api.modules': 'Modules',

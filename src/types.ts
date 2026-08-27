@@ -578,6 +578,21 @@ export interface ApiEndpoint {
   idleThreads: number | null
 }
 
+/** Строка истории отчётов: всё, что показывается, не читая сам отчёт. */
+export interface ReportEntry {
+  id: string
+  /** Адрес сервера — по нему отчёты и разделяются. */
+  server: string
+  /** Когда собран, в местном времени: `2026-08-27T21:15:04`. */
+  builtAt: string
+  points: number
+  hosts: number
+}
+
+export interface StoredReport extends ReportEntry {
+  endpoints: ApiEndpoint[]
+}
+
 /** Право в том виде, в каком его описывает шина; описания приходят по-русски. */
 export interface Permission {
   name: string
