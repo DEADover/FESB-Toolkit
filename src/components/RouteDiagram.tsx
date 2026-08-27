@@ -495,6 +495,9 @@ export function RouteDiagram({ nodes, selected, onSelect, outgoing, incoming, on
     <div
       ref={viewport}
       onMouseDown={onMouseDown}
+      // Холст двигают протяжкой: выделение здесь только мешало бы.
+      // Значения читают и копируют в панели справа, там оно разрешено.
+      data-no-select
       className={cx('relative h-full w-full overflow-hidden', grabbing ? 'cursor-grabbing' : 'cursor-grab')}
     >
       <div

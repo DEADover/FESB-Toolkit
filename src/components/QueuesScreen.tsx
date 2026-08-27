@@ -8,7 +8,7 @@ import type { Connection, QueueManager, QueueMessage, QueueRow, ServerInfo } fro
 import {
   AutoRefreshToggle, ErrorBar, NotConnected, Panel, RefreshButton, ScreenBody, TableMessage, useApiData, useAutoRefresh,
 } from './ApiShell'
-import { Badge, Button, cx, DataTable, IconButton, Notice, SearchInput, Spinner, Th, THead, Toggle } from './ui'
+import { Badge, Button, cx, DataTable, IconButton, Notice, rowClick, SearchInput, Spinner, Th, THead, Toggle } from './ui'
 
 interface Props {
   connection: Connection | null
@@ -204,7 +204,7 @@ export function QueuesScreen({ connection, server, onGoToConnection }: Props) {
                 {visible.map((queue) => (
                   <tr
                     key={`${queue.address ?? ''}/${queue.name}`}
-                    onClick={() => setInbox(queue)}
+                    onClick={rowClick(() => setInbox(queue))}
                     className="cursor-pointer border-b border-line/60 hover:bg-surface-2"
                   >
                     <td className="px-3 py-1.5">

@@ -7,7 +7,7 @@ import type { AuditEntry, Connection, ServerInfo } from '../types'
 import {
   AutoRefreshToggle, ErrorBar, LimitSelect, NotConnected, Panel, RefreshButton, ScreenBody, TableMessage, useAutoRefresh, useDebounced,
 } from './ApiShell'
-import { Badge, CodePill, cx, DataTable, SearchInput, Select, Th, THead } from './ui'
+import { Badge, CodePill, cx, DataTable, rowClick, SearchInput, Select, Th, THead } from './ui'
 
 interface Props {
   connection: Connection | null
@@ -136,7 +136,7 @@ export function AuditScreen({ connection, server, onGoToConnection }: Props) {
               return (
                 <Fragment key={`${entry.timestamp ?? ''}-${index}`}>
                   <tr
-                    onClick={() => setOpen(shown ? null : index)}
+                    onClick={rowClick(() => setOpen(shown ? null : index))}
                     className={cx(
                       'cursor-pointer align-top',
                       shown ? 'bg-surface-2/60' : 'border-b border-line/60 hover:bg-surface-2',

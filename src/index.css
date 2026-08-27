@@ -53,9 +53,6 @@
 
   body {
     margin: 0;
-    /* Десктопное приложение: выделять мышью можно значения, а не весь интерфейс. */
-    user-select: none;
-    -webkit-user-select: none;
     background: var(--color-canvas);
     color: var(--color-content);
     font-family: var(--font-sans);
@@ -74,7 +71,26 @@
   }
   ::-webkit-scrollbar-thumb:hover { background-color: var(--color-content-subtle); background-clip: content-box; }
 
-  code, input, textarea, [data-selectable] {
+  /*
+   * Текст выделяется везде.
+   *
+   * Раньше было наоборот: `user-select: none` на всём окне и разрешение
+   * точечно для полей и `<code>`. Из-за этого нельзя было выделить ни guid
+   * домена, ни строку журнала, ни значение константы — а именно это из
+   * приложения и уносят в тикет.
+   *
+   * Не выделяется только то, что текстом не является: кнопки, переключатели,
+   * навигация и полоса перетаскивания окна. Там выделение только мешает —
+   * при перетаскивании подсвечивалась бы подпись.
+   */
+  button, [role="group"], [role="tablist"], aside nav,
+  [data-tauri-drag-region], [data-no-select] {
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  /* Внутри кнопки может лежать значение, которое всё же хочется скопировать. */
+  [data-selectable] {
     user-select: text;
     -webkit-user-select: text;
   }

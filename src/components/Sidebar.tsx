@@ -1,4 +1,4 @@
-import { ArrowsLeftRight, CaretLeft, CaretRight, CircleHalf, Crosshair, Cube, FingerprintSimple, FlowArrow, Gear, GithubLogo, ListDashes, Moon, Queue, SlidersHorizontal, SquaresFour, Stack, Sun, type Icon } from '@phosphor-icons/react'
+import { ArrowsLeftRight, CaretLeft, CaretRight, CircleHalf, Crosshair, Cube, FingerprintSimple, FlowArrow, Gear, GithubLogo, ListDashes, Moon, Queue, SlidersHorizontal, Stack, Sun, type Icon } from '@phosphor-icons/react'
 
 import { LANGUAGES, useI18n, type MessageKey } from '../i18n'
 import { openRepository, REPOSITORY_URL } from '../lib/api'
@@ -11,7 +11,6 @@ export type ScreenId =
   | 'files.links'
   | 'api.connection'
   | 'api.domains'
-  | 'api.map'
   | 'api.routes'
   | 'api.queues'
   | 'api.modules'
@@ -38,7 +37,6 @@ const SECTIONS: Section[] = [
     title: 'nav.api',
     settings: { screen: 'api.connection', title: 'nav.api.connection.title' },
     items: [
-      { id: 'api.map', label: 'nav.api.map', icon: SquaresFour },
       { id: 'api.domains', label: 'nav.api.domains', icon: Stack },
       { id: 'api.routes', label: 'nav.api.routes', icon: FlowArrow },
       { id: 'api.queues', label: 'nav.api.queues', icon: Queue },

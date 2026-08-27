@@ -8,7 +8,6 @@ import { DomainLinksScreen } from './components/DomainLinksScreen'
 import { ServerSwitch } from './components/HeaderBar'
 import { DomainsScreen, type PullIntent } from './components/DomainsScreen'
 import { LogsScreen } from './components/LogsScreen'
-import { MapScreen } from './components/MapScreen'
 import { ModulesScreen } from './components/ModulesScreen'
 import { PropertiesScreen } from './components/PropertiesScreen'
 import { QueuesScreen } from './components/QueuesScreen'
@@ -278,7 +277,6 @@ export default function App() {
     'api.domains': 'nav.api.domains.title',
     'files.links': 'nav.files.links.title',
     'api.audit': 'nav.api.audit.title',
-    'api.map': 'nav.api.map.title',
     'api.routes': 'nav.api.routes.title',
     'api.queues': 'nav.api.queues.title',
     'api.modules': 'nav.api.modules.title',
@@ -364,12 +362,8 @@ export default function App() {
             progress={apiProgress}
             error={pullError}
             onPull={pull}
-            onGoToConnection={() => setScreen('api.connection')}
-          />
-        ) : screen === 'api.map' ? (
-          <MapScreen
-            {...apiScreenProps}
             onOpenRoutes={(guid) => { setRoutesDomain(guid); setScreen('api.routes') }}
+            onGoToConnection={() => setScreen('api.connection')}
           />
         ) : screen === 'api.routes' ? (
           <RoutesScreen {...apiScreenProps} isMac={isMac} initialGuid={routesDomain} />

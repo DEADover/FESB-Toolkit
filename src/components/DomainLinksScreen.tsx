@@ -9,7 +9,7 @@ import { RouteViewer } from './RouteViewer'
 import {
   RefreshButton, ScreenBody,
 } from './ApiShell'
-import { Badge, cx, DataTable, EmptyState, Notice, Readout, SearchInput, Th, THead, Toggle } from './ui'
+import { Badge, cx, DataTable, EmptyState, Notice, Readout, rowClick, SearchInput, Th, THead, Toggle } from './ui'
 
 interface Props {
   scan: ScanResult | null
@@ -193,7 +193,7 @@ export function DomainLinksScreen({ scan, isMac }: Props) {
               return (
                 <Fragment key={pair.key}>
                   <tr
-                    onClick={() => setExpanded(open ? null : pair.key)}
+                    onClick={rowClick(() => setExpanded(open ? null : pair.key))}
                     className={cx(
                       'cursor-pointer align-top',
                       open ? 'bg-surface-2/60' : 'border-b border-line/60 hover:bg-surface-2',

@@ -7,7 +7,7 @@ import type { Connection, LogEntry, LogFileRow, ServerInfo } from '../types'
 import {
   AutoRefreshToggle, ErrorBar, LimitSelect, useDebounced, NotConnected, Panel, RefreshButton, ScreenBody, TableMessage, useApiData, useAutoRefresh,
 } from './ApiShell'
-import { Badge, Button, CodePill, cx, DataTable, MultiSelect, SearchInput, Th, THead, type Tone } from './ui'
+import { Badge, Button, CodePill, cx, DataTable, MultiSelect, rowClick, SearchInput, Th, THead, type Tone } from './ui'
 
 interface Props {
   connection: Connection | null
@@ -182,7 +182,7 @@ export function LogsScreen({ connection, server, onGoToConnection }: Props) {
               return (
                 <Fragment key={`${entry.timestamp ?? ''}-${index}`}>
                 <tr
-                  onClick={() => multiline && toggle(index)}
+                  onClick={rowClick(() => { if (multiline) toggle(index) })}
                   className={cx(
                     'align-top',
                     open ? 'bg-surface-2/60' : 'border-b border-line/60',

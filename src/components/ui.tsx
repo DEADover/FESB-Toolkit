@@ -194,6 +194,25 @@ export function SearchInput({ value, placeholder, onChange, className, inputRef,
 }
 
 /**
+ * Обработчик клика по строке, который не мешает выделять текст.
+ *
+ * Строки журналов, аудита и связей разворачиваются по клику. Стоит выделить
+ * в такой строке guid — и на отпускании кнопки строка схлопывается вместе
+ * с выделением. Поэтому клик после протяжки мы пропускаем.
+ */
+export function rowClick(action: (event: React.MouseEvent) => void) {
+  return (event: React.MouseEvent) => {
+    // Клик по кнопке внутри строки обрабатывает сама кнопка.
+    if ((event.target as HTMLElement).closest('button, a, input, select')) return
+    // Двойной и тройной клик — это выделение слова и строки, а не «разверни».
+    if (event.detail > 1) return
+    const selection = window.getSelection()
+    if (selection && !selection.isCollapsed && selection.toString().trim().length > 0) return
+    action(event)
+  }
+}
+
+/**
  * Закрывает всплывающую панель по клику мимо неё и по Escape.
  *
  * Один обработчик на все выпадающие списки: у каждого свой был бы шансом

@@ -6,7 +6,7 @@ import { useI18n } from '../i18n'
 import type { DomainGroup, SortDir, SortKey, TraceEntry } from '../lib/rows'
 import { changeKey, routeSummary, routesUsingBean, selectableKeys } from '../lib/rows'
 import type { DomainRecord, RouteInfo, TraceBean, TraceUpdate } from '../types'
-import { Badge, Checkbox, cx, SortHead, Th } from './ui'
+import { Badge, Checkbox, cx, rowClick, SortHead, Th } from './ui'
 
 interface Props {
   groups: DomainGroup[]
@@ -30,10 +30,6 @@ interface Props {
 const COLUMN_COUNT = 9
 
 /** Клик, завершающий выделение текста, не должен сворачивать строку. */
-function hasTextSelection(): boolean {
-  return (window.getSelection()?.toString().length ?? 0) > 0
-}
-
 /**
  * Домены с раскрытием. Подробности домена — его объекты трассировки и СОПС —
  * показываются обычными строками той же таблицы, поэтому колонки остаются
@@ -111,7 +107,7 @@ export function TraceTable({
           return (
             <tbody key={domain.id}>
               <tr
-                onClick={() => { if (!hasTextSelection()) onToggleExpand(domain.id) }}
+                onClick={rowClick(() => onToggleExpand(domain.id))}
                 title={domain.startActive === false ? t('table.stoppedHint') : undefined}
                 className={cx(
                   'group cursor-pointer transition-colors',
@@ -315,7 +311,7 @@ function BeanRow({ entry, number, changed, domain, selected, update, onToggle }:
   return (
     <SubRow
       selected={selected}
-      onClick={entry.editable ? (event) => { if (!hasTextSelection()) onToggle(entry.key, event) } : undefined}
+      onClick={entry.editable ? rowClick((event) => onToggle(entry.key, event)) : undefined}
     >
       <Cell className="py-1.5">
         <LineBox compact>

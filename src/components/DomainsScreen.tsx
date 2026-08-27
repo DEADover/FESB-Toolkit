@@ -1,17 +1,30 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
-import { ArrowsClockwise, Play, Stop } from '@phosphor-icons/react'
+import { ArrowsClockwise, CaretDown, Play, Stop } from '@phosphor-icons/react'
 
 import { useI18n } from '../i18n'
-import { apiDomainAction, apiDomains, errorText } from '../lib/api'
-import type { ApiDomain, ApiProgress, Connection, DomainAction, ServerInfo } from '../types'
+import { apiDomainAction, apiDomains, apiDomainStatistics, errorText } from '../lib/api'
+import type { ApiDomain, ApiProgress, Connection, DomainAction, DomainStat, ServerInfo } from '../types'
 import {
-  NotConnected, RefreshButton, ScreenBody,
+  AutoRefreshToggle, NotConnected, RefreshButton, ScreenBody, TableMessage, useAutoRefresh,
 } from './ApiShell'
-import { Badge, Button, Checkbox, cx, DataTable, FOCUS_RING, IconButton, Modal, Notice, SearchInput, Spinner, Th, THead, Toggle } from './ui'
+import { Badge, Button, Checkbox, cx, DataTable, FOCUS_RING, IconButton, Modal, Notice, Readout, SearchInput, Spinner, Th, THead, Toggle } from './ui'
 
 /** Что делать с доменами после выгрузки. */
 export type PullIntent = 'edit' | 'archive'
+
+type SortKey = 'name' | 'routes' | 'success' | 'errors' | 'inflight'
+
+/** Домен вместе со счётчиками: список и статистика сведены по guid. */
+interface Row extends ApiDomain {
+  routes: number
+  running: number
+  success: number
+  errors: number
+  inflight: number
+  /** Домен поднят, но часть его СОПС не работает — то, ради чего была карта. */
+  limping: boolean
+}
 
 interface Props {
   connection: Connection | null
@@ -21,6 +34,8 @@ interface Props {
   /** Ошибка последней выгрузки — приходит из App, где живёт сам вызов. */
   error: string | null
   onPull: (guids: string[] | null, intent: PullIntent) => void
+  /** Переход к СОПС домена: видно, что часть не запущена — лечат уже там. */
+  onOpenRoutes: (guid: string) => void
   onGoToConnection: () => void
 }
 
@@ -30,9 +45,13 @@ interface Props {
  * Выгрузка всех доменов сразу занимает минуты, поэтому выбор нескольких —
  * основной путь, а «забрать все» вынесено отдельной кнопкой с предупреждением.
  */
-export function DomainsScreen({ connection, server, pulling, progress, error: pullError, onPull, onGoToConnection }: Props) {
+export function DomainsScreen({ connection, server, pulling, progress, error: pullError, onPull, onOpenRoutes, onGoToConnection }: Props) {
   const { t } = useI18n()
   const [domains, setDomains] = useState<ApiDomain[] | null>(null)
+  const [stats, setStats] = useState<DomainStat[]>([])
+  const [onlyTrouble, setOnlyTrouble] = useState(false)
+  const [sort, setSort] = useState<SortKey>('name')
+  const [auto, setAuto] = useState(false)
   const [loading, setLoading] = useState(false)
   const [listError, setListError] = useState<string | null>(null)
   const [query, setQuery] = useState('')
@@ -65,7 +84,15 @@ export function DomainsScreen({ connection, server, pulling, progress, error: pu
     setLoading(true)
     setListError(null)
     try {
-      setDomains(await apiDomains(connection))
+      // Список и счётчики — два разных вызова шины, но одна таблица:
+      // раньше они жили на разных экранах, и «где болит» приходилось
+      // смотреть отдельно от «что с этим делать».
+      const [list, numbers] = await Promise.all([
+        apiDomains(connection),
+        apiDomainStatistics(connection).catch(() => [] as DomainStat[]),
+      ])
+      setDomains(list)
+      setStats(numbers)
     } catch (err) {
       setListError(errorText(err))
       setDomains(null)
@@ -80,11 +107,43 @@ export function DomainsScreen({ connection, server, pulling, progress, error: pu
     else setDomains(null)
   }, [server, load])
 
-  const visible = useMemo(() => {
+  useAutoRefresh(auto, load)
+
+  const rows = useMemo<Row[]>(() => {
     if (!domains) return []
+    const byGuid = new Map(stats.map((item) => [item.guid, item]))
+    return domains.map((domain) => {
+      const numbers = byGuid.get(domain.guid)
+      const routes = numbers?.routes ?? 0
+      const running = numbers?.running ?? 0
+      return {
+        ...domain,
+        routes,
+        running,
+        success: numbers?.success ?? 0,
+        errors: numbers?.errors ?? 0,
+        inflight: numbers?.inflight ?? 0,
+        limping: domain.active && routes > 0 && running < routes,
+      }
+    })
+  }, [domains, stats])
+
+  const totals = useMemo(() => rows.reduce((sum, item) => ({
+    domains: sum.domains + 1,
+    active: sum.active + (item.active ? 1 : 0),
+    routes: sum.routes + item.routes,
+    running: sum.running + item.running,
+    success: sum.success + item.success,
+    errors: sum.errors + item.errors,
+    inflight: sum.inflight + item.inflight,
+  }), { domains: 0, active: 0, routes: 0, running: 0, success: 0, errors: 0, inflight: 0 }), [rows])
+
+  const visible = useMemo(() => {
     const needle = query.trim().toLowerCase()
-    return domains.filter((domain) => {
+    const kept = rows.filter((domain) => {
       if (onlyActive && !domain.active) return false
+      // «Есть на что посмотреть» — ошибки, зависшие сообщения или хромой домен.
+      if (onlyTrouble && domain.errors === 0 && domain.inflight === 0 && !domain.limping) return false
       if (!needle) return true
       return (
         domain.name.toLowerCase().includes(needle) ||
@@ -92,7 +151,19 @@ export function DomainsScreen({ connection, server, pulling, progress, error: pu
         (domain.group ?? '').toLowerCase().includes(needle)
       )
     })
-  }, [domains, query, onlyActive])
+    const by = (item: Row) => {
+      switch (sort) {
+        case 'routes': return item.routes
+        case 'success': return item.success
+        case 'errors': return item.errors
+        case 'inflight': return item.inflight
+        default: return 0
+      }
+    }
+    return sort === 'name'
+      ? [...kept].sort((a, b) => a.name.localeCompare(b.name))
+      : [...kept].sort((a, b) => by(b) - by(a) || a.name.localeCompare(b.name))
+  }, [rows, query, onlyActive, onlyTrouble, sort])
 
   const act = useCallback(async (domain: ApiDomain, action: DomainAction) => {
     if (!connection) return
@@ -182,6 +253,23 @@ export function DomainsScreen({ connection, server, pulling, progress, error: pu
 
   return (
     <ScreenBody>
+      {/*
+        Сводка по всему серверу: раньше она жила отдельной «Картой доменов»,
+        и чтобы от «где болит» перейти к «останови и забери» приходилось
+        менять экран. Это один и тот же список одних и тех же доменов.
+      */}
+      <div className="flex items-center gap-7 rounded-xl border border-line bg-surface px-5 py-3.5">
+        <Readout label={t('map.domains')} value={`${totals.active} / ${totals.domains}`} hint={t('map.domains.hint')} />
+        <Readout label={t('map.routes')} value={`${totals.running} / ${totals.routes}`} hint={t('map.routes.hint')} />
+        <Readout label={t('map.success')} value={totals.success.toLocaleString()} />
+        <Readout label={t('map.errors')} value={totals.errors.toLocaleString()} tone={totals.errors > 0 ? 'danger' : undefined} />
+        <Readout label={t('map.inflight')} value={totals.inflight.toLocaleString()} tone={totals.inflight > 0 ? 'warn' : undefined} />
+        <div className="ml-auto flex items-center gap-2">
+          <AutoRefreshToggle checked={auto} onChange={setAuto} />
+          <RefreshButton busy={loading} disabled={loading || pulling} onClick={() => void load()} />
+        </div>
+      </div>
+
       <div className="flex items-center gap-2">
         <SearchInput
           className="flex-1"
@@ -190,10 +278,11 @@ export function DomainsScreen({ connection, server, pulling, progress, error: pu
           onChange={setQuery}
         />
         <Toggle checked={onlyActive} onChange={setOnlyActive} label={t('api.domains.onlyActive')} />
-        <RefreshButton
-          busy={loading}
-          disabled={loading || pulling}
-          onClick={() => void load()}
+        <Toggle
+          checked={onlyTrouble}
+          onChange={setOnlyTrouble}
+          label={t('map.onlyTrouble')}
+          title={t('map.onlyTrouble.hint')}
         />
       </div>
 
@@ -211,12 +300,15 @@ export function DomainsScreen({ connection, server, pulling, progress, error: pu
 
       <div className="min-h-0 flex-1 overflow-auto rounded-xl border border-line bg-surface">
         <DataTable>
+          {/* Счётчики уходят на узком окне: имя и состояние домена важнее. */}
           <colgroup>
             <col className="w-9" />
             <col />
-            <col className="w-32" />
-            <col className="w-24" />
-            <col />
+            <col className="w-28" />
+            <col className="w-20" />
+            <col className="w-20" />
+            <col className="hidden w-20 xl:table-column" />
+            <col className="hidden w-24 xl:table-column" />
             <col className="w-28" />
           </colgroup>
           <THead>
@@ -227,10 +319,12 @@ export function DomainsScreen({ connection, server, pulling, progress, error: pu
                   aria-label={t('api.domains.selectAll')}
                 />
               </Th>
-              <Th className="px-2">{t('table.domain')}</Th>
-              <Th className="px-2">{t('api.domains.group')}</Th>
+              <SortColumn label={t('table.domain')} id="name" sort={sort} onSort={setSort} align="left" />
               <Th className="px-2">{t('table.state')}</Th>
-              <Th className="px-2">{t('table.guid')}</Th>
+              <SortColumn label={t('map.routes')} id="routes" sort={sort} onSort={setSort} />
+              <SortColumn label={t('map.errors')} id="errors" sort={sort} onSort={setSort} />
+              <SortColumn label={t('map.inflight')} id="inflight" sort={sort} onSort={setSort} className="hidden xl:table-cell" />
+              <SortColumn label={t('map.success')} id="success" sort={sort} onSort={setSort} className="hidden xl:table-cell" />
               <Th className="px-2">{t('modules.actions')}</Th>
             </THead>
           <tbody>
@@ -252,19 +346,49 @@ export function DomainsScreen({ connection, server, pulling, progress, error: pu
                     aria-label={domain.name}
                   />
                 </td>
-                <td className="truncate px-2 py-1.5 font-medium" title={domain.name}>
-                  {domain.name}
-                  {domain.leader && <Badge tone="accent" className="ml-2">{t('api.domains.leader')}</Badge>}
-                  {domain.clustered && <Badge className="ml-1.5">{t('api.domains.clustered')}</Badge>}
-                </td>
-                <td className="truncate px-2 py-1.5">{domain.group ?? '—'}</td>
                 <td className="px-2 py-1.5">
-                  {domain.active
-                    ? <Badge tone="ok">{t('table.active')}</Badge>
-                    : <Badge>{t('table.stopped')}</Badge>}
+                  <div className="flex items-center gap-1.5">
+                    <span className="min-w-0 truncate font-medium" title={domain.name}>{domain.name}</span>
+                    {domain.leader && <Badge tone="accent">{t('api.domains.leader')}</Badge>}
+                    {domain.clustered && <Badge>{t('api.domains.clustered')}</Badge>}
+                  </div>
+                  {/*
+                    Guid и группа — подписью под именем, а не колонками.
+                    Колонка под guid на узком окне съедала имя домена, а сам
+                    guid нужен, чтобы его выделить и унести в тикет: здесь он
+                    виден всегда и на любой ширине.
+                  */}
+                  <div className="truncate font-mono text-[10.5px] text-content-subtle" title={domain.guid}>
+                    {domain.group ? `${domain.group} · ` : ''}{domain.guid}
+                  </div>
                 </td>
-                <td className="truncate px-2 py-1.5 font-mono text-[11px] text-content-subtle" title={domain.guid}>
-                  {domain.guid}
+                <td className="px-2 py-1.5">
+                  {domain.limping
+                    ? <Badge tone="warn" title={t('map.notAllRunning.hint')}>{t('map.notAllRunning')}</Badge>
+                    : domain.active
+                      ? <Badge tone="ok">{t('table.active')}</Badge>
+                      : <Badge>{t('table.stopped')}</Badge>}
+                </td>
+                <td className="px-2 py-1.5 text-right tabular-nums" onClick={(event) => event.stopPropagation()}>
+                  {domain.routes > 0 ? (
+                    <button
+                      type="button"
+                      title={t('map.openRoutes')}
+                      onClick={() => onOpenRoutes(domain.guid)}
+                      className={cx('rounded px-1 tabular-nums transition hover:text-accent-content hover:underline', FOCUS_RING)}
+                    >
+                      {domain.running} / {domain.routes}
+                    </button>
+                  ) : '—'}
+                </td>
+                <td className={cx('px-2 py-1.5 text-right tabular-nums', domain.errors > 0 && 'font-medium text-negative')}>
+                  {domain.errors > 0 ? domain.errors.toLocaleString() : '—'}
+                </td>
+                <td className={cx('hidden px-2 py-1.5 text-right tabular-nums xl:table-cell', domain.inflight > 0 && 'font-medium text-caution')}>
+                  {domain.inflight > 0 ? domain.inflight.toLocaleString() : '—'}
+                </td>
+                <td className="hidden px-2 py-1.5 text-right tabular-nums text-content-muted xl:table-cell">
+                  {domain.success > 0 ? domain.success.toLocaleString() : '—'}
                 </td>
                 <td className="px-2 py-1.5" onClick={(event) => event.stopPropagation()}>
                   <div className="flex items-center gap-1">
@@ -294,7 +418,7 @@ export function DomainsScreen({ connection, server, pulling, progress, error: pu
               </tr>
             ))}
             {visible.length === 0 && !loading && (
-              <tr><td colSpan={6} className="px-3 py-10 text-center text-content-subtle">{t('table.empty')}</td></tr>
+              <TableMessage colSpan={8}>{t('table.empty')}</TableMessage>
             )}
           </tbody>
         </DataTable>
@@ -475,5 +599,32 @@ function IntentChoice({ title, text, onClick }: { title: string; text: string; o
       <div className="text-[13px] font-semibold">{title}</div>
       <div className="mt-1 text-[11.5px] text-content-subtle">{text}</div>
     </button>
+  )
+}
+
+/** Заголовок числовой колонки: клик меняет сортировку, стрелка показывает текущую. */
+function SortColumn({ label, id, sort, onSort, align = 'right', className }: {
+  label: string
+  id: SortKey
+  sort: SortKey
+  onSort: (id: SortKey) => void
+  align?: 'left' | 'right'
+  className?: string
+}) {
+  return (
+    <Th align={align} className={cx('px-2', className)}>
+      <button
+        type="button"
+        onClick={() => onSort(id)}
+        className={cx(
+          'inline-flex items-center gap-1 rounded transition hover:text-content',
+          FOCUS_RING,
+          sort === id && 'text-accent-content',
+        )}
+      >
+        {label}
+        {sort === id && <CaretDown size={9} weight="bold" />}
+      </button>
+    </Th>
   )
 }
