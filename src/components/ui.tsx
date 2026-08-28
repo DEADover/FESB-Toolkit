@@ -169,7 +169,7 @@ export function Checkbox({ className, ...rest }: ComponentProps<'input'>) {
  * Эта пара — поле плюс значок в абсолютной позиции — была скопирована
  * на восьми экранах. Один компонент дешевле, и лупа теперь везде одна и та же.
  */
-export function SearchInput({ value, placeholder, onChange, className, inputRef, clearLabel }: {
+export function SearchInput({ value, placeholder, onChange, className, inputRef, clearLabel, autoFocus }: {
   value: string
   placeholder: string
   onChange: (value: string) => void
@@ -177,6 +177,8 @@ export function SearchInput({ value, placeholder, onChange, className, inputRef,
   inputRef?: React.Ref<HTMLInputElement>
   /** Задан — справа появляется крестик, который стирает запрос. */
   clearLabel?: string
+  /** Поле сразу под курсором: так открывают палитру команд. */
+  autoFocus?: boolean
 }) {
   return (
     // Ширину задаёт тот, кто ставит поле: в ряду оно растягивается, в колонке нет.
@@ -185,6 +187,7 @@ export function SearchInput({ value, placeholder, onChange, className, inputRef,
         ref={inputRef}
         value={value}
         placeholder={placeholder}
+        autoFocus={autoFocus}
         className={cx('pl-8', clearLabel && value && 'pr-8')}
         onChange={(event) => onChange(event.target.value)}
       />

@@ -377,9 +377,4 @@ export function apiAudit(connection: Connection, request: LogRequest): Promise<A
   return invoke<AuditEntry[]>('api_audit', { connection, request })
 }
 
-/** Понятный текст для ошибки, прилетевшей из команды Tauri. */
-export function errorText(error: unknown): string {
-  if (typeof error === 'string') return error
-  if (error instanceof Error) return error.message
-  return JSON.stringify(error)
-}
+export { errorText } from './errors'

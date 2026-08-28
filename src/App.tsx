@@ -21,6 +21,7 @@ import { RoutesScreen } from './components/RoutesScreen'
 import { Sidebar, type ScreenId } from './components/Sidebar'
 import { RefreshButton } from './components/ApiShell'
 import { TraceScreen } from './components/TraceScreen'
+import { CommandPalette } from './components/CommandPalette'
 import { useToast } from './components/Toaster'
 import { Badge, Button, cx, Notice, Spinner } from './components/ui'
 import { useI18n, type MessageKey } from './i18n'
@@ -77,6 +78,7 @@ export default function App() {
   const [apiProgress, setApiProgress] = useState<ApiProgress | null>(null)
   const [pullError, setPullError] = useState<string | null>(null)
   const [connecting, setConnecting] = useState(false)
+  const [paletteOpen, setPaletteOpen] = useState(false)
   /** Последнее переключение стенда не удалось: точка в пилюле красная. */
   const [failedSwitch, setFailedSwitch] = useState(false)
   /** Профиль, который надо раскрыть на экране подключения. */
@@ -283,6 +285,11 @@ export default function App() {
         event.preventDefault()
         void rescan()
       }
+      // Разделов шестнадцать, и до нужного мышью дольше, чем набрать имя.
+      if (event.key.toLowerCase() === 'k') {
+        event.preventDefault()
+        setPaletteOpen((value) => !value)
+      }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
@@ -471,6 +478,15 @@ export default function App() {
           />
         )}
       </main>
+
+      <CommandPalette
+        open={paletteOpen}
+        onClose={() => setPaletteOpen(false)}
+        store={connections}
+        onScreen={setScreen}
+        onConnect={switchProfile}
+        onConfigure={configure}
+      />
 
       {dragging && <DropOverlay />}
     </div>

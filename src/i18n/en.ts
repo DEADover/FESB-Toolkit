@@ -613,6 +613,21 @@ export const en = {
   'tracing.tags': 'Tags',
   'tracing.hint': 'The bus answers this in one call, so the list is always fresh — no config export needed.',
 
+  'error.auth.failed': 'Sign-in failed: check the user name and password',
+  'error.auth.forbidden': 'Not enough permissions for this user',
+  'error.http.status': 'The server answered with an error',
+  'error.transport.unreachable': 'Cannot reach the server',
+  'error.transport.timeout': 'The server did not answer in time',
+  'error.transport.other': 'The exchange with the server failed',
+  'error.server.empty': 'The server address is empty',
+  'error.server.silent': 'The server did not answer',
+
+  'palette.title': 'Go to',
+  'palette.search': 'Section or stand name',
+  'palette.nothing': 'Nothing found',
+  'palette.move': 'move',
+  'palette.pick': 'open',
+
   'nav.api.queues': 'Queues',
   'nav.api.queues.title': 'Queue Managers',
   'nav.api.modules': 'Modules',

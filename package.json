@@ -2,7 +2,7 @@
   "name": "fesb-toolkit",
   "productName": "FESB Toolkit",
   "version": "0.2.0",
-  "description": "\u0418\u043d\u0441\u0442\u0440\u0443\u043c\u0435\u043d\u0442 \u0434\u043b\u044f \u0440\u0430\u0431\u043e\u0442\u044b \u0441 \u0438\u043d\u0442\u0435\u0433\u0440\u0430\u0446\u0438\u043e\u043d\u043d\u043e\u0439 \u0448\u0438\u043d\u043e\u0439 FESB: \u043c\u0430\u0441\u0441\u043e\u0432\u0430\u044f \u043f\u0440\u0430\u0432\u043a\u0430 \u043a\u043e\u043d\u0444\u0438\u0433\u0443\u0440\u0430\u0446\u0438\u0438 \u0438 \u0443\u043f\u0440\u0430\u0432\u043b\u0435\u043d\u0438\u0435 \u0441\u0442\u0435\u043d\u0434\u043e\u043c \u043f\u043e API",
+  "description": "Инструмент для работы с интеграционной шиной FESB: массовая правка конфигурации и управление стендом по API",
   "private": true,
   "type": "module",
   "scripts": {
@@ -11,7 +11,9 @@
     "vite:dev": "vite",
     "vite:build": "tsc --noEmit && vite build",
     "tauri": "tauri",
-    "test:rust": "cargo test --manifest-path src-tauri/Cargo.toml"
+    "test:rust": "cargo test --manifest-path src-tauri/Cargo.toml",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@fontsource-variable/geist": "^5.3.0",
@@ -31,6 +33,7 @@
     "@vitejs/plugin-react": "^5.0.0",
     "tailwindcss": "^4.3.3",
     "typescript": "^5.9.0",
-    "vite": "^8.2.2"
+    "vite": "^8.2.2",
+    "vitest": "^3.2.7"
   }
 }

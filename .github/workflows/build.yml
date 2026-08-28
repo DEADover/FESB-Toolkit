@@ -33,6 +33,9 @@ jobs:
       - name: Run backend tests
         run: cargo test --manifest-path src-tauri/Cargo.toml
 
+      - name: Run frontend tests
+        run: npm test
+
       - name: Build installer
         run: npm run build
 
@@ -93,6 +96,9 @@ jobs:
 
       - name: Run backend tests
         run: cargo test --manifest-path src-tauri/Cargo.toml
+
+      - name: Run frontend tests
+        run: npm test
 
       - name: Build app
         run: npm run build -- --target aarch64-apple-darwin

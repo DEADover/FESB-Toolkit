@@ -187,19 +187,45 @@ fn strip_markup(body: &str) -> String {
     text.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
+/// Ошибка с кодом: интерфейс покажет её на языке пользователя.
+///
+/// Команды Tauri по всему приложению отдают `Result<_, String>`, поэтому код
+/// уезжает строкой — а строка эта JSON. Фронтенд узнаёт её по полю `code`
+/// и переводит; всё, что не разобралось, показывается как есть. Так удалось
+/// перевести то, что человек видит чаще всего, не переписывая под коды
+/// каждое сообщение в приложении.
+///
+/// Подробность остаётся технической и непереведённой — это ответ чужой
+/// системы, и придумывать ему русский текст было бы враньём.
+pub(crate) fn coded(code: &str, detail: impl Into<String>) -> String {
+    serde_json::json!({ "code": code, "detail": detail.into() }).to_string()
+}
+
 pub(crate) async fn ensure_ok(response: reqwest::Response, what: &str) -> Result<reqwest::Response, String> {
     let status = response.status();
     if status.is_success() {
         return Ok(response);
     }
     if status.as_u16() == 401 {
-        return Err("Authentication failed: check the user name and password".into());
+        return Err(coded("auth.failed", ""));
     }
     if status.as_u16() == 403 {
-        return Err(format!("{what}: not enough permissions for this user"));
+        return Err(coded("auth.forbidden", what));
     }
     let body = response.text().await.unwrap_or_default();
-    Err(format!("{what}: HTTP {} — {}", status.as_u16(), api_message(&body)))
+    Err(coded("http.status", format!("{} — {}", status.as_u16(), api_message(&body))))
+}
+
+/// Дописывает адрес к подробности ошибки, не ломая её код.
+fn with_url(url: &str, error: String) -> String {
+    match serde_json::from_str::<serde_json::Value>(&error) {
+        Ok(value) => {
+            let code = value.get("code").and_then(|item| item.as_str()).unwrap_or("transport.other");
+            let detail = value.get("detail").and_then(|item| item.as_str()).unwrap_or_default();
+            coded(code, if detail.is_empty() { url.to_string() } else { format!("{url} — {detail}") })
+        }
+        Err(_) => format!("{url}: {error}"),
+    }
 }
 
 pub(crate) fn transport_error(err: reqwest::Error) -> String {
@@ -209,11 +235,11 @@ pub(crate) fn transport_error(err: reqwest::Error) -> String {
     // lookup address information», «connection refused».
     let cause = root_cause(&err);
     if err.is_timeout() {
-        format!("The server did not answer in time: {cause}")
+        coded("transport.timeout", cause)
     } else if err.is_connect() {
-        format!("Cannot reach the server: {cause}")
+        coded("transport.unreachable", cause)
     } else {
-        cause
+        coded("transport.other", cause)
     }
 }
 
@@ -319,7 +345,7 @@ async fn resolve(
 ) -> Result<(Connection, reqwest::Response), String> {
     let candidates = connection.candidates();
     if candidates.is_empty() {
-        return Err("The server address is empty".into());
+        return Err(coded("server.empty", ""));
     }
     let mut last: Option<String> = None;
     for url in candidates {
@@ -335,12 +361,14 @@ async fn resolve(
                     let body = ensure_ok(response, "Cannot read the current user").await;
                     return Err(body.err().unwrap_or_else(|| "Access denied".into()));
                 }
-                last = Some(format!("{url} answered {}", status.as_u16()));
+                last = Some(coded("http.status", format!("{url} — {}", status.as_u16())));
             }
-            Err(err) => last = Some(format!("{url}: {}", transport_error(err))),
+            // Адрес перебирается, поэтому в подробности он и попадает:
+            // без него непонятно, какой из вариантов не отозвался.
+            Err(err) => last = Some(with_url(&url, transport_error(err))),
         }
     }
-    Err(last.unwrap_or_else(|| "The server did not answer".into()))
+    Err(last.unwrap_or_else(|| coded("server.silent", "")))
 }
 
 pub async fn connect(connection: &Connection) -> Result<ServerInfo, String> {
@@ -1277,6 +1305,35 @@ mod tests {
         assert_eq!(connection("http://esb:8181").base(), "http://esb:8181/manager");
         assert_eq!(connection("https://esb/fesb/").base(), "https://esb/fesb");
         assert_eq!(connection("http://esb:8181/manager").base(), "http://esb:8181/manager");
+    }
+
+    #[test]
+    fn a_coded_error_carries_both_the_code_and_the_detail() {
+        let error = coded("transport.unreachable", "failed to lookup address information");
+        let value: serde_json::Value = serde_json::from_str(&error).expect("это должен быть JSON");
+        assert_eq!(value["code"], "transport.unreachable");
+        assert_eq!(value["detail"], "failed to lookup address information");
+    }
+
+    #[test]
+    fn the_address_joins_the_detail_without_losing_the_code() {
+        let error = with_url("https://esb.corp/manager", coded("transport.unreachable", "connection refused"));
+        let value: serde_json::Value = serde_json::from_str(&error).expect("это должен быть JSON");
+        assert_eq!(value["code"], "transport.unreachable");
+        assert_eq!(value["detail"], "https://esb.corp/manager — connection refused");
+    }
+
+    #[test]
+    fn an_error_without_a_code_keeps_its_plain_text() {
+        let error = with_url("https://esb.corp", "что-то своё".into());
+        assert_eq!(error, "https://esb.corp: что-то своё");
+    }
+
+    #[test]
+    fn an_empty_detail_leaves_just_the_address() {
+        let error = with_url("https://esb.corp", coded("server.silent", ""));
+        let value: serde_json::Value = serde_json::from_str(&error).expect("это должен быть JSON");
+        assert_eq!(value["detail"], "https://esb.corp");
     }
 
     #[test]

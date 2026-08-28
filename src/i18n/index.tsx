@@ -13,6 +13,25 @@ export const LANGUAGES: Array<{ id: Language; label: string }> = [
 const DICTIONARIES: Record<Language, Record<MessageKey, string>> = { en, ru }
 const STORAGE_KEY = 'fesb.language'
 
+/**
+ * Текущий язык вне React.
+ *
+ * Нужен ровно одному месту — переводу ошибок с бэкенда. Ошибку разбирает
+ * `errorText`, обычная функция, которую вызывают из тридцати с лишним
+ * мест внутри `useCallback`. Превращать её в хук значило бы переписать все
+ * эти места и их списки зависимостей ради одной строки; читать отсюда
+ * дешевле и честнее — язык всё равно один на приложение.
+ */
+let current: Language = 'en'
+
+export function translate(key: MessageKey, values?: Record<string, string | number>): string {
+  const template = DICTIONARIES[current][key] ?? key
+  if (!values) return template
+  return template.replace(/\{(\w+)\}/g, (match, name: string) =>
+    name in values ? String(values[name]) : match,
+  )
+}
+
 /** По умолчанию английский; язык системы не подхватываем сознательно. */
 function readLanguage(): Language {
   const stored = localStorage.getItem(STORAGE_KEY)
@@ -34,6 +53,7 @@ export function I18nProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     document.documentElement.lang = language
+    current = language
   }, [language])
 
   const setLanguage = useCallback((next: Language) => {

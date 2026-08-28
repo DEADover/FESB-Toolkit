@@ -613,6 +613,21 @@ export const ru: Record<keyof typeof en, string> = {
   'tracing.tags': 'Метки',
   'tracing.hint': 'Шина отвечает на это одним запросом, поэтому список всегда свежий — выгрузка конфигурации не нужна.',
 
+  'error.auth.failed': 'Не удалось войти: проверьте пользователя и пароль',
+  'error.auth.forbidden': 'У этого пользователя не хватает прав',
+  'error.http.status': 'Сервер ответил ошибкой',
+  'error.transport.unreachable': 'Не удалось достучаться до сервера',
+  'error.transport.timeout': 'Сервер не ответил вовремя',
+  'error.transport.other': 'Обмен с сервером не удался',
+  'error.server.empty': 'Адрес сервера не указан',
+  'error.server.silent': 'Сервер не ответил',
+
+  'palette.title': 'Перейти',
+  'palette.search': 'Название раздела или стенда',
+  'palette.nothing': 'Ничего не найдено',
+  'palette.move': 'выбор',
+  'palette.pick': 'открыть',
+
   'nav.api.queues': 'Очереди',
   'nav.api.queues.title': 'Менеджеры Очередей',
   'nav.api.modules': 'Модули',
