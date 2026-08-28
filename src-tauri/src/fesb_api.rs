@@ -728,31 +728,7 @@ fn extract_into(bytes: &[u8], target: &Path) -> Result<(usize, Option<Vec<u8>>),
 
 // ───────────────────────── указатель имён СОПС ─────────────────────────
 
-#[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct DomainRouteNames {
-    pub guid: String,
-    pub name: String,
-    pub routes: Vec<String>,
-}
 
-/// Собирает имена всех СОПС сервера — по ним потом ищут домен.
-///
-/// Лёгкого способа спросить «какие СОПС в домене» у шины нет:
-/// `/api/broker/routes` отдаёт только запущенные. Поэтому домены читаются
-/// пачками, как при выгрузке, а на диске ничего не остаётся — из архивов
-/// берутся только имена.
-pub async fn route_index<F: FnMut(ApiProgress)>(
-    connection: &Connection,
-    on_progress: F,
-) -> Result<Vec<DomainRouteNames>, String> {
-    let mut index = walk_domains(connection, on_progress, |dir, domain| {
-        DomainRouteNames { routes: read_route_names(dir), guid: domain.guid.clone(), name: domain.name.clone() }
-    })
-    .await?;
-    index.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
-    Ok(index)
-}
 
 /// Отчёт по внешним точкам входа и выхода всех СОПС сервера.
 pub async fn endpoint_report<F: FnMut(ApiProgress)>(
@@ -868,29 +844,6 @@ where
     outcome
 }
 
-/// Имена СОПС из папки домена.
-fn read_route_names(dir: &Path) -> Vec<String> {
-    let Ok(entries) = fs::read_dir(dir.join("routes")) else { return Vec::new() };
-    let mut names = Vec::new();
-    for entry in entries.flatten() {
-        let path = entry.path();
-        let is_route = path
-            .file_name()
-            .and_then(|name| name.to_str())
-            .is_some_and(|name| name.starts_with("route-") && name.ends_with(".xml"));
-        if !is_route {
-            continue;
-        }
-        let Ok(xml) = fs::read_to_string(&path) else { continue };
-        for info in crate::route_xml::parse_routes(&xml) {
-            if let Some(name) = info.name {
-                names.push(name);
-            }
-        }
-    }
-    names.sort();
-    names
-}
 
 // ───────────────────────── СОПС одного домена ─────────────────────────
 

@@ -7,7 +7,7 @@ import { openUrl, revealItemInDir } from '@tauri-apps/plugin-opener'
 import type {
   ApiDomain, ApiProgress, AppInfo, ApplyProgress, ApplyReport, ApplyTarget, ArchiveProgress,
   AccessReport, ApiEndpoint, ArchiveResult, CertificateReport, InflightExchange, ReportEntry,
-  ServerUsage, StoredReport, AuditEntry, Connection, DomainAction, DomainActionResult, DomainRouteNames,
+  RouteSummary, ServerUsage, StoredReport, AuditEntry, Connection, DomainAction, DomainActionResult,
   DomainRoutes, DomainStat,
   ExtractResult, LinkGraph, LogEntry,
   LogFileRow, LogRequest, ManagerKind,
@@ -86,6 +86,17 @@ export function apiEndpointReport(connection: Connection): Promise<ApiEndpoint[]
  */
 export function apiCertificates(connection: Connection): Promise<CertificateReport> {
   return invoke<CertificateReport>('api_certificates', { connection })
+}
+
+/**
+ * Все СОПС сервера одним списком, вместе с их трассировкой.
+ *
+ * Шина отдаёт их за доли секунды — и запущенные, и остановленные. Раньше
+ * тот же состав добывался выкачиванием всей конфигурации: полторы минуты
+ * ради имён, которые лежали в одном методе.
+ */
+export function apiRoutesOverview(connection: Connection): Promise<RouteSummary[]> {
+  return invoke<RouteSummary[]>('api_routes_overview', { connection })
 }
 
 /** Роли, права и открытые сеансы: кто что может делать на сервере. */
@@ -259,10 +270,6 @@ export function openRepository(): Promise<void> {
   return openUrl(REPOSITORY_URL)
 }
 
-/** Имена всех СОПС сервера — по ним ищут домен. */
-export function apiRouteIndex(connection: Connection): Promise<DomainRouteNames[]> {
-  return invoke<DomainRouteNames[]>('api_route_index', { connection })
-}
 
 export function apiRouteState(connection: Connection, domain: string, route: string): Promise<RouteState> {
   return invoke<RouteState>('api_route_state', { connection, domain, route })

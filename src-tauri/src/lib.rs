@@ -16,6 +16,7 @@ mod report_store;
 mod route_graph;
 mod route_links;
 mod route_xml;
+mod routes_overview;
 mod scanner;
 mod security;
 mod xlsx;
@@ -29,7 +30,7 @@ use tauri::{AppHandle, Emitter, Manager};
 use applier::{apply_trace_change, ApplyReport, ApplyRequest};
 use archive::{create_archive, extract_archive, ArchiveResult, ExtractResult};
 use fesb_api::{
-    ApiDomain, Connection, DomainRouteNames, DomainRoutes, PullResult, PushResult, ServerInfo,
+    ApiDomain, Connection, DomainRoutes, PullResult, PushResult, ServerInfo,
     VerifyResult,
 };
 use fesb_ops::{
@@ -244,18 +245,6 @@ async fn api_domain_routes(connection: Connection, guid: String) -> Result<Domai
     fesb_api::fetch_domain_routes(&connection, &guid).await
 }
 
-/// Имена всех СОПС сервера — по ним ищут домен.
-#[tauri::command]
-async fn api_route_index(
-    app: AppHandle,
-    connection: Connection,
-) -> Result<Vec<DomainRouteNames>, String> {
-    fesb_api::route_index(&connection, |progress| {
-        let _ = app.emit(API_PROGRESS_EVENT, progress);
-    })
-    .await
-}
-
 /// Отчёт по внешним точкам входа и выхода всех СОПС сервера.
 #[tauri::command]
 async fn api_endpoint_report(
@@ -266,6 +255,12 @@ async fn api_endpoint_report(
         let _ = app.emit(API_PROGRESS_EVENT, progress);
     })
     .await
+}
+
+/// Все СОПС сервера одним списком, вместе с их трассировкой.
+#[tauri::command]
+async fn api_routes_overview(connection: Connection) -> Result<Vec<routes_overview::RouteSummary>, String> {
+    routes_overview::routes_overview(&connection).await
 }
 
 /// Роли, права и открытые сеансы: кто что может делать на сервере.
@@ -507,11 +502,11 @@ pub fn run() {
             api_domain_action,
             api_domain_statistics,
             api_domain_routes,
-            api_route_index,
             api_endpoint_report,
             api_certificates,
             api_server_usage,
             api_access,
+            api_routes_overview,
             api_inflight,
             save_report,
             report_history,
@@ -545,11 +540,12 @@ pub fn run() {
 pub mod testing {
     pub use crate::applier::{apply_trace_change, ApplyRequest, ApplyTarget};
     pub use crate::fesb_api::{connect, domains, pull, push, verify, Connection};
-    pub use crate::fesb_api::{endpoint_report, fetch_domain_routes, route_index};
+    pub use crate::fesb_api::{endpoint_report, fetch_domain_routes};
     pub use crate::certificates::{certificates, common_name, read_certificate};
     pub use crate::analytics::{inflight_exchanges, server_usage};
     pub use crate::api_report::listening_ports;
     pub use crate::security::access;
+    pub use crate::routes_overview::routes_overview;
     pub use crate::fesb_ops::{
         delete_property, domain_statistics, log_entries, log_files, modules, properties,
         audit, queue_managers, queue_message, queue_messages, queue_search, queues, route_state,

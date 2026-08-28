@@ -14,7 +14,7 @@ use fesb_toolkit_lib::testing::{
     access, apply_trace_change, audit, certificates, connect, delete_property, domain_statistics,
     domains, fetch_domain_routes, inflight_exchanges, listening_ports, log_entries, log_files,
     modules, properties, pull, push, queue_managers, queue_message, queue_messages, queue_search,
-    queues, route_index, route_state, save_property, server_usage, verify,
+    queues, route_state, routes_overview, save_property, server_usage, verify,
     ApplyRequest, ApplyTarget, BeanTarget, Connection, LogRequest, ManagerKind, PropertyRow,
     PropertyScope, TraceUpdate,
 };
@@ -519,37 +519,6 @@ fn reads_the_audit_trail() {
     );
 }
 
-/// Указатель имён СОПС по всему серверу: по нему ищут домен.
-#[test]
-#[ignore]
-fn builds_an_index_of_route_names() {
-    let Some(connection) = connection() else {
-        eprintln!("FESB_URL не задан — пропускаем");
-        return;
-    };
-
-    let started = std::time::Instant::now();
-    let index = block(route_index(&connection, |_| {})).expect("указатель");
-    let routes: usize = index.iter().map(|item| item.routes.len()).sum();
-    println!(
-        "доменов {}, имён СОПС {routes}, за {:.0} с",
-        index.len(),
-        started.elapsed().as_secs_f32(),
-    );
-
-    assert!(index.len() > 200, "доменов подозрительно мало: {}", index.len());
-    assert!(routes > 2000, "имён СОПС подозрительно мало: {routes}");
-    assert!(
-        index.iter().any(|item| item.name != item.guid),
-        "имена доменов не подставились",
-    );
-    // На диске после указателя ничего оставаться не должно.
-    let leftovers = std::fs::read_dir(std::env::temp_dir().join("fesb-toolkit-routes"))
-        .map(|entries| entries.flatten().filter(|e| e.file_name().to_string_lossy().starts_with("index-")).count())
-        .unwrap_or(0);
-    assert_eq!(leftovers, 0, "временная папка указателя не убрана");
-}
-
 /// Отчёт по точкам входа и выхода: собирается со всего сервера.
 #[test]
 #[ignore]
@@ -798,4 +767,41 @@ fn tells_which_ports_are_actually_taken() {
     println!("{known:?}");
     assert_eq!(known.get(&8181), Some(&true), "порт менеджера должен быть занят");
     assert_eq!(known.get(&9999), Some(&false), "9999 никем не слушается");
+}
+
+/// Все СОПС сервера одним запросом — вместе с их трассировкой.
+#[test]
+#[ignore]
+fn reads_every_route_of_the_server_at_once() {
+    let Some(connection) = connection() else {
+        eprintln!("FESB_URL не задан — пропускаем");
+        return;
+    };
+    let started = std::time::Instant::now();
+    let rows = block(routes_overview(&connection)).expect("обзор СОПС");
+    let spent = started.elapsed();
+
+    let traced = rows.iter().filter(|row| row.trace).count();
+    let domains: std::collections::HashSet<&str> =
+        rows.iter().map(|row| row.domain_guid.as_str()).collect();
+    let mut beans: Vec<&str> = rows.iter().flat_map(|row| row.trace_beans.iter().map(String::as_str)).collect();
+    beans.sort_unstable();
+    beans.dedup();
+    println!(
+        "СОПС {} в {} доменах за {:?} · с трассировкой {} · объектов трассировки {}",
+        rows.len(), domains.len(), spent, traced, beans.len(),
+    );
+    for row in rows.iter().filter(|row| !row.trace_beans.is_empty()).take(3) {
+        println!("  {} / {} · {} · {:?}", row.domain, row.name, row.state, row.trace_beans);
+    }
+
+    assert!(rows.len() > 100, "обзор должен отдавать все СОПС, а не только запущенные");
+    assert!(domains.len() > 1, "СОПС только одного домена — это не обзор сервера");
+    assert!(rows.iter().all(|row| !row.id.is_empty()), "СОПС без идентификатора");
+    // Ради этого запрос и делается: состав трассировки виден без выгрузки.
+    assert!(traced > 0, "ни у одного СОПС не видно трассировки");
+    assert!(!beans.is_empty(), "не разобрано ни одного объекта трассировки");
+
+    // Метод должен быть быстрым — иначе он не заменяет выгрузку конфигурации.
+    assert!(spent.as_secs() < 20, "обзор занял {spent:?} — это не быстрее выгрузки");
 }

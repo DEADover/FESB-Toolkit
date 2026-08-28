@@ -528,6 +528,28 @@ export interface AuditEntry {
   text: string
 }
 
+/** СОПС в обзоре по всему серверу: одна строка на маршрут. */
+export interface RouteSummary {
+  id: string
+  name: string
+  domain: string
+  domainGuid: string
+  /** `Started`, `Stopped` — как их называет сама шина. */
+  state: string
+  trace: boolean
+  /** Объекты трассировки этого СОПС: шина склеивает их через запятую. */
+  traceBeans: string[]
+  processed: number
+  failed: number
+  failuresHandled: number
+  inflight: number
+  minMs: number | null
+  meanMs: number | null
+  maxMs: number | null
+  lastProcessed: string | null
+  tags: string[]
+}
+
 export interface DomainRouteNames {
   guid: string
   name: string

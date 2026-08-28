@@ -4,12 +4,12 @@ import { ArrowCounterClockwise, Play, Stop } from '@phosphor-icons/react'
 
 import { useI18n } from '../i18n'
 import {
-  apiDomainRoutes, apiDomainStatistics, apiRouteAction, apiRouteIndex, apiRouteState, errorText,
-  onApiProgress, routeLinks,
+  apiDomainRoutes, apiDomainStatistics, apiRouteAction, apiRoutesOverview, apiRouteState, errorText,
+  routeLinks,
 } from '../lib/api'
 import { neighboursOf } from '../lib/links'
 import type {
-  ApiProgress, Connection, DomainRouteNames, DomainRoutes, DomainStat, LinkGraph, RouteAction,
+  Connection, DomainRouteNames, DomainRoutes, DomainStat, LinkGraph, RouteAction,
   RouteFile, RouteState, ServerInfo,
 } from '../types'
 import {
@@ -17,7 +17,7 @@ import {
   TableMessage, useApiData, useAutoRefresh,
 } from './ApiShell'
 import { RouteViewer } from './RouteViewer'
-import { Badge, cx, DataTable, IconButton, SearchInput, Spinner, Th, THead } from './ui'
+import { Badge, cx, DataTable, IconButton, SearchInput, Th, THead } from './ui'
 
 interface Props {
   connection: Connection | null
@@ -59,8 +59,6 @@ export function RoutesScreen({ connection, server, isMac, initialGuid, onGoToCon
    * по явной команде: это чтение всех доменов, минуты полторы.
    */
   const [index, setIndex] = useState<DomainRouteNames[] | null>(null)
-  const [indexing, setIndexing] = useState(false)
-  const [progress, setProgress] = useState<ApiProgress | null>(null)
 
   const withRoutes = useMemo(
     () => (stats.data ?? []).filter((item) => item.routes > 0),
@@ -86,24 +84,33 @@ export function RoutesScreen({ connection, server, isMac, initialGuid, onGoToCon
     )
   }, [withRoutes, query, matches])
 
-  useEffect(() => {
-    const unlisten = onApiProgress(setProgress)
-    return () => { unlisten.then((off) => off()) }
-  }, [])
 
-  const buildIndex = useCallback(async () => {
+  /**
+   * Имена всех СОПС сервера.
+   *
+   * Раньше это стоило полутора минут: считалось, что состав маршрутов можно
+   * узнать только выкачав все домены. Оказалось, шина отдаёт их одним
+   * запросом за доли секунды — поэтому список читается сам при открытии
+   * экрана, а не по кнопке.
+   */
+  useEffect(() => {
     if (!connection) return
-    setIndexing(true)
-    setError(null)
-    setProgress(null)
-    try {
-      setIndex(await apiRouteIndex(connection))
-    } catch (err) {
-      setError(errorText(err))
-    } finally {
-      setIndexing(false)
-      setProgress(null)
-    }
+    let alive = true
+    apiRoutesOverview(connection)
+      .then((rows) => {
+        if (!alive) return
+        const byDomain = new Map<string, DomainRouteNames>()
+        for (const row of rows) {
+          const known = byDomain.get(row.domainGuid)
+          if (known) known.routes.push(row.name)
+          else byDomain.set(row.domainGuid, { guid: row.domainGuid, name: row.domain, routes: [row.name] })
+        }
+        setIndex([...byDomain.values()])
+      })
+      // Поиск по именам — приятная возможность, а не то, ради чего открывают
+      // экран: его отказ не должен закрывать список доменов.
+      .catch(() => { if (alive) setIndex(null) })
+    return () => { alive = false }
   }, [connection])
 
   /** Состояние читается по каждому маршруту: списком отдаются только запущенные. */
@@ -189,25 +196,10 @@ export function RoutesScreen({ connection, server, isMac, initialGuid, onGoToCon
               placeholder={index ? t('routes.searchBoth') : t('routes.searchDomain')}
               onChange={setQuery}
             />
-            {index ? (
+            {index && (
               <span className="px-1 text-[10.5px] text-content-subtle">
                 {t('routes.indexReady', { count: index.reduce((sum, item) => sum + item.routes.length, 0) })}
               </span>
-            ) : (
-              <button
-                type="button"
-                onClick={() => void buildIndex()}
-                disabled={indexing}
-                title={t('routes.buildIndex.hint')}
-                className="flex items-center gap-1.5 rounded px-1 py-0.5 text-left text-[10.5px] text-accent-content transition hover:bg-surface-3 disabled:text-content-subtle"
-              >
-                {indexing ? (
-                  <>
-                    <Spinner className="size-3" />
-                    {t('routes.indexing', { current: progress?.current ?? 0, total: progress?.total ?? 0 })}
-                  </>
-                ) : t('routes.buildIndex')}
-              </button>
             )}
           </div>
           <div className="flex flex-col p-1.5">

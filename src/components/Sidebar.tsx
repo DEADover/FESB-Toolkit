@@ -1,4 +1,4 @@
-import { ArrowsLeftRight, Broadcast, CaretLeft, CaretRight, Certificate, CircleHalf, Crosshair, Cube, FingerprintSimple, FlowArrow, Gear, Key, GithubLogo, House, ListDashes, Moon, Plugs, Queue, SlidersHorizontal, Stack, Sun, type Icon } from '@phosphor-icons/react'
+import { ArrowsLeftRight, Broadcast, CaretLeft, CaretRight, Certificate, CircleHalf, Crosshair, CrosshairSimple, Cube, FingerprintSimple, FlowArrow, Gear, Key, GithubLogo, House, ListDashes, Moon, Plugs, Queue, SlidersHorizontal, Stack, Sun, type Icon } from '@phosphor-icons/react'
 
 import { LANGUAGES, useI18n, type MessageKey } from '../i18n'
 import { openRepository, REPOSITORY_URL } from '../lib/api'
@@ -13,6 +13,7 @@ export type ScreenId =
   | 'api.connection'
   | 'api.domains'
   | 'api.routes'
+  | 'api.tracing'
   | 'api.inflight'
   | 'api.endpoints'
   | 'api.certificates'
@@ -60,6 +61,7 @@ export const API_SCREENS: ScreenEntry[] = [
   { id: 'api.properties', label: 'nav.api.properties', hint: 'welcome.hint.properties', icon: SlidersHorizontal },
   { id: 'api.queues', label: 'nav.api.queues', hint: 'welcome.hint.queues', icon: Queue },
   { id: 'api.routes', label: 'nav.api.routes', hint: 'welcome.hint.routes', icon: FlowArrow },
+  { id: 'api.tracing', label: 'nav.api.tracing', title: 'nav.api.tracing.title', hint: 'welcome.hint.tracing', icon: CrosshairSimple },
 ]
 
 /**

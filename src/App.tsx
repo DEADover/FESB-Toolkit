@@ -12,6 +12,7 @@ import { AccessScreen } from './components/AccessScreen'
 import { CertificatesScreen } from './components/CertificatesScreen'
 import { EndpointsScreen } from './components/EndpointsScreen'
 import { InflightScreen } from './components/InflightScreen'
+import { TracingScreen } from './components/TracingScreen'
 import { LogsScreen } from './components/LogsScreen'
 import { ModulesScreen } from './components/ModulesScreen'
 import { PropertiesScreen } from './components/PropertiesScreen'
@@ -310,6 +311,7 @@ export default function App() {
     'api.endpoints': 'nav.api.endpoints.title',
     'api.certificates': 'nav.api.certificates.title',
     'api.inflight': 'nav.api.inflight.title',
+    'api.tracing': 'nav.api.tracing.title',
     welcome: 'nav.welcome',
     'api.queues': 'nav.api.queues.title',
     'api.modules': 'nav.api.modules.title',
@@ -416,6 +418,11 @@ export default function App() {
           />
         ) : screen === 'api.routes' ? (
           <RoutesScreen {...apiScreenProps} isMac={isMac} initialGuid={routesDomain} />
+        ) : screen === 'api.tracing' ? (
+          <TracingScreen
+            {...apiScreenProps}
+            onOpenRoutes={(guid) => { setRoutesDomain(guid); setScreen('api.routes') }}
+          />
         ) : screen === 'api.inflight' ? (
           <InflightScreen
             {...apiScreenProps}
