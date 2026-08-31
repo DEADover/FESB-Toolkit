@@ -6,7 +6,9 @@
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 
-use fesb_toolkit_lib::testing::{create_archive, parse_domain_xml, parse_route_graphs, scan_root};
+use fesb_toolkit_lib::testing::{
+    create_archive, endpoints_of_domain, parse_domain_xml, parse_route_graphs, scan_root,
+};
 
 #[test]
 #[ignore]
@@ -412,4 +414,55 @@ fn dump_links() {
         .collect();
     println!("LINKS {}", serde_json::to_string(&payload).unwrap());
     println!("ROUTES {}", serde_json::to_string(&graph.routes).unwrap());
+}
+
+/// Менеджер локальных очередей, общий для сервера выгрузки.
+const SERVER_MANAGER: &str = "QMS:QM";
+
+/// Локальные очереди настоящей выгрузки: сколько их и у скольких назван менеджер.
+///
+/// Отчёт по точкам их долго не показывал вовсе, а это самая частая схема
+/// на сервере — больше, чем все внешние вызовы вместе взятые.
+#[test]
+#[ignore]
+fn names_the_queue_manager_of_every_local_queue() {
+    let Ok(root) = std::env::var("FESB_CORPUS") else {
+        eprintln!("FESB_CORPUS не задан — пропускаем");
+        return;
+    };
+    let root = PathBuf::from(root);
+
+    let mut points = Vec::new();
+    for entry in std::fs::read_dir(&root).unwrap().flatten() {
+        let dir = entry.path();
+        if !dir.is_dir() {
+            continue;
+        }
+        let name = dir.file_name().and_then(|n| n.to_str()).unwrap_or_default().to_string();
+        // На стенде это `QMS:QM` — он же в `conf/broker/common.properties`.
+        points.extend(endpoints_of_domain(&dir, &name, &name, Some(SERVER_MANAGER)));
+    }
+
+    let local: Vec<_> = points.iter().filter(|p| p.scheme == "localmq").collect();
+    let mut managers: BTreeMap<String, usize> = BTreeMap::new();
+    for point in &local {
+        *managers.entry(point.manager.clone().unwrap_or_else(|| "— (общий для сервера)".into())).or_default() += 1;
+    }
+
+    println!("точек всего {}, локальных очередей {}", points.len(), local.len());
+    println!("менеджеры: {managers:?}");
+
+    assert!(!local.is_empty(), "в выгрузке нет ни одной локальной очереди — так не бывает");
+    // Менеджер известен у всех: чего не сказал адрес, говорит настройка сервера.
+    assert!(local.iter().all(|p| p.manager.is_some()), "у локальной очереди не назван менеджер");
+    // Менеджер бывает только у локальной очереди.
+    assert!(points.iter().all(|p| p.manager.is_none() || p.scheme == "localmq"));
+    // Названный менеджер выглядит как `QME:EQM`, а не как обрывок адреса.
+    for point in &local {
+        if let Some(manager) = &point.manager {
+            let (module, broker) = manager.split_once(':').expect("менеджер без модуля: {manager}");
+            assert!(!module.is_empty() && !broker.is_empty(), "пустая половина в {manager}");
+            assert_eq!(module, module.to_uppercase(), "модуль пишется прописными: {manager}");
+        }
+    }
 }

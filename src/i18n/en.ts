@@ -559,6 +559,8 @@ export const en = {
   'scope.propertiesHistoryClear': 'clearing constant history',
   'scope.messageDownload': 'reading messages',
 
+  'endpoints.manager': 'Queue manager',
+  'endpoints.manager.hint': 'Which queue manager holds the local queue. Taken from the address, or from the domain setting when the address is silent. Empty means the server-wide manager, whose name the bus API does not publish',
   'endpoints.listening': 'Listening',
   'endpoints.listening.hint': 'Whether the port is actually taken on the bus host. Only checked for entry points',
   'endpoints.listening.no': 'Free',

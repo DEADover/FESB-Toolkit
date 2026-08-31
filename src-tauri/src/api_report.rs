@@ -8,8 +8,10 @@
 //! * фабрики Jetty домена — порт, TLS, шифры и авторизация входящих;
 //! * `jetty_usage` — состояние пулов потоков по портам.
 //!
-//! Внутренние адреса (`direct`, `localmq`, таймеры) в отчёт не попадают:
-//! они никуда наружу не смотрят, а список раздувают вдвое.
+//! Внутренние адреса (`direct`, таймеры) в отчёт не попадают: они никуда
+//! не смотрят даже внутри сервера. Локальная очередь (`localmq`) —
+//! попадает: сообщение в ней лежит в отдельном менеджере очередей, и какой
+//! это менеджер, отчёт называет отдельной колонкой.
 
 use std::collections::BTreeMap;
 use std::fs;
@@ -25,9 +27,9 @@ use crate::fesb_api::Connection;
 /// шину. Вторая — преобразователи и проверки: `xslt-saxon`, `json-validator`
 /// и им подобные стоят в СОПС как обычные шаги с адресом, но никуда не ходят,
 /// а в отчёт добавляли треть строк ни о чём.
-const NOT_A_POINT: [&str; 30] = [
+const NOT_A_POINT: [&str; 29] = [
     // никуда не уходит
-    "direct", "direct-vm", "fesb-direct", "fesb-direct-vm", "seda", "vm", "localmq", "log", "mock",
+    "direct", "direct-vm", "fesb-direct", "fesb-direct-vm", "seda", "vm", "log", "mock",
     "bean", "class", "controlbus", "timer", "quartz", "scheduler", "stub", "dataset",
     // преобразует и проверяет
     "xslt", "xslt-saxon", "xj", "json-validator", "validator", "dozer", "atlasmap", "ehcache",
@@ -67,6 +69,11 @@ pub struct Endpoint {
     pub uri: String,
     pub host: Option<String>,
     pub port: Option<u32>,
+    /// Менеджер очередей локальной очереди: `QME:EQM`, `QMS:QM`.
+    ///
+    /// Только у `localmq`. `None` — менеджер не назван ни в адресе, ни в
+    /// настройках домена, а значит берётся общий для сервера.
+    pub manager: Option<String>,
     /// Настроен ли TLS. `None` — сведений нет, а не «нет».
     pub ssl: Option<bool>,
     pub protocol: Option<String>,
@@ -217,6 +224,9 @@ pub fn point_kind(scheme: &str) -> String {
         "sql" | "sql-stored" | "jdbc" | "jpa" | "mybatis" => "SQL",
         "file" => "FILE",
         "jms" | "activemq" | "amqp" | "kafka" | "rabbitmq" => "MQ",
+        // Локальная очередь — тоже MQ, но своя: за ней стоит менеджер очередей
+        // самой шины, и в отчёте её отделяют от чужих брокеров.
+        "localmq" | "local-non-pooled-mq" => "LOCALMQ",
         // Адаптеры FESB называются `eik-<протокол>`, и протокол — это то,
         // как точку зовёт соседняя система: XI, RFC, AS2, IDOC.
         // Единственное исключение — `eik-ed`: это обмен с 1С.
@@ -301,7 +311,10 @@ pub fn readable_uri(uri: &str) -> String {
             }
             // Куда идёт вызов и как называется интерфейс — это и есть точка.
             let useful = ["uri", "host", "port", "path", "url", "datasource", "interfacename",
-                "receiversystem", "sendersystem", "queue", "topic", "address", "service"];
+                "receiversystem", "sendersystem", "queue", "topic", "address", "service",
+                // Менеджер локальной очереди: у него своя колонка, но в адресе
+                // это первоисточник, и вырезать его из отчёта незачем.
+                "brokerid", "moduleid"];
             useful.iter().any(|needle| lower.contains(needle)).then(|| {
                 let trimmed: String = value.chars().take(80).collect();
                 format!("{name}={trimmed}")
@@ -312,25 +325,150 @@ pub fn readable_uri(uri: &str) -> String {
     if kept.is_empty() { head } else { format!("{head}?{}", kept.join("&")) }
 }
 
+/// Схемы, за которыми стоит менеджер очередей самой шины.
+const LOCAL_QUEUE: [&str; 2] = ["localmq", "local-non-pooled-mq"];
+
+/// Менеджер очередей, в котором лежит эта локальная очередь.
+///
+/// Адрес называет менеджер парой параметров: `moduleId=QME&brokerId=EQM`.
+/// Это ровно та пара, которой менеджер зовётся во всей шине — и в свойстве
+/// `broker` объекта трассировки, и в списке менеджеров: `QME:EQM`.
+///
+/// Чего в адресе нет, берётся из настроек домена (`fallback`): их шина
+/// подставляет сама. Если не сказано нигде — менеджер общий для сервера,
+/// и назвать его отчёт не может: `conf/broker/common.properties` API 8.6
+/// наружу не отдаёт. Пустая ячейка тут честнее выдуманной.
+pub fn queue_manager(uri: &str, fallback: Option<&str>) -> Option<String> {
+    let param = |name: &str| -> Option<String> {
+        let (_, query) = uri.split_once('?')?;
+        query.split('&').find_map(|pair| {
+            let (key, value) = pair.split_once('=')?;
+            (key.eq_ignore_ascii_case(name) && !value.is_empty()).then(|| value.to_string())
+        })
+    };
+
+    let (default_module, default_broker) = match fallback.and_then(|value| value.split_once(':')) {
+        Some((module, broker)) => (Some(module.to_string()), Some(broker.to_string())),
+        None => (None, None),
+    };
+
+    let module = param("moduleId").or(default_module)?;
+    let broker = param("brokerId").or(default_broker)?;
+    Some(format!("{}:{broker}", module.to_ascii_uppercase()))
+}
+
+/// Разбирает адрес подключения локальной очереди в имя менеджера.
+///
+/// `fesb://jms/qms/QM` — это менеджер `QM` модуля `QMS`, то есть `QMS:QM`.
+/// В `.properties` двоеточие приходит экранированным (`fesb\://…`), поэтому
+/// обратная косая снимается до разбора.
+pub fn manager_from_connection_uri(value: &str) -> Option<String> {
+    let value = value.replace('\\', "");
+    let (_, rest) = value.split_once("://")?;
+    let parts: Vec<&str> = rest.split('/').filter(|part| !part.is_empty()).collect();
+    // `jms/qms/QM`: модуль и менеджер — это две последние части.
+    let [.., module, broker] = parts.as_slice() else { return None };
+    (!module.is_empty() && !broker.is_empty())
+        .then(|| format!("{}:{broker}", module.to_ascii_uppercase()))
+}
+
+/// Менеджер локальных очередей, общий для всего сервера.
+///
+/// Он лежит в `conf/broker/common.properties`, а обычные методы шины этот
+/// файл не показывают. Достаётся он выборочной выгрузкой конфигурации —
+/// со странностями, за которые пришлось заплатить:
+///
+/// * выгрузка целого раздела (`include=broker`) на 8.6 отвечает пятисотой,
+///   а вложенный раздел (`broker.commonProperties`) работает;
+/// * при этом разборщики модулей очередей отрабатывают всё равно и падают
+///   на `conf/qme`, которого во временной папке нет. Поэтому разделы
+///   очередей приходится включать в выгрузку: тогда папки создаются
+///   и падать не на чем. Настройки менеджеров — это полторы сотни
+///   килобайт, данные очередей сюда не входят;
+/// * и даже так один запрос из пяти отвечает пятисотой — гонка в самой
+///   шине. Отсюда повторы: ответ короткий, а сервер за собой прибирает.
+///
+/// Молчание сервера ошибкой не считается: без этой строки отчёт просто
+/// назовёт менеджер только там, где его назвал адрес.
+pub async fn server_queue_manager(connection: &Connection) -> Option<String> {
+    const PATH: &str = "/api/configuration/export\
+        ?include=broker.commonProperties&include=qme&include=qms&include=rqms";
+    const TRIES: usize = 4;
+
+    let client = connection.client().ok()?;
+    for _ in 0..TRIES {
+        let Ok(response) = connection.get(&client, PATH).send().await else { continue };
+        if !response.status().is_success() {
+            continue;
+        }
+        let Ok(bytes) = response.bytes().await else { continue };
+        let Ok(mut zip) = zip::ZipArchive::new(std::io::Cursor::new(bytes)) else { continue };
+        let Ok(mut file) = zip.by_name("conf/broker/common.properties") else { continue };
+        let mut text = String::new();
+        if std::io::Read::read_to_string(&mut file, &mut text).is_err() {
+            continue;
+        }
+        return connection_uri_manager(&text);
+    }
+    None
+}
+
+/// Достаёт менеджер из содержимого `*.properties`.
+fn connection_uri_manager(text: &str) -> Option<String> {
+    text.lines()
+        .map(str::trim)
+        .filter(|line| !line.starts_with('#'))
+        .find_map(|line| {
+            let (key, value) = line.split_once('=')?;
+            key.trim()
+                .eq_ignore_ascii_case("fesb.domain.localMQ.connection.uri")
+                .then(|| manager_from_connection_uri(value.trim()))
+        })
+        .flatten()
+}
+
+/// Менеджер локальных очередей, назначенный домену.
+///
+/// Домен вправе переопределить общую настройку сервера в своём
+/// `settings.properties`. Чаще всего не переопределяет — тогда `None`.
+pub fn domain_queue_manager(dir: &Path) -> Option<String> {
+    connection_uri_manager(&fs::read_to_string(dir.join("settings.properties")).ok()?)
+}
+
+/// Откуда взялась точка: одно и то же для всех точек одного СОПС.
+///
+/// Раньше это были шесть строковых параметров подряд, и перепутать в них
+/// домен с маршрутом ничего не мешало.
+struct Origin<'a> {
+    domain: &'a str,
+    domain_guid: &'a str,
+    route: &'a str,
+    route_id: &'a str,
+    /// Менеджер локальных очередей домена, если домен его переопределил.
+    manager: Option<&'a str>,
+}
+
 /// Точки входа и выхода одного файла СОПС.
-pub fn endpoints_of_route(xml: &str, domain: &str, domain_guid: &str) -> Vec<Endpoint> {
+///
+/// `manager` — менеджер локальных очередей этого домена: адрес `localmq`
+/// называет менеджер не всегда, и тогда работает настройка домена.
+pub fn endpoints_of_route(
+    xml: &str,
+    domain: &str,
+    domain_guid: &str,
+    manager: Option<&str>,
+) -> Vec<Endpoint> {
     let mut out = Vec::new();
     for graph in crate::route_graph::parse_route_graphs(xml) {
         let id = graph.id.clone().unwrap_or_default();
         let route = graph.name.clone().unwrap_or_else(|| id.clone());
-        collect(&graph.nodes, &route, &id, domain, domain_guid, &mut out);
+        let origin = Origin { domain, domain_guid, route: &route, route_id: &id, manager };
+        collect(&graph.nodes, &origin, &mut out);
     }
     out
 }
 
-fn collect(
-    nodes: &[crate::route_graph::RouteNode],
-    route: &str,
-    route_id: &str,
-    domain: &str,
-    domain_guid: &str,
-    out: &mut Vec<Endpoint>,
-) {
+fn collect(nodes: &[crate::route_graph::RouteNode], origin: &Origin, out: &mut Vec<Endpoint>) {
     for node in nodes {
         let direction = if node.kind == "from" {
             Some("in")
@@ -345,13 +483,17 @@ fn collect(
             if is_external(&scheme) {
                 let (tls, auth) = security_of_uri(uri);
                 out.push(Endpoint {
-                    domain: domain.to_string(),
-                    domain_guid: domain_guid.to_string(),
-                    route: route.to_string(),
-                    route_id: route_id.to_string(),
+                    domain: origin.domain.to_string(),
+                    domain_guid: origin.domain_guid.to_string(),
+                    route: origin.route.to_string(),
+                    route_id: origin.route_id.to_string(),
                     component: node.label.clone().unwrap_or_else(|| node.kind.clone()),
                     direction: direction.to_string(),
                     kind: point_kind(&scheme),
+                    manager: LOCAL_QUEUE
+                        .contains(&scheme.as_str())
+                        .then(|| queue_manager(uri, origin.manager))
+                        .flatten(),
                     scheme,
                     uri: readable_uri(uri),
                     host,
@@ -361,7 +503,7 @@ fn collect(
                     ciphers: None,
                     auth,
                     state: None,
-        listening: None,
+                    listening: None,
                     uptime: None,
                     busy_threads: None,
                     utilized_threads: None,
@@ -374,13 +516,24 @@ fn collect(
                 });
             }
         }
-        collect(&node.children, route, route_id, domain, domain_guid, out);
+        collect(&node.children, origin, out);
     }
 }
 
 /// Точки всех СОПС домена, лежащего в распакованной папке.
-pub fn endpoints_of_domain(dir: &Path, domain: &str, domain_guid: &str) -> Vec<Endpoint> {
+///
+/// `server_manager` — менеджер локальных очередей, общий для сервера:
+/// он работает всюду, где не сказано иначе.
+pub fn endpoints_of_domain(
+    dir: &Path,
+    domain: &str,
+    domain_guid: &str,
+    server_manager: Option<&str>,
+) -> Vec<Endpoint> {
     let Ok(entries) = fs::read_dir(dir.join("routes")) else { return Vec::new() };
+    // Настройка домена читается один раз: она общая для всех его СОПС.
+    // Своей у домена чаще всего нет — тогда работает общая для сервера.
+    let manager = domain_queue_manager(dir).or_else(|| server_manager.map(String::from));
     let mut out = Vec::new();
     for entry in entries.flatten() {
         let path = entry.path();
@@ -392,7 +545,7 @@ pub fn endpoints_of_domain(dir: &Path, domain: &str, domain_guid: &str) -> Vec<E
             continue;
         }
         if let Ok(xml) = fs::read_to_string(&path) {
-            out.extend(endpoints_of_route(&xml, domain, domain_guid));
+            out.extend(endpoints_of_route(&xml, domain, domain_guid, manager.as_deref()));
         }
     }
     out
@@ -507,6 +660,7 @@ pub async fn rest_endpoints(connection: &Connection) -> Vec<Endpoint> {
                 ),
                 host,
                 port,
+                manager: None,
                 ssl: Some(https),
                 protocol: None,
                 ciphers: None,
@@ -597,8 +751,10 @@ mod tests {
     #[test]
     fn internal_delivery_is_not_a_point() {
         assert!(!is_external("direct"));
-        assert!(!is_external("localmq"));
         assert!(!is_external("timer"));
+        // Локальная очередь — точка: сообщение уходит в менеджер очередей
+        // и лежит там, пока его не заберут.
+        assert!(is_external("localmq"));
         assert!(is_external("https"));
         assert!(is_external("cxf"));
         assert!(is_external("netty-http"));
@@ -610,7 +766,7 @@ mod tests {
             <to uri="direct://step" factor-name="Внутрь"/>
             <to uri="https://partner.example:443/accept" factor-name="Отправка"/>
             <log message="ok"/></route></routes>"#;
-        let points = endpoints_of_route(xml, "POA", "domain-1");
+        let points = endpoints_of_route(xml, "POA", "domain-1", None);
         assert_eq!(points.len(), 2);
         assert_eq!(points[0].direction, "in");
         assert_eq!(points[0].component, "Вход");
@@ -625,7 +781,7 @@ mod tests {
         let mut points = vec![Endpoint {
             domain: "d".into(), domain_guid: "g".into(), route: "r".into(), route_id: "id".into(),
             component: "c".into(), direction: "out".into(), kind: "HTTP".into(), scheme: "https".into(),
-            uri: "https://x/y".into(), host: None, port: None, ssl: None, protocol: None,
+            uri: "https://x/y".into(), host: None, port: None, manager: None, ssl: None, protocol: None,
             ciphers: None, auth: None, state: None, listening: None, uptime: None,
             busy_threads: None, utilized_threads: None, ready_threads: None, min_threads: None,
             max_threads: None, queue_size: None, idle_timeout: None, idle_threads: None,
@@ -639,7 +795,7 @@ mod tests {
         let point = |direction: &str, port: u32| Endpoint {
             domain: "d".into(), domain_guid: "g".into(), route: "r".into(), route_id: "id".into(),
             component: "c".into(), direction: direction.into(), kind: "HTTP".into(), scheme: "https".into(),
-            uri: "https://x/y".into(), host: None, port: Some(port), ssl: None, protocol: None,
+            uri: "https://x/y".into(), host: None, port: Some(port), manager: None, ssl: None, protocol: None,
             ciphers: None, auth: None, state: None, listening: None, uptime: None,
             busy_threads: None, utilized_threads: None, ready_threads: None, min_threads: None,
             max_threads: None, queue_size: None, idle_timeout: None, idle_threads: None,
@@ -659,7 +815,7 @@ mod tests {
         let mut points = vec![Endpoint {
             domain: "d".into(), domain_guid: "g".into(), route: "r".into(), route_id: "id".into(),
             component: "c".into(), direction: "in".into(), kind: "HTTP".into(), scheme: "https".into(),
-            uri: "https://x/y".into(), host: None, port: Some(7777), ssl: None, protocol: None,
+            uri: "https://x/y".into(), host: None, port: Some(7777), manager: None, ssl: None, protocol: None,
             ciphers: None, auth: None, state: None, listening: None, uptime: None,
             busy_threads: None, utilized_threads: None, ready_threads: None, min_threads: None,
             max_threads: None, queue_size: None, idle_timeout: None, idle_threads: None,
@@ -735,7 +891,7 @@ mod kind_tests {
             idle_timeout: Some(60000), idle_threads: Some(11), ..PortFacts::default()
         })]);
         let mut points = endpoints_of_route(
-            r#"<routes><route id="r"><from uri="https://x:8443/in"/></route></routes>"#, "d", "g");
+            r#"<routes><route id="r"><from uri="https://x:8443/in"/></route></routes>"#, "d", "g", None);
         enrich(&mut points, &facts);
         let point = &points[0];
         assert_eq!(point.busy_threads, Some(17));
@@ -777,7 +933,7 @@ mod security_tests {
     fn the_factory_does_not_erase_what_the_address_said() {
         let mut points = endpoints_of_route(
             r#"<routes><route id="r"><from uri="cxf://x?sslContextParameters=%23conf.SSLContext"/></route></routes>"#,
-            "d", "g");
+            "d", "g", None);
         assert_eq!(points[0].ssl, Some(true));
         enrich(&mut points, &BTreeMap::new());
         assert_eq!(points[0].ssl, Some(true));
@@ -793,5 +949,106 @@ pub fn mark_listening(endpoints: &mut [Endpoint], listening: &BTreeMap<u32, bool
         }
         let Some(port) = point.port else { continue };
         point.listening = listening.get(&port).copied();
+    }
+}
+
+#[cfg(test)]
+mod local_queue_tests {
+    use super::*;
+
+    #[test]
+    fn the_address_names_the_manager_the_same_way_the_whole_bus_does() {
+        // Та же пара, что в свойстве `broker` объекта трассировки: `QME:EQM`.
+        assert_eq!(
+            queue_manager("localmq://Orders.In?brokerId=EQM&moduleId=QME&exchangePattern=InOnly", None),
+            Some("QME:EQM".into())
+        );
+        assert_eq!(queue_manager("localmq://Orders.In?moduleId=qms&brokerId=QM", None), Some("QMS:QM".into()));
+    }
+
+    #[test]
+    fn without_the_parameters_the_domain_setting_decides() {
+        assert_eq!(queue_manager("localmq://Common.Status", Some("QMS:QM")), Some("QMS:QM".into()));
+        // Адрес называет менеджер — настройка домена ему не указ.
+        assert_eq!(
+            queue_manager("localmq://Common.Status?moduleId=QME&brokerId=EQM_MON", Some("QMS:QM")),
+            Some("QME:EQM_MON".into())
+        );
+        // Половина в адресе, половина в настройке — так шина и собирает.
+        assert_eq!(
+            queue_manager("localmq://Common.Status?brokerId=EQM_MON", Some("QME:EQM")),
+            Some("QME:EQM_MON".into())
+        );
+    }
+
+    /// Не сказано нигде — значит менеджер общий для сервера, а его имени
+    /// у нас нет. Пустая ячейка честнее подставленного «QMS:QM».
+    #[test]
+    fn silence_stays_silence() {
+        assert_eq!(queue_manager("localmq://Common.Status", None), None);
+        assert_eq!(queue_manager("localmq://Common.Status?exchangePattern=InOnly", None), None);
+        assert_eq!(queue_manager("localmq://Q?moduleId=&brokerId=", None), None);
+    }
+
+    #[test]
+    fn the_connection_address_of_a_domain_reads_as_a_manager() {
+        assert_eq!(manager_from_connection_uri("fesb://jms/qms/QM"), Some("QMS:QM".into()));
+        // В `.properties` двоеточие приходит экранированным.
+        assert_eq!(manager_from_connection_uri("fesb\\://jms/qme/EQM_MON"), Some("QME:EQM_MON".into()));
+        assert_eq!(manager_from_connection_uri("что-то не то"), None);
+    }
+
+    #[test]
+    fn a_local_queue_reaches_the_report_with_its_manager() {
+        let xml = r#"<routes><route id="r" factor-name="Приём">
+            <from uri="localmq://Orders.In?brokerId=EQM&amp;moduleId=QME"/>
+            <to uri="direct://step"/>
+            <to uri="localmq://Orders.Out"/></route></routes>"#;
+        let points = endpoints_of_route(xml, "POA", "domain-1", Some("QMS:QM"));
+        assert_eq!(points.len(), 2, "внутренняя доставка точкой так и не стала");
+        assert_eq!(points[0].kind, "LOCALMQ");
+        assert_eq!(points[0].manager.as_deref(), Some("QME:EQM"));
+        // Адрес молчит — работает настройка домена.
+        assert_eq!(points[1].manager.as_deref(), Some("QMS:QM"));
+        // Менеджер виден и в самом адресе: колонка его не прячет.
+        assert!(points[0].uri.contains("brokerId=EQM"), "{}", points[0].uri);
+    }
+
+    #[test]
+    fn only_a_local_queue_gets_a_manager() {
+        let xml = r#"<routes><route id="r"><from uri="https://partner.example/in"/></route></routes>"#;
+        let points = endpoints_of_route(xml, "POA", "domain-1", Some("QMS:QM"));
+        assert_eq!(points[0].manager, None);
+    }
+
+    /// Файл сервера и файл домена читаются одним разбором.
+    #[test]
+    fn the_connection_setting_is_found_among_its_neighbours() {
+        let text = "#Tue Aug 25 10:34:45 MSK 2026\n\
+            fesb.domain.cluster.uri=fesb\\://cluster/qme/EQM\n\
+            fesb.domain.localMQ.connection.userName=\n\
+            fesb.domain.localMQ.connection.uri=fesb\\://jms/qms/QM\n";
+        assert_eq!(connection_uri_manager(text), Some("QMS:QM".into()));
+        // Соседний ключ про кластер — не про локальные очереди.
+        assert_eq!(connection_uri_manager("fesb.domain.cluster.uri=fesb\\://cluster/qme/EQM\n"), None);
+        // Закомментированная строка — это не настройка.
+        assert_eq!(connection_uri_manager("#fesb.domain.localMQ.connection.uri=fesb\\://jms/qms/QM\n"), None);
+    }
+
+    #[test]
+    fn the_domain_setting_is_read_from_its_own_file() {
+        let dir = std::env::temp_dir().join(format!("fesb-localmq-{}", std::process::id()));
+        fs::create_dir_all(&dir).unwrap();
+        fs::write(
+            dir.join("settings.properties"),
+            "#comment\nfesb.domain.localMQ.maxConnections=10\nfesb.domain.localMQ.connection.uri=fesb\\://jms/qme/EQM\n",
+        )
+        .unwrap();
+        assert_eq!(domain_queue_manager(&dir), Some("QME:EQM".into()));
+
+        // Домен чаще всего ничего не переопределяет — и это не ошибка.
+        fs::write(dir.join("settings.properties"), "fesb.domain.localMQ.maxConnections=10\n").unwrap();
+        assert_eq!(domain_queue_manager(&dir), None);
+        fs::remove_dir_all(&dir).ok();
     }
 }

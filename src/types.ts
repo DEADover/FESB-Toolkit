@@ -576,6 +576,13 @@ export interface ApiEndpoint {
   uri: string
   host: string | null
   port: number | null
+  /**
+   * Менеджер очередей локальной очереди: `QME:EQM`, `QMS:QM`.
+   *
+   * Только у `localmq`. `null` — менеджер не назван ни в адресе, ни в
+   * настройках домена, а значит работает общий для сервера.
+   */
+  manager: string | null
   ssl: boolean | null
   protocol: string | null
   ciphers: string | null

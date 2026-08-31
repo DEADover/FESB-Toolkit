@@ -763,8 +763,11 @@ pub async fn endpoint_report<F: FnMut(ApiProgress)>(
     connection: &Connection,
     on_progress: F,
 ) -> Result<Vec<crate::api_report::Endpoint>, String> {
+    // Менеджер локальных очередей, общий для сервера: один короткий запрос
+    // до обхода, дальше он раздаётся каждому домену.
+    let server_manager = crate::api_report::server_queue_manager(connection).await;
     let per_domain = walk_domains(connection, on_progress, |dir, domain| {
-        crate::api_report::endpoints_of_domain(dir, &domain.name, &domain.guid)
+        crate::api_report::endpoints_of_domain(dir, &domain.name, &domain.guid, server_manager.as_deref())
     })
     .await?;
 

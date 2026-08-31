@@ -519,6 +519,20 @@ fn reads_the_audit_trail() {
     );
 }
 
+/// Менеджер локальных очередей, общий для сервера.
+///
+/// Он лежит в файле, которого обычные методы шины не показывают, и достаётся
+/// выборочной выгрузкой конфигурации. Проверяем, что она всё ещё работает.
+#[test]
+#[ignore]
+fn reads_the_server_wide_queue_manager() {
+    let Some(connection) = connection() else { return };
+    let manager = block(fesb_toolkit_lib::testing::server_queue_manager(&connection));
+    println!("менеджер локальных очередей сервера: {manager:?}");
+    let manager = manager.expect("сервер не отдал conf/broker/common.properties");
+    assert!(manager.contains(':'), "менеджер пишется парой «модуль:менеджер»: {manager}");
+}
+
 /// Отчёт по точкам входа и выхода: собирается со всего сервера.
 #[test]
 #[ignore]
@@ -545,8 +559,17 @@ fn builds_the_endpoint_report() {
         println!("  {} · {} · {} · {}", point.domain, point.route, point.direction, point.uri);
     }
 
-    // Внутренних адресов в отчёте быть не должно — он про внешний мир.
-    assert!(points.iter().all(|p| p.scheme != "direct" && p.scheme != "localmq"));
+    println!(
+        "локальных очередей {}, из них с названным менеджером {}",
+        points.iter().filter(|p| p.scheme == "localmq").count(),
+        points.iter().filter(|p| p.manager.is_some()).count(),
+    );
+
+    // Внутренней доставки в отчёте быть не должно: она никуда не уходит.
+    // Локальная очередь — уходит, в менеджер очередей, и в отчёте остаётся.
+    assert!(points.iter().all(|p| p.scheme != "direct"));
+    // Менеджер бывает только у локальной очереди.
+    assert!(points.iter().all(|p| p.manager.is_none() || p.scheme == "localmq"));
 }
 
 /// Настоящий отчёт настоящим файлом: битый xlsx ловится только на объёме.

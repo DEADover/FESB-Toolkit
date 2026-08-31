@@ -543,7 +543,7 @@ pub mod testing {
     pub use crate::fesb_api::{endpoint_report, fetch_domain_routes};
     pub use crate::certificates::{certificates, common_name, read_certificate};
     pub use crate::analytics::{inflight_exchanges, server_usage};
-    pub use crate::api_report::listening_ports;
+    pub use crate::api_report::{endpoints_of_domain, listening_ports, server_queue_manager};
     pub use crate::security::access;
     pub use crate::routes_overview::routes_overview;
     pub use crate::fesb_ops::{

@@ -70,6 +70,11 @@ const COLUMNS: Array<{
     cell: (row) => (
       <span className="line-clamp-2 break-all font-mono text-[11px] leading-4 text-content-muted">{row.uri}</span>
     ) },
+  { key: 'endpoints.manager', width: 'w-36', hint: 'endpoints.manager.hint',
+    text: (row) => row.manager ?? '',
+    cell: (row) => (row.manager === null
+      ? <span className="text-content-subtle">—</span>
+      : <CodePill>{row.manager}</CodePill>) },
   { key: 'endpoints.port', width: 'w-16', align: 'right',
     text: (row) => (row.port === null ? '' : String(row.port)) },
   { key: 'endpoints.listening', width: 'w-28', hint: 'endpoints.listening.hint',
@@ -212,7 +217,8 @@ export function EndpointsScreen({ connection, server, onGoToConnection }: Props)
         row.domain.toLowerCase().includes(needle) ||
         row.route.toLowerCase().includes(needle) ||
         row.uri.toLowerCase().includes(needle) ||
-        (row.host ?? '').toLowerCase().includes(needle)
+        (row.host ?? '').toLowerCase().includes(needle) ||
+        (row.manager ?? '').toLowerCase().includes(needle)
       )
     })
   }, [all, query, direction, schemes, onlySecured, onlyDeaf])
@@ -229,7 +235,9 @@ export function EndpointsScreen({ connection, server, onGoToConnection }: Props)
     if (grouping === 'none') return [{ key: '', title: '', rows: visible }]
     const buckets = new Map<string, ApiEndpoint[]>()
     for (const row of visible) {
-      const key = grouping === 'host' ? row.host ?? '' : row.domain
+      // У локальной очереди хоста нет, а собеседник есть — менеджер очередей.
+      // Без этого все localmq свалились бы в «без хоста» одной кучей.
+      const key = grouping === 'host' ? row.host ?? row.manager ?? '' : row.domain
       const list = buckets.get(key)
       if (list) list.push(row)
       else buckets.set(key, [row])

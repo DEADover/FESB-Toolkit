@@ -181,7 +181,8 @@ mod tests {
         Endpoint {
             domain: "d".into(), domain_guid: "g".into(), route: "r".into(), route_id: "id".into(),
             component: "c".into(), direction: "in".into(), kind: "HTTP".into(), scheme: "https".into(),
-            uri: "https://x/y".into(), host: host.map(String::from), port: Some(443), ssl: None,
+            uri: "https://x/y".into(), host: host.map(String::from), port: Some(443),
+            manager: None, ssl: None,
             protocol: None, ciphers: None, auth: None, state: None, listening: None, uptime: None,
             busy_threads: None, utilized_threads: None, ready_threads: None, min_threads: None,
             max_threads: None, queue_size: None, idle_timeout: None, idle_threads: None,

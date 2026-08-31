@@ -559,6 +559,8 @@ export const ru: Record<keyof typeof en, string> = {
   'scope.propertiesHistoryClear': 'очистка истории констант',
   'scope.messageDownload': 'чтение сообщений',
 
+  'endpoints.manager': 'Менеджер очередей',
+  'endpoints.manager.hint': 'В каком менеджере лежит локальная очередь. Берётся из адреса, а если он молчит — из настройки домена. Пусто — менеджер общий для сервера, его имя API шины не отдаёт',
   'endpoints.listening': 'Слушается',
   'endpoints.listening.hint': 'Занят ли порт на хосте шины. Проверяется только у точек входа',
   'endpoints.listening.no': 'Свободен',
