@@ -22,7 +22,7 @@ import { Sidebar, type ScreenId } from './components/Sidebar'
 import { TraceScreen } from './components/TraceScreen'
 import { CommandPalette } from './components/CommandPalette'
 import { useToast } from './components/Toaster'
-import { ActionLink, Badge, Button, cx, Notice, Spinner } from './components/ui'
+import { Badge, Button, ButtonGlyph, cx, Notice, Spinner } from './components/ui'
 import { useI18n, type MessageKey } from './i18n'
 import {
   apiConnect, apiPull, appInfo, buildArchive, errorText, onApiProgress, onExtractProgress, onFileDrop, onScanProgress, openArchive, saveZipAs, scanDirectory, selectArchive, selectFolder,
@@ -340,10 +340,12 @@ export default function App() {
       />
 
       <main className="flex min-w-0 flex-1 flex-col">
-        {/* Заголовок и действия — две части одной строки. Действий бывает
-            много (стенд, сервер, архивы), и на узком окне они переносятся
-            целой группой, а не по одной кнопке и не за край окна. */}
-        <header data-tauri-drag-region className={cx('flex flex-wrap items-center gap-3 px-6 pb-4', isMac ? 'pt-9' : 'pt-4')}>
+        {/* Шапка в две строки: сверху заголовок и действия над результатом,
+            снизу — чем сменить конфигурацию. Заголовок с адресом занимает
+            ровно ту же высоту, что и кнопки справа, поэтому они стоят
+            на одной линии, а не плавают друг относительно друга. */}
+        <header data-tauri-drag-region className={cx('flex flex-col gap-2 px-6 pb-4', isMac ? 'pt-9' : 'pt-4')}>
+          <div className="flex flex-wrap items-center gap-3">
           <div className="min-w-48 flex-1">
             <div className="flex items-center gap-2">
               <h1 className="text-[15px] font-semibold leading-tight">{screenTitle}</h1>
@@ -358,37 +360,14 @@ export default function App() {
               в подзаголовке остаётся только то, чего там нет: откуда взята
               конфигурация в файловом режиме.
             */}
-            {/*
-              Строка «откуда взята конфигурация» несёт и действия, которые её
-              меняют: выбрать папку, открыть архив, перечитать. Кнопками они
-              стояли справа и вместе с серверными не помещались в строку,
-              а по смыслу они не там: справа — куда отдать результат.
-            */}
             {!isApiScreen && !isLinksScreen && !isWelcome && (
-              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11.5px] text-content-subtle">
-                <span className="truncate" title={source?.path}>
-                  {source
-                    ? source.kind === 'server'
-                      ? `${sourceLabel}${scan ? ` · ${t('stats.domains')}: ${scan.domains.length}` : ''}`
-                      : `${sourceLabel}: ${source.path}${scan ? ` · ${t('stats.domains')}: ${scan.domains.length}` : ''}`
-                    : t('header.noFolder')}
-                </span>
-                <span aria-hidden>·</span>
-                <ActionLink onClick={pickFolder} disabled={busy}>{t('action.selectFolder')}</ActionLink>
-                <span aria-hidden>·</span>
-                <ActionLink onClick={pickArchive} disabled={busy}>{t('action.openArchive')}</ActionLink>
-                {root && (
-                  <>
-                    <span aria-hidden>·</span>
-                    <ActionLink onClick={rescan} disabled={busy || scanning}>
-                      {scanning
-                        ? <Spinner className="size-3" />
-                        : <ArrowsClockwise size={12} weight="bold" />}
-                      {t('action.refresh')}
-                    </ActionLink>
-                  </>
-                )}
-              </div>
+              <p className="truncate text-[11.5px] text-content-subtle" title={source?.path}>
+                {source
+                  ? source.kind === 'server'
+                    ? `${sourceLabel}${scan ? ` · ${t('stats.domains')}: ${scan.domains.length}` : ''}`
+                    : `${sourceLabel}: ${source.path}${scan ? ` · ${t('stats.domains')}: ${scan.domains.length}` : ''}`
+                  : t('header.noFolder')}
+              </p>
             )}
           </div>
           <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
@@ -408,6 +387,23 @@ export default function App() {
           <div id="header-actions-server" className="flex items-center gap-2 empty:hidden" />
           <div id="header-actions-files" className="flex items-center gap-2 empty:hidden" />
           </div>
+          </div>
+
+          {/* Чем сменить конфигурацию — своей строкой под адресом. Наверху
+              они спорили за место с действиями над результатом, а в строке
+              адреса ссылками терялись: «Выбрать папку» ищут глазами. */}
+          {!isApiScreen && !isLinksScreen && !isWelcome && (
+            <div className="flex flex-wrap items-center gap-2">
+              <Button size="sm" onClick={pickFolder} disabled={busy}>{t('action.selectFolder')}</Button>
+              <Button size="sm" onClick={pickArchive} disabled={busy}>{t('action.openArchive')}</Button>
+              {root && (
+                <Button size="sm" onClick={rescan} disabled={busy || scanning}>
+                  <ButtonGlyph busy={scanning}><ArrowsClockwise size={13} weight="bold" /></ButtonGlyph>
+                  {t('action.refresh')}
+                </Button>
+              )}
+            </div>
+          )}
         </header>
 
         {screen === 'welcome' ? (
