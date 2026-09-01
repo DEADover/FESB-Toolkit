@@ -21,6 +21,7 @@ import { RoutesScreen } from './components/RoutesScreen'
 import { Sidebar, type ScreenId } from './components/Sidebar'
 import { TraceScreen } from './components/TraceScreen'
 import { CommandPalette } from './components/CommandPalette'
+import { JobStatus } from './components/JobStatus'
 import { useToast } from './components/Toaster'
 import { Badge, Button, ButtonGlyph, cx, Notice, Spinner } from './components/ui'
 import { useI18n, type MessageKey } from './i18n'
@@ -371,6 +372,9 @@ export default function App() {
             )}
           </div>
           <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
+          {/* Полоса встаёт слева от переключателя: он крайний справа
+              и не двигается, а полоса появляется и исчезает. */}
+          <JobStatus />
           <ServerSwitch
             store={connections}
             active={session?.profile ?? null}

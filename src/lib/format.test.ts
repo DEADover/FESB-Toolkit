@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { formatBytes, formatShare, formatUptime } from './format'
+import { formatBytes, formatEta, formatShare, formatUptime } from './format'
 import { folderBesideExport, localStamp, localTime } from './paths'
 
 describe('formatBytes', () => {
@@ -84,5 +84,42 @@ describe('folderBesideExport', () => {
 
   it('понимает пути Windows', () => {
     expect(folderBesideExport('C:\\configs\\export\\domains')).toBe('C:\\configs\\')
+  })
+})
+
+describe('formatEta', () => {
+  // Настоящий словарь здесь не нужен: проверяется расчёт, а не перевод.
+  const t = (key: 'job.eta.seconds' | 'job.eta.minutes', values: { count: number }) =>
+    `${values.count}${key === 'job.eta.seconds' ? 'с' : 'мин'}`
+
+  it('считает остаток по тому, сколько уже прошло', () => {
+    // 10 из 100 за 8 секунд — значит впереди ещё семьдесят с небольшим.
+    expect(formatEta(8_000, 10, 100, t)).toBe('70с')
+    expect(formatEta(60_000, 50, 200, t)).toBe('3мин')
+  })
+
+  it('от полутора минут считает в минутах: секунды там уже не читают', () => {
+    expect(formatEta(8_900, 10, 100, t)).toBe('80с')
+    expect(formatEta(10_000, 10, 100, t)).toBe('2мин')
+  })
+
+  it('молчит, пока сделано слишком мало', () => {
+    // На первых процентах оценка врёт сильнее, чем помогает.
+    expect(formatEta(1_000, 5, 100, t)).toBeNull()
+  })
+
+  it('молчит, когда ждать почти нечего', () => {
+    expect(formatEta(10_000, 90, 100, t)).toBeNull()
+    expect(formatEta(10_000, 100, 100, t)).toBeNull()
+  })
+
+  it('не делит на ноль и не гадает без объёма', () => {
+    expect(formatEta(10_000, 0, 100, t)).toBeNull()
+    expect(formatEta(10_000, 5, 0, t)).toBeNull()
+  })
+
+  it('округляет до пятёрки секунд: точнее оценка всё равно не бывает', () => {
+    expect(formatEta(10_000, 20, 100, t)).toBe('40с')
+    expect(formatEta(11_000, 20, 100, t)).toBe('45с')
   })
 })

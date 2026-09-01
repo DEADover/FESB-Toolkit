@@ -37,3 +37,27 @@ export function formatUptime(
 export function formatShare(value: number): string {
   return `${Math.round(value * 100)}%`
 }
+
+/**
+ * Сколько ещё ждать — по тому, сколько уже прошло.
+ *
+ * Оценка грубая и другой быть не может: домены выкачиваются неравномерно,
+ * и первые секунды врут сильнее всего. Поэтому она показывается только
+ * когда сделана десятая часть работы, округляется до пятёрки секунд
+ * и подписана «примерно». Меньше пяти секунд не показывается вовсе:
+ * там точность оценки уже меньше, чем время, которое она называет.
+ */
+export function formatEta(
+  elapsedMs: number,
+  current: number,
+  total: number,
+  t: (key: 'job.eta.seconds' | 'job.eta.minutes', values: { count: number }) => string,
+): string | null {
+  if (total <= 0 || current <= 0 || current >= total) return null
+  if (current / total < 0.1) return null
+
+  const remaining = (elapsedMs / current) * (total - current)
+  if (remaining < 5000) return null
+  if (remaining < 90_000) return t('job.eta.seconds', { count: Math.round(remaining / 5000) * 5 })
+  return t('job.eta.minutes', { count: Math.round(remaining / 60_000) })
+}
