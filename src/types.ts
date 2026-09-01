@@ -5,6 +5,14 @@ export interface TraceBean {
   queue: string | null
   clientType: string | null
   traceMode: string | null
+  /**
+   * Куда объект пишет события.
+   *
+   * `queue` — в очередь: у него бывает менеджер, а если свойства нет,
+   * работает настройка домена. `memory` — в память: очереди у него
+   * не бывает вовсе, и пустой брокер значит «не нужен», а не «по умолчанию».
+   */
+  kind: 'queue' | 'memory' | 'other'
   line: number
   /** У bean-а есть соответствующий property — значит значение можно заменить. */
   brokerEditable: boolean

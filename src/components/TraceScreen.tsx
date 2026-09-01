@@ -10,8 +10,8 @@ import {
 import { neighboursOf } from '../lib/links'
 import {
   brokerStats, buildGroups, domainSummary, filterGroups, queueValues,
-  selectableKeys, sortGroups, traceModeValues,
-  type DomainGroup, type Filters, type SortDir, type SortKey,
+  selectableKeys, sortGroups, traceModeValues, withoutBroker,
+  type DomainGroup, type Filters, type RouteFilter, type SortDir, type SortKey,
 } from '../lib/rows'
 import type {
   ApiProgress, ApplyProgress, ApplyReport, ApplyTarget, ArchiveProgress, ArchiveResult,
@@ -22,7 +22,7 @@ import { ReportDialog } from './ReportDialog'
 import { RouteViewer } from './RouteViewer'
 import { TraceTable } from './TraceTable'
 import { ScreenBody, StatsBar } from './ApiShell'
-import { Badge, Button, cx, DataTable, Modal, Notice, ScrollStrip, SearchInput, Spinner, Stat, SuggestInput, Th, THead, Toggle } from './ui'
+import { Badge, Button, cx, DataTable, Modal, Notice, ScrollStrip, SearchInput, Select, Spinner, Stat, SuggestInput, Th, THead, Toggle } from './ui'
 
 interface Props {
   scan: ScanResult
@@ -42,7 +42,7 @@ export function TraceScreen({ scan, isMac, sourcePath, server, onRescan }: Props
   const { t } = useI18n()
 
   const [filters, setFilters] = useState<Filters>({
-    query: '', broker: 'all', onlyEditable: false, onlyChanged: false, untracedRoutes: false,
+    query: '', broker: 'all', onlyEditable: false, onlyChanged: false, routes: 'all',
   })
   const [sortKey, setSortKey] = useState<SortKey>('domain')
   const [sortDir, setSortDir] = useState<SortDir>('asc')
@@ -153,6 +153,7 @@ export function TraceScreen({ scan, isMac, sourcePath, server, onRescan }: Props
 
   const groups = useMemo(() => buildGroups(scan), [scan])
   const stats = useMemo(() => brokerStats(groups), [groups])
+  const noBroker = useMemo(() => withoutBroker(groups), [groups])
   const brokerValues = useMemo(() => stats.map((item) => item.value), [stats])
   const queues = useMemo(() => queueValues(groups), [groups])
   const modes = useMemo(() => traceModeValues(groups), [groups])
@@ -479,18 +480,38 @@ export function TraceScreen({ scan, isMac, sourcePath, server, onRescan }: Props
           value={summary.routes - summary.tracedRoutes}
           tone={summary.routes > summary.tracedRoutes ? 'warn' : undefined}
         />
+        {/* Их всегда единицы, и найти их иначе можно только руками:
+            в таблице они подписаны словами, а не именем объекта. */}
+        {summary.defaultTraced > 0 && (
+          <Stat
+            label={t('stats.defaultTraced')}
+            value={summary.defaultTraced}
+            tone="warn"
+            hint={t('stats.defaultTraced.hint')}
+          />
+        )}
         {summary.withErrors > 0 && <Stat label={t('stats.readErrors')} value={summary.withErrors} tone="danger" />}
 
         {/* Значений брокера может быть много: строка не растёт вниз, а прокручивается. */}
         <ScrollStrip
           className="ml-auto"
-          itemCount={stats.length}
+          itemCount={stats.length + (noBroker > 0 ? 1 : 0)}
           scrollLeftLabel={t('action.scrollLeft')}
           scrollRightLabel={t('action.scrollRight')}
         >
           <FilterChip active={filters.broker === 'all'} onClick={() => setFilters((prev) => ({ ...prev, broker: 'all' }))}>
             {t('filter.all')}
           </FilterChip>
+          {noBroker > 0 && (
+            <FilterChip
+              active={filters.broker === 'none'}
+              title={t('table.byDefault.hint')}
+              onClick={() => setFilters((prev) => ({ ...prev, broker: prev.broker === 'none' ? 'all' : 'none' }))}
+            >
+              <span className="whitespace-nowrap">{t('filter.noBroker')}</span>
+              <span className="rounded bg-surface-3 px-1 text-[10px] tabular-nums">{noBroker}</span>
+            </FilterChip>
+          )}
           {stats.map((item) => (
             <FilterChip
               key={item.value}
@@ -515,8 +536,9 @@ export function TraceScreen({ scan, isMac, sourcePath, server, onRescan }: Props
         clearLabel={t('action.clearSearch')}
       />
 
-      {/* Фильтры слева, счётчики справа: появление «выбрано» не двигает ни то, ни другое. */}
-      <div className="flex items-center gap-2">
+      {/* Фильтры слева, счётчики справа: появление «выбрано» не двигает ни то,
+          ни другое. На узком окне строка переносится, а не уезжает за край. */}
+      <div className="flex flex-wrap items-center gap-2">
         <Toggle
           checked={filters.onlyEditable}
           onChange={(value) => setFilters((prev) => ({ ...prev, onlyEditable: value }))}
@@ -529,10 +551,19 @@ export function TraceScreen({ scan, isMac, sourcePath, server, onRescan }: Props
           disabled={changedBeans.size === 0}
           title={changedBeans.size === 0 ? t('filter.onlyChangedHint') : undefined}
         />
-        <Toggle
-          checked={filters.untracedRoutes}
-          onChange={(value) => setFilters((prev) => ({ ...prev, untracedRoutes: value }))}
-          label={t('filter.untracedRoutes')}
+        {/* Два вопроса к СОПС домена взаимоисключающие, поэтому это выбор,
+            а не два выключателя: строка фильтров и так близка к краю. */}
+        <Select<RouteFilter>
+          ariaLabel={t('filter.routes')}
+          label={t('filter.routes')}
+          className="w-60"
+          value={filters.routes}
+          onChange={(value) => setFilters((prev) => ({ ...prev, routes: value }))}
+          options={[
+            { id: 'all', label: t('filter.all') },
+            { id: 'untraced', label: t('filter.untracedRoutes') },
+            { id: 'default', label: t('filter.defaultTraced') },
+          ]}
         />
 
         <div className="ml-auto flex items-center gap-2 text-[11.5px] text-content-subtle">

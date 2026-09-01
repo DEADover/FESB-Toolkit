@@ -1052,3 +1052,21 @@ mod local_queue_tests {
         fs::remove_dir_all(&dir).ok();
     }
 }
+
+#[cfg(test)]
+mod stored_report_tests {
+    use super::*;
+
+    /// Отчёты, собранные до появления колонки менеджера, лежат в истории
+    /// на диске. Читаться они должны по-прежнему.
+    #[test]
+    fn an_old_report_without_the_manager_column_still_reads() {
+        let stored = r#"{"domain":"d","domainGuid":"g","route":"r","routeId":"id","component":"c",
+            "direction":"in","kind":"HTTP","scheme":"https","uri":"https://x/y","host":null,"port":443,
+            "ssl":null,"protocol":null,"ciphers":null,"auth":null,"state":null,"listening":null,
+            "uptime":null,"busyThreads":null,"utilizedThreads":null,"readyThreads":null,
+            "minThreads":null,"maxThreads":null,"queueSize":null,"idleTimeout":null,"idleThreads":null}"#;
+        let point: Endpoint = serde_json::from_str(stored).expect("старый отчёт должен читаться");
+        assert_eq!(point.manager, None);
+    }
+}

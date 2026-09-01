@@ -25,11 +25,32 @@ pub struct TraceRow {
     pub queue: Option<String>,
     pub client_type: Option<String>,
     pub trace_mode: Option<String>,
+    /// Куда объект пишет: `queue`, `memory` или `other`.
+    ///
+    /// Без этого «нет свойства broker» читается одинаково у того, кто пишет
+    /// в очередь по умолчанию, и у того, кому очередь вообще не нужна.
+    pub kind: &'static str,
     pub line: usize,
     /// У bean-а есть соответствующий property — значит значение можно заменить.
     pub broker_editable: bool,
     pub queue_editable: bool,
     pub trace_mode_editable: bool,
+}
+
+/// Куда объект трассировки пишет — по классу bean-а.
+///
+/// `TraceQueueConfig` кладёт события в очередь: у него есть и менеджер,
+/// и очередь, а если свойства нет — работает настройка домена.
+/// `TraceMemoryConfig` держит их в памяти: очереди у него не бывает,
+/// и «нет свойства broker» у него означает не умолчание, а «не нужно».
+pub fn trace_kind(class: Option<&str>) -> &'static str {
+    let class = class.unwrap_or_default();
+    let last = class.rsplit('.').next().unwrap_or_default();
+    match last {
+        "TraceQueueConfig" => "queue",
+        "TraceMemoryConfig" => "memory",
+        _ => "other",
+    }
 }
 
 /// СОПС — схема обработки потоков сообщений, она же route Apache Camel.
@@ -180,6 +201,7 @@ pub fn read_domain(dir: &Path, root: &Path) -> DomainRecord {
                 .traces
                 .into_iter()
                 .map(|t| TraceRow {
+                    kind: trace_kind(t.bean_class.as_deref()),
                     line: t.broker_location.as_ref().map(|l| l.line).unwrap_or(t.bean_line),
                     broker_editable: t.broker_location.is_some(),
                     queue_editable: t.queue_location.is_some(),
@@ -271,5 +293,19 @@ pub fn scan_root<F: FnMut(ScanProgress)>(root: &Path, mut on_progress: F) -> Sca
         scanned_at: chrono::Local::now().to_rfc3339(),
         duration_ms: started.elapsed().as_millis(),
         domains,
+    }
+}
+
+#[cfg(test)]
+mod kind_tests {
+    use super::trace_kind;
+
+    #[test]
+    fn the_class_says_where_the_trace_goes() {
+        assert_eq!(trace_kind(Some("ru.factorts.module.broker.trace.config.TraceQueueConfig")), "queue");
+        assert_eq!(trace_kind(Some("ru.factorts.module.broker.trace.config.TraceMemoryConfig")), "memory");
+        // Незнакомый класс не притворяется ни тем, ни другим.
+        assert_eq!(trace_kind(Some("ru.factorts.SomethingElse")), "other");
+        assert_eq!(trace_kind(None), "other");
     }
 }

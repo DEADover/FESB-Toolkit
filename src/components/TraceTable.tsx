@@ -140,8 +140,8 @@ export function TraceTable({
                 {single ? (
                   <>
                     <Cell className="font-mono text-[11.5px] text-content-muted">{single.trace.beanId ?? '—'}</Cell>
-                    <Cell><ValueCell current={single.trace.broker} editable={single.trace.brokerEditable} next={selected.has(single.key) ? update.broker : null} /></Cell>
-                    <Cell><ValueCell current={single.trace.queue} editable={single.trace.queueEditable} next={selected.has(single.key) ? update.queue : null} /></Cell>
+                    <Cell><ValueCell current={single.trace.broker} editable={single.trace.brokerEditable} next={selected.has(single.key) ? update.broker : null} missing={<MissingQueueValue kind={single.trace.kind} />} /></Cell>
+                    <Cell><ValueCell current={single.trace.queue} editable={single.trace.queueEditable} next={selected.has(single.key) ? update.queue : null} missing={<MissingQueueValue kind={single.trace.kind} />} /></Cell>
                     <Cell><ValueCell current={single.trace.traceMode} editable={single.trace.traceModeEditable} next={selected.has(single.key) ? update.traceMode : null} /></Cell>
                   </>
                 ) : (
@@ -151,9 +151,9 @@ export function TraceTable({
                         ? t('table.noTraceBean')
                         : <Multi count={group.entries.length} hint={t('table.multiBeans', { count: group.entries.length })} />}
                     </Cell>
-                    <Cell><Summary group={group} pick={(trace) => trace.broker} /></Cell>
-                    <Cell><Summary group={group} pick={(trace) => trace.queue} /></Cell>
-                    <Cell><Summary group={group} pick={(trace) => trace.traceMode} /></Cell>
+                    <Cell><Summary group={group} field="broker" /></Cell>
+                    <Cell><Summary group={group} field="queue" /></Cell>
+                    <Cell><Summary group={group} field="traceMode" /></Cell>
                   </>
                 )}
 
@@ -227,6 +227,7 @@ export function TraceTable({
                       <RouteRow
                         key={`${route.file}-${route.id ?? index}`}
                         route={route}
+                        beans={domain.traces}
                         onReveal={() => onReveal(`${domain.dirPath}/routes/${route.file}`)}
                         onOpen={() => onOpenRoute(`${domain.dirPath}/routes/${route.file}`, domain.domainName)}
                       />
@@ -329,8 +330,8 @@ function BeanRow({ entry, number, changed, domain, selected, update, onToggle }:
         <span className="ml-5 block border-l border-line-strong pl-3 text-[11.5px] tabular-nums text-content-subtle">{number}</span>
       </Cell>
       <Cell className="select-text py-1.5 font-mono text-[11.5px] text-content">{entry.trace.beanId ?? '—'}</Cell>
-      <Cell className="py-1.5"><ValueCell current={entry.trace.broker} editable={entry.trace.brokerEditable} next={selected ? update.broker : null} /></Cell>
-      <Cell className="py-1.5"><ValueCell current={entry.trace.queue} editable={entry.trace.queueEditable} next={selected ? update.queue : null} /></Cell>
+      <Cell className="py-1.5"><ValueCell current={entry.trace.broker} editable={entry.trace.brokerEditable} next={selected ? update.broker : null} missing={<MissingQueueValue kind={entry.trace.kind} />} /></Cell>
+      <Cell className="py-1.5"><ValueCell current={entry.trace.queue} editable={entry.trace.queueEditable} next={selected ? update.queue : null} missing={<MissingQueueValue kind={entry.trace.kind} />} /></Cell>
       <Cell className="py-1.5"><ValueCell current={entry.trace.traceMode} editable={entry.trace.traceModeEditable} next={selected ? update.traceMode : null} /></Cell>
       <Cell className="py-1.5 font-mono text-[11.5px] tabular-nums text-content-muted">
         <span title={t('table.usedByHint')}>{routesUsingBean(domain, entry.trace.beanId)}</span>
@@ -340,7 +341,13 @@ function BeanRow({ entry, number, changed, domain, selected, update, onToggle }:
   )
 }
 
-function RouteRow({ route, onReveal, onOpen }: { route: RouteInfo; onReveal: () => void; onOpen: () => void }) {
+function RouteRow({ route, beans, onReveal, onOpen }: {
+  route: RouteInfo
+  /** Объекты трассировки домена: без них не назвать тот, что работает по умолчанию. */
+  beans: TraceBean[]
+  onReveal: () => void
+  onOpen: () => void
+}) {
   const { t } = useI18n()
   return (
     <SubRow>
@@ -371,8 +378,10 @@ function RouteRow({ route, onReveal, onOpen }: { route: RouteInfo; onReveal: () 
               <code key={name} className="rounded bg-surface px-1.5 py-0.5 font-mono text-[11px] text-content-muted">{name}</code>
             ))}
           </div>
+        ) : route.traceEnabled ? (
+          <DefaultTraceObject beans={beans} />
         ) : (
-          <span className="text-[11.5px] text-content-subtle">{route.traceEnabled ? t('routes.defaultConfig') : '—'}</span>
+          <span className="text-[11.5px] text-content-subtle">—</span>
         )}
       </Cell>
       <Cell className="py-1.5" />
@@ -485,17 +494,38 @@ function ChangedCell({ changed, compact }: { changed: boolean; compact?: boolean
   )
 }
 
-function ValueCell({ current, editable, next }: { current: string | null; editable: boolean; next: string | null }) {
+/**
+ * Значение свойства bean-а, с подписью на случай, когда свойства нет.
+ *
+ * `missing` задаётся вызывающим: у брокера и очереди отсутствие свойства
+ * значит одно, у режима трассировки — другое, и «Нет свойства» на всех
+ * трёх местах одинаково ничего не объясняло.
+ */
+function ValueCell({ current, editable, next, missing }: {
+  current: string | null
+  editable: boolean
+  next: string | null
+  missing?: ReactNode
+}) {
   const { t } = useI18n()
-  if (!editable) {
-    return <span className="text-[11.5px] text-content-subtle">{t('table.noProperty')}</span>
-  }
+  // Пустое свойство — то же самое, что его отсутствие: шина подставит своё.
+  // Раньше от него оставалась пустая плашка, по которой ничего не понять.
+  const empty = (current ?? '').trim() === ''
+  const shown = missing ?? <span className="text-[11.5px] text-content-subtle">{t('table.noProperty')}</span>
+
+  if (!editable) return <>{shown}</>
+
   const willChange = next !== null && next !== '' && next !== current
   return (
     <div className="flex flex-wrap items-center gap-1.5">
-      <code className={cx('rounded bg-surface-2 px-1.5 py-0.5 font-mono text-[11.5px]', willChange && 'text-content-subtle line-through')}>
-        {current}
-      </code>
+      {empty ? (
+        // Свойство пустое, но заменить его можно — значит и зачеркнуть есть что.
+        <span className={cx(willChange && 'opacity-55')}>{shown}</span>
+      ) : (
+        <code className={cx('rounded bg-surface-2 px-1.5 py-0.5 font-mono text-[11.5px]', willChange && 'text-content-subtle line-through')}>
+          {current}
+        </code>
+      )}
       {willChange && (
         <>
           <ArrowRight size={12} weight="bold" className="text-accent-content" />
@@ -503,6 +533,60 @@ function ValueCell({ current, editable, next }: { current: string | null; editab
         </>
       )}
     </div>
+  )
+}
+
+/**
+ * Что стоит вместо менеджера очередей или очереди, когда свойства нет.
+ *
+ * У объекта, который пишет в очередь, отсутствие свойства — это умолчание:
+ * работает менеджер, назначенный домену или серверу. У объекта, который
+ * держит события в памяти, очереди не бывает вовсе. Прочерк на обоих
+ * местах не различал эти случаи и читался как «данных нет».
+ */
+function MissingQueueValue({ kind }: { kind: TraceBean['kind'] }) {
+  const { t } = useI18n()
+  if (kind === 'memory') {
+    return <span className="text-[11.5px] text-content-subtle" title={t('table.toMemory.hint')}>{t('table.toMemory')}</span>
+  }
+  if (kind === 'queue') {
+    return <span className="text-[11.5px] text-content-muted" title={t('table.byDefault.hint')}>{t('routes.defaultConfig')}</span>
+  }
+  return <span className="text-[11.5px] text-content-subtle">{t('table.noProperty')}</span>
+}
+
+/**
+ * Объект трассировки СОПС, который его не называет.
+ *
+ * `trace="true"` без `traceConfig` — это «объектом домена по умолчанию».
+ * Раньше здесь стояли эти самые слова, и дальше начиналась ручная работа:
+ * какой именно объект, из таблицы было не видно. Если объект у домена один,
+ * называем его — гадать не приходится. Если ни одного, это находка:
+ * трассировка включена, а писать её некуда.
+ */
+function DefaultTraceObject({ beans }: { beans: TraceBean[] }) {
+  const { t } = useI18n()
+  const names = beans.map((bean) => bean.beanId).filter((id): id is string => id !== null)
+
+  if (names.length === 0) {
+    return <Badge tone="warn">{t('routes.traceWithoutBean')}</Badge>
+  }
+  if (names.length === 1) {
+    // Пунктир — знак того, что имя выведено, а не записано в СОПС:
+    // сплошная рамка сделала бы его неотличимым от названного явно.
+    return (
+      <code
+        className="rounded border border-dashed border-line-strong px-1.5 py-0.5 font-mono text-[11px] text-content-subtle"
+        title={t('routes.defaultConfig.hint')}
+      >
+        {names[0]}
+      </code>
+    )
+  }
+  return (
+    <span className="text-[11.5px] text-content-muted" title={t('routes.defaultConfig.many', { beans: names.join(', ') })}>
+      {t('routes.defaultConfig')}
+    </span>
   )
 }
 
@@ -523,15 +607,31 @@ function Multi({ count, hint }: { count: number; hint?: string }) {
  * Значение домена с несколькими объектами трассировки: общее значение, если оно
  * у всех одинаковое, иначе MULTI.
  */
-function Summary({ group, pick }: { group: DomainGroup; pick: (trace: TraceBean) => string | null }) {
-  const values = group.entries.map((entry) => pick(entry.trace))
+/**
+ * Сводка колонки по всем объектам домена.
+ *
+ * Настоящие значения важнее: домен, где один объект пишет в `QME:EQM`,
+ * а другой держит события в памяти, — это домен с `QME:EQM`, и прятать
+ * это за MULTI незачем. А вот когда настоящих значений нет ни у кого,
+ * прочерк читается как «данных нет»: там, где все объекты пишут в память
+ * или все ждут менеджера по умолчанию, так и написано.
+ */
+function Summary({ group, field }: { group: DomainGroup; field: 'broker' | 'queue' | 'traceMode' }) {
+  const values = group.entries.map((entry) => entry.trace[field])
   const distinct = [...new Set(values.filter((value): value is string => value !== null))]
 
-  if (distinct.length === 0) return <span className="text-content-subtle">—</span>
   if (distinct.length > 1) return <Multi count={group.entries.length} />
-  return (
-    <code className="rounded bg-surface-2 px-1.5 py-0.5 font-mono text-[11.5px] text-content-muted">{distinct[0]}</code>
-  )
+  if (distinct.length === 1) {
+    return (
+      <code className="rounded bg-surface-2 px-1.5 py-0.5 font-mono text-[11.5px] text-content-muted">{distinct[0]}</code>
+    )
+  }
+
+  const kinds = [...new Set(group.entries.map((entry) => entry.trace.kind))]
+  if (field !== 'traceMode' && kinds.length === 1 && group.entries.length > 0) {
+    return <MissingQueueValue kind={kinds[0]} />
+  }
+  return <span className="text-content-subtle">—</span>
 }
 
 function RoutesCount({ routes }: { routes: ReturnType<typeof routeSummary> }) {

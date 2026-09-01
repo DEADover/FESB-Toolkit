@@ -466,3 +466,59 @@ fn names_the_queue_manager_of_every_local_queue() {
         }
     }
 }
+
+/// Выгружает разбор нескольких доменов в JSON — им наполняется заглушка
+/// `dev-preview.html`, чтобы вёрстка проверялась на настоящих данных.
+#[test]
+#[ignore]
+fn dump_domains() {
+    let (Ok(root), Ok(names)) = (std::env::var("FESB_CORPUS"), std::env::var("FESB_DOMAINS")) else {
+        return;
+    };
+    let wanted: Vec<&str> = names.split(',').collect();
+    let result = scan_root(&PathBuf::from(root), |_| {});
+    let picked: Vec<_> = result
+        .domains
+        .iter()
+        .filter(|domain| wanted.iter().any(|name| domain.dir_name.contains(name)))
+        .collect();
+    println!("{}", serde_json::to_string(&picked).unwrap());
+}
+
+/// Сколько СОПС трассируются объектом домена по умолчанию.
+///
+/// Такие СОПС в таблице подписаны «По умолчанию», и до сих пор их нельзя
+/// было ни отфильтровать, ни сосчитать.
+#[test]
+#[ignore]
+fn counts_routes_traced_by_the_domain_default() {
+    let Ok(root) = std::env::var("FESB_CORPUS") else { return };
+    let result = scan_root(&PathBuf::from(root), |_| {});
+    let mut traced = 0usize;
+    let mut by_default = 0usize;
+    let mut inline = 0usize;
+    let mut domains_with_default = 0usize;
+    for domain in &result.domains {
+        let mut here = 0usize;
+        for route in &domain.routes {
+            if !route.trace_enabled {
+                continue;
+            }
+            traced += 1;
+            if route.inline_trace_config {
+                inline += 1;
+            } else if route.trace_configs.is_empty() {
+                by_default += 1;
+                here += 1;
+            }
+        }
+        if here > 0 {
+            domains_with_default += 1;
+            println!("  по умолчанию в домене {} ({})", domain.domain_name, domain.dir_name);
+        }
+    }
+    println!(
+        "с трассировкой {traced}: своим объектом {}, по умолчанию {by_default} (в {domains_with_default} доменах), встроенным {inline}",
+        traced - by_default - inline,
+    );
+}

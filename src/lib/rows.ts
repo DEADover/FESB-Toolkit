@@ -1,4 +1,4 @@
-import type { DomainRecord, ScanResult, TraceBean } from '../types'
+import type { DomainRecord, RouteInfo, ScanResult, TraceBean } from '../types'
 
 /** Одна трассировка внутри домена. Ключ выделения стабилен между сканированиями. */
 export interface TraceEntry {
@@ -29,6 +29,8 @@ export function buildGroups(scan: ScanResult | null): DomainGroup[] {
 
 export type SortKey = 'domain' | 'broker' | 'bean' | 'routes'
 export type SortDir = 'asc' | 'desc'
+/** `default` — трассировка включена, а объект не назван. */
+export type RouteFilter = 'all' | 'untraced' | 'default'
 
 export interface Filters {
   query: string
@@ -36,8 +38,11 @@ export interface Filters {
   onlyEditable: boolean
   /** Только записи, изменённые в текущей сессии. */
   onlyChanged: boolean
-  /** Только домены, где есть СОПС с выключенной трассировкой. */
-  untracedRoutes: boolean
+  /**
+   * Каким СОПС домена интересуемся: любым, без трассировки или тем,
+   * у которого трассировка включена, а объект не назван.
+   */
+  routes: RouteFilter
 }
 
 /**
@@ -54,12 +59,42 @@ function matchesQuery(values: Array<string | null | undefined>, query: string): 
   return values.some((value) => typeof value === 'string' && value.toLowerCase().includes(query))
 }
 
+/**
+ * Назван ли у объекта трассировки менеджер очередей.
+ *
+ * Пустое свойство — то же самое, что его отсутствие: шина подставит
+ * назначенный домену или серверу. Считать его за названный значит
+ * обещать в сводке брокера, которого в таблице не увидишь.
+ */
+export function namedBroker(trace: TraceBean): string | null {
+  const broker = trace.broker?.trim()
+  return broker ? broker : null
+}
+
 /* --------------------------------- СОПС --------------------------------- */
 
 /** Сколько СОПС в домене и в скольких из них включена трассировка. */
 export function routeSummary(domain: DomainRecord) {
   const traced = domain.routes.filter((route) => route.traceEnabled).length
   return { total: domain.routes.length, traced, untraced: domain.routes.length - traced }
+}
+
+/**
+ * СОПС, у которого трассировка включена, а объект не назван.
+ *
+ * Такой СОПС трассируется объектом домена по умолчанию. Найти их иначе нельзя:
+ * в таблице они подписаны словами, а не именем объекта, и поиск по ним молчит.
+ * На выгрузке из 255 доменов таких четыре — тем нужнее фильтр.
+ */
+export function tracedByDefault(route: RouteInfo): boolean {
+  return route.traceEnabled && !route.inlineTraceConfig && route.traceConfigs.length === 0
+}
+
+/** Сколько СОПС домена подходит под выбранный фильтр. */
+export function countRoutes(domain: DomainRecord, filter: Exclude<RouteFilter, 'all'>): number {
+  return filter === 'untraced'
+    ? domain.routes.filter((route) => !route.traceEnabled).length
+    : domain.routes.filter(tracedByDefault).length
 }
 
 /** Сколько СОПС домена ссылается на конкретный объект трассировки. */
@@ -79,7 +114,7 @@ export function filterGroups(groups: DomainGroup[], filters: Filters, changedBea
   const result: DomainGroup[] = []
 
   for (const group of groups) {
-    if (filters.untracedRoutes && routeSummary(group.domain).untraced === 0) continue
+    if (filters.routes !== 'all' && countRoutes(group.domain, filters.routes) === 0) continue
 
     const domainMatches = !query || matchesQuery(
       [
@@ -90,13 +125,16 @@ export function filterGroups(groups: DomainGroup[], filters: Filters, changedBea
     )
 
     if (group.entries.length === 0) {
-      const brokerFilterOff = filters.broker === 'all' || filters.broker === 'none'
-      if (brokerFilterOff && !filters.onlyEditable && !filters.onlyChanged && domainMatches) result.push(group)
+      // Домен без объектов трассировки не подходит ни под какой отбор
+      // по ним — включая «без брокера»: объекта нет, а не брокера.
+      if (filters.broker === 'all' && !filters.onlyEditable && !filters.onlyChanged && domainMatches) {
+        result.push(group)
+      }
       continue
     }
 
     const entries = group.entries.filter((entry) => {
-      const broker = entry.trace.broker
+      const broker = namedBroker(entry.trace)
       if (filters.broker === 'none' && broker !== null) return false
       if (filters.broker !== 'all' && filters.broker !== 'none' && broker !== filters.broker) return false
       if (filters.onlyEditable && !entry.editable) return false
@@ -121,7 +159,7 @@ export function sortGroups(groups: DomainGroup[], key: SortKey, dir: SortDir): D
   const value = (group: DomainGroup): string => {
     switch (key) {
       // У домена может быть несколько объектов трассировки — берём первый.
-      case 'broker': return group.entries[0]?.trace.broker ?? '￿'
+      case 'broker': return (group.entries[0] && namedBroker(group.entries[0].trace)) ?? '￿'
       case 'bean': return group.entries[0]?.trace.beanId ?? '￿'
       default: return group.domain.domainName
     }
@@ -154,13 +192,26 @@ export function brokerStats(groups: DomainGroup[]): Array<{ value: string; count
   const map = new Map<string, number>()
   for (const group of groups) {
     for (const entry of group.entries) {
-      const broker = entry.trace.broker
+      const broker = namedBroker(entry.trace)
       if (broker) map.set(broker, (map.get(broker) ?? 0) + 1)
     }
   }
   return [...map.entries()]
     .map(([value, count]) => ({ value, count }))
     .sort((a, b) => b.count - a.count || collator.compare(a.value, b.value))
+}
+
+/**
+ * Сколько объектов трассировки не называют брокера.
+ *
+ * Отбор по ним в `filterGroups` был с самого начала, а кнопки к нему не было:
+ * `brokerStats` такие объекты выбрасывал, и найти их было нечем.
+ */
+export function withoutBroker(groups: DomainGroup[]): number {
+  return groups.reduce(
+    (count, group) => count + group.entries.filter((entry) => namedBroker(entry.trace) === null).length,
+    0,
+  )
 }
 
 export const queueValues = (groups: DomainGroup[]) => distinct(groups, (trace) => trace.queue)
@@ -170,9 +221,10 @@ export function domainSummary(domains: DomainRecord[]) {
   return {
     domains: domains.length,
     traces: domains.reduce((n, d) => n + d.traces.length, 0),
-    withBroker: domains.reduce((n, d) => n + d.traces.filter((t) => t.broker !== null).length, 0),
+    withBroker: domains.reduce((n, d) => n + d.traces.filter((t) => namedBroker(t) !== null).length, 0),
     withErrors: domains.filter((d) => d.errors.length > 0).length,
     routes: domains.reduce((n, d) => n + d.routes.length, 0),
     tracedRoutes: domains.reduce((n, d) => n + d.routes.filter((r) => r.traceEnabled).length, 0),
+    defaultTraced: domains.reduce((n, d) => n + d.routes.filter(tracedByDefault).length, 0),
   }
 }
