@@ -90,11 +90,15 @@ export function tracedByDefault(route: RouteInfo): boolean {
   return route.traceEnabled && !route.inlineTraceConfig && route.traceConfigs.length === 0
 }
 
-/** Сколько СОПС домена подходит под выбранный фильтр. */
+/** Подходит ли СОПС под выбранный отбор. */
+export function matchesRouteFilter(route: RouteInfo, filter: RouteFilter): boolean {
+  if (filter === 'all') return true
+  return filter === 'untraced' ? !route.traceEnabled : tracedByDefault(route)
+}
+
+/** Сколько СОПС домена подходит под выбранный отбор. */
 export function countRoutes(domain: DomainRecord, filter: Exclude<RouteFilter, 'all'>): number {
-  return filter === 'untraced'
-    ? domain.routes.filter((route) => !route.traceEnabled).length
-    : domain.routes.filter(tracedByDefault).length
+  return domain.routes.filter((route) => matchesRouteFilter(route, filter)).length
 }
 
 /** Сколько СОПС домена ссылается на конкретный объект трассировки. */

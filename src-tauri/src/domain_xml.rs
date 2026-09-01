@@ -44,6 +44,12 @@ pub struct TraceBean {
     pub client_type: Option<String>,
     pub trace_mode: Option<String>,
     pub trace_mode_location: Option<ValueLocation>,
+    /// Ждать ли отправителя, когда очередь событий заполнена.
+    ///
+    /// У объекта, который пишет в память, очереди с именем нет, а этот
+    /// признак есть: в редакторе шины он и стоит на месте очереди —
+    /// «Блокирующая» или «Неблокирующая».
+    pub block_on_full_queue: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -211,6 +217,9 @@ pub fn parse_domain_xml(xml: &str) -> DomainXml {
             queue_location: queue.map(|q| q.location),
             client_type: find_property(xml, &tags, body_start, to, "clientType")
                 .and_then(|p| meaningful(&p.value)),
+            block_on_full_queue: find_property(xml, &tags, body_start, to, "blockOnFullQueue")
+                .and_then(|p| meaningful(&p.value))
+                .and_then(|value| value.parse().ok()),
             trace_mode: trace_mode.as_ref().and_then(|m| meaningful(&m.value)),
             trace_mode_location: trace_mode.map(|m| m.location),
         });
@@ -555,6 +564,20 @@ mod meaningful_tests {
         // Свойство в файле есть, и заменить его по-прежнему можно.
         assert!(trace.broker_location.is_some());
         assert_eq!(trace.queue.as_deref(), Some("Mon.Trace"));
+    }
+
+    /// У объекта, который пишет в память, на месте очереди стоит её тип.
+    #[test]
+    fn a_memory_bean_brings_its_queue_type() {
+        let xml = concat!(
+            r#"<beans><bean class="ru.factorts.module.broker.trace.config.TraceMemoryConfig""#,
+            r#" factor:type="TRACE" id="TraceToMemory" name="TraceToMemory">"#,
+            r#"<property name="queueType" value="LIMITED"/>"#,
+            r#"<property name="blockOnFullQueue" value="true"/></bean></beans>"#,
+        );
+        let trace = &parse_domain_xml(xml).traces[0];
+        assert_eq!(trace.block_on_full_queue, Some(true));
+        assert_eq!(trace.queue, None, "имени очереди у него нет");
     }
 
     #[test]

@@ -3,8 +3,8 @@ import { useEffect, useRef, type MouseEvent, type ReactNode } from 'react'
 import { ArrowRight, CaretRight } from '@phosphor-icons/react'
 
 import { useI18n } from '../i18n'
-import type { DomainGroup, SortDir, SortKey, TraceEntry } from '../lib/rows'
-import { changeKey, routeSummary, routesUsingBean, selectableKeys } from '../lib/rows'
+import type { DomainGroup, RouteFilter, SortDir, SortKey, TraceEntry } from '../lib/rows'
+import { changeKey, matchesRouteFilter, routeSummary, routesUsingBean, selectableKeys } from '../lib/rows'
 import type { DomainRecord, RouteInfo, TraceBean, TraceUpdate } from '../types'
 import { Badge, Checkbox, cx, rowClick, SortHead, Th } from './ui'
 
@@ -25,6 +25,15 @@ interface Props {
   onReveal: (path: string) => void
   /** Открывает схему СОПС: путь к файлу маршрута и имя домена. */
   onOpenRoute: (path: string, domainName: string) => void
+  /**
+   * Какой отбор СОПС сейчас включён.
+   *
+   * Таблица показывает домены, а отбор идёт по их схемам, и после
+   * фильтрации было не видно, что именно нашлось: строки доменов
+   * выглядели как обычно. Поэтому найденное считается в строке домена
+   * и остаётся одно в раскрытом списке схем.
+   */
+  routeFilter: RouteFilter
 }
 
 const COLUMN_COUNT = 9
@@ -38,6 +47,7 @@ const COLUMN_COUNT = 9
 export function TraceTable({
   groups, selected, changedBeans, expanded, sortKey, sortDir, update,
   onToggleEntry, onToggleGroup, onToggleAll, onToggleExpand, onSort, onReveal, onOpenRoute,
+  routeFilter,
 }: Props) {
   const { t } = useI18n()
   const headCheckbox = useRef<HTMLInputElement>(null)
@@ -104,6 +114,9 @@ export function TraceTable({
           const single = group.entries.length === 1 ? group.entries[0] : null
           const isOpen = expanded.has(domain.id)
           const routes = routeSummary(domain)
+          // При включённом отборе в раскрытом домене остаются только
+          // найденные схемы: иначе среди сотни строк их не отыскать.
+          const found = domain.routes.filter((route) => matchesRouteFilter(route, routeFilter))
           const domainChanged = group.entries.some((entry) => changedBeans.has(changeKey(domain, entry.trace.beanId)))
 
           return (
@@ -135,22 +148,32 @@ export function TraceTable({
                   <div className="flex items-center gap-2">
                     <CaretRight size={11} weight="bold" className={cx('shrink-0 text-content-subtle transition-transform', isOpen && 'rotate-90')} />
                     <span className="select-text truncate font-medium text-content">{domain.domainName}</span>
-                    {domain.errors.length > 0 && <Badge tone="danger">{t('table.readError')}</Badge>}
+                    {/* Домен попал в список из-за своих схем — вот сколько их. */}
+                    {routeFilter !== 'all' && (
+                      <Badge tone="warn" className="shrink-0 whitespace-nowrap">
+                        {t(routeFilter === 'untraced' ? 'filter.foundUntraced' : 'filter.foundDefault',
+                          { count: found.length })}
+                      </Badge>
+                    )}
+                    {domain.errors.length > 0 && <Badge tone="danger" className="shrink-0">{t('table.readError')}</Badge>}
                   </div>
                 </Cell>
 
                 {single ? (
                   <>
                     <Cell className="font-mono text-[11.5px] text-content-muted">{single.trace.beanId ?? '—'}</Cell>
-                    <Cell><ValueCell current={single.trace.broker} editable={single.trace.brokerEditable} next={selected.has(single.key) ? update.broker : null} missing={<MissingQueueValue kind={single.trace.kind} field="broker" />} /></Cell>
-                    <Cell><ValueCell current={single.trace.queue} editable={single.trace.queueEditable} next={selected.has(single.key) ? update.queue : null} missing={<MissingQueueValue kind={single.trace.kind} field="queue" />} /></Cell>
+                    <Cell><ValueCell current={single.trace.broker} editable={single.trace.brokerEditable} next={selected.has(single.key) ? update.broker : null} missing={<MissingQueueValue trace={single.trace} field="broker" />} /></Cell>
+                    <Cell><ValueCell current={single.trace.queue} editable={single.trace.queueEditable} next={selected.has(single.key) ? update.queue : null} missing={<MissingQueueValue trace={single.trace} field="queue" />} /></Cell>
                     <Cell><ValueCell current={single.trace.traceMode} editable={single.trace.traceModeEditable} next={selected.has(single.key) ? update.traceMode : null} /></Cell>
                   </>
                 ) : (
                   <>
                     <Cell className="text-[11.5px] text-content-subtle">
+                      {/* Ни одного объекта — прочерк, как в любой пустой ячейке:
+                          подпись словами занимала две строки и кричала громче,
+                          чем значит. */}
                       {group.entries.length === 0
-                        ? t('table.noTraceBean')
+                        ? '—'
                         : <Multi count={group.entries.length} hint={t('table.multiBeans', { count: group.entries.length })} />}
                     </Cell>
                     <Cell><Summary group={group} field="broker" /></Cell>
@@ -215,17 +238,21 @@ export function TraceTable({
 
                   <SectionRow
                     label={t('panel.routes')}
-                    count={domain.routes.length}
-                    note={routes.total > 0 ? t('table.routesHint', { traced: routes.traced, total: routes.total }) : undefined}
+                    count={found.length}
+                    note={routeFilter !== 'all'
+                      ? t('panel.routes.filtered', { total: domain.routes.length })
+                      : routes.total > 0
+                        ? t('table.routesHint', { traced: routes.traced, total: routes.total })
+                        : undefined}
                   />
-                  {domain.routes.length === 0 ? (
+                  {found.length === 0 ? (
                     <SubRow>
                       <Cell />
                       <Cell />
                       <Cell colSpanRest className="pl-9 text-[11.5px] text-content-subtle">{t('panel.noRoutes')}</Cell>
                     </SubRow>
                   ) : (
-                    domain.routes.map((route, index) => (
+                    found.map((route, index) => (
                       <RouteRow
                         key={`${route.file}-${route.id ?? index}`}
                         route={route}
@@ -332,8 +359,8 @@ function BeanRow({ entry, number, changed, domain, selected, update, onToggle }:
         <span className="ml-5 block border-l border-line-strong pl-3 text-[11.5px] tabular-nums text-content-subtle">{number}</span>
       </Cell>
       <Cell className="select-text py-1.5 font-mono text-[11.5px] text-content">{entry.trace.beanId ?? '—'}</Cell>
-      <Cell className="py-1.5"><ValueCell current={entry.trace.broker} editable={entry.trace.brokerEditable} next={selected ? update.broker : null} missing={<MissingQueueValue kind={entry.trace.kind} field="broker" />} /></Cell>
-      <Cell className="py-1.5"><ValueCell current={entry.trace.queue} editable={entry.trace.queueEditable} next={selected ? update.queue : null} missing={<MissingQueueValue kind={entry.trace.kind} field="queue" />} /></Cell>
+      <Cell className="py-1.5"><ValueCell current={entry.trace.broker} editable={entry.trace.brokerEditable} next={selected ? update.broker : null} missing={<MissingQueueValue trace={entry.trace} field="broker" />} /></Cell>
+      <Cell className="py-1.5"><ValueCell current={entry.trace.queue} editable={entry.trace.queueEditable} next={selected ? update.queue : null} missing={<MissingQueueValue trace={entry.trace} field="queue" />} /></Cell>
       <Cell className="py-1.5"><ValueCell current={entry.trace.traceMode} editable={entry.trace.traceModeEditable} next={selected ? update.traceMode : null} /></Cell>
       <Cell className="py-1.5 font-mono text-[11.5px] tabular-nums text-content-muted">
         <span title={t('table.usedByHint')}>{routesUsingBean(domain, entry.trace.beanId)}</span>
@@ -546,10 +573,18 @@ function ValueCell({ current, editable, next, missing }: {
  * держит события в памяти, очереди не бывает вовсе. Прочерк на обоих
  * местах не различал эти случаи и читался как «данных нет».
  */
-function MissingQueueValue({ kind, field }: { kind: TraceBean['kind']; field: 'broker' | 'queue' }) {
+function MissingQueueValue({ trace, field }: { trace: TraceBean; field: 'broker' | 'queue' }) {
   const { t } = useI18n()
+  const kind = trace.kind
   if (kind === 'memory') {
-    return <span className="text-[11.5px] text-content-subtle" title={t('table.toMemory.hint')}>{t('table.toMemory')}</span>
+    // На месте брокера — куда пишет, на месте очереди — какая она.
+    // Это те же два поля, что и в редакторе шины.
+    const label = field === 'broker'
+      ? t('table.toMemory')
+      : trace.blocking === null
+        ? t('table.toMemory')
+        : t(trace.blocking ? 'table.blocking' : 'table.nonBlocking')
+    return <span className="text-[11.5px] text-content-subtle" title={t('table.toMemory.hint')}>{label}</span>
   }
   if (kind === 'queue') {
     return (
@@ -635,7 +670,7 @@ function Summary({ group, field }: { group: DomainGroup; field: 'broker' | 'queu
 
   const kinds = [...new Set(group.entries.map((entry) => entry.trace.kind))]
   if (field !== 'traceMode' && kinds.length === 1 && group.entries.length > 0) {
-    return <MissingQueueValue kind={kinds[0]} field={field} />
+    return <MissingQueueValue trace={group.entries[0].trace} field={field} />
   }
   return <span className="text-content-subtle">—</span>
 }

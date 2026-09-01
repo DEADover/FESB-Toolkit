@@ -2,14 +2,15 @@ import { describe, expect, it } from 'vitest'
 
 import type { DomainRecord, RouteInfo, TraceBean } from '../types'
 import {
-  buildGroups, countRoutes, domainSummary, filterGroups, namedBroker, tracedByDefault, withoutBroker,
+  buildGroups, countRoutes, domainSummary, filterGroups, matchesRouteFilter, namedBroker,
+  tracedByDefault, withoutBroker,
   type Filters,
 } from './rows'
 
 function bean(id: string, broker: string | null, kind: TraceBean['kind'] = 'queue'): TraceBean {
   return {
     beanId: id, beanName: id, broker, queue: broker === null ? null : 'Mon.Trace',
-    clientType: null, traceMode: 'ASYNC', kind, line: 1,
+    clientType: null, traceMode: 'ASYNC', kind, blocking: null, line: 1,
     brokerEditable: broker !== null, queueEditable: broker !== null, traceModeEditable: true,
   }
 }
@@ -50,6 +51,20 @@ describe('tracedByDefault', () => {
 
   it('своя конфигурация в файле — это не умолчание', () => {
     expect(tracedByDefault({ ...route('d', true), inlineTraceConfig: true })).toBe(false)
+  })
+})
+
+describe('matchesRouteFilter', () => {
+  it('«все» пропускает любой СОПС', () => {
+    expect(matchesRouteFilter(route('a', false), 'all')).toBe(true)
+    expect(matchesRouteFilter(route('b', true, ['X']), 'all')).toBe(true)
+  })
+
+  it('отбор берёт ровно то, что обещает', () => {
+    expect(matchesRouteFilter(route('a', false), 'untraced')).toBe(true)
+    expect(matchesRouteFilter(route('b', true), 'untraced')).toBe(false)
+    expect(matchesRouteFilter(route('c', true), 'default')).toBe(true)
+    expect(matchesRouteFilter(route('d', true, ['X']), 'default')).toBe(false)
   })
 })
 

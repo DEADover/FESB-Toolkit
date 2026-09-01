@@ -470,10 +470,7 @@ export function TraceScreen({ scan, isMac, sourcePath, server, onRescan }: Props
   return (
     <ScreenBody>
       <StatsBar>
-        {/* Показатели переносятся сами по себе, а полоса фишек остаётся
-            справа от них: раньше она делила строку с ними на равных
-            и от седьмого показателя целиком уезжала на второй ряд. */}
-        <div className="flex min-w-0 flex-1 basis-0 flex-wrap items-center gap-x-7 gap-y-3">
+        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-7 gap-y-3">
         <Stat label={t('stats.domains')} value={summary.domains} />
         <Stat label={t('stats.traceBeans')} value={summary.traces} />
         <Stat label={t('stats.withBroker')} value={summary.withBroker} tone="accent" hint={t('stats.withBroker.hint')} />
@@ -497,42 +494,6 @@ export function TraceScreen({ scan, isMac, sourcePath, server, onRescan }: Props
         {summary.withErrors > 0 && <Stat label={t('stats.readErrors')} value={summary.withErrors} tone="danger" />}
         </div>
 
-        {/* Значений брокера может быть много: полоса не растёт вниз,
-            а прокручивается. Показатели переносятся у себя внутри, поэтому
-            полоса остаётся справа от них и на второй ряд не уезжает. */}
-        <ScrollStrip
-          className="max-w-[26rem] shrink-0"
-          itemCount={stats.length + (noBroker > 0 ? 1 : 0)}
-          scrollLeftLabel={t('action.scrollLeft')}
-          scrollRightLabel={t('action.scrollRight')}
-        >
-          <FilterChip active={filters.broker === 'all'} onClick={() => setFilters((prev) => ({ ...prev, broker: 'all' }))}>
-            {t('filter.all')}
-          </FilterChip>
-          {noBroker > 0 && (
-            <FilterChip
-              active={filters.broker === 'none'}
-              title={t('table.byDefault.hint')}
-              onClick={() => setFilters((prev) => ({ ...prev, broker: prev.broker === 'none' ? 'all' : 'none' }))}
-            >
-              <span className="whitespace-nowrap">{t('filter.noBroker')}</span>
-              <span className="rounded bg-surface-3 px-1 text-[10px] tabular-nums">{noBroker}</span>
-            </FilterChip>
-          )}
-          {stats.map((item) => (
-            <FilterChip
-              key={item.value}
-              mono
-              active={filters.broker === item.value}
-              title={t('filter.chipHint')}
-              onClick={() => setFilters((prev) => ({ ...prev, broker: prev.broker === item.value ? 'all' : item.value }))}
-              onDoubleClick={() => selectByBroker(item.value)}
-            >
-              <span className="whitespace-nowrap">{item.value}</span>
-              <span className="rounded bg-surface-3 px-1 text-[10px] tabular-nums">{item.count}</span>
-            </FilterChip>
-          ))}
-        </ScrollStrip>
       </StatsBar>
 
       <SearchInput
@@ -572,6 +533,42 @@ export function TraceScreen({ scan, isMac, sourcePath, server, onRescan }: Props
             { id: 'default', label: t('filter.defaultTraced') },
           ]}
         />
+        {/* Фильтр по брокеру стоит в ряду фильтров, а не над ним: он такой же
+            отбор, как и соседние. Значений бывает много, поэтому полоса
+            не растёт вниз, а прокручивается. */}
+        <ScrollStrip
+          className="min-w-0 flex-1 basis-0"
+          itemCount={stats.length + (noBroker > 0 ? 1 : 0)}
+          scrollLeftLabel={t('action.scrollLeft')}
+          scrollRightLabel={t('action.scrollRight')}
+        >
+          <FilterChip active={filters.broker === 'all'} onClick={() => setFilters((prev) => ({ ...prev, broker: 'all' }))}>
+            {t('filter.all')}
+          </FilterChip>
+          {noBroker > 0 && (
+            <FilterChip
+              active={filters.broker === 'none'}
+              title={t('table.byDefault.hint')}
+              onClick={() => setFilters((prev) => ({ ...prev, broker: prev.broker === 'none' ? 'all' : 'none' }))}
+            >
+              <span className="whitespace-nowrap">{t('filter.noBroker')}</span>
+              <span className="rounded bg-surface-3 px-1 text-[10px] tabular-nums">{noBroker}</span>
+            </FilterChip>
+          )}
+          {stats.map((item) => (
+            <FilterChip
+              key={item.value}
+              mono
+              active={filters.broker === item.value}
+              title={t('filter.chipHint')}
+              onClick={() => setFilters((prev) => ({ ...prev, broker: prev.broker === item.value ? 'all' : item.value }))}
+              onDoubleClick={() => selectByBroker(item.value)}
+            >
+              <span className="whitespace-nowrap">{item.value}</span>
+              <span className="rounded bg-surface-3 px-1 text-[10px] tabular-nums">{item.count}</span>
+            </FilterChip>
+          ))}
+        </ScrollStrip>
 
         <div className="ml-auto flex items-center gap-2 text-[11.5px] text-content-subtle">
           <span>{t('filter.shown', { visible: visible.length, total: groups.length })}</span>
@@ -615,6 +612,7 @@ export function TraceScreen({ scan, isMac, sourcePath, server, onRescan }: Props
 
       <TraceTable
         groups={visible}
+        routeFilter={filters.routes}
         selected={selected}
         changedBeans={changedBeans}
         expanded={expanded}

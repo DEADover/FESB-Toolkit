@@ -30,6 +30,9 @@ pub struct TraceRow {
     /// Без этого «нет свойства broker» читается одинаково у того, кто пишет
     /// в очередь по умолчанию, и у того, кому очередь вообще не нужна.
     pub kind: &'static str,
+    /// Ждать ли отправителя, когда очередь событий заполнена. У объекта,
+    /// который пишет в память, это и есть «тип очереди» из редактора шины.
+    pub blocking: Option<bool>,
     pub line: usize,
     /// У bean-а есть соответствующий property — значит значение можно заменить.
     pub broker_editable: bool,
@@ -202,6 +205,7 @@ pub fn read_domain(dir: &Path, root: &Path) -> DomainRecord {
                 .into_iter()
                 .map(|t| TraceRow {
                     kind: trace_kind(t.bean_class.as_deref()),
+                    blocking: t.block_on_full_queue,
                     line: t.broker_location.as_ref().map(|l| l.line).unwrap_or(t.bean_line),
                     broker_editable: t.broker_location.is_some(),
                     queue_editable: t.queue_location.is_some(),
