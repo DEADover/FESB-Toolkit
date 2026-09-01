@@ -241,6 +241,8 @@ export const ru: Record<keyof typeof en, string> = {
   'apply.brokerPlaceholder': 'Например, QME:EQM_MON',
   'apply.queuePlaceholder': 'Например, mon.trace',
   'apply.hint': 'Пустое поле остаётся без изменений',
+  'apply.apiMode': 'Режим API',
+  'apply.apiMode.hint': 'Сначала подключитесь к стенду — кнопка приведёт туда, где это делают',
   'apply.backup': 'Копия',
   'apply.backup.hint': 'Рядом с каждым изменённым domain.xml остаётся копия .bak',
   'apply.selectPrompt': 'Выберите домены в таблице',

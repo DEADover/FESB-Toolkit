@@ -240,6 +240,8 @@ export const en = {
   'apply.brokerPlaceholder': 'For example, QME:EQM_MON',
   'apply.queuePlaceholder': 'For example, mon.trace',
   'apply.hint': 'An empty field is left unchanged',
+  'apply.apiMode': 'API Mode',
+  'apply.apiMode.hint': 'Connect to a stand first — this takes you to the connection screen',
   'apply.backup': 'Backup',
   'apply.backup.hint': 'A .bak copy is left next to every changed domain.xml',
   'apply.selectPrompt': 'Select domains in the table',

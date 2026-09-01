@@ -486,11 +486,14 @@ export default function App() {
             error={error}
           />
         ) : (
+          /* Подключение годится любое: обмен идёт по guid доменов,
+             а не по тому, откуда взяты файлы. */
           <TraceScreen
             scan={scan}
             isMac={isMac}
             sourcePath={source?.path ?? null}
-            server={source?.kind === 'server' ? session : null}
+            server={session}
+            onGoToConnection={() => setScreen('api.connection')}
             onRescan={rescan}
           />
         )}

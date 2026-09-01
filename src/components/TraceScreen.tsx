@@ -33,6 +33,8 @@ interface Props {
   sourcePath: string | null
   /** Заполнено, когда конфигурация забрана с сервера: тогда её можно вернуть туда же. */
   server: { server: ServerInfo; connection: Connection } | null
+  /** Куда отправить за подключением, если его ещё нет. */
+  onGoToConnection: () => void
   onRescan: () => Promise<void>
 }
 
@@ -40,7 +42,7 @@ interface Props {
  * Единый экран: домены, их СОПС и объекты трассировки с правкой
  * имени брокера, имени очереди и режима трассировки.
  */
-export function TraceScreen({ scan, isMac, sourcePath, server, onRescan }: Props) {
+export function TraceScreen({ scan, isMac, sourcePath, server, onRescan, onGoToConnection }: Props) {
   const { t } = useI18n()
 
   const [filters, setFilters] = useState<Filters>({
@@ -575,7 +577,7 @@ export function TraceScreen({ scan, isMac, sourcePath, server, onRescan }: Props
       {/* Сборка архива стоит в шапке рядом с «Open ZIP»: там же, где
           открывают чужой архив, собирают и свой. */}
       <HeaderActions>
-        <Button onClick={startBuild} disabled={archiving}>
+        <Button size="sm" onClick={startBuild} disabled={archiving}>
           {archiving
             ? <><Spinner className="size-3.5" /> {archiveProgress ? `${archiveProgress.current} / ${archiveProgress.total}` : t('zip.building')}</>
             : t('action.buildZip')}
@@ -652,16 +654,23 @@ export function TraceScreen({ scan, isMac, sourcePath, server, onRescan }: Props
           </p>
         )}
 
-        <div className="mt-3 flex flex-wrap items-center gap-3 border-t border-line px-5 py-3">
+        <div className="mt-3 flex flex-wrap items-end gap-3 border-t border-line px-5 py-3">
           {/* Обмен с сервером — слева, у нижнего края: правки готовят здесь же,
               и отсюда же их отдают. Общая рамка говорит, что это две стороны
-              одного дела: сначала сравнить, потом отправить. */}
-          {server && (
+              одного дела: сначала сравнить, потом отправить.
+              Кнопки стоят всегда: без подключения они ведут туда, где его
+              заводят, — «сначала подключитесь» на месте кнопки объясняет
+              меньше, чем сама кнопка, которая туда и приводит. */}
+          <div>
+            <span className="mb-1.5 block text-[11px] tracking-wide text-content-subtle">
+              {t('apply.apiMode')}
+            </span>
             <div className="flex items-stretch overflow-hidden rounded-lg border border-line-strong bg-surface-2">
               <button
                 type="button"
-                onClick={() => setScopeMode('verify')}
+                onClick={() => (server ? setScopeMode('verify') : onGoToConnection())}
                 disabled={pushing}
+                title={server ? undefined : t('apply.apiMode.hint')}
                 className={cx(
                   'inline-flex h-9 items-center gap-2 px-3.5 text-[13px] font-medium transition',
                   'hover:bg-surface-3 disabled:cursor-not-allowed disabled:opacity-40',
@@ -672,8 +681,9 @@ export function TraceScreen({ scan, isMac, sourcePath, server, onRescan }: Props
               </button>
               <button
                 type="button"
-                onClick={() => setScopeMode('push')}
+                onClick={() => (server ? setScopeMode('push') : onGoToConnection())}
                 disabled={pushing}
+                title={server ? undefined : t('apply.apiMode.hint')}
                 className={cx(
                   'inline-flex h-9 items-center gap-2 border-l border-line-strong px-3.5 text-[13px] font-medium transition',
                   'hover:bg-surface-3 disabled:cursor-not-allowed disabled:opacity-40',
@@ -685,7 +695,7 @@ export function TraceScreen({ scan, isMac, sourcePath, server, onRescan }: Props
                   : t('action.push')}
               </button>
             </div>
-          )}
+          </div>
 
           <div className="ml-auto flex items-center gap-3">
             <span className="text-[11.5px] text-content-subtle">
