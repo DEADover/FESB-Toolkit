@@ -78,8 +78,19 @@ export function TableMessage({ colSpan, children }: { colSpan: number; children:
   )
 }
 
+/**
+ * Прокручиваемая панель с содержимым экрана.
+ *
+ * `isolate` здесь не для красоты: внутри липкая шапка таблицы с `z-10`,
+ * и без своего слоя это число спорит с выпадающими списками снаружи —
+ * шапка выигрывала у списка фильтра и накрывала его собой.
+ */
 export function Panel({ className, children }: { className?: string; children: ReactNode }) {
-  return <div className={cx('min-h-0 overflow-auto rounded-xl border border-line bg-surface', className)}>{children}</div>
+  return (
+    <div className={cx('isolate min-h-0 overflow-auto rounded-xl border border-line bg-surface', className)}>
+      {children}
+    </div>
+  )
 }
 
 interface Resource<T> {

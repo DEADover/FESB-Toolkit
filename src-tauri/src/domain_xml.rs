@@ -69,6 +69,34 @@ struct FoundProperty {
 
 /// Ищет `<property name="X">` внутри диапазона `[from, to)` и возвращает
 /// дескриптор его значения. Поддержаны обе формы записи.
+/// Значение свойства, в котором есть что показать.
+///
+/// «Не задано» шина пишет не пустой строкой. В выгрузке встречается вот это:
+///
+/// ```text
+/// <property name="broker" value="&#xa;&#x9;&#x9;&#xa;&#x9;&#x9;&#xa;&#xa;&#x9;&#x9;&#x9;&#x9;&#xa;"/>
+/// ```
+///
+/// — переносы строк с табуляциями, а между ними три символа из частной
+/// области Юникода (U+E000…U+E002). Имени менеджера здесь нет, но и пустой
+/// строкой это не является: на экране получались три пустых квадрата
+/// вместо значения, а сводка считала такой bean за настроенный.
+///
+/// Поэтому значение без единого осмысленного символа считается
+/// отсутствующим. Место свойства в файле при этом сохраняется: свойство
+/// есть, и заменить его по-прежнему можно.
+fn meaningful(value: &str) -> Option<String> {
+    let trimmed = value.trim();
+    let readable = |ch: char| !ch.is_whitespace() && !ch.is_control() && !is_private_use(ch);
+    trimmed.chars().any(readable).then(|| trimmed.to_string())
+}
+
+/// Символ из частной области Юникода: смысл ему назначает тот, кто пишет,
+/// и договориться о нём мы не можем — показывать такое нечем.
+fn is_private_use(ch: char) -> bool {
+    matches!(ch, '\u{e000}'..='\u{f8ff}' | '\u{f0000}'..='\u{ffffd}' | '\u{100000}'..='\u{10fffd}')
+}
+
 fn find_property(xml: &str, tags: &[Tag], from: usize, to: usize, prop_name: &str) -> Option<FoundProperty> {
     for (k, tag) in tags.iter().enumerate() {
         if tag.start < from {
@@ -177,12 +205,13 @@ pub fn parse_domain_xml(xml: &str) -> DomainXml {
             bean_name: attr_value(&attrs, "name"),
             bean_class: attr_value(&attrs, "class"),
             bean_line: line_at(xml, body_start),
-            broker: broker.as_ref().map(|b| b.value.clone()),
+            broker: broker.as_ref().and_then(|b| meaningful(&b.value)),
             broker_location: broker.map(|b| b.location),
-            queue: queue.as_ref().map(|q| q.value.clone()),
+            queue: queue.as_ref().and_then(|q| meaningful(&q.value)),
             queue_location: queue.map(|q| q.location),
-            client_type: find_property(xml, &tags, body_start, to, "clientType").map(|p| p.value),
-            trace_mode: trace_mode.as_ref().map(|m| m.value.clone()),
+            client_type: find_property(xml, &tags, body_start, to, "clientType")
+                .and_then(|p| meaningful(&p.value)),
+            trace_mode: trace_mode.as_ref().and_then(|m| meaningful(&m.value)),
             trace_mode_location: trace_mode.map(|m| m.location),
         });
     }
@@ -504,5 +533,37 @@ mod tests {
         assert!(outcome.changes.is_empty());
         assert_eq!(outcome.missed[0].reason, "already-set");
         assert_eq!(outcome.text, SAMPLE);
+    }
+}
+
+
+#[cfg(test)]
+mod meaningful_tests {
+    use super::*;
+
+    #[test]
+    fn a_broker_of_whitespace_and_private_use_characters_is_no_broker() {
+        // Ровно то, что шина пишет в выгрузку, когда менеджер не задан.
+        let xml = concat!(
+            r#"<beans><bean class="ru.factorts.module.broker.trace.config.TraceQueueConfig""#,
+            r#" factor:type="TRACE" id="Mon.Trace" name="Mon.Trace">"#,
+            "<property name=\"broker\" value=\"&#xa;&#x9;&#x9;&#xa;\u{e000}\u{e001}\u{e002}&#xa;\"/>",
+            r#"<property name="queue" value="Mon.Trace"/></bean></beans>"#,
+        );
+        let trace = &parse_domain_xml(xml).traces[0];
+        assert_eq!(trace.broker, None, "три квадрата — это не имя менеджера");
+        // Свойство в файле есть, и заменить его по-прежнему можно.
+        assert!(trace.broker_location.is_some());
+        assert_eq!(trace.queue.as_deref(), Some("Mon.Trace"));
+    }
+
+    #[test]
+    fn a_real_value_survives_the_check() {
+        assert_eq!(meaningful("QME:EQM").as_deref(), Some("QME:EQM"));
+        // Отступы вокруг значения к имени не относятся.
+        assert_eq!(meaningful("\n\tQME:EQM\n").as_deref(), Some("QME:EQM"));
+        assert_eq!(meaningful("").as_deref(), None);
+        assert_eq!(meaningful("   \n\t ").as_deref(), None);
+        assert_eq!(meaningful("\u{e000}\u{e001}").as_deref(), None);
     }
 }

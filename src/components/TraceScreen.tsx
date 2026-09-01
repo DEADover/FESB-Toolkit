@@ -470,6 +470,10 @@ export function TraceScreen({ scan, isMac, sourcePath, server, onRescan }: Props
   return (
     <ScreenBody>
       <StatsBar>
+        {/* Показатели переносятся сами по себе, а полоса фишек остаётся
+            справа от них: раньше она делила строку с ними на равных
+            и от седьмого показателя целиком уезжала на второй ряд. */}
+        <div className="flex min-w-0 flex-1 basis-0 flex-wrap items-center gap-x-7 gap-y-3">
         <Stat label={t('stats.domains')} value={summary.domains} />
         <Stat label={t('stats.traceBeans')} value={summary.traces} />
         <Stat label={t('stats.withBroker')} value={summary.withBroker} tone="accent" hint={t('stats.withBroker.hint')} />
@@ -491,10 +495,13 @@ export function TraceScreen({ scan, isMac, sourcePath, server, onRescan }: Props
           />
         )}
         {summary.withErrors > 0 && <Stat label={t('stats.readErrors')} value={summary.withErrors} tone="danger" />}
+        </div>
 
-        {/* Значений брокера может быть много: строка не растёт вниз, а прокручивается. */}
+        {/* Значений брокера может быть много: полоса не растёт вниз,
+            а прокручивается. Показатели переносятся у себя внутри, поэтому
+            полоса остаётся справа от них и на второй ряд не уезжает. */}
         <ScrollStrip
-          className="ml-auto"
+          className="max-w-[26rem] shrink-0"
           itemCount={stats.length + (noBroker > 0 ? 1 : 0)}
           scrollLeftLabel={t('action.scrollLeft')}
           scrollRightLabel={t('action.scrollRight')}

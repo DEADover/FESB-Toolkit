@@ -273,7 +273,10 @@ export function Select<T extends string | number>({ value, options, onChange, ar
   const current = options.find((option) => option.id === value)
 
   return (
-    <div ref={holder} className={cx('relative shrink-0', className)}>
+    // Пока список открыт, вся обёртка поднимается над соседями: `z-40`
+    // самого списка сравнивается с ними на общем уровне, и одной липкой
+    // шапки таблицы хватало, чтобы перебить его.
+    <div ref={holder} className={cx('relative shrink-0', open && 'z-30', className)}>
       <button
         type="button"
         aria-label={ariaLabel}
@@ -356,7 +359,10 @@ export function MultiSelect({ label, options, selected, onChange, className = 'w
       : `${chosen.length}`
 
   return (
-    <div ref={holder} className={cx('relative shrink-0', className)}>
+    // Пока список открыт, вся обёртка поднимается над соседями: `z-40`
+    // самого списка сравнивается с ними на общем уровне, и одной липкой
+    // шапки таблицы хватало, чтобы перебить его.
+    <div ref={holder} className={cx('relative shrink-0', open && 'z-30', className)}>
       <button
         type="button"
         onClick={() => setOpen((value) => !value)}

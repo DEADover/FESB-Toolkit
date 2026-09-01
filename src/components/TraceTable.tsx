@@ -52,7 +52,9 @@ export function TraceTable({
   }, [selectedCount, selectable.length])
 
   return (
-    <div className="min-h-0 flex-1 overflow-auto rounded-xl border border-line bg-surface">
+    // `isolate` держит `z-10` липкой шапки внутри панели: иначе он спорит
+    // с выпадающими списками фильтров и накрывает их.
+    <div className="isolate min-h-0 flex-1 overflow-auto rounded-xl border border-line bg-surface">
       {/* Своя оболочка, не `DataTable`: липкая шапка с видимыми рамками
           требует border-separate, при border-collapse рамка уезжает при прокрутке. */}
       <table className="w-full table-fixed border-separate border-spacing-0 text-[12.5px]">
@@ -140,8 +142,8 @@ export function TraceTable({
                 {single ? (
                   <>
                     <Cell className="font-mono text-[11.5px] text-content-muted">{single.trace.beanId ?? '—'}</Cell>
-                    <Cell><ValueCell current={single.trace.broker} editable={single.trace.brokerEditable} next={selected.has(single.key) ? update.broker : null} missing={<MissingQueueValue kind={single.trace.kind} />} /></Cell>
-                    <Cell><ValueCell current={single.trace.queue} editable={single.trace.queueEditable} next={selected.has(single.key) ? update.queue : null} missing={<MissingQueueValue kind={single.trace.kind} />} /></Cell>
+                    <Cell><ValueCell current={single.trace.broker} editable={single.trace.brokerEditable} next={selected.has(single.key) ? update.broker : null} missing={<MissingQueueValue kind={single.trace.kind} field="broker" />} /></Cell>
+                    <Cell><ValueCell current={single.trace.queue} editable={single.trace.queueEditable} next={selected.has(single.key) ? update.queue : null} missing={<MissingQueueValue kind={single.trace.kind} field="queue" />} /></Cell>
                     <Cell><ValueCell current={single.trace.traceMode} editable={single.trace.traceModeEditable} next={selected.has(single.key) ? update.traceMode : null} /></Cell>
                   </>
                 ) : (
@@ -330,8 +332,8 @@ function BeanRow({ entry, number, changed, domain, selected, update, onToggle }:
         <span className="ml-5 block border-l border-line-strong pl-3 text-[11.5px] tabular-nums text-content-subtle">{number}</span>
       </Cell>
       <Cell className="select-text py-1.5 font-mono text-[11.5px] text-content">{entry.trace.beanId ?? '—'}</Cell>
-      <Cell className="py-1.5"><ValueCell current={entry.trace.broker} editable={entry.trace.brokerEditable} next={selected ? update.broker : null} missing={<MissingQueueValue kind={entry.trace.kind} />} /></Cell>
-      <Cell className="py-1.5"><ValueCell current={entry.trace.queue} editable={entry.trace.queueEditable} next={selected ? update.queue : null} missing={<MissingQueueValue kind={entry.trace.kind} />} /></Cell>
+      <Cell className="py-1.5"><ValueCell current={entry.trace.broker} editable={entry.trace.brokerEditable} next={selected ? update.broker : null} missing={<MissingQueueValue kind={entry.trace.kind} field="broker" />} /></Cell>
+      <Cell className="py-1.5"><ValueCell current={entry.trace.queue} editable={entry.trace.queueEditable} next={selected ? update.queue : null} missing={<MissingQueueValue kind={entry.trace.kind} field="queue" />} /></Cell>
       <Cell className="py-1.5"><ValueCell current={entry.trace.traceMode} editable={entry.trace.traceModeEditable} next={selected ? update.traceMode : null} /></Cell>
       <Cell className="py-1.5 font-mono text-[11.5px] tabular-nums text-content-muted">
         <span title={t('table.usedByHint')}>{routesUsingBean(domain, entry.trace.beanId)}</span>
@@ -537,20 +539,24 @@ function ValueCell({ current, editable, next, missing }: {
 }
 
 /**
- * Что стоит вместо менеджера очередей или очереди, когда свойства нет.
+ * Что стоит вместо менеджера очередей или очереди, когда значения нет.
  *
- * У объекта, который пишет в очередь, отсутствие свойства — это умолчание:
+ * У объекта, который пишет в очередь, отсутствие значения — это умолчание:
  * работает менеджер, назначенный домену или серверу. У объекта, который
  * держит события в памяти, очереди не бывает вовсе. Прочерк на обоих
  * местах не различал эти случаи и читался как «данных нет».
  */
-function MissingQueueValue({ kind }: { kind: TraceBean['kind'] }) {
+function MissingQueueValue({ kind, field }: { kind: TraceBean['kind']; field: 'broker' | 'queue' }) {
   const { t } = useI18n()
   if (kind === 'memory') {
     return <span className="text-[11.5px] text-content-subtle" title={t('table.toMemory.hint')}>{t('table.toMemory')}</span>
   }
   if (kind === 'queue') {
-    return <span className="text-[11.5px] text-content-muted" title={t('table.byDefault.hint')}>{t('routes.defaultConfig')}</span>
+    return (
+      <span className="text-[11.5px] text-content-muted" title={t('table.byDefault.hint')}>
+        {t(field === 'broker' ? 'table.defaultBroker' : 'table.defaultQueue')}
+      </span>
+    )
   }
   return <span className="text-[11.5px] text-content-subtle">{t('table.noProperty')}</span>
 }
@@ -629,7 +635,7 @@ function Summary({ group, field }: { group: DomainGroup; field: 'broker' | 'queu
 
   const kinds = [...new Set(group.entries.map((entry) => entry.trace.kind))]
   if (field !== 'traceMode' && kinds.length === 1 && group.entries.length > 0) {
-    return <MissingQueueValue kind={kinds[0]} />
+    return <MissingQueueValue kind={kinds[0]} field={field} />
   }
   return <span className="text-content-subtle">—</span>
 }
