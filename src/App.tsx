@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-import { DownloadSimple } from '@phosphor-icons/react'
+import { ArrowsClockwise, DownloadSimple } from '@phosphor-icons/react'
 
 import { AuditScreen } from './components/AuditScreen'
 import { ConnectionScreen } from './components/ConnectionScreen'
@@ -19,11 +19,10 @@ import { PropertiesScreen } from './components/PropertiesScreen'
 import { QueuesScreen } from './components/QueuesScreen'
 import { RoutesScreen } from './components/RoutesScreen'
 import { Sidebar, type ScreenId } from './components/Sidebar'
-import { RefreshButton } from './components/ApiShell'
 import { TraceScreen } from './components/TraceScreen'
 import { CommandPalette } from './components/CommandPalette'
 import { useToast } from './components/Toaster'
-import { Badge, Button, cx, Notice, Spinner } from './components/ui'
+import { ActionLink, Badge, Button, cx, Notice, Spinner } from './components/ui'
 import { useI18n, type MessageKey } from './i18n'
 import {
   apiConnect, apiPull, appInfo, buildArchive, errorText, onApiProgress, onExtractProgress, onFileDrop, onScanProgress, openArchive, saveZipAs, scanDirectory, selectArchive, selectFolder,
@@ -359,14 +358,37 @@ export default function App() {
               в подзаголовке остаётся только то, чего там нет: откуда взята
               конфигурация в файловом режиме.
             */}
+            {/*
+              Строка «откуда взята конфигурация» несёт и действия, которые её
+              меняют: выбрать папку, открыть архив, перечитать. Кнопками они
+              стояли справа и вместе с серверными не помещались в строку,
+              а по смыслу они не там: справа — куда отдать результат.
+            */}
             {!isApiScreen && !isLinksScreen && !isWelcome && (
-              <p className="truncate text-[11.5px] text-content-subtle" title={source?.path}>
-                {source
-                  ? source.kind === 'server'
-                    ? `${sourceLabel}${scan ? ` · ${t('stats.domains')}: ${scan.domains.length}` : ''}`
-                    : `${sourceLabel}: ${source.path}${scan ? ` · ${t('stats.domains')}: ${scan.domains.length}` : ''}`
-                  : t('header.noFolder')}
-              </p>
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11.5px] text-content-subtle">
+                <span className="truncate" title={source?.path}>
+                  {source
+                    ? source.kind === 'server'
+                      ? `${sourceLabel}${scan ? ` · ${t('stats.domains')}: ${scan.domains.length}` : ''}`
+                      : `${sourceLabel}: ${source.path}${scan ? ` · ${t('stats.domains')}: ${scan.domains.length}` : ''}`
+                    : t('header.noFolder')}
+                </span>
+                <span aria-hidden>·</span>
+                <ActionLink onClick={pickFolder} disabled={busy}>{t('action.selectFolder')}</ActionLink>
+                <span aria-hidden>·</span>
+                <ActionLink onClick={pickArchive} disabled={busy}>{t('action.openArchive')}</ActionLink>
+                {root && (
+                  <>
+                    <span aria-hidden>·</span>
+                    <ActionLink onClick={rescan} disabled={busy || scanning}>
+                      {scanning
+                        ? <Spinner className="size-3" />
+                        : <ArrowsClockwise size={12} weight="bold" />}
+                      {t('action.refresh')}
+                    </ActionLink>
+                  </>
+                )}
+              </div>
             )}
           </div>
           <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
@@ -384,16 +406,7 @@ export default function App() {
               с переключателем стенда, работа с архивом — рядом с «Open ZIP».
               Наполняет их сам экран через `HeaderActions`. */}
           <div id="header-actions-server" className="flex items-center gap-2 empty:hidden" />
-          {!isApiScreen && !isLinksScreen && !isWelcome && root && (
-            <RefreshButton compact busy={scanning} disabled={busy} onClick={rescan} />
-          )}
-          {!isApiScreen && !isLinksScreen && !isWelcome && (
-            <>
-              <Button onClick={pickArchive} disabled={busy}>{t('action.openArchive')}</Button>
-              <div id="header-actions-files" className="flex items-center gap-2 empty:hidden" />
-              <Button variant="primary" onClick={pickFolder} disabled={busy}>{t('action.selectFolder')}</Button>
-            </>
-          )}
+          <div id="header-actions-files" className="flex items-center gap-2 empty:hidden" />
           </div>
         </header>
 

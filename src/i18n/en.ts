@@ -50,7 +50,7 @@ export const en = {
   'nav.api.connection': 'Connection',
   'nav.api.domains': 'Domains',
 
-  'action.selectFolder': 'Select folder',
+  'action.selectFolder': 'Select Folder',
   'action.openArchive': 'Open ZIP',
   'dialog.selectFolder': 'Select the configuration folder',
   'dialog.openArchive': 'Select a configuration archive',

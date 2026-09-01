@@ -414,14 +414,21 @@ export function MultiSelect({ label, options, selected, onChange, className = 'w
  * Подсказки то и дело просят сходить куда-то ещё — «причина в журналах»,
  * «сначала откройте папку». Ходить туда должно быть одним нажатием.
  */
-export function ActionLink({ onClick, children }: { onClick: () => void; children: ReactNode }) {
+export function ActionLink({ onClick, disabled, title, children }: {
+  onClick: () => void
+  disabled?: boolean
+  title?: string
+  children: ReactNode
+}) {
   return (
     <button
       type="button"
       onClick={onClick}
+      disabled={disabled}
+      title={title}
       className={cx(
-        'rounded font-medium text-accent-content underline decoration-accent-content/40 underline-offset-2',
-        'transition hover:decoration-accent-content',
+        'inline-flex items-center gap-1 rounded font-medium text-accent-content underline decoration-accent-content/40 underline-offset-2',
+        'transition hover:decoration-accent-content disabled:cursor-not-allowed disabled:opacity-40',
         FOCUS_RING,
       )}
     >

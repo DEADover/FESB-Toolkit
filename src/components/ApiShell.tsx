@@ -177,25 +177,17 @@ export function useAutoRefresh(enabled: boolean, action: () => unknown) {
  * Раньше это была скопированная строка вёрстки, и любая правка значка
  * или размера крутилки означала одиннадцать одинаковых правок.
  */
-export function RefreshButton({ busy, disabled, className, compact, onClick }: {
+export function RefreshButton({ busy, disabled, className, onClick }: {
   busy: boolean
   disabled?: boolean
   className?: string
-  /** Только значок: в шапке экрана кнопок много, а эту узнают по нему. */
-  compact?: boolean
   onClick: () => void
 }) {
   const { t } = useI18n()
   return (
-    <Button
-      className={className}
-      onClick={onClick}
-      disabled={disabled ?? busy}
-      title={compact ? t('action.refresh') : undefined}
-      aria-label={compact ? t('action.refresh') : undefined}
-    >
+    <Button className={className} onClick={onClick} disabled={disabled ?? busy}>
       <ButtonGlyph busy={busy}><ArrowsClockwise size={14} weight="bold" /></ButtonGlyph>
-      {!compact && t('action.refresh')}
+      {t('action.refresh')}
     </Button>
   )
 }
