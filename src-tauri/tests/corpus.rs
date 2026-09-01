@@ -522,3 +522,12 @@ fn counts_routes_traced_by_the_domain_default() {
         traced - by_default - inline,
     );
 }
+
+/// Весь разбор целиком на настоящей выгрузке — для заглушки предпросмотра.
+#[test]
+#[ignore]
+fn dump_all_domains() {
+    let Ok(root) = std::env::var("FESB_CORPUS") else { return };
+    let result = scan_root(&PathBuf::from(root), |_| {});
+    println!("{}", serde_json::to_string(&result.domains).unwrap());
+}

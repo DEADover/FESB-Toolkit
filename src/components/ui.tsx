@@ -382,8 +382,10 @@ export function MultiSelect({ label, options, selected, onChange, className = 'w
         <CaretDown size={10} weight="bold" className="shrink-0 text-content-subtle" />
       </button>
 
+      {/* Список по ширине кнопки: он её продолжение, а не отдельное окно.
+          `min-w-52` — на случай совсем узкой кнопки. */}
       {open && (
-        <div className="absolute left-0 top-full z-40 mt-1 max-h-72 w-64 overflow-y-auto rounded-xl border border-line-strong bg-surface p-1.5 shadow-2xl">
+        <div className="absolute left-0 top-full z-40 mt-1 max-h-72 w-full min-w-52 overflow-y-auto rounded-xl border border-line-strong bg-surface p-1.5 shadow-2xl">
           {options.map((option) => (
             <label
               key={option.id}
