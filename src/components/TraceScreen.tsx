@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent, type ReactNode } from 'react'
 
-import { Check } from '@phosphor-icons/react'
+import { ArrowsLeftRight, Check } from '@phosphor-icons/react'
 
 import { useI18n } from '../i18n'
 import { formatBytes } from '../lib/format'
@@ -35,6 +35,10 @@ interface Props {
   server: { server: ServerInfo; connection: Connection } | null
   /** Куда отправить за подключением, если его ещё нет. */
   onGoToConnection: () => void
+  /** Открытая конфигурация скачана с этого стенда, а не взята с диска. */
+  fromServer: boolean
+  /** Забрать с сервера свежие домены и открыть их вместо текущих. */
+  onPullDomains: () => void
   onRescan: () => Promise<void>
 }
 
@@ -42,7 +46,7 @@ interface Props {
  * Единый экран: домены, их СОПС и объекты трассировки с правкой
  * имени брокера, имени очереди и режима трассировки.
  */
-export function TraceScreen({ scan, isMac, sourcePath, server, onRescan, onGoToConnection }: Props) {
+export function TraceScreen({ scan, isMac, sourcePath, server, onRescan, onGoToConnection, fromServer, onPullDomains }: Props) {
   const { t } = useI18n()
 
   const [filters, setFilters] = useState<Filters>({
@@ -80,6 +84,14 @@ export function TraceScreen({ scan, isMac, sourcePath, server, onRescan, onGoToC
   /** Граф связей считается один раз на выгрузку — обход всех маршрутов не бесплатный. */
   const [graph, setGraph] = useState<LinkGraph | null>(null)
   const [scopeMode, setScopeMode] = useState<'push' | 'verify' | null>(null)
+  /**
+   * Что спросить перед обменом.
+   *
+   * `connect` — стенда нет вовсе; `pull` — файлы открыты не с него, и стенд
+   * с тех пор мог уйти вперёд. Оба случая решаются не на месте кнопки,
+   * а вопросом: нажавший явно собрался работать с сервером.
+   */
+  const [exchangeAsk, setExchangeAsk] = useState<{ kind: 'connect' | 'pull'; mode: 'push' | 'verify' } | null>(null)
   const [pushing, setPushing] = useState(false)
   const [pushProgress, setPushProgress] = useState<ApiProgress | null>(null)
   const [pushResult, setPushResult] = useState<PushResult | null>(null)
@@ -463,6 +475,20 @@ export function TraceScreen({ scan, isMac, sourcePath, server, onRescan, onGoToC
     else void buildZip(null)
   }, [buildZip, selectedDomains.length, changedDomains.length])
 
+  /**
+   * Начало обмена с сервером.
+   *
+   * Сразу в окно состава попадает только тот, у кого стенд подключён,
+   * а открытая конфигурация с него и скачана. Остальным сначала вопрос:
+   * без подключения его негде взять, а с чужой папкой сравнение
+   * и отправка легко окажутся не про тот стенд.
+   */
+  const startExchange = useCallback((mode: 'push' | 'verify') => {
+    if (!server) setExchangeAsk({ kind: 'connect', mode })
+    else if (!fromServer) setExchangeAsk({ kind: 'pull', mode })
+    else setScopeMode(mode)
+  }, [server, fromServer])
+
   const shortcut = isMac ? '⌘' : 'Ctrl'
 
   return (
@@ -661,40 +687,39 @@ export function TraceScreen({ scan, isMac, sourcePath, server, onRescan, onGoToC
               Кнопки стоят всегда: без подключения они ведут туда, где его
               заводят, — «сначала подключитесь» на месте кнопки объясняет
               меньше, чем сама кнопка, которая туда и приводит. */}
-          <div>
-            <span className="mb-1.5 block text-[11px] tracking-wide text-content-subtle">
+          <div className="flex items-stretch overflow-hidden rounded-lg border border-line-strong bg-surface-2">
+            {/* Подпись — первый сегмент той же рамки: она называет группу,
+                а не висит над ней отдельной строкой. */}
+            <span className="inline-flex h-9 items-center gap-1.5 border-r border-line-strong bg-surface-3 px-3 text-[11px] font-medium tracking-wide text-content-subtle">
+              <ArrowsLeftRight size={13} weight="bold" />
               {t('apply.apiMode')}
             </span>
-            <div className="flex items-stretch overflow-hidden rounded-lg border border-line-strong bg-surface-2">
-              <button
-                type="button"
-                onClick={() => (server ? setScopeMode('verify') : onGoToConnection())}
-                disabled={pushing}
-                title={server ? undefined : t('apply.apiMode.hint')}
-                className={cx(
-                  'inline-flex h-9 items-center gap-2 px-3.5 text-[13px] font-medium transition',
-                  'hover:bg-surface-3 disabled:cursor-not-allowed disabled:opacity-40',
-                  FOCUS_RING,
-                )}
-              >
-                {t('action.verify')}
-              </button>
-              <button
-                type="button"
-                onClick={() => (server ? setScopeMode('push') : onGoToConnection())}
-                disabled={pushing}
-                title={server ? undefined : t('apply.apiMode.hint')}
-                className={cx(
-                  'inline-flex h-9 items-center gap-2 border-l border-line-strong px-3.5 text-[13px] font-medium transition',
-                  'hover:bg-surface-3 disabled:cursor-not-allowed disabled:opacity-40',
-                  FOCUS_RING,
-                )}
-              >
-                {pushing
-                  ? <><Spinner className="size-3.5" /> {t(pushPhase(pushProgress?.phase))}</>
-                  : t('action.push')}
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={() => startExchange('verify')}
+              disabled={pushing}
+              className={cx(
+                'inline-flex h-9 items-center gap-2 px-3.5 text-[13px] font-medium transition',
+                'hover:bg-surface-3 disabled:cursor-not-allowed disabled:opacity-40',
+                FOCUS_RING,
+              )}
+            >
+              {t('action.verify')}
+            </button>
+            <button
+              type="button"
+              onClick={() => startExchange('push')}
+              disabled={pushing}
+              className={cx(
+                'inline-flex h-9 items-center gap-2 border-l border-line-strong px-3.5 text-[13px] font-medium transition',
+                'hover:bg-surface-3 disabled:cursor-not-allowed disabled:opacity-40',
+                FOCUS_RING,
+              )}
+            >
+              {pushing
+                ? <><Spinner className="size-3.5" /> {t(pushPhase(pushProgress?.phase))}</>
+                : t('action.push')}
+            </button>
           </div>
 
           <div className="ml-auto flex items-center gap-3">
@@ -814,6 +839,47 @@ export function TraceScreen({ scan, isMac, sourcePath, server, onRescan, onGoToC
           </Button>
           <p className="pt-1 text-[11.5px] text-content-subtle">{t('zip.scope.hint')}</p>
         </div>
+      </Modal>
+
+      {/* Что спросить, прежде чем пускать к серверу. */}
+      <Modal
+        open={exchangeAsk !== null}
+        onClose={() => setExchangeAsk(null)}
+        closeLabel={t('action.close')}
+        title={t('apply.apiMode')}
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setExchangeAsk(null)}>{t('action.cancel')}</Button>
+            {exchangeAsk?.kind === 'pull' && (
+              <Button
+                onClick={() => {
+                  const mode = exchangeAsk.mode
+                  setExchangeAsk(null)
+                  setScopeMode(mode)
+                }}
+              >
+                {t('apply.apiMode.asIs')}
+              </Button>
+            )}
+            <Button
+              variant="primary"
+              onClick={() => {
+                const kind = exchangeAsk?.kind
+                setExchangeAsk(null)
+                if (kind === 'connect') onGoToConnection()
+                else onPullDomains()
+              }}
+            >
+              {exchangeAsk?.kind === 'connect' ? t('apply.apiMode.setUp') : t('apply.apiMode.pull')}
+            </Button>
+          </>
+        }
+      >
+        <p className="text-[13px] leading-relaxed text-content-muted">
+          {exchangeAsk?.kind === 'connect'
+            ? t('apply.apiMode.noServer')
+            : t('apply.apiMode.stale', { source: sourcePath ?? '' })}
+        </p>
       </Modal>
 
       <Modal

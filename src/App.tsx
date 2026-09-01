@@ -493,7 +493,9 @@ export default function App() {
             isMac={isMac}
             sourcePath={source?.path ?? null}
             server={session}
+            fromServer={source?.kind === 'server'}
             onGoToConnection={() => setScreen('api.connection')}
+            onPullDomains={() => void pull(null, 'edit')}
             onRescan={rescan}
           />
         )}
