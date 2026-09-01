@@ -13,7 +13,7 @@ import { ErrorBar, NotConnected, Panel, ScreenBody, StatsBar, TableMessage, useD
 import { useToast } from './Toaster'
 import {
   Badge, Button, ButtonGlyph, CodePill, cx, DataTable, EmptyState, FOCUS_RING, IconButton,
-  MultiSelect, Readout, rowClick, SearchInput, Select, Spinner, Th, THead, Toggle,
+  MultiSelect, Readout, rowClick, SearchInput, Select, Spinner, Th, THead,
 } from './ui'
 
 interface Props {
@@ -253,6 +253,14 @@ export function EndpointsScreen({ connection, server, onGoToConnection }: Props)
 
   const allCollapsed = groups.length > 0 && groups.every((group) => collapsed.has(group.key))
 
+  /** Два выключателя в виде набора: `MultiSelect` работает с множеством. */
+  const extraFilters = useMemo(() => {
+    const set = new Set<string>()
+    if (onlySecured) set.add('secured')
+    if (onlyDeaf) set.add('deaf')
+    return set
+  }, [onlySecured, onlyDeaf])
+
   const toggleGroup = useCallback((key: string) => {
     setCollapsed((prev) => {
       const next = new Set(prev)
@@ -384,14 +392,16 @@ export function EndpointsScreen({ connection, server, onGoToConnection }: Props)
         </div>
       </StatsBar>
 
+      {/* Поиск отдельной строкой, отборы под ним — как на «Настройках
+          трассировки»: два экрана с таблицей должны спрашивать одинаково. */}
+      <SearchInput
+        value={search}
+        placeholder={t('endpoints.search')}
+        onChange={setSearch}
+        clearLabel={t('action.clearSearch')}
+      />
+
       <div className="flex flex-wrap items-center gap-2">
-        <SearchInput
-          className="min-w-64 flex-1"
-          value={search}
-          placeholder={t('endpoints.search')}
-          onChange={setSearch}
-          clearLabel={t('action.clearSearch')}
-        />
         <Select<Direction>
           ariaLabel={t('endpoints.direction')}
           label={t('endpoints.direction')}
@@ -411,21 +421,6 @@ export function EndpointsScreen({ connection, server, onGoToConnection }: Props)
           selected={schemes}
           onChange={setSchemes}
         />
-        <Toggle checked={onlySecured} onChange={setOnlySecured} label={t('endpoints.onlySecured')} />
-        <Toggle
-          checked={onlyDeaf}
-          onChange={setOnlyDeaf}
-          label={t('endpoints.onlyDeaf')}
-          title={t('endpoints.onlyDeaf.hint')}
-        />
-        {grouping !== 'none' && (
-          <Button
-            className="min-w-36"
-            onClick={() => setCollapsed(allCollapsed ? new Set() : new Set(groups.map((group) => group.key)))}
-          >
-            {allCollapsed ? t('endpoints.expandAll') : t('endpoints.collapseAll')}
-          </Button>
-        )}
         <Select<Grouping>
           ariaLabel={t('endpoints.group')}
           label={t('endpoints.group')}
@@ -437,6 +432,27 @@ export function EndpointsScreen({ connection, server, onGoToConnection }: Props)
             { id: 'none', label: t('endpoints.group.none') },
           ]}
         />
+        {/* Два редких отбора — в свой блок, как на соседнем экране. */}
+        <MultiSelect
+          label={t('filter.additional')}
+          emptyLabel={t('filter.additional.none')}
+          className="w-56"
+          options={[
+            { id: 'secured', label: t('endpoints.onlySecured') },
+            { id: 'deaf', label: t('endpoints.onlyDeaf'), hint: t('endpoints.onlyDeaf.hint') },
+          ]}
+          selected={extraFilters}
+          onChange={(next) => { setOnlySecured(next.has('secured')); setOnlyDeaf(next.has('deaf')) }}
+        />
+
+        {grouping !== 'none' && (
+          <Button
+            className="ml-auto min-w-36"
+            onClick={() => setCollapsed(allCollapsed ? new Set() : new Set(groups.map((group) => group.key)))}
+          >
+            {allCollapsed ? t('endpoints.expandAll') : t('endpoints.collapseAll')}
+          </Button>
+        )}
       </div>
 
       <ErrorBar error={error} />

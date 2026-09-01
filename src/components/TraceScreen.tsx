@@ -329,6 +329,20 @@ export function TraceScreen({ scan, isMac, sourcePath, server, onRescan, onGoToC
     })
   }, [visible])
 
+  /**
+   * Раскрыть или свернуть все домены сразу.
+   *
+   * Раскрытый домен показывает свои объекты трассировки и СОПС; когда
+   * отбор оставил три домена из двухсот, разворачивать их по одному —
+   * лишняя работа. Считаем по видимым: свёрнутыми считаются те, что
+   * сейчас в таблице, а не те, что где-то остались за фильтром.
+   */
+  const allExpanded = visible.length > 0 && visible.every((group) => expanded.has(group.domain.id))
+
+  const toggleAllExpanded = useCallback(() => {
+    setExpanded(allExpanded ? new Set() : new Set(visible.map((group) => group.domain.id)))
+  }, [allExpanded, visible])
+
   const toggleExpand = useCallback((id: string) => {
     setExpanded((prev) => {
       const next = new Set(prev)
@@ -578,6 +592,10 @@ export function TraceScreen({ scan, isMac, sourcePath, server, onRescan, onGoToC
             onlyChanged: next.has('changed'),
           }))}
         />
+
+        <Button className="min-w-36" onClick={toggleAllExpanded} disabled={visible.length === 0}>
+          {allExpanded ? t('endpoints.collapseAll') : t('endpoints.expandAll')}
+        </Button>
 
         <div className="ml-auto flex items-center gap-2 text-[11.5px] text-content-subtle">
           <span>{t('filter.shown', { visible: visible.length, total: groups.length })}</span>
