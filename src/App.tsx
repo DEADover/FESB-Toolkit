@@ -381,11 +381,6 @@ export default function App() {
             onDisconnect={disconnect}
             onConfigure={configure}
           />
-          {/* Два места для действий экрана: серверные встают рядом
-              с переключателем стенда, работа с архивом — рядом с «Open ZIP».
-              Наполняет их сам экран через `HeaderActions`. */}
-          <div id="header-actions-server" className="flex items-center gap-2 empty:hidden" />
-          <div id="header-actions-files" className="flex items-center gap-2 empty:hidden" />
           </div>
           </div>
 
@@ -396,6 +391,9 @@ export default function App() {
             <div className="flex flex-wrap items-center gap-2">
               <Button size="sm" onClick={pickFolder} disabled={busy}>{t('action.selectFolder')}</Button>
               <Button size="sm" onClick={pickArchive} disabled={busy}>{t('action.openArchive')}</Button>
+              {/* Сюда экран отдаёт свою сборку архива: собирают её там же,
+                  где открывают чужую. Наполняет `HeaderActions`. */}
+              <div id="header-actions" className="flex items-center gap-2 empty:hidden" />
               {root && (
                 <Button size="sm" onClick={rescan} disabled={busy || scanning}>
                   <ButtonGlyph busy={scanning}><ArrowsClockwise size={13} weight="bold" /></ButtonGlyph>

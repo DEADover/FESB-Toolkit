@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent, type ReactNode } from 'react'
 
+import { Check } from '@phosphor-icons/react'
+
 import { useI18n } from '../i18n'
 import { formatBytes } from '../lib/format'
 import { folderBesideExport, localStamp } from '../lib/paths'
@@ -22,7 +24,7 @@ import { ReportDialog } from './ReportDialog'
 import { RouteViewer } from './RouteViewer'
 import { TraceTable } from './TraceTable'
 import { HeaderActions, ScreenBody, StatsBar } from './ApiShell'
-import { Badge, Button, cx, DataTable, Modal, MultiSelect, Notice, SearchInput, Select, Spinner, Stat, SuggestInput, Th, THead, Toggle } from './ui'
+import { Badge, Button, cx, DataTable, FOCUS_RING, Modal, MultiSelect, Notice, SearchInput, Select, Spinner, Stat, SuggestInput, Th, THead, Toggle } from './ui'
 
 interface Props {
   scan: ScanResult
@@ -53,7 +55,6 @@ export function TraceScreen({ scan, isMac, sourcePath, server, onRescan }: Props
   const [newQueue, setNewQueue] = useState('')
   const [newTraceMode, setNewTraceMode] = useState('')
   const [makeBackup, setMakeBackup] = useState(true)
-  const [dryRun, setDryRun] = useState(false)
 
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [applying, setApplying] = useState(false)
@@ -336,9 +337,9 @@ export function TraceScreen({ scan, isMac, sourcePath, server, onRescan }: Props
     setProgress(null)
     setError(null)
     try {
-      const result = await applyTrace({ update, targets, makeBackup, dryRun })
+      const result = await applyTrace({ update, targets, makeBackup, dryRun: false })
       setReport(result)
-      if (!dryRun) {
+      {
         setChangedBeans((prev) => {
           const next = new Set(prev)
           for (const file of result.results) {
@@ -356,7 +357,7 @@ export function TraceScreen({ scan, isMac, sourcePath, server, onRescan }: Props
       setApplying(false)
       setProgress(null)
     }
-  }, [update, targets, makeBackup, dryRun, onRescan])
+  }, [update, targets, makeBackup, onRescan])
 
   /** Папки доменов, в которых что-то изменено в этой сессии. */
   const changedDomains = useMemo(() => {
@@ -571,21 +572,9 @@ export function TraceScreen({ scan, isMac, sourcePath, server, onRescan }: Props
         </div>
       </div>
 
-      {/* Действия над конфигурацией целиком живут в шапке экрана, рядом
-          с тем, откуда она взялась: строка фильтров — для фильтров. */}
-      {server && (
-        <HeaderActions slot="server">
-          <Button onClick={() => setScopeMode('verify')} disabled={pushing}>
-            {t('action.verify')}
-          </Button>
-          <Button variant="primary" onClick={() => setScopeMode('push')} disabled={pushing}>
-            {pushing
-              ? <><Spinner className="size-3.5" /> {t(pushPhase(pushProgress?.phase))}</>
-              : t('action.push')}
-          </Button>
-        </HeaderActions>
-      )}
-      <HeaderActions slot="files">
+      {/* Сборка архива стоит в шапке рядом с «Open ZIP»: там же, где
+          открывают чужой архив, собирают и свой. */}
+      <HeaderActions>
         <Button onClick={startBuild} disabled={archiving}>
           {archiving
             ? <><Spinner className="size-3.5" /> {archiveProgress ? `${archiveProgress.current} / ${archiveProgress.total}` : t('zip.building')}</>
@@ -663,9 +652,40 @@ export function TraceScreen({ scan, isMac, sourcePath, server, onRescan }: Props
           </p>
         )}
 
-        <div className="mt-3 flex items-center gap-2 border-t border-line px-5 py-3">
-          <Toggle checked={makeBackup} onChange={setMakeBackup} label={t('apply.backup')} />
-          <Toggle checked={dryRun} onChange={setDryRun} label={t('apply.dryRun')} />
+        <div className="mt-3 flex flex-wrap items-center gap-3 border-t border-line px-5 py-3">
+          {/* Обмен с сервером — слева, у нижнего края: правки готовят здесь же,
+              и отсюда же их отдают. Общая рамка говорит, что это две стороны
+              одного дела: сначала сравнить, потом отправить. */}
+          {server && (
+            <div className="flex items-stretch overflow-hidden rounded-lg border border-line-strong bg-surface-2">
+              <button
+                type="button"
+                onClick={() => setScopeMode('verify')}
+                disabled={pushing}
+                className={cx(
+                  'inline-flex h-9 items-center gap-2 px-3.5 text-[13px] font-medium transition',
+                  'hover:bg-surface-3 disabled:cursor-not-allowed disabled:opacity-40',
+                  FOCUS_RING,
+                )}
+              >
+                {t('action.verify')}
+              </button>
+              <button
+                type="button"
+                onClick={() => setScopeMode('push')}
+                disabled={pushing}
+                className={cx(
+                  'inline-flex h-9 items-center gap-2 border-l border-line-strong px-3.5 text-[13px] font-medium transition',
+                  'hover:bg-surface-3 disabled:cursor-not-allowed disabled:opacity-40',
+                  FOCUS_RING,
+                )}
+              >
+                {pushing
+                  ? <><Spinner className="size-3.5" /> {t(pushPhase(pushProgress?.phase))}</>
+                  : t('action.push')}
+              </button>
+            </div>
+          )}
 
           <div className="ml-auto flex items-center gap-3">
             <span className="text-[11.5px] text-content-subtle">
@@ -673,10 +693,35 @@ export function TraceScreen({ scan, isMac, sourcePath, server, onRescan }: Props
                 ? t('apply.selectPrompt')
                 : t('apply.selection', { beans: selectedEntries.length, files: targets.length, values: valuesToChange })}
             </span>
+            {/* Резервная копия стоит рядом с «Применить», потому что это условие
+                применения, а не отдельная настройка: зелёная — копия будет. */}
+            <button
+              type="button"
+              onClick={() => setMakeBackup(!makeBackup)}
+              title={t('apply.backup.hint')}
+              aria-pressed={makeBackup}
+              className={cx(
+                'inline-flex h-9 items-center gap-2 rounded-lg border px-3 text-[12.5px] font-medium transition',
+                FOCUS_RING,
+                makeBackup
+                  ? 'border-positive/45 bg-positive/12 text-positive hover:bg-positive/20'
+                  : 'border-line-strong bg-surface-2 text-content-muted hover:bg-surface-3',
+              )}
+            >
+              <span
+                className={cx(
+                  'grid size-4 place-items-center rounded border transition',
+                  makeBackup ? 'border-positive/60 bg-positive/25' : 'border-line-strong',
+                )}
+              >
+                {makeBackup && <Check size={11} weight="bold" />}
+              </span>
+              {t('apply.backup')}
+            </button>
             <Button variant="primary" onClick={() => setConfirmOpen(true)} disabled={!canApply}>
               {applying
                 ? <><Spinner className="size-4" /> {progress ? `${progress.current} / ${progress.total}` : t('empty.scanning')}</>
-                : dryRun ? t('action.check') : t('action.apply')}
+                : t('action.apply')}
             </Button>
           </div>
         </div>
@@ -699,13 +744,11 @@ export function TraceScreen({ scan, isMac, sourcePath, server, onRescan }: Props
         open={confirmOpen}
         onClose={() => setConfirmOpen(false)}
         closeLabel={t('action.close')}
-        title={dryRun ? t('confirm.titleDry') : t('confirm.title')}
+        title={t('confirm.title')}
         footer={
           <>
             <Button variant="ghost" onClick={() => setConfirmOpen(false)}>{t('action.cancel')}</Button>
-            <Button variant={dryRun ? 'secondary' : 'primary'} onClick={handleApply}>
-              {dryRun ? t('confirm.submitDry') : t('confirm.submit')}
-            </Button>
+            <Button variant="primary" onClick={handleApply}>{t('confirm.submit')}</Button>
           </>
         }
       >
@@ -723,7 +766,6 @@ export function TraceScreen({ scan, isMac, sourcePath, server, onRescan }: Props
           <Notice tone={makeBackup ? 'ok' : 'warn'}>
             {makeBackup ? t('confirm.backupOn') : t('confirm.backupOff')}
           </Notice>
-          {dryRun && <p className="text-content-muted">{t('confirm.dryRunNote')}</p>}
         </div>
       </Modal>
 

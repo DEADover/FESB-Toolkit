@@ -197,14 +197,13 @@ export function RefreshButton({ busy, disabled, className, onClick }: {
  *
  * Шапка живёт в `App`, а кнопки — на экране: и состояние, и обработчики
  * у них там. Портал позволяет оставить их на месте в коде, а показать
- * там, где им место на глаз: рядом с переключателем стенда — серверные,
- * рядом с «Open ZIP» — работа с архивом.
+ * там, где им место на глаз, — в ряду «чем сменить конфигурацию».
  */
-export function HeaderActions({ slot, children }: { slot: 'server' | 'files'; children: ReactNode }) {
+export function HeaderActions({ children }: { children: ReactNode }) {
   const [host, setHost] = useState<HTMLElement | null>(null)
   // Узел шапки появляется в том же кадре, что и экран, поэтому ищем его
   // после отрисовки, а до тех пор не показываем ничего.
-  useEffect(() => setHost(document.getElementById(`header-actions-${slot}`)), [slot])
+  useEffect(() => setHost(document.getElementById('header-actions')), [])
   return host ? createPortal(children, host) : null
 }
 
