@@ -60,7 +60,7 @@ export const en = {
   'action.close': 'Close',
   'action.apply': 'Apply',
   'action.check': 'Check',
-  'action.buildZip': 'Build configuration ZIP',
+  'action.buildZip': 'Build ZIP',
   'action.reveal': 'Show in folder',
   'action.hideSidebar': 'Hide sidebar',
   'action.showSidebar': 'Show sidebar',

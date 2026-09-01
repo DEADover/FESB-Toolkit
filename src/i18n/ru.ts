@@ -61,7 +61,7 @@ export const ru: Record<keyof typeof en, string> = {
   'action.close': 'Закрыть',
   'action.apply': 'Применить',
   'action.check': 'Проверить',
-  'action.buildZip': 'Собрать ZIP конфигурации',
+  'action.buildZip': 'Собрать ZIP',
   'action.reveal': 'Показать в папке',
   'action.hideSidebar': 'Скрыть панель',
   'action.showSidebar': 'Показать панель',

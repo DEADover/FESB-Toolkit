@@ -21,7 +21,7 @@ import type {
 import { ReportDialog } from './ReportDialog'
 import { RouteViewer } from './RouteViewer'
 import { TraceTable } from './TraceTable'
-import { ScreenBody, StatsBar } from './ApiShell'
+import { HeaderActions, ScreenBody, StatsBar } from './ApiShell'
 import { Badge, Button, cx, DataTable, Modal, MultiSelect, Notice, SearchInput, Select, Spinner, Stat, SuggestInput, Th, THead, Toggle } from './ui'
 
 interface Props {
@@ -568,25 +568,30 @@ export function TraceScreen({ scan, isMac, sourcePath, server, onRescan }: Props
               <Button variant="ghost" size="sm" onClick={() => setSelected(new Set())}>{t('action.deselect')}</Button>
             </>
           )}
-          {server && (
-            <>
-              <Button size="sm" onClick={() => setScopeMode('verify')} disabled={pushing}>
-                {t('action.verify')}
-              </Button>
-              <Button size="sm" variant="primary" onClick={() => setScopeMode('push')} disabled={pushing}>
-                {pushing
-                  ? <><Spinner className="size-3.5" /> {t(pushPhase(pushProgress?.phase))}</>
-                  : t('action.push')}
-              </Button>
-            </>
-          )}
-          <Button size="sm" onClick={startBuild} disabled={archiving}>
-            {archiving
-              ? <><Spinner className="size-3.5" /> {archiveProgress ? `${archiveProgress.current} / ${archiveProgress.total}` : t('zip.building')}</>
-              : t('action.buildZip')}
-          </Button>
         </div>
       </div>
+
+      {/* Действия над конфигурацией целиком живут в шапке экрана, рядом
+          с тем, откуда она взялась: строка фильтров — для фильтров. */}
+      {server && (
+        <HeaderActions slot="server">
+          <Button onClick={() => setScopeMode('verify')} disabled={pushing}>
+            {t('action.verify')}
+          </Button>
+          <Button variant="primary" onClick={() => setScopeMode('push')} disabled={pushing}>
+            {pushing
+              ? <><Spinner className="size-3.5" /> {t(pushPhase(pushProgress?.phase))}</>
+              : t('action.push')}
+          </Button>
+        </HeaderActions>
+      )}
+      <HeaderActions slot="files">
+        <Button onClick={startBuild} disabled={archiving}>
+          {archiving
+            ? <><Spinner className="size-3.5" /> {archiveProgress ? `${archiveProgress.current} / ${archiveProgress.total}` : t('zip.building')}</>
+            : t('action.buildZip')}
+        </Button>
+      </HeaderActions>
 
       {error && <Notice tone="danger">{error}</Notice>}
 

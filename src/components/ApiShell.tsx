@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 
 import { ArrowsClockwise, ArrowsLeftRight } from '@phosphor-icons/react'
 
@@ -176,19 +177,43 @@ export function useAutoRefresh(enabled: boolean, action: () => unknown) {
  * Раньше это была скопированная строка вёрстки, и любая правка значка
  * или размера крутилки означала одиннадцать одинаковых правок.
  */
-export function RefreshButton({ busy, disabled, className, onClick }: {
+export function RefreshButton({ busy, disabled, className, compact, onClick }: {
   busy: boolean
   disabled?: boolean
   className?: string
+  /** Только значок: в шапке экрана кнопок много, а эту узнают по нему. */
+  compact?: boolean
   onClick: () => void
 }) {
   const { t } = useI18n()
   return (
-    <Button className={className} onClick={onClick} disabled={disabled ?? busy}>
+    <Button
+      className={className}
+      onClick={onClick}
+      disabled={disabled ?? busy}
+      title={compact ? t('action.refresh') : undefined}
+      aria-label={compact ? t('action.refresh') : undefined}
+    >
       <ButtonGlyph busy={busy}><ArrowsClockwise size={14} weight="bold" /></ButtonGlyph>
-      {t('action.refresh')}
+      {!compact && t('action.refresh')}
     </Button>
   )
+}
+
+/**
+ * Действия экрана в шапке приложения.
+ *
+ * Шапка живёт в `App`, а кнопки — на экране: и состояние, и обработчики
+ * у них там. Портал позволяет оставить их на месте в коде, а показать
+ * там, где им место на глаз: рядом с переключателем стенда — серверные,
+ * рядом с «Open ZIP» — работа с архивом.
+ */
+export function HeaderActions({ slot, children }: { slot: 'server' | 'files'; children: ReactNode }) {
+  const [host, setHost] = useState<HTMLElement | null>(null)
+  // Узел шапки появляется в том же кадре, что и экран, поэтому ищем его
+  // после отрисовки, а до тех пор не показываем ничего.
+  useEffect(() => setHost(document.getElementById(`header-actions-${slot}`)), [slot])
+  return host ? createPortal(children, host) : null
 }
 
 /**

@@ -341,8 +341,11 @@ export default function App() {
       />
 
       <main className="flex min-w-0 flex-1 flex-col">
-        <header data-tauri-drag-region className={cx('flex items-center gap-3 px-6 pb-4', isMac ? 'pt-9' : 'pt-4')}>
-          <div className="min-w-0 flex-1">
+        {/* Заголовок и действия — две части одной строки. Действий бывает
+            много (стенд, сервер, архивы), и на узком окне они переносятся
+            целой группой, а не по одной кнопке и не за край окна. */}
+        <header data-tauri-drag-region className={cx('flex flex-wrap items-center gap-3 px-6 pb-4', isMac ? 'pt-9' : 'pt-4')}>
+          <div className="min-w-48 flex-1">
             <div className="flex items-center gap-2">
               <h1 className="text-[15px] font-semibold leading-tight">{screenTitle}</h1>
               {scan?.fesbVersion && !isApiScreen && !isWelcome && (
@@ -366,6 +369,7 @@ export default function App() {
               </p>
             )}
           </div>
+          <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
           <ServerSwitch
             store={connections}
             active={session?.profile ?? null}
@@ -376,15 +380,21 @@ export default function App() {
             onDisconnect={disconnect}
             onConfigure={configure}
           />
+          {/* Два места для действий экрана: серверные встают рядом
+              с переключателем стенда, работа с архивом — рядом с «Open ZIP».
+              Наполняет их сам экран через `HeaderActions`. */}
+          <div id="header-actions-server" className="flex items-center gap-2 empty:hidden" />
           {!isApiScreen && !isLinksScreen && !isWelcome && root && (
-            <RefreshButton busy={scanning} disabled={busy} onClick={rescan} />
+            <RefreshButton compact busy={scanning} disabled={busy} onClick={rescan} />
           )}
           {!isApiScreen && !isLinksScreen && !isWelcome && (
             <>
               <Button onClick={pickArchive} disabled={busy}>{t('action.openArchive')}</Button>
+              <div id="header-actions-files" className="flex items-center gap-2 empty:hidden" />
               <Button variant="primary" onClick={pickFolder} disabled={busy}>{t('action.selectFolder')}</Button>
             </>
           )}
+          </div>
         </header>
 
         {screen === 'welcome' ? (
