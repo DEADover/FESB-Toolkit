@@ -22,7 +22,7 @@ import { ReportDialog } from './ReportDialog'
 import { RouteViewer } from './RouteViewer'
 import { TraceTable } from './TraceTable'
 import { ScreenBody, StatsBar } from './ApiShell'
-import { Badge, Button, cx, DataTable, Modal, Notice, ScrollStrip, SearchInput, Select, Spinner, Stat, SuggestInput, Th, THead, Toggle } from './ui'
+import { Badge, Button, cx, DataTable, Modal, MultiSelect, Notice, SearchInput, Select, Spinner, Stat, SuggestInput, Th, THead, Toggle } from './ui'
 
 interface Props {
   scan: ScanResult
@@ -154,6 +154,13 @@ export function TraceScreen({ scan, isMac, sourcePath, server, onRescan }: Props
   const groups = useMemo(() => buildGroups(scan), [scan])
   const stats = useMemo(() => brokerStats(groups), [groups])
   const noBroker = useMemo(() => withoutBroker(groups), [groups])
+  /** Два выключателя в виде набора: `MultiSelect` работает с множеством. */
+  const extraFilters = useMemo(() => {
+    const set = new Set<string>()
+    if (filters.onlyEditable) set.add('editable')
+    if (filters.onlyChanged) set.add('changed')
+    return set
+  }, [filters.onlyEditable, filters.onlyChanged])
   const brokerValues = useMemo(() => stats.map((item) => item.value), [stats])
   const queues = useMemo(() => queueValues(groups), [groups])
   const modes = useMemo(() => traceModeValues(groups), [groups])
@@ -315,18 +322,6 @@ export function TraceScreen({ scan, isMac, sourcePath, server, onRescan }: Props
       return next
     })
   }, [])
-
-  const selectByBroker = useCallback((value: string) => {
-    setSelected((prev) => {
-      const next = new Set(prev)
-      for (const group of groups) {
-        for (const entry of group.entries) {
-          if (entry.editable && entry.trace.broker === value) next.add(entry.key)
-        }
-      }
-      return next
-    })
-  }, [groups])
 
   const handleSort = useCallback((key: SortKey) => {
     setSortKey((prevKey) => {
@@ -507,18 +502,6 @@ export function TraceScreen({ scan, isMac, sourcePath, server, onRescan }: Props
       {/* Фильтры слева, счётчики справа: появление «выбрано» не двигает ни то,
           ни другое. На узком окне строка переносится, а не уезжает за край. */}
       <div className="flex flex-wrap items-center gap-2">
-        <Toggle
-          checked={filters.onlyEditable}
-          onChange={(value) => setFilters((prev) => ({ ...prev, onlyEditable: value }))}
-          label={t('filter.onlyEditable')}
-        />
-        <Toggle
-          checked={filters.onlyChanged}
-          onChange={(value) => setFilters((prev) => ({ ...prev, onlyChanged: value }))}
-          label={t('filter.onlyChanged')}
-          disabled={changedBeans.size === 0}
-          title={changedBeans.size === 0 ? t('filter.onlyChangedHint') : undefined}
-        />
         {/* Два вопроса к СОПС домена взаимоисключающие, поэтому это выбор,
             а не два выключателя: строка фильтров и так близка к краю. */}
         <Select<RouteFilter>
@@ -533,42 +516,39 @@ export function TraceScreen({ scan, isMac, sourcePath, server, onRescan }: Props
             { id: 'default', label: t('filter.defaultTraced') },
           ]}
         />
-        {/* Фильтр по брокеру стоит в ряду фильтров, а не над ним: он такой же
-            отбор, как и соседние. Значений бывает много, поэтому полоса
-            не растёт вниз, а прокручивается. */}
-        <ScrollStrip
-          className="min-w-0 flex-1 basis-0"
-          itemCount={stats.length + (noBroker > 0 ? 1 : 0)}
-          scrollLeftLabel={t('action.scrollLeft')}
-          scrollRightLabel={t('action.scrollRight')}
-        >
-          <FilterChip active={filters.broker === 'all'} onClick={() => setFilters((prev) => ({ ...prev, broker: 'all' }))}>
-            {t('filter.all')}
-          </FilterChip>
-          {noBroker > 0 && (
-            <FilterChip
-              active={filters.broker === 'none'}
-              title={t('table.byDefault.hint')}
-              onClick={() => setFilters((prev) => ({ ...prev, broker: prev.broker === 'none' ? 'all' : 'none' }))}
-            >
-              <span className="whitespace-nowrap">{t('filter.noBroker')}</span>
-              <span className="rounded bg-surface-3 px-1 text-[10px] tabular-nums">{noBroker}</span>
-            </FilterChip>
-          )}
-          {stats.map((item) => (
-            <FilterChip
-              key={item.value}
-              mono
-              active={filters.broker === item.value}
-              title={t('filter.chipHint')}
-              onClick={() => setFilters((prev) => ({ ...prev, broker: prev.broker === item.value ? 'all' : item.value }))}
-              onDoubleClick={() => selectByBroker(item.value)}
-            >
-              <span className="whitespace-nowrap">{item.value}</span>
-              <span className="rounded bg-surface-3 px-1 text-[10px] tabular-nums">{item.count}</span>
-            </FilterChip>
-          ))}
-        </ScrollStrip>
+        {/* Фильтр по брокеру — такой же пикёр, как соседние: значений
+            бывает под десяток, и полоса фишек уезжала за край окна. */}
+        <Select<string>
+          ariaLabel={t('table.broker')}
+          label={t('table.broker')}
+          className="w-64"
+          value={filters.broker}
+          onChange={(value) => setFilters((prev) => ({ ...prev, broker: value }))}
+          options={[
+            { id: 'all', label: t('filter.all') },
+            ...(noBroker > 0 ? [{ id: 'none', label: t('filter.noBroker'), hint: String(noBroker) }] : []),
+            ...stats.map((item) => ({ id: item.value, label: item.value, hint: String(item.count) })),
+          ]}
+        />
+
+        {/* Два редких отбора убраны с глаз в свой блок: рядом с брокером
+            и доменами они читались как равные, а спрашивают их куда реже. */}
+        <MultiSelect
+          label={t('filter.additional')}
+          emptyLabel={t('filter.additional.none')}
+          className="w-56"
+          options={[
+            { id: 'editable', label: t('filter.onlyEditable') },
+            // Изменённых ещё нет — и отбирать нечего.
+            ...(changedBeans.size > 0 ? [{ id: 'changed', label: t('filter.onlyChanged') }] : []),
+          ]}
+          selected={extraFilters}
+          onChange={(next) => setFilters((prev) => ({
+            ...prev,
+            onlyEditable: next.has('editable'),
+            onlyChanged: next.has('changed'),
+          }))}
+        />
 
         <div className="ml-auto flex items-center gap-2 text-[11.5px] text-content-subtle">
           <span>{t('filter.shown', { visible: visible.length, total: groups.length })}</span>
@@ -986,25 +966,5 @@ function Field({ label, htmlFor, className, children }: {
       <label className="mb-1.5 block text-[11px] tracking-wide text-content-subtle" htmlFor={htmlFor}>{label}</label>
       {children}
     </div>
-  )
-}
-
-function FilterChip({ active, mono, children, ...rest }: {
-  active: boolean
-  mono?: boolean
-  children: ReactNode
-} & React.ComponentProps<'button'>) {
-  return (
-    <button
-      type="button"
-      className={cx(
-        'flex shrink-0 items-center gap-1.5 rounded-lg border px-2 py-1 text-[11.5px] transition',
-        mono && 'font-mono',
-        active ? 'border-accent/50 bg-accent/12 text-accent-content' : 'border-line-strong text-content-muted hover:bg-surface-3',
-      )}
-      {...rest}
-    >
-      {children}
-    </button>
   )
 }

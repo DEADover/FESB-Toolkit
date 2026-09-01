@@ -161,7 +161,7 @@ export function TraceTable({
 
                 {single ? (
                   <>
-                    <Cell className="font-mono text-[11.5px] text-content-muted">{single.trace.beanId ?? '—'}</Cell>
+                    <Cell>{single.trace.beanId ? <Pill>{single.trace.beanId}</Pill> : '—'}</Cell>
                     <Cell><ValueCell current={single.trace.broker} editable={single.trace.brokerEditable} next={selected.has(single.key) ? update.broker : null} missing={<MissingQueueValue trace={single.trace} field="broker" />} /></Cell>
                     <Cell><ValueCell current={single.trace.queue} editable={single.trace.queueEditable} next={selected.has(single.key) ? update.queue : null} missing={<MissingQueueValue trace={single.trace} field="queue" />} /></Cell>
                     <Cell><ValueCell current={single.trace.traceMode} editable={single.trace.traceModeEditable} next={selected.has(single.key) ? update.traceMode : null} /></Cell>
@@ -280,6 +280,45 @@ export function TraceTable({
   )
 }
 
+/**
+ * Значение в ячейке таблицы.
+ *
+ * Одна пилюля на все колонки: раньше имя bean-а было простым текстом,
+ * брокер — пилюлей одного вида, объект трассировки в строке СОПС —
+ * другого, а «по умолчанию» вообще ничем. Читалось это как разные
+ * сущности, хотя во всех случаях это значение поля.
+ *
+ * Тона: `plain` — то, что записано в файле; `derived` — то, что мы вывели
+ * сами (пунктир не даёт спутать с записанным); `next` — что встанет после
+ * применения; `multi` — «значения различаются».
+ */
+function Pill({ children, tone = 'plain', title, strike }: {
+  children: ReactNode
+  tone?: 'plain' | 'derived' | 'next' | 'multi'
+  title?: string
+  /** Значение уходит: его заменяют на соседнее. */
+  strike?: boolean
+}) {
+  const tones = {
+    plain: 'bg-surface-2 text-content-muted',
+    derived: 'border border-dashed border-line-strong text-content-subtle',
+    next: 'bg-accent/15 text-accent-content',
+    multi: 'bg-surface-3 font-medium tracking-wide text-content-muted',
+  }
+  return (
+    <span
+      title={title}
+      className={cx(
+        'inline-flex max-w-full items-center truncate rounded px-1.5 py-0.5 font-mono text-[11.5px] leading-none',
+        tones[tone],
+        strike && 'text-content-subtle line-through',
+      )}
+    >
+      {children}
+    </span>
+  )
+}
+
 /* ------------------------------ Строки таблицы ------------------------------ */
 
 function Cell({ children, className, colSpanRest }: { children?: ReactNode; className?: string; colSpanRest?: boolean }) {
@@ -358,7 +397,9 @@ function BeanRow({ entry, number, changed, domain, selected, update, onToggle }:
       <Cell className="py-1.5">
         <span className="ml-5 block border-l border-line-strong pl-3 text-[11.5px] tabular-nums text-content-subtle">{number}</span>
       </Cell>
-      <Cell className="select-text py-1.5 font-mono text-[11.5px] text-content">{entry.trace.beanId ?? '—'}</Cell>
+      <Cell className="select-text py-1.5">
+        {entry.trace.beanId ? <Pill>{entry.trace.beanId}</Pill> : '—'}
+      </Cell>
       <Cell className="py-1.5"><ValueCell current={entry.trace.broker} editable={entry.trace.brokerEditable} next={selected ? update.broker : null} missing={<MissingQueueValue trace={entry.trace} field="broker" />} /></Cell>
       <Cell className="py-1.5"><ValueCell current={entry.trace.queue} editable={entry.trace.queueEditable} next={selected ? update.queue : null} missing={<MissingQueueValue trace={entry.trace} field="queue" />} /></Cell>
       <Cell className="py-1.5"><ValueCell current={entry.trace.traceMode} editable={entry.trace.traceModeEditable} next={selected ? update.traceMode : null} /></Cell>
@@ -404,7 +445,7 @@ function RouteRow({ route, beans, onReveal, onOpen }: {
         ) : route.traceConfigs.length > 0 ? (
           <div className="flex flex-wrap gap-1">
             {route.traceConfigs.map((name) => (
-              <code key={name} className="rounded bg-surface px-1.5 py-0.5 font-mono text-[11px] text-content-muted">{name}</code>
+              <Pill key={name}>{name}</Pill>
             ))}
           </div>
         ) : route.traceEnabled ? (
@@ -540,9 +581,10 @@ function ValueCell({ current, editable, next, missing }: {
   // Пустое свойство — то же самое, что его отсутствие: шина подставит своё.
   // Раньше от него оставалась пустая плашка, по которой ничего не понять.
   const empty = (current ?? '').trim() === ''
-  const shown = missing ?? <span className="text-[11.5px] text-content-subtle">{t('table.noProperty')}</span>
+  const shown = missing ?? <Pill tone="derived">{t('table.noProperty')}</Pill>
 
   if (!editable) return <>{shown}</>
+
 
   const willChange = next !== null && next !== '' && next !== current
   return (
@@ -551,14 +593,12 @@ function ValueCell({ current, editable, next, missing }: {
         // Свойство пустое, но заменить его можно — значит и зачеркнуть есть что.
         <span className={cx(willChange && 'opacity-55')}>{shown}</span>
       ) : (
-        <code className={cx('rounded bg-surface-2 px-1.5 py-0.5 font-mono text-[11.5px]', willChange && 'text-content-subtle line-through')}>
-          {current}
-        </code>
+        <Pill strike={willChange}>{current}</Pill>
       )}
       {willChange && (
         <>
           <ArrowRight size={12} weight="bold" className="text-accent-content" />
-          <code className="rounded bg-accent/15 px-1.5 py-0.5 font-mono text-[11.5px] text-accent-content">{next}</code>
+          <Pill tone="next">{next}</Pill>
         </>
       )}
     </div>
@@ -584,16 +624,16 @@ function MissingQueueValue({ trace, field }: { trace: TraceBean; field: 'broker'
       : trace.blocking === null
         ? t('table.toMemory')
         : t(trace.blocking ? 'table.blocking' : 'table.nonBlocking')
-    return <span className="text-[11.5px] text-content-subtle" title={t('table.toMemory.hint')}>{label}</span>
+    return <Pill tone="derived" title={t('table.toMemory.hint')}>{label}</Pill>
   }
   if (kind === 'queue') {
     return (
-      <span className="text-[11.5px] text-content-muted" title={t('table.byDefault.hint')}>
+      <Pill tone="derived" title={t('table.byDefault.hint')}>
         {t(field === 'broker' ? 'table.defaultBroker' : 'table.defaultQueue')}
-      </span>
+      </Pill>
     )
   }
-  return <span className="text-[11.5px] text-content-subtle">{t('table.noProperty')}</span>
+  return <Pill tone="derived">{t('table.noProperty')}</Pill>
 }
 
 /**
@@ -615,19 +655,12 @@ function DefaultTraceObject({ beans }: { beans: TraceBean[] }) {
   if (names.length === 1) {
     // Пунктир — знак того, что имя выведено, а не записано в СОПС:
     // сплошная рамка сделала бы его неотличимым от названного явно.
-    return (
-      <code
-        className="rounded border border-dashed border-line-strong px-1.5 py-0.5 font-mono text-[11px] text-content-subtle"
-        title={t('routes.defaultConfig.hint')}
-      >
-        {names[0]}
-      </code>
-    )
+    return <Pill tone="derived" title={t('routes.defaultConfig.hint')}>{names[0]}</Pill>
   }
   return (
-    <span className="text-[11.5px] text-content-muted" title={t('routes.defaultConfig.many', { beans: names.join(', ') })}>
+    <Pill tone="derived" title={t('routes.defaultConfig.many', { beans: names.join(', ') })}>
       {t('routes.defaultConfig')}
-    </span>
+    </Pill>
   )
 }
 
@@ -635,12 +668,7 @@ function DefaultTraceObject({ beans }: { beans: TraceBean[] }) {
 function Multi({ count, hint }: { count: number; hint?: string }) {
   const { t } = useI18n()
   return (
-    <span
-      className="rounded bg-surface-3 px-1.5 py-0.5 font-mono text-[11px] font-medium tracking-wide text-content-muted"
-      title={hint ?? t('table.multiHint', { count })}
-    >
-      {t('table.multi')}
-    </span>
+    <Pill tone="multi" title={hint ?? t('table.multiHint', { count })}>{t('table.multi')}</Pill>
   )
 }
 
@@ -664,7 +692,7 @@ function Summary({ group, field }: { group: DomainGroup; field: 'broker' | 'queu
   if (distinct.length > 1) return <Multi count={group.entries.length} />
   if (distinct.length === 1) {
     return (
-      <code className="rounded bg-surface-2 px-1.5 py-0.5 font-mono text-[11.5px] text-content-muted">{distinct[0]}</code>
+      <Pill>{distinct[0]}</Pill>
     )
   }
 

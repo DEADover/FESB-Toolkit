@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ComponentProps, type ReactNode } from 'react'
 
-import { CaretDown, CaretLeft, CaretRight, CaretUp, Check, MagnifyingGlass, X, type Icon } from '@phosphor-icons/react'
+import { CaretDown, CaretUp, Check, MagnifyingGlass, X, type Icon } from '@phosphor-icons/react'
 
 export function cx(...parts: Array<string | false | null | undefined>): string {
   return parts.filter(Boolean).join(' ')
@@ -259,7 +259,8 @@ export function useClickAway(ref: React.RefObject<HTMLElement | null>, close: ()
  */
 export function Select<T extends string | number>({ value, options, onChange, ariaLabel, label, className = 'w-44' }: {
   value: T
-  options: Array<{ id: T; label: string }>
+  /** `hint` — приписка справа в списке: обычно сколько строк под этим значением. */
+  options: Array<{ id: T; label: string; hint?: string }>
   onChange: (value: T) => void
   ariaLabel: string
   /** Подпись слева от значения — как у `MultiSelect`. */
@@ -315,6 +316,7 @@ export function Select<T extends string | number>({ value, options, onChange, ar
               )}
             >
               <span className="min-w-0 flex-1 truncate">{option.label}</span>
+              {option.hint && <span className="shrink-0 text-[10.5px] tabular-nums text-content-subtle">{option.hint}</span>}
               {option.id === value && <Check size={12} weight="bold" className="shrink-0 text-accent-content" />}
             </button>
           ))}
@@ -701,90 +703,6 @@ export function SuggestInput({ id, value, options, placeholder, onChange, emptyL
           )}
         </div>
       )}
-    </div>
-  )
-}
-
-/**
- * Горизонтальная полоса, которая не переносится на вторую строку, а прокручивается.
- * Градиентные края появляются только с той стороны, где содержимое реально
- * уходит за границу, — иначе они бы зря приглушали крайние элементы.
- */
-export function ScrollStrip({ children, className, itemCount, scrollLeftLabel, scrollRightLabel }: {
-  children: ReactNode
-  className?: string
-  /** Пересчитать края, когда содержимое сменилось. */
-  itemCount?: number
-  scrollLeftLabel: string
-  scrollRightLabel: string
-}) {
-  const ref = useRef<HTMLDivElement>(null)
-  const [edges, setEdges] = useState({ start: false, end: false })
-
-  useEffect(() => {
-    const element = ref.current
-    if (!element) return
-
-    const update = () => setEdges({
-      start: element.scrollLeft > 1,
-      end: element.scrollLeft + element.clientWidth < element.scrollWidth - 1,
-    })
-
-    update()
-    element.addEventListener('scroll', update, { passive: true })
-    const observer = new ResizeObserver(update)
-    observer.observe(element)
-    return () => {
-      element.removeEventListener('scroll', update)
-      observer.disconnect()
-    }
-  }, [itemCount])
-
-  const scrollBy = (direction: -1 | 1) => {
-    const element = ref.current
-    if (element) element.scrollBy({ left: direction * Math.max(element.clientWidth * 0.7, 160), behavior: 'smooth' })
-  }
-
-  return (
-    <div className={cx('relative min-w-0', className)}>
-      <div
-        ref={ref}
-        className="flex flex-nowrap items-center gap-1.5 overflow-x-auto py-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-      >
-        {children}
-      </div>
-
-      {edges.start && (
-        <ScrollEdge side="start" label={scrollLeftLabel} onClick={() => scrollBy(-1)} />
-      )}
-      {edges.end && (
-        <ScrollEdge side="end" label={scrollRightLabel} onClick={() => scrollBy(1)} />
-      )}
-    </div>
-  )
-}
-
-/** Градиент с кнопкой: сразу видно, что содержимое продолжается, и куда листать. */
-function ScrollEdge({ side, label, onClick }: { side: 'start' | 'end'; label: string; onClick: () => void }) {
-  const isStart = side === 'start'
-  return (
-    <div
-      className={cx(
-        'absolute inset-y-0 flex w-14 items-center',
-        isStart
-          ? 'left-0 justify-start bg-gradient-to-r from-surface via-surface/85 to-transparent'
-          : 'right-0 justify-end bg-gradient-to-l from-surface via-surface/85 to-transparent',
-      )}
-    >
-      <button
-        type="button"
-        aria-label={label}
-        title={label}
-        onClick={onClick}
-        className="grid size-6 place-items-center rounded-md border border-line-strong bg-surface-2 text-content-muted shadow-sm transition hover:bg-surface-3 hover:text-content"
-      >
-        {isStart ? <CaretLeft size={12} weight="bold" /> : <CaretRight size={12} weight="bold" />}
-      </button>
     </div>
   )
 }
