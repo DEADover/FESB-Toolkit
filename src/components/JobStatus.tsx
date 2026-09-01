@@ -28,9 +28,24 @@ interface Job {
 /** Работу короче этого никто не заметит, а полоса успеет мигнуть. */
 const SHOW_AFTER = 400
 /** Досчитала до конца — показываем полную полосу и убираем. */
-const KEEP_DONE = 700
-/** Событий нет так долго — работа кончилась или сорвалась. */
-const FORGET_SILENT = 5000
+const KEEP_DONE = 900
+/**
+ * Событий нет так долго — работа кончилась или сорвалась.
+ *
+ * Полминуты, а не пять секунд: домены выкачиваются волнами, и между
+ * волнами на стенде из двух с половиной сотен доменов проходит секунд
+ * десять. С коротким сроком полоса пропадала посреди работы и появлялась
+ * снова на следующей волне.
+ */
+const FORGET_SILENT = 30_000
+/**
+ * Одна работа сменила другую сразу — показываем без задержки.
+ *
+ * Выгрузка доменов заканчивается, и тут же начинается их чтение. Ждать
+ * ещё четыре десятых секунды значило бы мигнуть между двумя половинами
+ * одного дела.
+ */
+const HANDOVER = 2000
 
 export function JobStatus() {
   const { t } = useI18n()
@@ -42,6 +57,8 @@ export function JobStatus() {
   // Сторож живёт вне отрисовки, поэтому о показанном узнаёт из ref.
   const visible = useRef(false)
   visible.current = shown
+  /** Когда полоса пропала в прошлый раз — по этому узнаётся пересменок. */
+  const hiddenAt = useRef(0)
   // Держим текущее в ref: обработчики событий подписываются один раз
   // и не должны переподписываться на каждое изменение.
   const current = useRef<Job | null>(null)
@@ -79,7 +96,12 @@ export function JobStatus() {
   // События приходят редко, а оценка должна убывать между ними.
   useEffect(() => {
     if (!active) return
-    const forget = () => { current.current = null; setJob(null); setShown(false) }
+    const forget = () => {
+      hiddenAt.current = Date.now()
+      current.current = null
+      setJob(null)
+      setShown(false)
+    }
 
     const tick = setInterval(() => {
       const latest = current.current
@@ -93,7 +115,9 @@ export function JobStatus() {
       if (finished && at - latest.seenAt >= KEEP_DONE) return forget()
       // Вестей нет так долго, что работа явно кончилась или сорвалась.
       if (at - latest.seenAt >= FORGET_SILENT) return forget()
-      if (!visible.current && at - latest.startedAt >= SHOW_AFTER) setShown(true)
+      const waited = at - latest.startedAt >= SHOW_AFTER
+      const handover = at - hiddenAt.current <= HANDOVER
+      if (!visible.current && (waited || handover)) setShown(true)
     }, 250)
 
     return () => clearInterval(tick)
@@ -103,10 +127,15 @@ export function JobStatus() {
 
   const share = job.total > 0 ? Math.min(job.current / job.total, 1) : null
   const eta = formatEta(now - job.startedAt, job.current, job.total, t)
+  // Цифровой пробел шириной с цифру: счётчик не меняет ширину, пока
+  // сделанное догоняет общее число.
+  const counter = String(job.current).padStart(String(job.total).length, '\u2007')
 
   return (
     <div
-      className="flex h-9 min-w-0 max-w-72 flex-1 items-center gap-2.5 rounded-lg border border-line-strong bg-surface px-3"
+      /* Ширина постоянная: счётчик растёт с каждой сотней, оценка
+         появляется и исчезает, и полоса от этого прыгала бы в размерах. */
+      className="flex h-9 w-72 shrink-0 items-center gap-2.5 rounded-lg border border-line-strong bg-surface px-3"
       role="status"
       aria-live="polite"
     >
@@ -116,7 +145,7 @@ export function JobStatus() {
           <span className="min-w-0 truncate text-[11.5px] leading-none">{t(job.label)}</span>
           {share !== null && (
             <span className="ml-auto shrink-0 text-[11px] leading-none tabular-nums text-content-subtle">
-              {job.current} / {job.total}
+              {counter} / {job.total}
             </span>
           )}
         </div>
@@ -131,7 +160,9 @@ export function JobStatus() {
           </div>
         )}
       </div>
-      {eta && <span className="shrink-0 text-[11px] tabular-nums text-content-subtle">{eta}</span>}
+      {/* Место под оценку занято всегда: она появляется на середине работы,
+          и без него всё левее неё дёргалось бы вбок. */}
+      <span className="w-12 shrink-0 text-right text-[11px] tabular-nums text-content-subtle">{eta}</span>
     </div>
   )
 }
