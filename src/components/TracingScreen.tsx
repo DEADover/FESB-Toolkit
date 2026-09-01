@@ -76,7 +76,7 @@ export function TracingScreen({ connection, server, onGoToConnection, onOpenRout
   const [search, setSearch] = useState('')
   const [beans, setBeans] = useState<Set<string>>(new Set())
   const [state, setState] = useState<State>('all')
-  const [onlyUntraced, setOnlyUntraced] = useState(false)
+  const [onlyTraced, setOnlyTraced] = useState(false)
   const [saving, setSaving] = useState(false)
   const query = useDebounced(search, 250)
 
@@ -96,7 +96,7 @@ export function TracingScreen({ connection, server, onGoToConnection, onOpenRout
   const visible = useMemo(() => {
     const needle = query.trim().toLowerCase()
     return all.filter((row) => {
-      if (onlyUntraced && row.trace) return false
+      if (onlyTraced && !row.trace) return false
       if (state === 'started' && row.state !== 'Started') return false
       if (state === 'stopped' && row.state === 'Started') return false
       if (beans.size > 0 && !row.traceBeans.some((bean) => beans.has(bean))) return false
@@ -107,7 +107,7 @@ export function TracingScreen({ connection, server, onGoToConnection, onOpenRout
         row.traceBeans.some((bean) => bean.toLowerCase().includes(needle))
       )
     })
-  }, [all, query, beans, state, onlyUntraced])
+  }, [all, query, beans, state, onlyTraced])
 
   const totals = useMemo(() => ({
     routes: all.length,
@@ -199,7 +199,7 @@ export function TracingScreen({ connection, server, onGoToConnection, onOpenRout
             { id: 'stopped', label: t('table.stopped') },
           ]}
         />
-        <Toggle checked={onlyUntraced} onChange={setOnlyUntraced} label={t('tracing.onlyUntraced')} />
+        <Toggle checked={onlyTraced} onChange={setOnlyTraced} label={t('tracing.onlyTraced')} />
         <span className="text-[11.5px] tabular-nums text-content-subtle" title={t('tracing.hint')}>
           {t('tracing.shown', { visible: visible.length, total: all.length })}
         </span>
@@ -244,8 +244,10 @@ export function TracingScreen({ connection, server, onGoToConnection, onOpenRout
                       {row.traceBeans.map((bean) => <CodePill key={bean}>{bean}</CodePill>)}
                     </span>
                   ) : (
-                    // Отсутствие трассировки — это и есть то, что здесь ищут.
-                    <span className="text-[11.5px] text-caution">{t('tracing.none')}</span>
+                    // Прочерк, а не подпись: строк без трассировки триста,
+                    // и цветные слова в каждой седьмой строке — это шум.
+                    // Сколько их всего, сказано в сводке над таблицей.
+                    <span className="text-content-subtle">—</span>
                   )}
                 </td>
                 <td className={cx('truncate px-3 py-1.5 text-[11.5px] text-content-muted', HIDDEN_CELL)}>
