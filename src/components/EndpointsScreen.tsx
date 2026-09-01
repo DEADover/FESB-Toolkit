@@ -462,7 +462,9 @@ export function EndpointsScreen({ connection, server, onGoToConnection }: Props)
             ))}
           </THead>
           <tbody>
-            {groups.map((group) => (
+            {groups.map((group) => {
+              const inbound = group.rows.filter((row) => row.direction === 'in').length
+              return (
               <Fragment key={group.key || 'all'}>
                 {/* Заголовок группы — строка таблицы, а не отдельный список:
                     иначе колонки под каждой группой разъезжались бы. */}
@@ -493,10 +495,14 @@ export function EndpointsScreen({ connection, server, onGoToConnection }: Props)
                           {group.title}
                         </span>
                         <Badge>{group.rows.length}</Badge>
-                        {group.rows.some((row) => row.direction === 'in') && (
-                          <Badge tone="accent">
-                            {t('endpoints.in')} · {group.rows.filter((row) => row.direction === 'in').length}
-                          </Badge>
+                        {/* Вход и выход по отдельности: у группы спрашивают не
+                            «сколько точек», а «мы к ним ходим или они к нам».
+                            Тона те же, что у направления в строке таблицы. */}
+                        {inbound > 0 && (
+                          <Badge tone="accent">{t('endpoints.in')} · {inbound}</Badge>
+                        )}
+                        {group.rows.length - inbound > 0 && (
+                          <Badge>{t('endpoints.out')} · {group.rows.length - inbound}</Badge>
                         )}
                       </div>
                     </td>
@@ -517,7 +523,8 @@ export function EndpointsScreen({ connection, server, onGoToConnection }: Props)
               </tr>
                 ))}
               </Fragment>
-            ))}
+              )
+            })}
             {visible.length === 0 && <TableMessage colSpan={COLUMNS.length}>{t('endpoints.nothing')}</TableMessage>}
           </tbody>
         </DataTable>
