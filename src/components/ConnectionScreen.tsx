@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react'
 
-import { ArrowsLeftRight, CaretDown, Check, FolderOpen, Plugs, Queue, Trash, Warning } from '@phosphor-icons/react'
+import { ArrowsLeftRight, CaretDown, FolderOpen, Plugs, Queue, Trash, Warning } from '@phosphor-icons/react'
 
 import { useI18n, type MessageKey } from '../i18n'
 import { apiConnect, apiServerUsage, errorText, selectFile } from '../lib/api'
@@ -26,7 +26,6 @@ interface Props {
   /** Профиль, который надо раскрыть при переходе из шапки. */
   focusProfileId?: string | null
   onConnect: (profile: ConnectionProfile) => Promise<void>
-  onDisconnect: () => void
 }
 
 /** Цвет среды: боевой стенд должен быть виден с одного взгляда. */
@@ -50,7 +49,7 @@ const ENVIRONMENT_LABEL: Record<Environment, MessageKey> = {
  * Пароль хранится только по явной галочке, поэтому автоподключение возможно
  * не для каждого профиля — интерфейс говорит об этом прямо, а не молчит.
  */
-export function ConnectionScreen({ store, onStore, server, connection, activeProfileId, focusProfileId, onConnect, onDisconnect }: Props) {
+export function ConnectionScreen({ store, onStore, server, connection, activeProfileId, focusProfileId, onConnect }: Props) {
   const { t } = useI18n()
 
   const [selectedId, setSelectedId] = useState<string | null>(activeProfileId ?? store.lastUsedId ?? store.profiles[0]?.id ?? null)
@@ -182,14 +181,6 @@ export function ConnectionScreen({ store, onStore, server, connection, activePro
 
   return (
     <ScreenBody>
-      {server && (
-        <ConnectedStrip
-          server={server}
-          profile={store.profiles.find((profile) => profile.id === activeProfileId) ?? null}
-          onDisconnect={onDisconnect}
-        />
-      )}
-
       <ScreenBodyRow>
         <div className="flex w-72 shrink-0 flex-col overflow-hidden rounded-xl border border-line bg-surface">
           <div className="flex items-center gap-2 border-b border-line bg-surface-2 px-3 py-2">
@@ -461,27 +452,6 @@ export function ConnectionScreen({ store, onStore, server, connection, activePro
         )}
       </Modal>
     </ScreenBody>
-  )
-}
-
-/** Строка текущего подключения — она же кнопка «отключиться». */
-function ConnectedStrip({ server, profile, onDisconnect }: {
-  server: ServerInfo
-  profile: ConnectionProfile | null
-  onDisconnect: () => void
-}) {
-  const { t } = useI18n()
-  return (
-    <div className="flex items-center gap-2 rounded-xl border border-positive/35 bg-positive/8 px-4 py-2.5">
-      <span className="grid size-6 place-items-center rounded-full bg-positive/15 text-positive"><Check size={13} weight="bold" /></span>
-      <span className="text-[13px] font-semibold">{profile?.name ?? t('api.connected')}</span>
-      {profile && <Badge tone={ENVIRONMENT_TONE[profile.environment]}>{t(ENVIRONMENT_LABEL[profile.environment])}</Badge>}
-      {server.apiVersion && <Badge tone="accent" className="font-mono">FESB {server.apiVersion}</Badge>}
-      <code className="min-w-0 flex-1 truncate font-mono text-[11.5px] text-content-subtle">
-        {server.baseUrl} · {server.user}
-      </code>
-      <Button size="sm" onClick={onDisconnect}>{t('profiles.disconnect')}</Button>
-    </div>
   )
 }
 

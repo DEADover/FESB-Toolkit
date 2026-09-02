@@ -31,6 +31,52 @@ export const ENVIRONMENT_LABEL: Record<Environment, MessageKey> = {
   prod: 'env.prod',
 }
 
+/**
+ * Открытое подключение — в строке заголовка, рядом с переключателем.
+ *
+ * Прежде это была полоса во всю ширину над списком стендов. Она повторяла
+ * имя и среду, которые и так написаны в переключателе справа, а список
+ * стендов отодвигала на строку вниз. В шапке от неё остаётся то, чего
+ * в переключателе нет: версия шины, адрес с пользователем и способ
+ * отключиться. Адрес подрезается — строка заголовка не должна переноситься
+ * из-за длинного пути до менеджера.
+ */
+export function ConnectedPill({ server, onDisconnect }: {
+  server: ServerInfo
+  onDisconnect: () => void
+}) {
+  const { t } = useI18n()
+  const address = `${server.baseUrl} · ${server.user}`
+
+  return (
+    <div
+      // Подсказка висит на всей плашке, а не на самом адресе: в узком окне
+      // адрес подрезается до нуля, и наводить было бы не на что.
+      title={address}
+      className={cx(
+        CONTROL_HEIGHT,
+        'flex min-w-0 items-center gap-2 rounded-lg border border-positive/35 bg-positive/8 pl-2.5 pr-1',
+      )}
+    >
+      <StatusDot kind="ok" />
+      {server.apiVersion && (
+        <span
+          title={t('header.fesbVersion')}
+          className="shrink-0 rounded border border-accent/35 bg-accent/12 px-1 font-mono text-[10px] text-accent-content"
+        >
+          FESB {server.apiVersion}
+        </span>
+      )}
+      <code className="min-w-0 truncate font-mono text-[11.5px] text-content-subtle">
+        {address}
+      </code>
+      <Button size="sm" variant="ghost" className="shrink-0" onClick={onDisconnect}>
+        {t('profiles.disconnect')}
+      </Button>
+    </div>
+  )
+}
+
 /** Быстрое переключение стенда: список профилей по средам. */
 export function ServerSwitch({ store, active, server, connecting, failed, onConnect, onDisconnect, onConfigure }: {
   store: ConnectionStore

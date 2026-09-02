@@ -658,6 +658,7 @@ export const en = {
   'error.transport.other': 'The exchange with the server failed',
   'error.server.empty': 'The server address is empty',
   'error.server.silent': 'The server did not answer',
+  'error.amqp.notAmqpPort': 'The port answers, but not over AMQP: it accepted the connection and dropped it during the handshake. This is usually a port of another protocol — ActiveMQ speaks OpenWire on 61616 and AMQP on 5672. In the bus log it shows up as \'Frame size of 1 GB is larger than max allowed\'',
 
   'palette.title': 'Go to',
   'palette.search': 'Section or stand name',

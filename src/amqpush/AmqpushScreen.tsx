@@ -11,6 +11,7 @@ import CommandPalette, { PaletteAction } from "./components/CommandPalette";
 import HelpModal from "./components/help/HelpModal";
 import ConfirmDialog from "./components/ConfirmDialog";
 import { useAmqpText } from "./i18n";
+import { errorText } from "../lib/errors";
 import { LogEntry, View, Profile } from "./types";
 import { invoke } from "@tauri-apps/api/core";
 import "./amqpush.css";
@@ -280,7 +281,7 @@ export function AmqpushScreen({ view, onView, stand, stands, onConfigure }: {
       handleConnected(stand.queue);
       addLog("ok", t("shell.connected") + ` → ${stand.host}:${stand.port}`);
     } catch (e) {
-      addLog("err", `${t("shell.connect.failed")}: ${e}`);
+      addLog("err", `${t("shell.connect.failed")}: ${errorText(e)}`);
     } finally {
       setConnecting(false);
     }

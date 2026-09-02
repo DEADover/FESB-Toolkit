@@ -70,6 +70,20 @@ pub struct AppState {
     notif: Arc<Mutex<Option<DrainerHandle>>>,
 }
 
+/// Отказ подключения — так, чтобы по нему было видно, что делать дальше.
+///
+/// Порт, который принял соединение и закрылся на рукопожатии, — почти всегда
+/// порт другого протокола. У ActiveMQ на 61616 говорит OpenWire, и слово
+/// `AMQP` он читает как размер кадра: в журнале шины это видно как
+/// «Frame size of 1 GB is larger than max allowed». Пересказ ошибки
+/// ввода-вывода тут не помогает, а название причины — помогает.
+fn connect_failure(host: &str, port: u16, error: String) -> String {
+    if error.contains("Waiting for header exchange") {
+        return crate::fesb_api::coded("amqp.notAmqpPort", format!("{host}:{port}"));
+    }
+    error
+}
+
 // ── connection ────────────────────────────────────────────────────────────────
 
 #[tauri::command]
@@ -139,7 +153,8 @@ pub async fn connect(
                 client_cert,
                 transport,
             )
-            .await?;
+            .await
+            .map_err(|e| connect_failure(&host, port, e))?;
         client.reconnect_base_ms = reconnect_base_ms.unwrap_or(1_000);
         client.reconnect_max_ms = reconnect_max_ms.unwrap_or(30_000);
         client.reconnect_multiplier = reconnect_multiplier.unwrap_or(2.0);
@@ -731,7 +746,8 @@ pub async fn probe_broker(profile: Profile) -> Result<BrokerProbe, String> {
             cert.clone(),
             transport.clone(),
         )
-        .await?;
+        .await
+        .map_err(|e| connect_failure(&profile.host, profile.port, e))?;
     let connect_ms = started.elapsed().as_millis() as u64;
     let endpoint = client
         .connection_info()
@@ -1155,5 +1171,35 @@ mod probe_tests {
         let answer = probe_broker(profile).await;
 
         assert!(answer.is_err(), "закрытый порт должен возвращать ошибку, вернулось {answer:?}");
+    }
+
+    /// Порт другого протокола: соединение приняли и закрыли на рукопожатии.
+    /// Пересказ ошибки ввода-вывода тут бесполезен, поэтому ждём код —
+    /// по нему интерфейс скажет про OpenWire и 5672.
+    #[tokio::test]
+    async fn a_port_of_another_protocol_is_named() {
+        use tokio::io::AsyncReadExt;
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let port = listener.local_addr().unwrap().port();
+        tokio::spawn(async move {
+            if let Ok((mut socket, _)) = listener.accept().await {
+                // Так ведёт себя OpenWire: прочитал «AMQP» как размер кадра
+                // и закрыл соединение.
+                let mut buf = [0u8; 8];
+                let _ = socket.read(&mut buf).await;
+            }
+        });
+
+        let profile = Profile {
+            name: "openwire".into(),
+            host: "127.0.0.1".into(),
+            port,
+            connect_timeout_secs: 3,
+            ..Profile::default()
+        };
+
+        let error = probe_broker(profile).await.expect_err("порт не говорит по AMQP");
+
+        assert!(error.contains("amqp.notAmqpPort"), "ожидался код причины, пришло: {error}");
     }
 }

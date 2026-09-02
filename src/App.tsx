@@ -6,7 +6,7 @@ import { AmqpushSection } from './components/AmqpushSection'
 import { AuditScreen } from './components/AuditScreen'
 import { ConnectionScreen } from './components/ConnectionScreen'
 import { DomainLinksScreen } from './components/DomainLinksScreen'
-import { ServerSwitch } from './components/HeaderBar'
+import { ConnectedPill, ServerSwitch } from './components/HeaderBar'
 import { DomainsScreen, type PullIntent } from './components/DomainsScreen'
 import { WelcomeScreen } from './components/WelcomeScreen'
 import { AccessScreen } from './components/AccessScreen'
@@ -383,11 +383,17 @@ export default function App() {
           <div className="flex flex-wrap items-center gap-3">
           <div className="min-w-48 flex-1">
             <div className="flex items-center gap-2">
-              <h1 className="text-[15px] font-semibold leading-tight">{screenTitle}</h1>
+              <h1 className="shrink-0 text-[15px] font-semibold leading-tight">{screenTitle}</h1>
               {scan?.fesbVersion && !isApiScreen && !isWelcome && (
                 <Badge tone="accent" className="font-mono">
                   <span title={t('header.fesbVersion')}>FESB {scan.fesbVersion}</span>
                 </Badge>
+              )}
+              {/* Открытое подключение — здесь же, в строке заголовка: своей
+                  полосой оно отодвигало список стендов вниз, а половину
+                  написанного повторял переключатель справа. */}
+              {screen === 'connection' && session && (
+                <ConnectedPill server={session.server} onDisconnect={disconnect} />
               )}
             </div>
             {/*
@@ -474,7 +480,6 @@ export default function App() {
             activeProfileId={session?.profile.id ?? null}
             focusProfileId={focusProfile}
             onConnect={connectProfile}
-            onDisconnect={disconnect}
           />
         ) : screen === 'api.domains' ? (
           <DomainsScreen
