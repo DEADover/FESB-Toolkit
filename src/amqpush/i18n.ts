@@ -223,6 +223,8 @@ const en = {
   'copy.copiedBang': 'Copied!',
 
   'send.title': 'Send Messages',
+  'send.add': 'Add',
+
   'browser.holders.note': 'The rows highlighted in blue hold unacknowledged credit — the likeliest candidates for holding this message. Artemis does not report a per-message lock owner through management, so this is an inference, not a guarantee.',
   'browser.edit.propsNote': 'Application properties are carried over on their own, minus the internal _AMQ_ORIG_* markers. Only the body is editable here.',
   'browser.edit.already': '✓ Already resubmitted at this step',
@@ -1026,6 +1028,8 @@ const ru: Record<keyof typeof en, string> = {
   'copy.copiedBang': 'Скопировано!',
 
   'send.title': 'Отправка сообщений',
+  'send.add': 'Добавить',
+
   'browser.holders.note': 'Строки, подсвеченные синим, держат неподтверждённые сообщения — они и есть самые вероятные держатели этого. Artemis не сообщает, кто занял конкретное сообщение, поэтому это вывод, а не точный ответ.',
   'browser.edit.propsNote': 'Свойства приложения переносятся сами, кроме внутренних меток _AMQ_ORIG_*. Здесь правится только тело.',
   'browser.edit.already': '✓ На этом шаге уже отправляли',

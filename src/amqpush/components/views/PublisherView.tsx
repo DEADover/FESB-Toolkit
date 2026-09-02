@@ -1305,7 +1305,7 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
               </span>
               <button onClick={addProp}
                 className="ml-auto h-7 px-2.5 rounded-lg text-[12px] font-medium text-t-ink4 hover:text-t-ink hover:bg-t-hover transition-colors flex items-center gap-1">
-                <Plus className="w-3 h-3" /> Add
+                <Plus className="w-3 h-3" /> {t("send.add")}
               </button>
             </div>
 
@@ -1423,7 +1423,7 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
 
               <button onClick={addUserVar}
                 className="h-7 px-2.5 rounded-lg text-[12px] font-medium text-t-ink4 hover:text-t-ink hover:bg-t-hover transition-colors flex items-center gap-1">
-                <Plus className="w-3 h-3" /> Add
+                <Plus className="w-3 h-3" /> {t("send.add")}
               </button>
             </div>
 
