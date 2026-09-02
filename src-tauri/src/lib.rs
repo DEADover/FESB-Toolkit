@@ -8,6 +8,7 @@ mod analytics;
 mod api_report;
 mod archive;
 mod certificates;
+mod compare;
 mod domain_xml;
 mod fesb_api;
 mod fesb_ops;
@@ -445,6 +446,15 @@ async fn api_properties(connection: Connection, scope: PropertyScope) -> Result<
     fesb_ops::properties(&connection, scope).await
 }
 
+/// Чем один стенд отличается от другого: домены, СОПС, константы.
+#[tauri::command]
+async fn api_compare_stands(
+    left: Connection,
+    right: Connection,
+) -> Result<compare::Comparison, String> {
+    compare::compare(&left, &right).await
+}
+
 /// Константы всех уровней разом — чтобы искать по значению на всём стенде.
 #[tauri::command]
 async fn api_properties_sweep(
@@ -543,6 +553,7 @@ pub fn run() {
             api_queue_search,
             api_properties,
             api_properties_sweep,
+            api_compare_stands,
             api_save_property,
             api_delete_property,
             api_log_files,

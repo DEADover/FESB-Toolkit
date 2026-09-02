@@ -14,7 +14,7 @@ import type {
   ModuleAction, ModuleRow, PropertyRow, PropertyScope, PullResult, PushResult, QueueManager,
   QueueMatch, QueueMessage, QueueRow, RouteAction, RouteGraph, RouteState, SavePoint, ScanProgress,
   ScanResult,
-  ServerInfo, SweepRow, TraceUpdate, VerifyResult,
+  Comparison, ServerInfo, SweepRow, TraceUpdate, VerifyResult,
 } from '../types'
 
 /** Единственная точка соприкосновения интерфейса с бэкендом на Rust. */
@@ -349,6 +349,11 @@ export function apiQueueSearch(
 
 export function apiProperties(connection: Connection, scope: PropertyScope): Promise<PropertyRow[]> {
   return invoke<PropertyRow[]>('api_properties', { connection, scope })
+}
+
+/** Чем один стенд отличается от другого. Оба опрашиваются только на чтение. */
+export function apiCompareStands(left: Connection, right: Connection): Promise<Comparison> {
+  return invoke<Comparison>('api_compare_stands', { left, right })
 }
 
 /** Константы всех уровней разом: ход работы идёт событиями `api:progress`. */

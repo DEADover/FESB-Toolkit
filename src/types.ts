@@ -341,6 +341,36 @@ export interface SweepRow extends PropertyRow {
   domain: string | null
 }
 
+/** Чем строка сравнения отличается между стендами. */
+export type Side = 'onlyLeft' | 'onlyRight' | 'differs'
+
+export interface DiffRow {
+  side: Side
+  /** Домен или уровень констант — то, внутри чего лежит найденное. */
+  scope: string
+  name: string
+  left: string | null
+  right: string | null
+}
+
+export interface StandFacts {
+  url: string
+  version: string | null
+  domains: number
+  routes: number
+  properties: number
+}
+
+export interface Comparison {
+  left: StandFacts
+  right: StandFacts
+  domains: DiffRow[]
+  routes: DiffRow[]
+  properties: DiffRow[]
+  /** Скрытые значения: сервер их не отдаёт, сравнивать нечего. */
+  securedSkipped: number
+}
+
 export interface LogFileRow {
   name: string
   size: number

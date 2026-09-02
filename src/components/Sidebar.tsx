@@ -17,6 +17,7 @@ export type ScreenId =
   | 'api.inflight'
   | 'api.endpoints'
   | 'api.certificates'
+  | 'api.compare'
   | 'api.queues'
   | 'api.modules'
   | 'api.properties'
@@ -53,6 +54,7 @@ export const API_SCREENS: ScreenEntry[] = [
   // Щит для аудита — штамп; отпечаток точнее: аудит отвечает «кто это сделал».
   { id: 'api.audit', label: 'nav.api.audit', hint: 'welcome.hint.audit', icon: FingerprintSimple },
   { id: 'api.certificates', label: 'nav.api.certificates', hint: 'welcome.hint.certificates', icon: Certificate },
+  { id: 'api.compare', label: 'nav.api.compare', title: 'nav.api.compare.title', hint: 'welcome.hint.compare', icon: ArrowsLeftRight },
   { id: 'api.domains', label: 'nav.api.domains', hint: 'welcome.hint.domains', icon: Stack },
   { id: 'api.endpoints', label: 'nav.api.endpoints', title: 'nav.api.endpoints.title', hint: 'welcome.hint.endpoints', icon: Plugs },
   { id: 'api.inflight', label: 'nav.api.inflight', hint: 'welcome.hint.inflight', icon: Broadcast },

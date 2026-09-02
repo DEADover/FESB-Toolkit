@@ -10,6 +10,7 @@ import { DomainsScreen, type PullIntent } from './components/DomainsScreen'
 import { WelcomeScreen } from './components/WelcomeScreen'
 import { AccessScreen } from './components/AccessScreen'
 import { CertificatesScreen } from './components/CertificatesScreen'
+import { CompareScreen } from './components/CompareScreen'
 import { EndpointsScreen } from './components/EndpointsScreen'
 import { InflightScreen } from './components/InflightScreen'
 import { TracingScreen } from './components/TracingScreen'
@@ -340,6 +341,7 @@ export default function App() {
     'api.endpoints': 'nav.api.endpoints.title',
     'api.certificates': 'nav.api.certificates.title',
     'api.inflight': 'nav.api.inflight.title',
+    'api.compare': 'nav.api.compare.title',
     'api.tracing': 'nav.api.tracing.title',
     welcome: 'nav.welcome',
     'api.queues': 'nav.api.queues.title',
@@ -480,6 +482,12 @@ export default function App() {
           />
         ) : screen === 'api.endpoints' ? (
           <EndpointsScreen {...apiScreenProps} />
+        ) : screen === 'api.compare' ? (
+          <CompareScreen
+            {...apiScreenProps}
+            store={connections}
+            activeProfileId={session?.profile.id ?? null}
+          />
         ) : screen === 'api.certificates' ? (
           <CertificatesScreen {...apiScreenProps} />
         ) : screen === 'api.queues' ? (
