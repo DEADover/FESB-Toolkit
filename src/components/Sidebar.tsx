@@ -1,4 +1,4 @@
-import { ArrowsLeftRight, Broadcast, CaretDown, CaretLeft, PaperPlaneTilt, CaretRight, Certificate, CircleHalf, Crosshair, CrosshairSimple, Cube, FingerprintSimple, FlowArrow, Gear, Key, GithubLogo, House, ListDashes, Moon, Plugs, Queue, SlidersHorizontal, Stack, Sun, Tray, ChartBar, ClockCounterClockwise, UsersThree, Binoculars, Terminal, type Icon } from '@phosphor-icons/react'
+import { ArrowsLeftRight, Broadcast, CaretDown, CaretLeft, PaperPlaneTilt, CaretRight, Certificate, CircleHalf, Crosshair, CrosshairSimple, Cube, FingerprintSimple, FlowArrow, Key, GithubLogo, House, ListDashes, Moon, Plugs, PlugsConnected, Queue, SlidersHorizontal, Stack, Sun, Tray, ChartBar, ClockCounterClockwise, UsersThree, Binoculars, Terminal, type Icon } from '@phosphor-icons/react'
 
 import { useEffect, useState } from 'react'
 
@@ -105,8 +105,6 @@ interface Section {
   title: MessageKey
   /** Раздел без заголовка: один пункт, подписывать его дважды незачем. */
   bare?: boolean
-  /** Экран настроек раздела — открывается шестерёнкой у заголовка. */
-  settings?: { screen: ScreenId; title: MessageKey }
   /** Порядок пунктов — по алфавиту текущего языка. */
   sorted?: boolean
   items: ScreenEntry[]
@@ -115,10 +113,15 @@ interface Section {
 const SECTIONS: Section[] = [
   {
     // Первый экран стоит над разделами: он не про файлы и не про API,
-    // он про выбор между ними.
+    // он про выбор между ними. Следом — стенды: к ним возвращаются из
+    // любого раздела, и шестерёнка в шапке приложения находилась хуже,
+    // чем обычный пункт на своём месте в меню.
     title: 'nav.welcome',
     bare: true,
-    items: [{ id: 'welcome', label: 'nav.welcome', hint: 'nav.welcome', icon: House }],
+    items: [
+      { id: 'welcome', label: 'nav.welcome', hint: 'nav.welcome', icon: House },
+      { id: 'connection', label: 'nav.connection', hint: 'welcome.hint.connection', icon: PlugsConnected },
+    ],
   },
   {
     // Здесь порядок не алфавитный, а рабочий: сначала открывают папку
@@ -133,8 +136,8 @@ const SECTIONS: Section[] = [
   },
   {
     // Экраны раздела стоят наравне с остальными, а не вкладками внутри:
-    // разделов в панели три, и у всех трёх одинаковые правила. Подключение
-    // к брокеру ушло под шестерёнку — как подключение к шине у раздела API.
+    // разделов в панели три, и у всех трёх одинаковые правила. Брокер —
+    // часть профиля стенда и настраивается там же, в «Подключениях».
     title: 'nav.amqp',
     items: AMQP_SCREENS,
   },
@@ -240,49 +243,10 @@ export function Sidebar({ screen, onScreen, info, isMac, collapsed, onCollapse, 
                       {t(section.title)}
                     </span>
                   </button>
-                  {section.settings && (
-                    <button
-                      type="button"
-                      onClick={() => onScreen(section.settings!.screen)}
-                      title={t(section.settings.title)}
-                      aria-label={t(section.settings.title)}
-                      className={cx(
-                        'ml-auto grid size-7 place-items-center rounded-md transition',
-                        FOCUS_RING,
-                        screen === section.settings.screen
-                          ? 'bg-accent/20 text-accent-content'
-                          : 'text-content-subtle hover:bg-surface-3 hover:text-content',
-                      )}
-                    >
-                      <Gear size={16} weight="regular" />
-                    </button>
-                  )}
                 </div>
               )}
 
               <div className={cx('flex flex-col gap-0.5', !collapsed && folded.has(section.title) && 'hidden')}>
-                {collapsed && section.settings && (
-                  <button
-                    type="button"
-                    onClick={() => onScreen(section.settings!.screen)}
-                    title={t(section.settings.title)}
-                    className={cx(
-                      'flex w-full items-center justify-center rounded-lg py-1.5 transition',
-                      screen === section.settings.screen ? 'bg-accent/12' : 'hover:bg-surface-3',
-                    )}
-                  >
-                    <span
-                      className={cx(
-                        'grid size-7 place-items-center rounded-md',
-                        screen === section.settings.screen
-                          ? 'bg-accent/20 text-accent-content'
-                          : 'bg-surface-2 text-content-subtle',
-                      )}
-                    >
-                      <Gear size={16} weight="regular" />
-                    </span>
-                  </button>
-                )}
                 {(section.sorted ? sortByLabel(section.items, (item) => t(item.label), language) : section.items).map((item) => (
                   <button
                     key={item.id}

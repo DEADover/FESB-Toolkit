@@ -34,6 +34,21 @@ export async function selectArchive(title: string): Promise<string | null> {
   return typeof result === 'string' ? result : null
 }
 
+/**
+ * Путь к файлу через системное окно.
+ *
+ * Фильтры идут в том порядке, в каком их показывает система: первым —
+ * нужные расширения, последним обычно «все файлы», иначе выбрать
+ * сертификат с непривычным именем нельзя.
+ */
+export async function selectFile(
+  title: string,
+  filters: Array<{ name: string; extensions: string[] }>,
+): Promise<string | null> {
+  const result = await open({ directory: false, multiple: false, title, filters })
+  return typeof result === 'string' ? result : null
+}
+
 /** Распаковывает архив во временную папку и возвращает путь к ней. */
 export function openArchive(path: string): Promise<ExtractResult> {
   return invoke<ExtractResult>('open_archive', { path })

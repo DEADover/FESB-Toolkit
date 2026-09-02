@@ -20,7 +20,8 @@ export const FOCUS_RING =
 export const CONTROL_HEIGHT = 'h-9'
 
 type ButtonProps = ComponentProps<'button'> & {
-  variant?: 'primary' | 'secondary' | 'ghost'
+  /** `danger` — для действий, которые нельзя отменить: удаление, сброс. */
+  variant?: 'primary' | 'secondary' | 'ghost' | 'danger'
   size?: 'sm' | 'md'
 }
 
@@ -33,6 +34,7 @@ export function Button({ variant = 'secondary', size = 'md', className, ...rest 
     primary: 'bg-accent-strong text-white hover:bg-accent shadow-sm shadow-accent-strong/25',
     secondary: 'border border-line-strong bg-surface-2 text-content hover:bg-surface-3',
     ghost: 'text-content-muted hover:bg-surface-3 hover:text-content',
+    danger: 'border border-negative/35 bg-negative/10 text-negative hover:bg-negative/20',
   }
   return <button type="button" className={cx(base, sizes[size], variants[variant], className)} {...rest} />
 }
@@ -546,6 +548,7 @@ export function TextInput({ className, ...rest }: ComponentProps<'input'> & { re
         CONTROL_HEIGHT,
         'w-full rounded-lg border border-line-strong bg-surface px-3 text-content outline-none transition',
         'hover:border-content-subtle focus:border-accent focus:ring-2 focus:ring-accent/25',
+        'disabled:cursor-not-allowed disabled:border-line disabled:bg-surface-2 disabled:text-content-subtle disabled:hover:border-line',
         className,
       )}
       {...rest}

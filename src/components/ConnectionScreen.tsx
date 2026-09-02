@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react'
 
-import { ArrowsLeftRight, Check } from '@phosphor-icons/react'
+import { ArrowsLeftRight, CaretDown, Check, FolderOpen, Info, Queue, Trash, Warning } from '@phosphor-icons/react'
 
 import { useI18n, type MessageKey } from '../i18n'
-import { apiConnect, apiServerUsage, errorText } from '../lib/api'
+import { apiConnect, apiServerUsage, errorText, selectFile } from '../lib/api'
 import { formatBytes, formatShare, formatUptime } from '../lib/format'
 import {
   blankProfile, byEnvironment, isReady, markUsed, removeProfile, toConnection, upsertProfile,
@@ -11,7 +11,7 @@ import {
 } from '../lib/connection'
 import type { Connection, DiskUsage, ServerInfo, ServerUsage } from '../types'
 import { ScreenBody, ScreenBodyRow, useApiData } from './ApiShell'
-import { Badge, Button, Checkbox, cx, FOCUS_RING, Modal, Notice, Segmented, Spinner, TextInput, TextReadout, Toggle } from './ui'
+import { Badge, Button, Checkbox, cx, Modal, Notice, Segmented, Spinner, TextInput, TextReadout, Toggle } from './ui'
 import { busHost } from '../lib/broker'
 import type { BrokerSettings } from '../lib/connection'
 
@@ -83,7 +83,7 @@ export function ConnectionScreen({ store, onStore, server, connection, activePro
     setError(null)
   }, [selectedId])
 
-  // Переход по шестерёнке или из переключателя открывает нужный профиль сразу.
+  // Переход из панели или из переключателя открывает нужный профиль сразу.
   useEffect(() => {
     if (focusProfileId) setSelectedId(focusProfileId)
   }, [focusProfileId])
@@ -349,9 +349,9 @@ export function ConnectionScreen({ store, onStore, server, connection, activePro
               </div>
 
               {/*
-                Брокер того же стенда. Раньше это был отдельный экран за своей
-                шестерёнкой, и стенд приходилось заводить дважды: один раз
-                для шины, другой для брокера. Пустые поля берутся у шины —
+                Брокер того же стенда. Раньше это был отдельный экран со своим
+                списком профилей, и стенд приходилось заводить дважды: один
+                раз для шины, другой для брокера. Пустые поля берутся у шины —
                 узел и учётные данные почти всегда те же.
               */}
               <BrokerBlock
@@ -380,8 +380,12 @@ export function ConnectionScreen({ store, onStore, server, connection, activePro
               )}
 
               <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-line px-5 py-3">
+                {/* Удаление стенда — действие без отмены, и выглядеть оно
+                    должно так же: кнопка своего цвета, а не строка текста
+                    рядом с «Сохранить». */}
                 {!isNew && (
-                  <Button variant="ghost" onClick={() => stored && setConfirmDelete(stored)}>
+                  <Button variant="danger" onClick={() => stored && setConfirmDelete(stored)}>
+                    <Trash size={14} weight="regular" />
                     {t('profiles.delete')}
                   </Button>
                 )}
@@ -540,9 +544,14 @@ function formatWhen(value: string): string {
 /**
  * Брокер AMQP этого стенда.
  *
- * Главное — узел, порт и очередь по умолчанию; остальное убрано под
- * «Дополнительно», потому что трогают его редко, а места оно занимает
- * больше, чем вся форма шины.
+ * Блок выделен заголовком с значком: в форме стенда это вторая тема, и
+ * потерять её среди полей шины легко. Наверху — три поля, которых хватает
+ * в девяти случаях из десяти; всё остальное открывается кнопкой и разложено
+ * по темам, чтобы длинный список не читался одним полотном.
+ *
+ * Пояснения, которые нужны только в первый раз, ушли в подсказки у подписей.
+ * Под полем остаётся то, что меняется вместе с формой: унаследованные от
+ * шины узел и пользователь.
  */
 function BrokerBlock({ broker, busUrl, busUser, onChange }: {
   broker: BrokerSettings
@@ -557,213 +566,360 @@ function BrokerBlock({ broker, busUrl, busUser, onChange }: {
 
   const inheritedHost = busHost(busUrl)
 
+  /** Путь к файлу выбирается системным окном: набирать его руками незачем. */
+  const pickFile = async (key: 'clientCertPath' | 'clientKeyPath', title: string, filter: { name: string; extensions: string[] }) => {
+    const path = await selectFile(title, [filter, { name: t('broker.mtls.allFiles'), extensions: ['*'] }])
+    if (path) set(key, path)
+  }
+
   return (
-    <div className="mt-4 border-t border-line px-5 pt-4">
-      <div className="mb-2.5 flex items-center gap-2">
-        <span className="text-[11px] tracking-wide text-content-subtle">{t('broker.section')}</span>
-        <button
-          type="button"
-          onClick={() => setAdvanced((open) => !open)}
-          className={cx('ml-auto text-[11.5px] text-content-muted transition hover:text-content', FOCUS_RING)}
-        >
+    <div className="mt-4 border-t border-line">
+      <div className="flex flex-wrap items-center gap-3 bg-surface-2/60 px-5 py-3">
+        <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-accent/12 text-accent-content">
+          <Queue size={16} weight="regular" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="text-[12.5px] font-semibold">{t('broker.section')}</div>
+          <p className="text-[11px] leading-relaxed text-content-subtle">{t('broker.section.hint')}</p>
+        </div>
+        <Button size="sm" className="ml-auto" onClick={() => setAdvanced((open) => !open)} aria-expanded={advanced}>
+          <CaretDown size={12} weight="bold" className={cx('transition-transform', advanced && 'rotate-180')} />
           {advanced ? t('broker.less') : t('broker.more')}
-        </button>
+        </Button>
       </div>
 
-      <div className="grid grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,2fr)] gap-3">
-        <Field label={t('broker.host')} htmlFor="broker-host" hint={inheritedHost ? t('broker.host.inherited', { host: inheritedHost }) : undefined}>
-          <TextInput
-            id="broker-host"
-            value={broker.host}
-            placeholder={inheritedHost || 'broker.corp'}
-            onChange={(event) => set('host', event.target.value)}
-          />
-        </Field>
-        <Field label={t('broker.port')} htmlFor="broker-port">
-          <TextInput
-            id="broker-port"
-            value={broker.port}
-            placeholder="5672"
-            onChange={(event) => set('port', event.target.value)}
-          />
-        </Field>
-        <Field label={t('broker.queue')} htmlFor="broker-queue" hint={t('broker.queue.hint')}>
-          <TextInput
-            id="broker-queue"
-            value={broker.queue}
-            onChange={(event) => set('queue', event.target.value)}
-          />
-        </Field>
-      </div>
+      <div className="px-5 pb-1 pt-4">
+        <div className="grid grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,2fr)] gap-3">
+          <Field
+            label={t('broker.host')}
+            htmlFor="broker-host"
+            tip={t('broker.host.hint')}
+            hint={inheritedHost ? t('broker.host.inherited', { host: inheritedHost }) : undefined}
+          >
+            <TextInput
+              id="broker-host"
+              value={broker.host}
+              placeholder={inheritedHost || 'broker.corp'}
+              onChange={(event) => set('host', event.target.value)}
+            />
+          </Field>
+          <Field label={t('broker.port')} htmlFor="broker-port" tip={t('broker.port.hint')}>
+            <TextInput
+              id="broker-port"
+              value={broker.port}
+              placeholder="5672"
+              onChange={(event) => set('port', event.target.value)}
+            />
+          </Field>
+          <Field label={t('broker.queue')} htmlFor="broker-queue" tip={t('broker.queue.hint')}>
+            <TextInput
+              id="broker-queue"
+              value={broker.queue}
+              placeholder="Mon.Trace"
+              onChange={(event) => set('queue', event.target.value)}
+            />
+          </Field>
+        </div>
 
-      <div className="mt-3 flex flex-wrap items-center gap-2">
-        <Toggle
-          checked={broker.useTls}
-          onChange={(value) => set('useTls', value)}
-          label={t('broker.tls')}
-          title={t('broker.tls.hint')}
-        />
-        {broker.useTls && (
+        <div className="mt-3 flex flex-wrap items-center gap-2">
           <Toggle
-            checked={broker.tlsSkipVerify}
-            onChange={(value) => set('tlsSkipVerify', value)}
-            label={t('broker.tls.skip')}
-            title={t('broker.tls.skip.hint')}
+            checked={broker.useTls}
+            onChange={(value) => set('useTls', value)}
+            label={t('broker.tls')}
+            title={t('broker.tls.hint')}
           />
-        )}
-        <Toggle
-          checked={broker.saslAnonymous}
-          onChange={(value) => set('saslAnonymous', value)}
-          label={t('broker.anon')}
-          title={t('broker.anon.hint')}
-        />
-        <Toggle
-          checked={broker.useWs}
-          onChange={(value) => set('useWs', value)}
-          label={t('broker.ws')}
-          title={t('broker.ws.hint')}
-        />
-      </div>
+          {broker.useTls && (
+            <Toggle
+              checked={broker.tlsSkipVerify}
+              onChange={(value) => set('tlsSkipVerify', value)}
+              label={t('broker.tls.skip')}
+              title={t('broker.tls.skip.hint')}
+            />
+          )}
+          <Toggle
+            checked={broker.saslAnonymous}
+            onChange={(value) => set('saslAnonymous', value)}
+            label={t('broker.anon')}
+            title={t('broker.anon.hint')}
+          />
+          <Toggle
+            checked={broker.useWs}
+            onChange={(value) => set('useWs', value)}
+            label={t('broker.ws')}
+            title={t('broker.ws.hint')}
+          />
+        </div>
 
-      {advanced && (
-        <div className="mt-3 space-y-3">
-          <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)] gap-3">
-            <Field label={t('broker.user')} htmlFor="broker-user" hint={busUser ? t('broker.user.inherited', { user: busUser }) : undefined}>
-              <TextInput
-                id="broker-user"
-                value={broker.username}
-                placeholder={busUser}
-                disabled={broker.saslAnonymous}
-                onChange={(event) => set('username', event.target.value)}
-              />
-            </Field>
-            <Field label={t('broker.password')} htmlFor="broker-password">
-              <TextInput
-                id="broker-password"
-                type="password"
-                value={broker.password}
-                disabled={broker.saslAnonymous}
-                onChange={(event) => set('password', event.target.value)}
-              />
-            </Field>
-            <Field label={t('broker.wsPath')} htmlFor="broker-ws-path">
+        {/* Путь нужен только тем, кто включил WebSocket, — и стоит рядом
+            с самим переключателем, а не в глубине дополнительных настроек. */}
+        {broker.useWs && (
+          <div className="mt-3 grid grid-cols-[minmax(0,1fr)_minmax(0,2fr)] gap-3">
+            <Field label={t('broker.wsPath')} htmlFor="broker-ws-path" tip={t('broker.wsPath.hint')}>
               <TextInput
                 id="broker-ws-path"
                 value={broker.wsPath}
-                disabled={!broker.useWs}
+                placeholder="/ws"
                 onChange={(event) => set('wsPath', event.target.value)}
               />
             </Field>
           </div>
+        )}
 
-          <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)] gap-3">
-            <Field label={t('broker.containerId')} htmlFor="broker-container" hint={t('broker.containerId.hint')}>
-              <TextInput
-                id="broker-container"
-                value={broker.containerId}
-                placeholder="amqpush-<uuid>"
-                onChange={(event) => set('containerId', event.target.value)}
-              />
-            </Field>
-            <Field label={t('broker.heartbeat')} htmlFor="broker-heartbeat" hint={t('broker.heartbeat.hint')}>
-              <TextInput
-                id="broker-heartbeat"
-                value={broker.heartbeatSecs}
-                onChange={(event) => set('heartbeatSecs', event.target.value)}
-              />
-            </Field>
-            <Field label={t('broker.timeout')} htmlFor="broker-timeout" hint={t('broker.timeout.hint')}>
-              <TextInput
-                id="broker-timeout"
-                value={broker.connectTimeoutSecs}
-                onChange={(event) => set('connectTimeoutSecs', event.target.value)}
-              />
-            </Field>
-          </div>
+        {advanced && (
+          <>
+            <BrokerGroup label={t('broker.group.auth')}>
+              <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-3">
+                <Field
+                  label={t('broker.user')}
+                  htmlFor="broker-user"
+                  tip={t('broker.user.hint')}
+                  hint={busUser ? t('broker.user.inherited', { user: busUser }) : undefined}
+                >
+                  <TextInput
+                    id="broker-user"
+                    value={broker.username}
+                    placeholder={busUser}
+                    disabled={broker.saslAnonymous}
+                    onChange={(event) => set('username', event.target.value)}
+                  />
+                </Field>
+                <Field label={t('broker.password')} htmlFor="broker-password" tip={t('broker.password.hint')}>
+                  <TextInput
+                    id="broker-password"
+                    type="password"
+                    value={broker.password}
+                    disabled={broker.saslAnonymous}
+                    onChange={(event) => set('password', event.target.value)}
+                  />
+                </Field>
+              </div>
+            </BrokerGroup>
 
-          <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)] gap-3">
-            <Field label={t('broker.backoff.base')} htmlFor="broker-backoff-base" hint={t('broker.ms')}>
-              <TextInput
-                id="broker-backoff-base"
-                value={broker.reconnectBaseMs}
-                onChange={(event) => set('reconnectBaseMs', event.target.value)}
-              />
-            </Field>
-            <Field label={t('broker.backoff.max')} htmlFor="broker-backoff-max" hint={t('broker.ms')}>
-              <TextInput
-                id="broker-backoff-max"
-                value={broker.reconnectMaxMs}
-                onChange={(event) => set('reconnectMaxMs', event.target.value)}
-              />
-            </Field>
-            <Field label={t('broker.backoff.mult')} htmlFor="broker-backoff-mult" hint={t('broker.backoff.mult.hint')}>
-              <TextInput
-                id="broker-backoff-mult"
-                value={broker.reconnectMultiplier}
-                onChange={(event) => set('reconnectMultiplier', event.target.value)}
-              />
-            </Field>
-          </div>
+            <BrokerGroup label={t('broker.group.connection')}>
+              <div className="grid grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)] gap-3">
+                <Field label={t('broker.containerId')} htmlFor="broker-container" tip={t('broker.containerId.hint')}>
+                  <TextInput
+                    id="broker-container"
+                    value={broker.containerId}
+                    placeholder="amqpush-<uuid>"
+                    onChange={(event) => set('containerId', event.target.value)}
+                  />
+                </Field>
+                <Field label={t('broker.heartbeat')} htmlFor="broker-heartbeat" tip={t('broker.heartbeat.hint')}>
+                  <TextInput
+                    id="broker-heartbeat"
+                    value={broker.heartbeatSecs}
+                    placeholder="0"
+                    onChange={(event) => set('heartbeatSecs', event.target.value)}
+                  />
+                </Field>
+                <Field label={t('broker.timeout')} htmlFor="broker-timeout" tip={t('broker.timeout.hint')}>
+                  <TextInput
+                    id="broker-timeout"
+                    value={broker.connectTimeoutSecs}
+                    placeholder="10"
+                    onChange={(event) => set('connectTimeoutSecs', event.target.value)}
+                  />
+                </Field>
+              </div>
+            </BrokerGroup>
 
-          <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-3">
-            <Field label={t('broker.retry.attempts')} htmlFor="broker-retry" hint={t('broker.retry.attempts.hint')}>
-              <TextInput
-                id="broker-retry"
-                value={broker.sendRetryAttempts}
-                onChange={(event) => set('sendRetryAttempts', event.target.value)}
-              />
-            </Field>
-            <Field label={t('broker.retry.delay')} htmlFor="broker-retry-delay" hint={t('broker.ms')}>
-              <TextInput
-                id="broker-retry-delay"
-                value={broker.sendRetryDelayMs}
-                onChange={(event) => set('sendRetryDelayMs', event.target.value)}
-              />
-            </Field>
-          </div>
+            <BrokerGroup label={t('broker.group.retry')} hint={t('broker.group.retry.hint')}>
+              <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)] gap-3">
+                <Field label={t('broker.backoff.base')} htmlFor="broker-backoff-base" tip={t('broker.backoff.base.hint')}>
+                  <TextInput
+                    id="broker-backoff-base"
+                    value={broker.reconnectBaseMs}
+                    placeholder="1000"
+                    onChange={(event) => set('reconnectBaseMs', event.target.value)}
+                  />
+                </Field>
+                <Field label={t('broker.backoff.max')} htmlFor="broker-backoff-max" tip={t('broker.backoff.max.hint')}>
+                  <TextInput
+                    id="broker-backoff-max"
+                    value={broker.reconnectMaxMs}
+                    placeholder="30000"
+                    onChange={(event) => set('reconnectMaxMs', event.target.value)}
+                  />
+                </Field>
+                <Field label={t('broker.backoff.mult')} htmlFor="broker-backoff-mult" tip={t('broker.backoff.mult.hint')}>
+                  <TextInput
+                    id="broker-backoff-mult"
+                    value={broker.reconnectMultiplier}
+                    placeholder="2"
+                    onChange={(event) => set('reconnectMultiplier', event.target.value)}
+                  />
+                </Field>
+              </div>
 
-          <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)] gap-3">
-            <Field label={t('broker.cert')} htmlFor="broker-cert" hint={t('broker.cert.hint')}>
-              <TextInput
-                id="broker-cert"
-                value={broker.clientCertPath}
-                disabled={!broker.useTls}
-                onChange={(event) => set('clientCertPath', event.target.value)}
-              />
-            </Field>
-            <Field label={t('broker.key')} htmlFor="broker-key" hint={t('broker.key.hint')}>
-              <TextInput
-                id="broker-key"
-                value={broker.clientKeyPath}
-                disabled={!broker.useTls}
-                onChange={(event) => set('clientKeyPath', event.target.value)}
-              />
-            </Field>
-            <Field label={t('broker.keyPass')} htmlFor="broker-key-pass" hint={t('broker.keyPass.hint')}>
-              <TextInput
-                id="broker-key-pass"
-                type="password"
-                value={broker.clientKeyPassphrase}
-                disabled={!broker.useTls}
-                onChange={(event) => set('clientKeyPassphrase', event.target.value)}
-              />
-            </Field>
-          </div>
-        </div>
-      )}
+              <div className="mt-3 grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)] gap-3">
+                <Field label={t('broker.retry.attempts')} htmlFor="broker-retry" tip={t('broker.retry.attempts.hint')}>
+                  <TextInput
+                    id="broker-retry"
+                    value={broker.sendRetryAttempts}
+                    placeholder="1"
+                    onChange={(event) => set('sendRetryAttempts', event.target.value)}
+                  />
+                </Field>
+                <Field label={t('broker.retry.delay')} htmlFor="broker-retry-delay" tip={t('broker.retry.delay.hint')}>
+                  <TextInput
+                    id="broker-retry-delay"
+                    value={broker.sendRetryDelayMs}
+                    placeholder="250"
+                    onChange={(event) => set('sendRetryDelayMs', event.target.value)}
+                  />
+                </Field>
+              </div>
+            </BrokerGroup>
+
+            {/* Сертификату не на чем ехать без серверного TLS, поэтому без
+                него поля заперты — и сказано, почему. */}
+            <BrokerGroup
+              label={t('broker.group.mtls')}
+              hint={broker.useTls ? t('broker.group.mtls.hint') : undefined}
+              warning={broker.useTls ? undefined : t('broker.mtls.needsTls')}
+            >
+              <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-3">
+                <Field label={t('broker.cert')} htmlFor="broker-cert" tip={t('broker.cert.hint')}>
+                  <FilePick
+                    id="broker-cert"
+                    value={broker.clientCertPath}
+                    placeholder={fileExample('client.crt')}
+                    disabled={!broker.useTls}
+                    onChange={(value) => set('clientCertPath', value)}
+                    onPick={() => void pickFile('clientCertPath', t('broker.cert.pick'), {
+                      name: t('broker.mtls.certificates'),
+                      extensions: ['crt', 'pem', 'cer', 'p12', 'pfx'],
+                    })}
+                  />
+                </Field>
+                <Field label={t('broker.key')} htmlFor="broker-key" tip={t('broker.key.hint')}>
+                  <FilePick
+                    id="broker-key"
+                    value={broker.clientKeyPath}
+                    placeholder={fileExample('client.key')}
+                    disabled={!broker.useTls}
+                    onChange={(value) => set('clientKeyPath', value)}
+                    onPick={() => void pickFile('clientKeyPath', t('broker.key.pick'), {
+                      name: t('broker.mtls.keys'),
+                      extensions: ['key', 'pem', 'p8'],
+                    })}
+                  />
+                </Field>
+              </div>
+
+              <div className="mt-3 grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-3">
+                <Field label={t('broker.keyPass')} htmlFor="broker-key-pass" tip={t('broker.keyPass.hint')}>
+                  <TextInput
+                    id="broker-key-pass"
+                    type="password"
+                    value={broker.clientKeyPassphrase}
+                    disabled={!broker.useTls}
+                    onChange={(event) => set('clientKeyPassphrase', event.target.value)}
+                  />
+                </Field>
+              </div>
+            </BrokerGroup>
+          </>
+        )}
+      </div>
     </div>
   )
 }
 
-function Field({ label, htmlFor, hint, children }: {
+/**
+ * Тема внутри настроек брокера: подпись, тонкая линия и поля под ними.
+ *
+ * Полтора десятка полей подряд читаются как список без начала и конца;
+ * разложенные по темам, они находятся глазами за секунду.
+ */
+function BrokerGroup({ label, hint, warning, children }: {
+  label: string
+  hint?: string
+  warning?: string
+  children: ReactNode
+}) {
+  return (
+    <div className="mt-4">
+      <div className="mb-2 flex items-center gap-2">
+        <span className="shrink-0 text-[11px] font-semibold tracking-wide text-content-subtle">{label}</span>
+        <span className="h-px flex-1 bg-line" />
+      </div>
+      {hint && <p className="mb-2 text-[11px] leading-relaxed text-content-subtle">{hint}</p>}
+      {warning && (
+        <p className="mb-2 flex items-center gap-1.5 text-[11px] leading-relaxed text-caution">
+          <Warning size={12} weight="fill" className="shrink-0" />
+          {warning}
+        </p>
+      )}
+      {children}
+    </div>
+  )
+}
+
+/**
+ * Пример пути — в письме той системы, где открыто приложение.
+ *
+ * Путь в форме macOS ничего не подсказывает тому, кто работает в Windows:
+ * пример нужен как образец, а не как ещё одна незнакомая строка.
+ */
+function fileExample(name: string): string {
+  return navigator.userAgent.includes('Windows') ? `C:\\certs\\${name}` : `~/certs/${name}`
+}
+
+/** Путь к файлу: поле и кнопка выбора системным окном рядом с ним. */
+function FilePick({ id, value, placeholder, disabled, onChange, onPick }: {
+  id: string
+  value: string
+  placeholder: string
+  disabled?: boolean
+  onChange: (value: string) => void
+  onPick: () => void
+}) {
+  const { t } = useI18n()
+  return (
+    <div className="flex items-center gap-2">
+      <TextInput
+        id={id}
+        className="min-w-0 flex-1"
+        value={value}
+        placeholder={placeholder}
+        disabled={disabled}
+        onChange={(event) => onChange(event.target.value)}
+      />
+      <Button size="sm" className="h-9 shrink-0" onClick={onPick} disabled={disabled}>
+        <FolderOpen size={13} weight="regular" />
+        {t('broker.browse')}
+      </Button>
+    </div>
+  )
+}
+
+/**
+ * Поле формы: подпись, поле и то, что о нём нужно знать.
+ *
+ * `hint` остаётся под полем — это то, что меняется вместе с формой
+ * (унаследованный узел, унаследованный пользователь). `tip` — пояснение,
+ * которое нужно один раз: оно висит подсказкой на значке у подписи и не
+ * занимает строку под каждым полем.
+ */
+function Field({ label, htmlFor, hint, tip, children }: {
   label: string
   htmlFor: string
   hint?: string
+  tip?: string
   children: ReactNode
 }) {
   return (
     <div className="min-w-0">
-      <label className="mb-1.5 block text-[11px] tracking-wide text-content-subtle" htmlFor={htmlFor}>{label}</label>
+      <label className="mb-1.5 flex items-center gap-1 text-[11px] tracking-wide text-content-subtle" htmlFor={htmlFor}>
+        <span className="min-w-0 truncate">{label}</span>
+        {tip && (
+          <span title={tip} aria-label={tip} className="shrink-0 cursor-help text-content-subtle/80">
+            <Info size={12} weight="bold" />
+          </span>
+        )}
+      </label>
       {children}
       {hint && <p className="mt-1 truncate text-[10.5px] text-content-subtle" title={hint}>{hint}</p>}
     </div>

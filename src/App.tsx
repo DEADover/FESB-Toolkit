@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-import { ArrowsClockwise, DownloadSimple, Gear } from '@phosphor-icons/react'
+import { ArrowsClockwise, DownloadSimple } from '@phosphor-icons/react'
 
 import { AmqpushSection } from './components/AmqpushSection'
 import { AuditScreen } from './components/AuditScreen'
@@ -25,7 +25,7 @@ import { TraceScreen } from './components/TraceScreen'
 import { CommandPalette } from './components/CommandPalette'
 import { JobStatus } from './components/JobStatus'
 import { useToast } from './components/Toaster'
-import { Badge, Button, ButtonGlyph, cx, FOCUS_RING, Notice, Spinner } from './components/ui'
+import { Badge, Button, ButtonGlyph, cx, Notice, Spinner } from './components/ui'
 import { useI18n, type MessageKey } from './i18n'
 import {
   apiConnect, apiPull, appInfo, buildArchive, errorText, onApiProgress, onExtractProgress, onFileDrop, onScanProgress, openArchive, saveZipAs, scanDirectory, selectArchive, selectFolder,
@@ -409,26 +409,6 @@ export default function App() {
           {/* Полоса встаёт слева от переключателя: он крайний справа
               и не двигается, а полоса появляется и исчезает. */}
           <JobStatus />
-          {/*
-            Настройка подключений — одна на приложение. Прежде шестерёнок было
-            две, у заголовков разделов API и AMQP, и они вели на разные экраны:
-            «настроить, куда ходить» оказывалось двумя разными местами.
-          */}
-          <button
-            type="button"
-            onClick={() => setScreen('connection')}
-            title={t('nav.connection')}
-            aria-label={t('nav.connection')}
-            className={cx(
-              'grid size-9 shrink-0 place-items-center rounded-lg border transition',
-              FOCUS_RING,
-              screen === 'connection'
-                ? 'border-accent/40 bg-accent/15 text-accent-content'
-                : 'border-line-strong bg-surface-2 text-content-muted hover:bg-surface-3 hover:text-content',
-            )}
-          >
-            <Gear size={16} weight="regular" />
-          </button>
           <ServerSwitch
             store={connections}
             active={session?.profile ?? null}

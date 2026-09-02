@@ -26,7 +26,7 @@ export const SECTIONS_EN: HelpSection[] = [
         </P>
         <H3>The 60-second tour</H3>
         <UL>
-          <Li>Open the stand settings — the gear in the app header — fill in the <b>Broker</b> block at the bottom of the form, then hit <b>Connect</b> in this section's header.</Li>
+          <Li>Open <b>Connections</b> in the sidebar, fill in the <b>Broker</b> block at the bottom of the stand form, then hit <b>Connect</b> in this section's header.</Li>
           <Li>Switch to <b>Send Messages</b>, type a queue name (autocompletes from broker), put text in the Body, hit <b>Send</b> or <Kbd>⌘</Kbd><Kbd>Enter</Kbd>.</Li>
           <Li><b>Receive Messages</b> shows live messages; <b>REC</b> captures them to a recording, <b>Replay…</b> plays one back to any queue.</Li>
           <Li><b>Browser</b> peeks at queue contents without consuming — checkboxes enable selective <b>Purge</b>, <b>Shovel</b> (cross-broker copy) and DLQ <b>Edit &amp; Requeue</b>.</Li>
@@ -53,13 +53,13 @@ export const SECTIONS_EN: HelpSection[] = [
     id: "connection",
     title: "Connection",
     icon: <Plug className="w-3.5 h-3.5" />,
-    searchText: "connection stand broker host port queue username password tls ssl amqps heartbeat container id sasl anonymous certificate skip verify websocket ws wss reconnect backoff multiplier send retry mtls client certificate pem pkcs12 p12 pfx latency gear settings",
+    searchText: "connection stand broker host port queue username password tls ssl amqps heartbeat container id sasl anonymous certificate skip verify websocket ws wss reconnect backoff multiplier send retry mtls client certificate pem pkcs12 p12 pfx latency settings",
     content: (
       <>
         <H><Plug className="w-4 h-4 text-accent" />Broker &amp; stand</H>
         <P>
           The broker belongs to a <b>stand</b>, right next to the bus address: one stand, one
-          set of settings. Open them with the gear in the app header — the <b>Broker of this
+          set of settings. Open <b>Connections</b> in the sidebar — the <b>AMQP broker of this
           stand</b> block sits at the bottom of the stand form. The stand chip in this section's
           header opens the very same screen.
         </P>
@@ -80,7 +80,7 @@ export const SECTIONS_EN: HelpSection[] = [
         <Row label="Over WebSocket">Tunnel AMQP through <Code>ws://</Code> (or <Code>wss://</Code> with TLS on) instead of raw TCP. Reaches brokers that publish AMQP over a WebSocket binding — RabbitMQ with <Code>rabbitmq_web_amqp</Code>, Azure Service Bus, Amazon MQ, Solace — and gets through firewalls that block 5671 and 5672.</Row>
 
         <H3>More settings</H3>
-        <P>Set once per broker; the link at the top right of the block unfolds them.</P>
+        <P>Set once per broker; <b>More settings</b> at the top right of the block unfolds them, grouped by what they are for.</P>
         <Row label="Broker user / password">Empty means the bus credentials — same as the host. Fill them in when the broker has its own account.</Row>
         <Row label="WebSocket path">The path in the URL when the WebSocket transport is on; empty is the root.</Row>
         <Row label="Container id">How the client introduces itself to the broker; defaults to <Code>amqpush-&lt;uuid&gt;</Code>. Set it when the broker authorises connections by container name, or to make yourself recognisable in broker logs.</Row>
@@ -91,8 +91,8 @@ export const SECTIONS_EN: HelpSection[] = [
         <Row label="mTLS certificate / key / passphrase">
           Mutual TLS, where the broker recognises the client by certificate. Give a path to a
           PEM <Code>.crt</Code> plus a separate unencrypted PKCS#8 <Code>.key</Code>, or to a
-          PKCS#12 <Code>.p12</Code>/<Code>.pfx</Code> bundle with its passphrase. PEM keys must
-          be unencrypted — convert with <Code>openssl pkcs8 -topk8 -nocrypt</Code>, or use a
+          PKCS#12 <Code>.p12</Code>/<Code>.pfx</Code> bundle with its passphrase. <b>Browse…</b>
+          next to each field opens the system file picker. PEM keys must be unencrypted — convert with <Code>openssl pkcs8 -topk8 -nocrypt</Code>, or use a
           PKCS#12 bundle. The fields stay disabled until <b>TLS / AMQPS</b> is on: a certificate
           has nothing to ride on without server TLS. <b>Not supported over WebSocket</b> — with
           both enabled the connection errors out.
