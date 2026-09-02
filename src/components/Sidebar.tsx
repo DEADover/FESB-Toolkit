@@ -1,4 +1,6 @@
-import { ArrowsLeftRight, Broadcast, CaretLeft, PaperPlaneTilt, CaretRight, Certificate, CircleHalf, Crosshair, CrosshairSimple, Cube, FingerprintSimple, FlowArrow, Gear, Key, GithubLogo, House, ListDashes, Moon, Plugs, Queue, SlidersHorizontal, Stack, Sun, type Icon } from '@phosphor-icons/react'
+import { ArrowsLeftRight, Broadcast, CaretDown, CaretLeft, PaperPlaneTilt, CaretRight, Certificate, CircleHalf, Crosshair, CrosshairSimple, Cube, FingerprintSimple, FlowArrow, Gear, Key, GithubLogo, House, ListDashes, Moon, Plugs, Queue, SlidersHorizontal, Stack, Sun, Tray, ChartBar, ClockCounterClockwise, UsersThree, Binoculars, Terminal, type Icon } from '@phosphor-icons/react'
+
+import { useEffect, useState } from 'react'
 
 import { LANGUAGES, useI18n, type MessageKey } from '../i18n'
 import { openRepository, REPOSITORY_URL } from '../lib/api'
@@ -24,7 +26,14 @@ export type ScreenId =
   | 'api.logs'
   | 'api.audit'
   | 'api.access'
-  | 'amqp'
+  | 'amqp.connection'
+  | 'amqp.publisher'
+  | 'amqp.subscriber'
+  | 'amqp.browser'
+  | 'amqp.inspector'
+  | 'amqp.history'
+  | 'amqp.stats'
+  | 'amqp.console'
 
 /**
  * Экран раздела: подпись, значок и пояснение для первого экрана.
@@ -75,7 +84,13 @@ export const API_SCREENS: ScreenEntry[] = [
  * живой подписчик продолжал слушать очередь.
  */
 export const AMQP_SCREENS: ScreenEntry[] = [
-  { id: 'amqp', label: 'nav.amqp', title: 'nav.amqp.title', hint: 'welcome.hint.amqp', icon: PaperPlaneTilt },
+  { id: 'amqp.publisher', label: 'nav.amqp.publisher', hint: 'welcome.hint.amqp.publisher', icon: PaperPlaneTilt },
+  { id: 'amqp.subscriber', label: 'nav.amqp.subscriber', hint: 'welcome.hint.amqp.subscriber', icon: Tray },
+  { id: 'amqp.browser', label: 'nav.amqp.browser', hint: 'welcome.hint.amqp.browser', icon: Binoculars },
+  { id: 'amqp.inspector', label: 'nav.amqp.inspector', hint: 'welcome.hint.amqp.inspector', icon: UsersThree },
+  { id: 'amqp.history', label: 'nav.amqp.history', hint: 'welcome.hint.amqp.history', icon: ClockCounterClockwise },
+  { id: 'amqp.stats', label: 'nav.amqp.stats', hint: 'welcome.hint.amqp.stats', icon: ChartBar },
+  { id: 'amqp.console', label: 'nav.amqp.console', hint: 'welcome.hint.amqp.console', icon: Terminal },
 ]
 
 /**
@@ -119,13 +134,32 @@ const SECTIONS: Section[] = [
     items: API_SCREENS,
   },
   {
-    // Раздел из одного пункта: свои восемь экранов он показывает вкладками
-    // внутри себя. Заголовок всё равно нужен — он отделяет чужую машину
-    // (брокеры AMQP) от шины, с которой работают остальные разделы.
+    // Экраны раздела стоят наравне с остальными, а не вкладками внутри:
+    // разделов в панели три, и у всех трёх одинаковые правила. Подключение
+    // к брокеру ушло под шестерёнку — как подключение к шине у раздела API.
     title: 'nav.amqp',
+    settings: { screen: 'amqp.connection', title: 'nav.amqp.connection' },
     items: AMQP_SCREENS,
   },
 ]
+
+/**
+ * Свёрнутые разделы.
+ *
+ * Разделов три, и в каждом до дюжины экранов: тот, кто живёт в файловом
+ * режиме, не хочет видеть двенадцать пунктов про API. Свёрнутость помнится
+ * между запусками — заново сворачивать каждое утро незачем.
+ */
+const FOLDED_KEY = 'fesb.sidebar.folded'
+
+function readFolded(): Set<MessageKey> {
+  try {
+    const stored = localStorage.getItem(FOLDED_KEY)
+    return new Set(stored ? (JSON.parse(stored) as MessageKey[]) : [])
+  } catch {
+    return new Set()
+  }
+}
 
 interface Props {
   screen: ScreenId
@@ -144,6 +178,18 @@ interface Props {
  */
 export function Sidebar({ screen, onScreen, info, isMac, collapsed, onCollapse, themeMode, onThemeMode }: Props) {
   const { t, language, setLanguage } = useI18n()
+  const [folded, setFolded] = useState<Set<MessageKey>>(readFolded)
+
+  useEffect(() => {
+    try { localStorage.setItem(FOLDED_KEY, JSON.stringify([...folded])) } catch { /* приватный режим */ }
+  }, [folded])
+
+  const toggleSection = (title: MessageKey) => setFolded((prev) => {
+    const next = new Set(prev)
+    if (next.has(title)) next.delete(title)
+    else next.add(title)
+    return next
+  })
 
   return (
     <aside
@@ -174,10 +220,29 @@ export function Sidebar({ screen, onScreen, info, isMac, collapsed, onCollapse, 
                 // В узком режиме заголовок раздела не помещается — вместо него разделитель.
                 <div className="mx-auto mb-2 h-px w-6 bg-line" />
               ) : (
-                <div className="mb-1.5 flex items-center gap-2 px-2.5">
-                  <span className="whitespace-nowrap text-[11px] font-semibold tracking-wide text-content-subtle">
-                    {t(section.title)}
-                  </span>
+                <div className="mb-1.5 flex items-center gap-1 px-2.5">
+                  {/* Заголовок — кнопка: он и подписывает раздел, и сворачивает
+                      его. Отдельный значок рядом с подписью занимал бы место
+                      и промахивался бы мимо пальца. */}
+                  <button
+                    type="button"
+                    onClick={() => toggleSection(section.title)}
+                    aria-expanded={!folded.has(section.title)}
+                    className={cx(
+                      'group -ml-1 flex min-w-0 items-center gap-1 rounded-md px-1 py-0.5 transition',
+                      'text-content-subtle hover:text-content',
+                      FOCUS_RING,
+                    )}
+                  >
+                    <CaretDown
+                      size={11}
+                      weight="bold"
+                      className={cx('shrink-0 transition-transform', folded.has(section.title) && '-rotate-90')}
+                    />
+                    <span className="whitespace-nowrap text-[11px] font-semibold tracking-wide">
+                      {t(section.title)}
+                    </span>
+                  </button>
                   {section.settings && (
                     <button
                       type="button"
@@ -198,7 +263,7 @@ export function Sidebar({ screen, onScreen, info, isMac, collapsed, onCollapse, 
                 </div>
               )}
 
-              <div className="flex flex-col gap-0.5">
+              <div className={cx('flex flex-col gap-0.5', !collapsed && folded.has(section.title) && 'hidden')}>
                 {collapsed && section.settings && (
                   <button
                     type="button"

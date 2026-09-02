@@ -1,6 +1,8 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
 
 import { useI18n } from '../i18n'
+import type { View } from '../amqpush/types'
+import type { ScreenId } from './Sidebar'
 import { Spinner } from './ui'
 
 /**
@@ -14,21 +16,51 @@ import { Spinner } from './ui'
  * Подписчик на очередь живёт в Rust и переживает уход на соседний экран,
  * а вот принятые сообщения, набранное тело и настройки отправки живут
  * в состоянии React — и пропали бы вместе с ним.
+ *
+ * Экран выбирается снаружи, боковой панелью приложения: у раздела своих
+ * вкладок больше нет, его семь экранов стоят наравне с остальными.
  */
 const AmqpushScreen = lazy(() =>
   import('../amqpush/AmqpushScreen').then((module) => ({ default: module.AmqpushScreen })),
 )
 
-export function AmqpushSection({ active }: { active: boolean }) {
-  const { t } = useI18n()
-  const [opened, setOpened] = useState(active)
+/** Экран приложения ↔ экран раздела. Имена внутри раздела свои, исторические. */
+const VIEWS: Partial<Record<ScreenId, View>> = {
+  'amqp.connection': 'connection',
+  'amqp.publisher': 'publisher',
+  'amqp.subscriber': 'subscriber',
+  'amqp.browser': 'browser',
+  'amqp.inspector': 'inspector',
+  'amqp.history': 'history',
+  'amqp.stats': 'stats',
+  'amqp.console': 'console',
+}
 
-  useEffect(() => { if (active) setOpened(true) }, [active])
+const SCREENS: Record<View, ScreenId> = {
+  connection: 'amqp.connection',
+  publisher: 'amqp.publisher',
+  subscriber: 'amqp.subscriber',
+  browser: 'amqp.browser',
+  inspector: 'amqp.inspector',
+  history: 'amqp.history',
+  stats: 'amqp.stats',
+  console: 'amqp.console',
+}
+
+export function AmqpushSection({ screen, onScreen }: {
+  screen: ScreenId
+  onScreen: (screen: ScreenId) => void
+}) {
+  const { t } = useI18n()
+  const view = VIEWS[screen]
+  const [opened, setOpened] = useState(view !== undefined)
+
+  useEffect(() => { if (view) setOpened(true) }, [view])
 
   if (!opened) return null
 
   return (
-    <div className={active ? 'flex min-h-0 flex-1 flex-col' : 'hidden'}>
+    <div className={view ? 'flex min-h-0 flex-1 flex-col' : 'hidden'}>
       <Suspense
         fallback={
           <div className="flex flex-1 items-center justify-center gap-2 text-[12.5px] text-content-muted">
@@ -37,7 +69,16 @@ export function AmqpushSection({ active }: { active: boolean }) {
           </div>
         }
       >
-        <AmqpushScreen />
+        {/*
+          Пока раздел спрятан, `view` пуст — показываем последний открытый
+          экран, чтобы его состояние не сбрасывалось. Смена экрана изнутри
+          (горячие клавиши раздела, ссылки «отправить сюда») поднимается
+          наверх и подсвечивает нужный пункт панели.
+        */}
+        <AmqpushScreen
+          view={view ?? 'publisher'}
+          onView={(next) => onScreen(SCREENS[next])}
+        />
       </Suspense>
     </div>
   )

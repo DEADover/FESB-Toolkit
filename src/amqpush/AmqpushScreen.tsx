@@ -1,6 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { ChevronDown, HelpCircle, Plug, Sparkles, Terminal, User } from "lucide-react";
-import ViewTabs from "./components/ViewTabs";
 import ConnectionView from "./components/views/ConnectionView";
 import PublisherView from "./components/views/PublisherView";
 import SubscriberView from "./components/views/SubscriberView";
@@ -71,10 +70,14 @@ function helpSectionFor(view: View, pubTab: string): string {
  *
  * Тему, заголовок окна и обновления раздел не трогает: этим занят хозяин.
  */
-export function AmqpushScreen() {
+export function AmqpushScreen({ view, onView }: {
+  /** Какой экран показывать. Выбирается боковой панелью приложения. */
+  view: View;
+  /** Смена экрана изнутри: горячие клавиши и ссылки «отправить сюда». */
+  onView: (view: View) => void;
+}) {
   const t = useAmqpText();
 
-  const [view,           setView]           = useState<View>("publisher");
   const [prevView,       setPrevView]       = useState<View>("publisher");
   const [connected,      setConnected]      = useState(false);
   const [defaultAddress, setDefaultAddress] = useState("test_queue");
@@ -157,10 +160,10 @@ export function AmqpushScreen() {
     wsPath: "",
   });
 
-  // Track previous view to support Cmd+L toggle
+  // Прошлый экран помнится ради ⌘L: он переключает журнал и обратно.
   function changeView(v: View) {
     setPrevView(view);
-    setView(v);
+    onView(v);
   }
 
   const addLog = useCallback((kind: LogEntry["kind"], text: string) => {
@@ -600,8 +603,6 @@ export function AmqpushScreen() {
 
         </div>
       </header>
-
-      <ViewTabs active={view} onChange={changeView} />
 
       {/* Body */}
       <div className="isolate flex flex-1 min-h-0 overflow-hidden rounded-xl border border-line bg-surface">

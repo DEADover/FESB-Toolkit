@@ -1551,7 +1551,7 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
               {/* Batch parameters — disabled when the toggle is off (visual + form-level). */}
               <div>
                 <SectionLabel className="block mb-2">{t("send.batch.params")}</SectionLabel>
-                <div className={`bg-t-card border border-t-line rounded-xl p-3 space-y-3 ${batchEnabled ? "" : "opacity-50"}`}>
+                <div className={"bg-t-card border border-t-line rounded-xl p-3 space-y-3"}>
                   <div>
                     <label className="block text-[10px] uppercase tracking-wide text-content-subtle mb-1.5">
                       {t("send.batch.count")}
@@ -1589,7 +1589,7 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
 
               <div>
                 <SectionLabel className="block mb-2">{t("send.schedule.params")}</SectionLabel>
-                <div className={`bg-t-card border border-t-line rounded-xl p-3 space-y-3 ${scheduleEnabled ? "" : "opacity-50"}`}>
+                <div className={"bg-t-card border border-t-line rounded-xl p-3 space-y-3"}>
                   <div>
                     <label className="block text-[10px] uppercase tracking-wide text-content-subtle mb-1.5">
                       {t("send.schedule.delay")}
@@ -1872,7 +1872,7 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
               {/* Reply-target settings card — fields are disabled when the toggle is off. */}
               <div>
                 <SectionLabel className="block mb-2">{t("send.reply.target")}</SectionLabel>
-                <div className={`bg-t-card border border-t-line rounded-xl p-3 space-y-3 ${rrEnabled ? "" : "opacity-50"}`}>
+                <div className={"bg-t-card border border-t-line rounded-xl p-3 space-y-3"}>
                   <div>
                     <label className="block text-[10px] uppercase tracking-wide text-content-subtle mb-1.5">
                       Reply-to address
@@ -2187,7 +2187,7 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
                   className="amqp-checkbox" />
                 <span className="text-[13px] text-t-ink2 font-medium">{t("send.chaos.oversized")}</span>
               </label>
-              <div className={`pl-5 space-y-1 text-[11.5px] ${chaosPadBody ? "" : "opacity-50"}`}>
+              <div className={"pl-5 space-y-1 text-[11.5px]"}>
                 <p className="text-t-ink5">{t("send.chaos.oversized.note")}</p>
                 <div className="flex items-center gap-2">
                   <label className="text-[10px] uppercase tracking-wide text-content-subtle">{t("send.chaos.size")}</label>
@@ -2207,7 +2207,7 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
                   className="amqp-checkbox" />
                 <span className="text-[13px] text-t-ink2 font-medium">{t("send.chaos.contentType")}</span>
               </label>
-              <div className={`pl-5 space-y-1 text-[11.5px] ${chaosWrongCt ? "" : "opacity-50"}`}>
+              <div className={"pl-5 space-y-1 text-[11.5px]"}>
                 <p className="text-t-ink5">{t("send.chaos.contentType.note")}</p>
                 <input value={chaosWrongCtValue}
                   disabled={!chaosWrongCt}
@@ -2224,7 +2224,7 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
                   className="amqp-checkbox" />
                 <span className="text-[13px] text-t-ink2 font-medium">{t("send.chaos.malformed")}</span>
               </label>
-              <p className={`pl-5 text-[11.5px] text-t-ink5 ${chaosCorruptJson ? "" : "opacity-50"}`}>
+              <p className={"pl-5 text-[11.5px] text-t-ink5"}>
                 {t("send.chaos.malformed.note")}
               </p>
             </div>
@@ -2236,7 +2236,7 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
                   className="amqp-checkbox" />
                 <span className="text-[13px] text-t-ink2 font-medium">{t("send.chaos.strip")}</span>
               </label>
-              <div className={`pl-5 space-y-1 text-[11.5px] ${chaosDropProp ? "" : "opacity-50"}`}>
+              <div className={"pl-5 space-y-1 text-[11.5px]"}>
                 <p className="text-t-ink5">{t("send.chaos.strip.note")}</p>
                 <input value={chaosDropPropKey}
                   disabled={!chaosDropProp}

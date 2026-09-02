@@ -59,7 +59,11 @@
   --color-t-ink2: var(--color-content-muted);
   --color-t-ink3: var(--color-content-muted);
   --color-t-ink4: var(--color-content-subtle);
-  --color-t-ink5: var(--color-line-strong);
+  /* Пятый оттенок текста раздела был отображён на цвет рамки: серое
+     по серому, 1.5:1 вместо 4.5 — читать невозможно ни в светлой теме,
+     ни в тёмной. У приложения три оттенка текста, самый тусклый из них
+     и есть предел, ниже которого опускаться нельзя. */
+  --color-t-ink5: var(--color-content-subtle);
 
   --color-t-selection: var(--color-accent);
 }

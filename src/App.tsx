@@ -321,7 +321,7 @@ export default function App() {
 
   // Раздел AMQP разговаривает с брокером, а не с шиной: строка с папкой
   // выгрузки и кнопки файлов ему так же ни к чему, как экранам API.
-  const isApiScreen = screen.startsWith('api.') || screen === 'amqp'
+  const isApiScreen = screen.startsWith('api.') || screen.startsWith('amqp.')
   const isLinksScreen = screen === 'files.links'
   // На первом экране кнопки шапки не нужны: те же действия стоят карточками
   // в самом экране, и дублировать их — только сбивать с толку.
@@ -351,7 +351,14 @@ export default function App() {
     'api.modules': 'nav.api.modules.title',
     'api.properties': 'nav.api.properties.title',
     'api.logs': 'nav.api.logs.title',
-    amqp: 'nav.amqp.title',
+    'amqp.connection': 'nav.amqp.connection',
+    'amqp.publisher': 'nav.amqp.publisher',
+    'amqp.subscriber': 'nav.amqp.subscriber',
+    'amqp.browser': 'nav.amqp.browser',
+    'amqp.inspector': 'nav.amqp.inspector',
+    'amqp.history': 'nav.amqp.history',
+    'amqp.stats': 'nav.amqp.stats',
+    'amqp.console': 'nav.amqp.console',
   }
   const screenTitle = t(API_TITLES[screen] ?? 'nav.files.trace')
 
@@ -439,9 +446,9 @@ export default function App() {
         {/* Раздел AMQP остаётся в дереве после первого открытия: принятые
             сообщения и набранное тело живут в состоянии, и уход на соседний
             экран не должен их терять. */}
-        <AmqpushSection active={screen === 'amqp'} />
+        <AmqpushSection screen={screen} onScreen={setScreen} />
 
-        {screen === 'amqp' ? null : screen === 'welcome' ? (
+        {screen.startsWith('amqp.') ? null : screen === 'welcome' ? (
           <WelcomeScreen
             server={session?.server ?? null}
             connection={session?.connection ?? null}

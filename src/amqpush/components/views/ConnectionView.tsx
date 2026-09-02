@@ -894,7 +894,7 @@ export default function ConnectionView({ connected, form, setForm, logs, profile
               <span>{t("conn.mtls.needsTls")}</span>
             </div>
           )}
-          <div className={`bg-t-card border border-t-line rounded-xl p-3 space-y-3 ${useTls ? "" : "opacity-50"}`}>
+          <div className={"bg-t-card border border-t-line rounded-xl p-3 space-y-3"}>
             <div>
               <label className={LABEL}>
                 {t("conn.mtls.cert")}
