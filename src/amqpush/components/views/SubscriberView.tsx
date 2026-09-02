@@ -13,6 +13,7 @@ import QueuePicker from "../QueuePicker";
 import CollapsibleSection from "../CollapsibleSection";
 import PropsList from "../PropsList";
 import EmptyState from "../EmptyState";
+import { useAmqpText } from "../../i18n";
 import SectionLabel from "../SectionLabel";
 import ViewTopBar from "../ViewTopBar";
 import ConfirmDialog from "../ConfirmDialog";
@@ -176,6 +177,7 @@ interface QueueState {
 // ── component ────────────────────────────────────────────────────────────────
 
 export default function SubscriberView({ connected, defaultAddress, activeProfile, pendingAddress, onLog, onMessageReceived, onReply }: Props) {
+  const t = useAmqpText();
   const [picker,       setPicker]       = useState(defaultAddress);
   /** JMS-style broker-side selector, e.g. `priority > 5 AND type = 'order'`.
    *  Empty = no filter. Sent to start_subscriber as the `selector` arg.
@@ -318,7 +320,7 @@ export default function SubscriberView({ connected, defaultAddress, activeProfil
         localStorage.setItem(PERSIST_FLAG_KEY, next ? "1" : "0");
         if (!next) localStorage.removeItem(PERSIST_DATA_KEY);
       } catch {}
-      onLog("info", next ? "Persistence enabled — messages saved across restarts" : "Persistence disabled");
+      onLog("info", next ? t("recv.persist.enabled") : t("recv.persist.disabled"));
       return next;
     });
   }
@@ -455,7 +457,7 @@ export default function SubscriberView({ connected, defaultAddress, activeProfil
    */
   async function saveRecording(name: string): Promise<void> {
     const buf = recordBufferRef.current;
-    if (buf.length === 0) { onLog("err", "Recording buffer is empty"); return; }
+    if (buf.length === 0) { onLog("err", t("recv.rec.empty")); return; }
     const startTs = buf[0].ts;
     // Group by source queue — use the first observed one if mixed (rare).
     const sourceQueue = buf[0].msg.queue || "";
@@ -485,10 +487,10 @@ export default function SubscriberView({ connected, defaultAddress, activeProfil
   }
 
   async function addSubscription() {
-    if (!connected)        { onLog("err", "Not connected to broker"); return; }
+    if (!connected)        { onLog("err", t("recv.notConnected")); return; }
     const addr = picker.trim();
-    if (!addr)             { onLog("err", "Queue address is required"); return; }
-    if (queues.some(q => q.queue === addr)) { onLog("err", `Already subscribed to '${addr}'`); return; }
+    if (!addr)             { onLog("err", t("recv.needQueue")); return; }
+    if (queues.some(q => q.queue === addr)) { onLog("err", t("recv.already", { queue: addr })); return; }
     try {
       const sel = selector.trim();
       const topic = topicPattern.trim();
@@ -534,7 +536,7 @@ export default function SubscriberView({ connected, defaultAddress, activeProfil
       setSessionStart(null);
       setPaused(false);
       setDroppedCount(0);
-      onLog("info", "All subscribers stopped");
+      onLog("info", t("recv.stopped"));
     } catch (e) { onLog("err", String(e)); }
   }
 
@@ -542,7 +544,7 @@ export default function SubscriberView({ connected, defaultAddress, activeProfil
     setPaused(p => {
       const next = !p;
       if (!next) setDroppedCount(0);
-      onLog("info", next ? "Paused — incoming messages will be dropped" : "Resumed");
+      onLog("info", next ? t("recv.paused") : t("recv.resumed"));
       return next;
     });
   }
@@ -606,7 +608,7 @@ export default function SubscriberView({ connected, defaultAddress, activeProfil
   function handleReply(msg: ReceivedMessage) {
     const replyTarget = msg.meta.reply_to;
     if (!replyTarget) {
-      onLog("err", "This message has no reply-to address — cannot Reply");
+      onLog("err", t("recv.noReplyTo"));
       return;
     }
     if (!onReply) return;
@@ -661,7 +663,7 @@ export default function SubscriberView({ connected, defaultAddress, activeProfil
       {/* ─── TITLE ROW ─── */}
       <ViewTopBar
         icon={<Inbox className="w-3.5 h-3.5" />}
-        title="Receive Messages"
+        title={t("recv.title")}
       >
         {listening && (
           <button
@@ -671,9 +673,11 @@ export default function SubscriberView({ connected, defaultAddress, activeProfil
                 ? "bg-caution/10 border-caution/30 text-caution hover:bg-caution/20"
                 : "border-t-line text-t-ink3 hover:text-t-ink hover:bg-t-hover"
             }`}
-            title={paused ? "Resume" : "Pause — drop incoming messages"}
+            title={paused ? t("recv.resume") : t("recv.pause.hint")}
           >
-            {paused ? <><Play className="w-3 h-3" /> Resume</> : <><Pause className="w-3 h-3" /> Pause</>}
+            {paused
+              ? <><Play className="w-3 h-3" /> {t("recv.resume")}</>
+              : <><Pause className="w-3 h-3" /> {t("recv.pause")}</>}
           </button>
         )}
 
@@ -681,33 +685,35 @@ export default function SubscriberView({ connected, defaultAddress, activeProfil
           onClick={addSubscription}
           disabled={!connected}
           className="shrink-0 flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-[12.5px] font-semibold bg-positive hover:bg-positive text-white transition-all whitespace-nowrap disabled:opacity-40 disabled:cursor-not-allowed shadow-sm"
-          title={listening ? "Add another queue to listen to" : "Start listening on this queue"}
+          title={listening ? t("recv.add.hint") : t("recv.start.hint")}
         >
-          {listening ? <><Plus className="w-3.5 h-3.5" /> Add</> : <><Play className="w-3.5 h-3.5" /> Start</>}
+          {listening
+            ? <><Plus className="w-3.5 h-3.5" /> {t("recv.add")}</>
+            : <><Play className="w-3.5 h-3.5" /> {t("recv.start")}</>}
         </button>
 
         <button
           onClick={() => setReplayOpen(true)}
           disabled={!connected}
           className="shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12.5px] font-medium border border-t-line text-t-ink2 hover:text-t-ink hover:bg-t-hover transition-colors disabled:opacity-40"
-          title={connected ? "Pick a saved recording and replay it to a queue" : "Connect to broker first"}
+          title={connected ? t("recv.replay.hint") : t("recv.replay.blocked")}
         >
-          <Play className="w-3 h-3" /> Replay…
+          <Play className="w-3 h-3" /> {t("recv.replay")}
         </button>
         {listening && (
           <button
             onClick={stopAll}
             className="shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12.5px] font-medium bg-negative/10 border border-negative/30 text-negative hover:bg-negative/20 transition-colors"
-            title="Stop all subscribers"
+            title={t("recv.stopAll.hint")}
           >
-            <Square className="w-3 h-3" /> Stop all
+            <Square className="w-3 h-3" /> {t("recv.stopAll")}
           </button>
         )}
       </ViewTopBar>
 
       {/* ─── QUEUE PICKER ROW ─── */}
       <div className="shrink-0 px-3 py-1.5 border-b border-t-line bg-t-panel flex items-center gap-2">
-        <SectionLabel className="shrink-0 w-12">From</SectionLabel>
+        <SectionLabel className="shrink-0 w-12">{t("recv.from")}</SectionLabel>
         <QueuePicker value={picker} onChange={setPicker} connected={connected} profileName={activeProfile} disabled={false} showSave className="flex-1" />
         <button
           type="button"
@@ -719,10 +725,10 @@ export default function SubscriberView({ connected, defaultAddress, activeProfil
                 ? "border-t-line2 text-t-ink bg-t-card"
                 : "border-t-line text-t-ink4 hover:text-t-ink hover:bg-t-hover"
           }`}
-          title={selector.trim() ? `Selector active: ${selector}` : "Add a JMS-style broker-side selector"}
+          title={selector.trim() ? t("recv.selector.active", { selector }) : t("recv.selector.add")}
         >
           <Filter className="w-3 h-3" />
-          Selector
+          {t("recv.selector")}
           {selector.trim() && <span className="w-1.5 h-1.5 rounded-full bg-accent" />}
         </button>
         <button
@@ -735,10 +741,10 @@ export default function SubscriberView({ connected, defaultAddress, activeProfil
                 ? "border-t-line2 text-t-ink bg-t-card"
                 : "border-t-line text-t-ink4 hover:text-t-ink hover:bg-t-hover"
           }`}
-          title={topicPattern.trim() ? `Pattern active: ${topicPattern}` : "Subscribe to a topic pattern with wildcards"}
+          title={topicPattern.trim() ? t("recv.pattern.active", { pattern: topicPattern }) : t("recv.pattern.add")}
         >
           <Hash className="w-3 h-3" />
-          Pattern
+          {t("recv.pattern")}
           {topicPattern.trim() && <span className="w-1.5 h-1.5 rounded-full bg-accent-content" />}
         </button>
       </div>
@@ -746,18 +752,17 @@ export default function SubscriberView({ connected, defaultAddress, activeProfil
       {/* ─── SELECTOR INPUT ROW (collapsible) ─── */}
       {showSelector && (
         <div className="shrink-0 px-3 py-1.5 border-b border-t-line bg-t-panel/60 flex items-start gap-2">
-          <SectionLabel className="shrink-0 mt-1.5 w-12">Where</SectionLabel>
+          <SectionLabel className="shrink-0 mt-1.5 w-12">{t("recv.where")}</SectionLabel>
           <div className="flex-1 min-w-0">
             <input
               value={selector}
               onChange={e => setSelector(e.target.value)}
-              placeholder="priority > 5 AND application_property:type = 'order'"
+              placeholder={t("recv.selector.placeholder")}
               spellCheck={false}
               className="w-full font-mono text-[12.5px] bg-t-field border border-t-line2 rounded-lg px-2.5 py-1.5 text-t-ink outline-none focus:border-accent focus:ring-1 focus:ring-accent/30 transition-all placeholder:text-t-ink5"
             />
             <p className="text-[10.5px] text-t-ink5 mt-1">
-              JMS-style selector applied broker-side via <span className="font-mono">apache.org:selector-filter:string</span>.
-              Supported on Artemis / ActiveMQ / Qpid. Empty = receive everything.
+              {t("recv.selector.note")}
             </p>
           </div>
           {/* Saved-selectors library — click to apply, "Save current as…"
@@ -766,8 +771,8 @@ export default function SubscriberView({ connected, defaultAddress, activeProfil
             <button
               type="button"
               onClick={() => { setSavedSelectorsOpen(o => !o); setSaveSelectorPrompt(null); }}
-              title="Saved selectors"
-              aria-label="Saved selectors"
+              title={t("recv.selector.saved")}
+              aria-label={t("recv.selector.saved")}
               className={`p-1.5 rounded-md transition-colors ${
                 savedSelectorsOpen
                   ? "text-accent bg-accent/10"
@@ -784,7 +789,7 @@ export default function SubscriberView({ connected, defaultAddress, activeProfil
                 <div className="max-h-56 overflow-y-auto">
                   {savedSelectors.length === 0 ? (
                     <p className="px-3 py-3 text-[11.5px] text-t-ink5 text-center">
-                      No saved selectors yet. Type a selector and click "Save current as…".
+                      {t("recv.selector.empty")}
                     </p>
                   ) : savedSelectors.map(s => (
                     <div key={s.id} className="group flex items-center gap-2 px-3 py-1.5 border-b border-t-line/40 hover:bg-t-hover/50 transition-colors">
@@ -803,7 +808,7 @@ export default function SubscriberView({ connected, defaultAddress, activeProfil
                           ev.stopPropagation();
                           setSavedSelectors(prev => prev.filter(x => x.id !== s.id));
                         }}
-                        title={`Forget '${s.name}'`}
+                        title={t("recv.selector.forget", { name: s.name })}
                         className="opacity-0 group-hover:opacity-100 p-1 rounded-md text-t-ink5 hover:text-negative transition-all"
                       >
                         <X className="w-3 h-3" />
@@ -818,7 +823,7 @@ export default function SubscriberView({ connected, defaultAddress, activeProfil
                       onClick={() => { if (selector.trim()) setSaveSelectorPrompt(""); }}
                       disabled={!selector.trim()}
                       className="w-full flex items-center gap-2 px-3 py-1.5 text-left text-accent hover:bg-t-hover transition-colors text-[12.5px] font-medium disabled:opacity-40 disabled:hover:bg-transparent"
-                      title={selector.trim() ? "Save current selector under a name" : "Type a selector first"}
+                      title={selector.trim() ? t("recv.selector.save") : t("recv.selector.saveBlocked")}
                     >
                       <Save className="w-3 h-3 shrink-0" /> Save current as…
                     </button>
@@ -842,13 +847,13 @@ export default function SubscriberView({ connected, defaultAddress, activeProfil
                           }
                           if (e.key === "Escape") setSaveSelectorPrompt(null);
                         }}
-                        placeholder="Name (e.g. VIP priority)"
+                        placeholder={t("recv.selector.name")}
                         className="flex-1 min-w-0 bg-t-field border border-t-line2 rounded-md px-2 py-0.5 text-[11.5px] text-t-ink outline-none focus:border-accent"
                       />
                       <button
                         type="button"
                         onClick={() => setSaveSelectorPrompt(null)}
-                        title="Cancel"
+                        title={t("recv.cancel")}
                         className="p-1 rounded-md text-t-ink5 hover:text-t-ink2"
                       >
                         <X className="w-3 h-3" />
@@ -864,7 +869,7 @@ export default function SubscriberView({ connected, defaultAddress, activeProfil
               type="button"
               onClick={() => setSelector("")}
               className="shrink-0 mt-1 p-1 rounded-md text-t-ink4 hover:text-negative hover:bg-t-hover transition-colors"
-              title="Clear selector"
+              title={t("recv.selector.clear")}
             >
               <X className="w-3 h-3" />
             </button>
@@ -875,12 +880,12 @@ export default function SubscriberView({ connected, defaultAddress, activeProfil
       {/* ─── TOPIC-PATTERN INPUT ROW (collapsible) ─── */}
       {showTopicPattern && (
         <div className="shrink-0 px-3 py-1.5 border-b border-t-line bg-t-panel/60 flex items-start gap-2">
-          <SectionLabel className="shrink-0 mt-1.5 w-12">Topic</SectionLabel>
+          <SectionLabel className="shrink-0 mt-1.5 w-12">{t("recv.topic")}</SectionLabel>
           <div className="flex-1 min-w-0">
             <input
               value={topicPattern}
               onChange={e => setTopicPattern(e.target.value)}
-              placeholder="orders.*  or  events.>  or  notifications.#"
+              placeholder={t("recv.topic.placeholder")}
               spellCheck={false}
               className="w-full font-mono text-[12.5px] bg-t-field border border-t-line2 rounded-lg px-2.5 py-1.5 text-t-ink outline-none focus:border-accent-content focus:ring-1 focus:ring-accent-content/30 transition-all placeholder:text-t-ink5"
             />
@@ -895,7 +900,7 @@ export default function SubscriberView({ connected, defaultAddress, activeProfil
               type="button"
               onClick={() => setTopicPattern("")}
               className="shrink-0 mt-1 p-1 rounded-md text-t-ink4 hover:text-negative hover:bg-t-hover transition-colors"
-              title="Clear pattern"
+              title={t("recv.pattern.clear")}
             >
               <X className="w-3 h-3" />
             </button>
@@ -970,7 +975,7 @@ export default function SubscriberView({ connected, defaultAddress, activeProfil
                   <button
                     onClick={dismiss}
                     className={`${q.unrecoverable ? "" : "opacity-50 group-hover:opacity-100"} hover:text-negative transition-opacity`}
-                    title={q.unrecoverable ? `Dismiss '${q.queue}'` : `Stop '${q.queue}'`}
+                    title={q.unrecoverable ? t("recv.dismiss", { queue: q.queue }) : t("recv.stopOne", { queue: q.queue })}
                   >
                     <X className="w-3 h-3" />
                   </button>
@@ -991,10 +996,10 @@ export default function SubscriberView({ connected, defaultAddress, activeProfil
                 : "border-t-line text-t-ink4 hover:text-t-ink hover:bg-t-hover"
             }`}
             title={recording
-              ? `Recording — ${recordCount} messages captured. Click to pause.`
+              ? t("recv.rec.on", { count: recordCount })
               : recordCount > 0
-                ? `Resume recording (${recordCount} buffered)`
-                : "Start recording incoming messages for later replay"}
+                ? t("recv.rec.resume", { count: recordCount })
+                : t("recv.rec.start")}
           >
             <Circle className={`w-2.5 h-2.5 ${recording ? "fill-negative text-negative animate-pulse" : ""}`} />
             REC{recordCount > 0 && <span className="font-mono opacity-80">{recordCount}</span>}
@@ -1008,7 +1013,7 @@ export default function SubscriberView({ connected, defaultAddress, activeProfil
             onClick={() => { setRecordSaveName(""); setRecordSaveOpen(true); }}
             disabled={recordCount === 0}
             title={recordCount === 0
-              ? "Save — nothing captured yet (click REC first, then receive some messages)"
+              ? t("recv.rec.saveBlocked")
               : recording
                 ? `Snapshot the ${recordCount} buffered messages (recording continues with a fresh buffer)`
                 : `Save the ${recordCount} buffered messages as a recording for later replay`}
@@ -1019,18 +1024,18 @@ export default function SubscriberView({ connected, defaultAddress, activeProfil
 
           {/* Session stats */}
           <div className="ml-auto flex items-center gap-3 text-[11.5px] font-mono text-t-ink4 shrink-0">
-            <span title="Total received this session"><span className="text-t-ink3">{messages.length}</span> msg</span>
+            <span title={t("recv.stat.count")}><span className="text-t-ink3">{messages.length}</span> {t("recv.stat.msg")}</span>
             {sessionBytes > 0 && (
-              <span title="Total bytes received"><span className="text-t-ink3">{fmtBytes(sessionBytes)}</span></span>
+              <span title={t("recv.stat.bytes")}><span className="text-t-ink3">{fmtBytes(sessionBytes)}</span></span>
             )}
             {avgSize > 0 && (
-              <span title="Average message size"><span className="text-t-ink5">avg</span> {fmtBytes(avgSize)}</span>
+              <span title={t("recv.stat.avg")}><span className="text-t-ink5">{t("recv.stat.avgShort")}</span> {fmtBytes(avgSize)}</span>
             )}
             {recentRate > 0 && (
-              <span title="Rate over last 5s"><span className="text-t-ink3">{recentRate.toFixed(1)}</span><span className="text-t-ink5">/s</span></span>
+              <span title={t("recv.stat.rate")}><span className="text-t-ink3">{recentRate.toFixed(1)}</span><span className="text-t-ink5">/s</span></span>
             )}
             {sessionStart && (
-              <span title="Session duration" className="text-t-ink5">{fmtDuration(sessionDurationMs)}</span>
+              <span title={t("recv.stat.duration")} className="text-t-ink5">{fmtDuration(sessionDurationMs)}</span>
             )}
           </div>
         </div>
@@ -1043,7 +1048,7 @@ export default function SubscriberView({ connected, defaultAddress, activeProfil
           <input
             value={filter}
             onChange={e => setFilter(e.target.value)}
-            placeholder="Filter by body, queue, id, content-type, app-property…"
+            placeholder={t("recv.filter")}
             className={`flex-1 bg-transparent text-xs text-t-ink outline-none placeholder:text-t-ink5 ${filterErr ? "text-negative" : ""}`}
           />
           {filter && (
@@ -1052,11 +1057,11 @@ export default function SubscriberView({ connected, defaultAddress, activeProfil
             </button>
           )}
           {isFiltering && <span className="text-[11.5px] text-t-ink4 shrink-0">{filtered.length} / {messages.length}</span>}
-          {filterErr && <span className="text-[11.5px] text-negative shrink-0">invalid regex</span>}
+          {filterErr && <span className="text-[11.5px] text-negative shrink-0">{t("recv.filter.bad")}</span>}
           <button
             onClick={() => setAutoScroll(a => !a)}
             className={`text-[11.5px] transition-colors px-1.5 py-0.5 rounded-md shrink-0 ${autoScroll ? "text-accent bg-accent/10" : "text-t-ink5 hover:text-t-ink3"}`}
-            title="Auto-scroll to newest"
+            title={t("recv.autoscroll")}
           >
             {autoScroll ? "● Auto" : "○ Auto"}
           </button>
@@ -1067,11 +1072,11 @@ export default function SubscriberView({ connected, defaultAddress, activeProfil
               persistEnabled ? "text-accent bg-accent/10" : "text-t-ink4 hover:text-t-ink3"
             }`}
             title={persistEnabled
-              ? `Persistence on — last ${PERSIST_MAX_ENTRIES} messages saved across restarts`
-              : `Click to save messages across app restarts (max ${PERSIST_MAX_ENTRIES})`
+              ? t("recv.persist.on", { count: PERSIST_MAX_ENTRIES })
+              : t("recv.persist.off", { count: PERSIST_MAX_ENTRIES })
             }
           >
-            <Database className="w-3 h-3" /> Persist
+            <Database className="w-3 h-3" /> {t("recv.persist")}
           </button>
 
           <button
@@ -1079,7 +1084,7 @@ export default function SubscriberView({ connected, defaultAddress, activeProfil
             className={`flex items-center gap-1 text-[11.5px] transition-colors px-1.5 py-0.5 rounded-md shrink-0 ${
               rulesActiveCount > 0 ? "text-accent bg-accent/10" : "text-t-ink4 hover:text-t-ink3"
             }`}
-            title={`Highlight rules ${rulesActiveCount > 0 ? `(${rulesActiveCount} active)` : ""}`}
+            title={rulesActiveCount > 0 ? t("recv.rules.active", { count: rulesActiveCount }) : t("recv.rules")}
           >
             <Palette className="w-3 h-3" /> Rules{rulesActiveCount > 0 && <span className="font-mono">{rulesActiveCount}</span>}
           </button>
@@ -1087,8 +1092,8 @@ export default function SubscriberView({ connected, defaultAddress, activeProfil
           <div ref={exportMenuRef} className="relative shrink-0">
             <button onClick={() => setExportOpen(o => !o)}
               className="flex items-center gap-1 text-[11.5px] text-t-ink4 hover:text-accent transition-colors px-1.5 py-0.5"
-              title="Export received messages">
-              <Download className="w-3 h-3" /> Export
+              title={t("recv.export")}>
+              <Download className="w-3 h-3" /> {t("recv.export.short")}
               <ChevronDown className="w-3 h-3" />
             </button>
             {exportOpen && (
@@ -1115,17 +1120,14 @@ export default function SubscriberView({ connected, defaultAddress, activeProfil
 
       <ConfirmDialog
         open={confirmClearMsgs}
-        title="Clear received messages"
+        title={t("recv.clear")}
         body={
           <p>
-            Discard{" "}
-            <span className="font-mono font-bold text-t-ink">{messages.length.toLocaleString()}</span>{" "}
-            received message{messages.length === 1 ? "" : "s"} from this session?
-            {persistEnabled && <> The persisted copy in <code className="text-t-ink4">localStorage</code> will also be wiped.</>}
-            {" "}Subscription stays active — new arrivals will continue to populate the list.
+            {t("recv.clear.body", { count: messages.length.toLocaleString() })}
+            {persistEnabled && t("recv.clear.persisted")}
           </p>
         }
-        confirmLabel={`Clear ${messages.length.toLocaleString()} message${messages.length === 1 ? "" : "s"}`}
+        confirmLabel={t("recv.clear.confirm", { count: messages.length.toLocaleString() })}
         onConfirm={() => { clearMessages(); setConfirmClearMsgs(false); }}
         onCancel={() => setConfirmClearMsgs(false)}
       />
@@ -1134,9 +1136,9 @@ export default function SubscriberView({ connected, defaultAddress, activeProfil
       {refMsg && (
         <div className="shrink-0 px-3 py-1 border-b border-t-line bg-accent/5 flex items-center gap-2 text-[11.5px]">
           <GitCompare className="w-3 h-3 text-accent" />
-          <span className="text-t-ink4">Reference for diff:</span>
+          <span className="text-t-ink4">{t("recv.ref")}</span>
           <span className="font-mono text-t-ink2 truncate max-w-[300px]" title={refMsg.meta.message_id ?? ""}>
-            {refMsg.meta.message_id ?? "(no message-id)"}
+            {refMsg.meta.message_id ?? t("recv.noId")}
           </span>
           <span className="text-t-ink5 font-mono">{refMsg.queue}</span>
           {selected && selected.id !== refMsg.id && (
@@ -1144,13 +1146,13 @@ export default function SubscriberView({ connected, defaultAddress, activeProfil
               onClick={() => setDiffOpen(true)}
               className="ml-auto flex items-center gap-1 px-2 py-0.5 rounded-lg bg-accent-strong hover:bg-accent text-white text-[11.5px] font-medium transition-colors"
             >
-              <GitCompare className="w-3 h-3" /> Compare with selected
+              <GitCompare className="w-3 h-3" /> {t("recv.compare")}
             </button>
           )}
           <button
             onClick={() => setRefId(null)}
             className={`${selected && selected.id !== refMsg.id ? "" : "ml-auto"} text-t-ink4 hover:text-negative transition-colors`}
-            title="Clear reference"
+            title={t("recv.ref.clear")}
           >
             <X className="w-3 h-3" />
           </button>
@@ -1165,14 +1167,14 @@ export default function SubscriberView({ connected, defaultAddress, activeProfil
           {messages.length === 0 ? (
             <EmptyState
               icon={<Inbox className="w-8 h-8" />}
-              title="No messages received"
-              subtitle={listening ? "Send something to a subscribed queue" : "Pick a queue and click Start"}
+              title={t("recv.empty")}
+              subtitle={listening ? t("recv.empty.listening") : t("recv.empty.idle")}
             />
           ) : filtered.length === 0 ? (
             <EmptyState
               icon={<Search className="w-8 h-8" />}
-              title="No messages match filter"
-              action={<button onClick={() => setFilter("")} className="text-[11.5px] text-accent hover:text-accent-content transition-colors">Clear filter</button>}
+              title={t("recv.nothing")}
+              action={<button onClick={() => setFilter("")} className="text-[11.5px] text-accent hover:text-accent-content transition-colors">{t("recv.nothing.clear")}</button>}
             />
           ) : (
             <div className="flex-1 overflow-y-auto min-h-0">
@@ -1182,8 +1184,8 @@ export default function SubscriberView({ connected, defaultAddress, activeProfil
                   size / priority / reply-to) so no labels are useful there. */}
               <div className="sticky top-0 z-10 flex items-center gap-2 px-3 py-1 bg-t-panel/95 backdrop-blur-sm border-b border-t-line text-[10.5px] uppercase tracking-wider text-t-ink4 select-none">
                 <span className="w-3 shrink-0" />
-                <span className="font-semibold flex-1">Message ID</span>
-                <span className="font-semibold shrink-0">Date-Time</span>
+                <span className="font-semibold flex-1">{t("recv.column.messageId")}</span>
+                <span className="font-semibold shrink-0">{t("recv.column.time")}</span>
               </div>
               {filtered.map(msg => {
                 const isSel = selectedId === msg.id;
@@ -1271,7 +1273,7 @@ export default function SubscriberView({ connected, defaultAddress, activeProfil
                 ) : (
                   <button
                     onClick={() => setRefId(refId === selected.id ? null : selected.id)}
-                    title={refId === selected.id ? "Clear reference" : "Mark as comparison reference"}
+                    title={refId === selected.id ? t("recv.ref.clear") : t("recv.ref.mark")}
                     className={`flex items-center gap-1 px-2 py-1 rounded-md text-[11.5px] font-medium transition-colors ${
                       refId === selected.id ? "text-accent bg-accent/10" : "text-t-ink4 hover:text-t-ink hover:bg-t-hover"
                     }`}
@@ -1283,10 +1285,12 @@ export default function SubscriberView({ connected, defaultAddress, activeProfil
                 {selected.meta.reply_to && onReply && (
                   <button
                     onClick={() => handleReply(selected)}
-                    title={`Send a reply to '${selected.meta.reply_to}'${selected.meta.correlation_id ? ` (correlation-id: ${selected.meta.correlation_id})` : ""}`}
+                    title={selected.meta.correlation_id
+                      ? t("recv.reply.hintCorr", { to: selected.meta.reply_to, corr: selected.meta.correlation_id })
+                      : t("recv.reply.hint", { to: selected.meta.reply_to })}
                     className="flex items-center gap-1 px-2 py-1 rounded-md text-[11.5px] font-medium text-accent hover:bg-accent/10 transition-colors"
                   >
-                    <CornerUpLeft className="w-3 h-3" /> Reply
+                    <CornerUpLeft className="w-3 h-3" /> {t("recv.reply")}
                   </button>
                 )}
                 {/* Top-level Copy button removed — there's already a Copy
@@ -1294,7 +1298,7 @@ export default function SubscriberView({ connected, defaultAddress, activeProfil
                     same content. Two buttons in arm's reach were redundant. */}
                 <button
                   onClick={() => setSelectedId(null)}
-                  title="Close preview"
+                  title={t("recv.close")}
                   className="p-1 rounded-md text-t-ink4 hover:text-t-ink hover:bg-t-hover transition-colors"
                 >
                   <X className="w-3 h-3" />
@@ -1345,17 +1349,14 @@ export default function SubscriberView({ connected, defaultAddress, activeProfil
             className="bg-t-bg border border-t-line rounded-xl shadow-2xl w-[440px] max-w-[90vw] flex flex-col overflow-hidden">
             <div className="shrink-0 px-4 py-2.5 border-b border-t-line bg-t-panel flex items-center gap-2">
               <Save className="w-3.5 h-3.5 text-accent" />
-              <span className="text-[13px] font-semibold text-t-ink">Save recording</span>
+              <span className="text-[13px] font-semibold text-t-ink">{t("recv.rec.title")}</span>
               <button onClick={() => setRecordSaveOpen(false)}
                 className="ml-auto p-1 rounded-md hover:bg-t-hover text-t-ink4 hover:text-t-ink">
                 <X className="w-3.5 h-3.5" />
               </button>
             </div>
             <div className="px-4 py-3 space-y-2 text-[13px] text-t-ink2">
-              <p>
-                Save the {recordCount} captured message{recordCount === 1 ? "" : "s"} as a
-                recording — replayable later from the History view.
-              </p>
+              <p>{t("recv.rec.body", { count: recordCount })}</p>
               <input
                 autoFocus
                 value={recordSaveName}
@@ -1364,12 +1365,11 @@ export default function SubscriberView({ connected, defaultAddress, activeProfil
                   if (e.key === "Enter" && recordSaveName.trim()) saveRecording(recordSaveName);
                   if (e.key === "Escape") setRecordSaveOpen(false);
                 }}
-                placeholder="recording name"
+                placeholder={t("recv.rec.name")}
                 className="w-full bg-t-field border border-t-line2 rounded-lg px-2.5 py-1.5 text-[12.5px] text-t-ink outline-none focus:border-accent focus:ring-1 focus:ring-accent/30 transition-all"
               />
               <p className="text-[10.5px] text-t-ink5">
-                Stored as <span className="font-mono">~/.amqpush/recordings/{recordSaveName.trim() || "<name>"}.json</span>.
-                Existing files with the same name are overwritten.
+                {t("recv.rec.note", { name: recordSaveName.trim() || "…" })}
               </p>
             </div>
             <div className="shrink-0 px-3 py-2 border-t border-t-line bg-t-panel flex items-center justify-end gap-2">
@@ -1400,6 +1400,7 @@ function PreviewDetails({ msg, bodyMode, setBodyMode, onLog }: {
   setBodyMode: (m: "auto" | "raw" | "hex") => void;
   onLog: (k: "info" | "ok" | "err", t: string) => void;
 }) {
+  const t = useAmqpText();
   const [propsOpen, setPropsOpen] = useState(true);
   const [appOpen,   setAppOpen]   = useState(true);
   const [bodyOpen,  setBodyOpen]  = useState(true);
@@ -1428,16 +1429,16 @@ function PreviewDetails({ msg, bodyMode, setBodyMode, onLog }: {
         <span className="text-[10.5px] px-1.5 py-0.5 rounded-md bg-t-hover text-t-ink3 font-medium uppercase">{meta.body_kind}</span>
         <span className="text-t-ink5 font-mono">{fmtBytes(meta.body_size)}</span>
         {meta.delivery_count > 0 && (
-          <span className="text-t-ink4" title="Delivery count">↻ {meta.delivery_count}</span>
+          <span className="text-t-ink4" title={t("recv.delivery")}>↻ {meta.delivery_count}</span>
         )}
         {meta.priority !== null && meta.priority !== 4 && (
           <span className="text-t-ink4">P{meta.priority}</span>
         )}
-        {meta.durable && <span className="text-accent">durable</span>}
+        {meta.durable && <span className="text-accent">{t("recv.durable")}</span>}
       </div>
 
       <CollapsibleSection
-        title="Properties"
+        title={t("recv.props")}
         icon={<Tag className="w-3 h-3" />}
         open={propsOpen}
         onToggle={() => setPropsOpen(o => !o)}
@@ -1475,7 +1476,7 @@ function PreviewDetails({ msg, bodyMode, setBodyMode, onLog }: {
       )}
 
       <CollapsibleSection
-        title="Body"
+        title={t("recv.body")}
         icon={<MessageSquare className="w-3 h-3" />}
         open={bodyOpen}
         onToggle={() => setBodyOpen(o => !o)}
@@ -1490,8 +1491,8 @@ function PreviewDetails({ msg, bodyMode, setBodyMode, onLog }: {
                     bodyMode === m ? "bg-accent/15 text-accent" : "text-t-ink4 hover:text-t-ink2 hover:bg-t-hover"
                   }`}
                   title={
-                    m === "auto" ? `Auto (${detected})` :
-                    m === "raw"  ? "Raw text" : "Hex dump"
+                    m === "auto" ? t("history.body.auto", { kind: detected }) :
+                    m === "raw"  ? t("recv.body.raw") : t("recv.body.hex")
                   }
                 >
                   {m === "auto" ? "Auto" : m === "raw" ? "Raw" : "Hex"}
@@ -1501,8 +1502,8 @@ function PreviewDetails({ msg, bodyMode, setBodyMode, onLog }: {
             {meta.body_text && (
               <CopyButton
                 value={meta.body_text}
-                onCopied={() => onLog("info", "Body copied")}
-                label="Copy"
+                onCopied={() => onLog("info", t("recv.copied"))}
+                label={t("history.copy")}
                 className="flex items-center gap-1 text-[10.5px] text-t-ink4 hover:text-t-ink2 transition-colors px-1.5 py-0.5 rounded-md hover:bg-t-hover"
               />
             )}
@@ -1510,7 +1511,7 @@ function PreviewDetails({ msg, bodyMode, setBodyMode, onLog }: {
         }
       >
         <pre className="text-[11.5px] text-t-ink2 font-mono bg-t-field border border-t-line rounded-lg p-2.5 overflow-x-auto whitespace-pre break-all max-h-80 overflow-y-auto select-text">
-          {bodyContent ?? <em className="text-t-ink5">no body</em>}
+          {bodyContent ?? <em className="text-t-ink5">{t("recv.body.none")}</em>}
         </pre>
         {msg.is_truncated && (
           <p className="text-[10.5px] text-caution mt-1">⚠ Truncated for list display.</p>
@@ -1527,6 +1528,7 @@ function RulesModal({ rules, onChange, onClose }: {
   onChange: (r: HighlightRule[]) => void;
   onClose: () => void;
 }) {
+  const t = useAmqpText();
   function update(id: string, patch: Partial<HighlightRule>) {
     onChange(rules.map(r => r.id === id ? { ...r, ...patch } : r));
   }
@@ -1535,7 +1537,7 @@ function RulesModal({ rules, onChange, onClose }: {
   }
   function add() {
     const id = `r-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
-    onChange([...rules, { id, name: "New rule", pattern: "", color: "blue", enabled: true }]);
+    onChange([...rules, { id, name: t("recv.rules.new"), pattern: "", color: "blue", enabled: true }]);
   }
 
   return (
@@ -1545,7 +1547,7 @@ function RulesModal({ rules, onChange, onClose }: {
 
         <div className="shrink-0 px-4 py-2.5 border-b border-t-line bg-t-panel flex items-center gap-2">
           <Palette className="w-3.5 h-3.5 text-t-ink4" />
-          <span className="text-[13px] font-semibold text-t-ink">Highlight rules</span>
+          <span className="text-[13px] font-semibold text-t-ink">{t("recv.rules")}</span>
           <span className="text-[11.5px] text-t-ink5">— colour-tag matching messages in the list</span>
           <button onClick={onClose} className="ml-auto p-1 rounded-md hover:bg-t-hover text-t-ink4 hover:text-t-ink">
             <X className="w-3.5 h-3.5" />
@@ -1556,8 +1558,8 @@ function RulesModal({ rules, onChange, onClose }: {
           {rules.length === 0 ? (
             <div className="flex flex-col items-center justify-center text-t-ink5 py-8">
               <Edit3 className="w-7 h-7 opacity-40 mb-3" />
-              <p className="text-[13px]">No rules defined</p>
-              <p className="text-[11.5px] mt-1">Each rule paints matching messages with its colour</p>
+              <p className="text-[13px]">{t("recv.rules.none")}</p>
+              <p className="text-[11.5px] mt-1">{t("recv.rules.none.hint")}</p>
               <button onClick={add}
                 className="mt-3 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent-strong hover:bg-accent text-white text-[11.5px] font-medium">
                 <Plus className="w-3 h-3" /> Add first rule
@@ -1583,7 +1585,7 @@ function RulesModal({ rules, onChange, onClose }: {
                     <input
                       value={r.name}
                       onChange={e => update(r.id, { name: e.target.value })}
-                      placeholder="Rule name"
+                      placeholder={t("recv.rules.name")}
                       className="bg-transparent text-[12.5px] text-t-ink outline-none placeholder:text-t-ink5 px-1.5 py-1 rounded-md hover:bg-t-card focus:bg-t-field focus:ring-1 focus:ring-accent/30 flex-1 font-medium"
                     />
                     <div className="flex items-center gap-0.5 shrink-0">
@@ -1605,7 +1607,7 @@ function RulesModal({ rules, onChange, onClose }: {
                     <input
                       value={r.pattern}
                       onChange={e => update(r.id, { pattern: e.target.value })}
-                      placeholder="Regex pattern (case-insensitive) — matches body / queue / id / content-type / app-property values"
+                      placeholder={t("recv.rules.pattern")}
                       className="w-full bg-t-field border border-t-line2 rounded-lg px-2 py-1 text-[11.5px] text-t-ink font-mono outline-none focus:border-accent focus:ring-1 focus:ring-accent/30"
                     />
                     {regexErr && <p className="text-[10.5px] text-negative mt-1 font-mono">⚠ {regexErr}</p>}
@@ -1623,7 +1625,7 @@ function RulesModal({ rules, onChange, onClose }: {
               <Plus className="w-3 h-3" /> Add rule
             </button>
           )}
-          <span className="ml-auto text-[10.5px] text-t-ink5">Saved automatically</span>
+          <span className="ml-auto text-[10.5px] text-t-ink5">{t("recv.rules.autosave")}</span>
           <button onClick={onClose}
             className="px-3 py-1 rounded-lg bg-accent-strong hover:bg-accent text-white text-[11.5px] font-medium">
             Done
@@ -1638,6 +1640,7 @@ function RulesModal({ rules, onChange, onClose }: {
 // (diffLines is shared with HistoryView's compare flow — see utils/diff.ts)
 
 function DiffModal({ left, right, onClose }: { left: ReceivedMessage; right: ReceivedMessage; onClose: () => void }) {
+  const t = useAmqpText();
   // Properties diff — collect union of keys, mark equal/different/only-left/only-right
   const allKeys = useMemo(() => {
     const std = [
@@ -1709,7 +1712,7 @@ function DiffModal({ left, right, onClose }: { left: ReceivedMessage; right: Rec
 
         <div className="shrink-0 px-4 py-2.5 border-b border-t-line bg-t-panel flex items-center gap-2">
           <GitCompare className="w-3.5 h-3.5 text-t-ink4" />
-          <span className="text-[13px] font-semibold text-t-ink">Compare messages</span>
+          <span className="text-[13px] font-semibold text-t-ink">{t("recv.diff.title")}</span>
           <span className="text-[11.5px] text-t-ink5">— {propDiffCount} property difference{propDiffCount !== 1 ? "s" : ""}, {bodyDiffCount} body line{bodyDiffCount !== 1 ? "s" : ""} differ</span>
           <button onClick={onClose} className="ml-auto p-1 rounded-md hover:bg-t-hover text-t-ink4 hover:text-t-ink">
             <X className="w-3.5 h-3.5" />
@@ -1720,7 +1723,7 @@ function DiffModal({ left, right, onClose }: { left: ReceivedMessage; right: Rec
         <div className="shrink-0 grid grid-cols-2 gap-px bg-t-line border-b border-t-line">
           <div className="bg-t-panel px-3 py-1.5">
             <div className="flex items-center gap-2">
-              <span className="text-[10.5px] uppercase tracking-wider text-accent font-bold">Reference</span>
+              <span className="text-[10.5px] uppercase tracking-wider text-accent font-bold">{t("recv.diff.ref")}</span>
               <span className="text-[11.5px] font-mono text-t-ink2 truncate">{left.meta.message_id ?? "(no id)"}</span>
             </div>
             <div className="flex items-center gap-2 mt-0.5 text-[10.5px] text-t-ink5 font-mono">
@@ -1731,7 +1734,7 @@ function DiffModal({ left, right, onClose }: { left: ReceivedMessage; right: Rec
           </div>
           <div className="bg-t-panel px-3 py-1.5">
             <div className="flex items-center gap-2">
-              <span className="text-[10.5px] uppercase tracking-wider text-caution font-bold">Selected</span>
+              <span className="text-[10.5px] uppercase tracking-wider text-caution font-bold">{t("recv.diff.sel")}</span>
               <span className="text-[11.5px] font-mono text-t-ink2 truncate">{right.meta.message_id ?? "(no id)"}</span>
             </div>
             <div className="flex items-center gap-2 mt-0.5 text-[10.5px] text-t-ink5 font-mono">
@@ -1747,7 +1750,7 @@ function DiffModal({ left, right, onClose }: { left: ReceivedMessage; right: Rec
 
           {/* Properties diff */}
           <div className="px-3 py-2">
-            <p className="text-[10.5px] uppercase tracking-wider text-t-ink4 font-semibold mb-1.5">Properties</p>
+            <p className="text-[10.5px] uppercase tracking-wider text-t-ink4 font-semibold mb-1.5">{t("recv.diff.props")}</p>
             <div className="font-mono text-[11.5px] space-y-px">
               {allKeys.std.map(k => {
                 const lv = stdProp(left, k);
@@ -1765,7 +1768,7 @@ function DiffModal({ left, right, onClose }: { left: ReceivedMessage; right: Rec
                 );
               })}
               {allKeys.app.length > 0 && (
-                <p className="text-[10.5px] uppercase tracking-wider text-t-ink4 font-semibold mt-3 mb-1.5">Application properties</p>
+                <p className="text-[10.5px] uppercase tracking-wider text-t-ink4 font-semibold mt-3 mb-1.5">{t("recv.diff.appProps")}</p>
               )}
               {allKeys.app.map(k => {
                 const lv = left.meta.application_properties[k]  ?? "";
@@ -1786,10 +1789,10 @@ function DiffModal({ left, right, onClose }: { left: ReceivedMessage; right: Rec
 
           {/* Body diff */}
           <div className="px-3 pb-3">
-            <p className="text-[10.5px] uppercase tracking-wider text-t-ink4 font-semibold mb-1.5">Body (line diff, formatted)</p>
+            <p className="text-[10.5px] uppercase tracking-wider text-t-ink4 font-semibold mb-1.5">{t("recv.diff.body")}</p>
             <div className="font-mono text-[11.5px] bg-t-field border border-t-line rounded-lg overflow-x-auto select-text">
               {ops.length === 0 ? (
-                <p className="p-3 text-t-ink5 italic">Both bodies are empty</p>
+                <p className="p-3 text-t-ink5 italic">{t("recv.diff.empty")}</p>
               ) : (
                 ops.map((o, i) => {
                   const cls =
@@ -1845,6 +1848,7 @@ function ReplayModal({ connected, activeProfile, onLog, onClose }: {
   onLog: (kind: "info" | "ok" | "err", text: string) => void;
   onClose: () => void;
 }) {
+  const t = useAmqpText();
   const [items, setItems] = useState<RecordingSummary[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
   const [target, setTarget] = useState("");
@@ -1881,14 +1885,14 @@ function ReplayModal({ connected, activeProfile, onLog, onClose }: {
 
   async function play() {
     if (!selected) return;
-    const t = target.trim();
-    if (!t) { onLog("err", "Target queue is required"); return; }
+    const addr = target.trim();
+    if (!addr) { onLog("err", t("recv.replay.needTarget")); return; }
     const sp = Math.max(0, Number(speed) || 1);
     setPlaying(true);
     setProgress({ step: 0, total: 0 });
     try {
-      await invoke("play_recording", { name: selected, target: t, speed: sp });
-      onLog("ok", `Replayed '${selected}' → ${t}`);
+      await invoke("play_recording", { name: selected, target: addr, speed: sp });
+      onLog("ok", `Replayed '${selected}' → ${addr}`);
       setProgress(null);
       setPlaying(false);
     } catch (e) {
@@ -1919,7 +1923,7 @@ function ReplayModal({ connected, activeProfile, onLog, onClose }: {
 
         <div className="shrink-0 px-4 py-2.5 border-b border-t-line bg-t-panel flex items-center gap-2">
           <Play className="w-3.5 h-3.5 text-accent" />
-          <span className="text-[13px] font-semibold text-t-ink">Replay recording</span>
+          <span className="text-[13px] font-semibold text-t-ink">{t("recv.replay.title")}</span>
           <span className="text-[11.5px] text-t-ink5 font-mono">{items.length}</span>
           <button onClick={onClose} className="ml-auto p-1 rounded-md hover:bg-t-hover text-t-ink4 hover:text-t-ink">
             <X className="w-3.5 h-3.5" />
@@ -1931,8 +1935,8 @@ function ReplayModal({ connected, activeProfile, onLog, onClose }: {
             {items.length === 0 ? (
               <EmptyState
                 icon={<Database className="w-8 h-8" />}
-                title="No recordings yet"
-                subtitle="Start a subscription, click REC, then Save…"
+                title={t("recv.replay.none")}
+                subtitle={t("recv.replay.none.hint")}
               />
             ) : items.map(r => {
               const isSel = selected === r.name;
@@ -1957,7 +1961,7 @@ function ReplayModal({ connected, activeProfile, onLog, onClose }: {
             {sel ? (
               <div className="flex-1 overflow-auto px-4 py-3 space-y-3">
                 <div>
-                  <div className="text-[10.5px] font-semibold text-t-ink4 uppercase tracking-wider mb-1">Recording</div>
+                  <div className="text-[10.5px] font-semibold text-t-ink4 uppercase tracking-wider mb-1">{t("recv.replay.recording")}</div>
                   <div className="text-[13px] text-t-ink font-mono truncate">{sel.name}</div>
                   <div className="text-[11.5px] text-t-ink5 mt-0.5">
                     {sel.message_count} message{sel.message_count === 1 ? "" : "s"} · {fmtBytes(sel.bytes)}
@@ -1966,7 +1970,7 @@ function ReplayModal({ connected, activeProfile, onLog, onClose }: {
                 </div>
 
                 <div>
-                  <label className="block text-[10.5px] font-semibold text-t-ink4 uppercase tracking-wider mb-1">Target queue</label>
+                  <label className="block text-[10.5px] font-semibold text-t-ink4 uppercase tracking-wider mb-1">{t("recv.replay.target")}</label>
                   <QueuePicker value={target} onChange={setTarget} connected={connected} profileName={activeProfile} />
                 </div>
 
@@ -2008,32 +2012,17 @@ function ReplayModal({ connected, activeProfile, onLog, onClose }: {
               // first-time user understands what they're configuring.
               <div className="flex-1 flex flex-col items-center justify-center px-6 text-[12.5px] text-t-ink4 space-y-2 max-w-md mx-auto text-center">
                 <Play className="w-7 h-7 text-t-ink5 mb-1" />
-                <p className="text-t-ink2 font-medium">How Replay works</p>
-                <p>
-                  Pick a saved recording on the left → choose a <b>target queue</b>{" "}
-                  on the broker you're currently connected to → pick a{" "}
-                  <b>speed multiplier</b> → <b>Play</b>.
-                </p>
-                <p className="text-t-ink5 leading-relaxed">
-                  AMQPush walks the file message-by-message, re-sends each one
-                  to the target with delays scaled by the speed
-                  (<span className="font-mono text-t-ink4">1×</span> = real-time,{" "}
-                  <span className="font-mono text-t-ink4">0</span> = no delays
-                  at all). The recording file is untouched; consumers on the
-                  target queue receive the messages just like a live producer
-                  was publishing them.
-                </p>
-                <p className="text-t-ink5">
-                  Make a recording first: subscribe in Receive, click{" "}
-                  <b>REC</b>, then <b>Save…</b>.
-                </p>
+                <p className="text-t-ink2 font-medium">{t("recv.replay.how")}</p>
+                <p>{t("recv.replay.how1")}</p>
+                <p className="text-t-ink5 leading-relaxed">{t("recv.replay.how2")}</p>
+                <p className="text-t-ink5">{t("recv.replay.how3")}</p>
               </div>
             )}
 
             <div className="shrink-0 px-3 py-2 border-t border-t-line bg-t-panel flex items-center gap-2">
               {sel && (
                 <button onClick={deleteSelected} disabled={playing}
-                  title="Delete this recording from disk"
+                  title={t("recv.replay.delete")}
                   className="flex items-center gap-1 px-2 py-1 rounded-md text-[11.5px] font-medium text-t-ink4 hover:text-negative hover:bg-negative/10 transition-colors disabled:opacity-40">
                   <Trash2 className="w-3 h-3" /> Delete
                 </button>
@@ -2046,7 +2035,7 @@ function ReplayModal({ connected, activeProfile, onLog, onClose }: {
                 disabled={!sel || playing || !target.trim() || !connected}
                 className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-accent hover:bg-accent-strong text-white text-[11.5px] font-semibold transition-colors disabled:opacity-40">
                 {playing ? <Loader2 className="w-3 h-3 animate-spin" /> : <Play className="w-3 h-3" />}
-                {playing ? "Replaying…" : "Play"}
+                {playing ? t("recv.replay.playing") : t("recv.replay.play")}
               </button>
             </div>
           </div>
