@@ -10,7 +10,7 @@ import BrowserView from "./components/views/BrowserView";
 import InspectorView from "./components/views/InspectorView";
 import Dropdown, { DropdownItem, DropdownSection, DropdownFooter } from "./components/Dropdown";
 import CommandPalette, { PaletteAction } from "./components/CommandPalette";
-import HelpModal from "./components/HelpModal";
+import HelpModal from "./components/help/HelpModal";
 import ConfirmDialog from "./components/ConfirmDialog";
 import { useAmqpText } from "./i18n";
 import { LogEntry, View, Profile } from "./types";
