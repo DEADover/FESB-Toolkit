@@ -6,6 +6,7 @@ import { Profile, LogEntry } from "../../types";
 import Tabs, { TabItem } from "../Tabs";
 import ViewTopBar from "../ViewTopBar";
 import SectionLabel from "../SectionLabel";
+import { useAmqpText } from "../../i18n";
 import Toggle from "../Toggle";
 import Callout from "../Callout";
 import Dropdown, { DropdownItem, DropdownFooter } from "../Dropdown";
@@ -101,6 +102,7 @@ const DEFAULTS: ConnForm = {
 const CONN_KEYWORDS = /connect|disconnect|broker|listen|subscriber|reconnect|profile|amqp|tls|auth|reachable|verify|discover/i;
 
 export default function ConnectionView({ connected, form, setForm, logs, profiles, activeProfile, onProfilesChanged, onProfileSelected, onConnected, onDisconnected, onLog }: Props) {
+  const t = useAmqpText();
   const sel = activeProfile;
   const setSel = onProfileSelected;
   const [loaded,      setLoaded]      = useState<Profile | null>(null); // last loaded — to detect unsaved changes
@@ -417,7 +419,7 @@ export default function ConnectionView({ connected, form, setForm, logs, profile
       {/* ─── TOP BAR ─── */}
       <ViewTopBar
         icon={<Settings2 className="w-3.5 h-3.5" />}
-        title="Connection to AMQP Broker"
+        title={t("conn.title")}
       >
         <button
           onClick={toggle}
@@ -429,15 +431,15 @@ export default function ConnectionView({ connected, form, setForm, logs, profile
           }`}
         >
           {connecting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : connected ? <Unplug className="w-3.5 h-3.5" /> : <Plug className="w-3.5 h-3.5" />}
-          {connecting ? "Connecting…" : connected ? "Disconnect" : "Connect"}
+          {connecting ? t("conn.connecting") : connected ? t("conn.disconnect") : t("conn.connect")}
         </button>
       </ViewTopBar>
 
       {/* ─── TABS — Main / Advanced ─── */}
       <Tabs
         tabs={[
-          { id: "main",     label: "General", icon: <SlidersHorizontal className="w-3.5 h-3.5" /> },
-          { id: "advanced", label: "Advanced",           icon: <Sliders className="w-3.5 h-3.5" />, dot: advancedDirty },
+          { id: "main",     label: t("conn.tab.main"),     icon: <SlidersHorizontal className="w-3.5 h-3.5" /> },
+          { id: "advanced", label: t("conn.tab.advanced"), icon: <Sliders className="w-3.5 h-3.5" />, dot: advancedDirty },
         ] as TabItem[]}
         active={tab}
         onChange={(id) => setTab(id as MainTab)}
@@ -450,10 +452,10 @@ export default function ConnectionView({ connected, form, setForm, logs, profile
         {/* ─── PROFILE PICKER ROW ─── */}
         <div className="mb-4">
           <div className="flex items-center gap-2 mb-1.5 h-4">
-            <SectionLabel className="leading-none">Profile</SectionLabel>
+            <SectionLabel className="leading-none">{t("conn.profile")}</SectionLabel>
             {dirty && sel && !savingAs && !confirmDel && (
               <span className="text-[10.5px] text-caution flex items-center gap-1 normal-case font-normal leading-none">
-                <span className="w-1 h-1 rounded-full bg-caution" /> Unsaved changes — click Save to update '{sel}'
+                <span className="w-1 h-1 rounded-full bg-caution" /> {t("conn.profile.dirty", { name: sel })}
               </span>
             )}
           </div>
@@ -473,11 +475,11 @@ export default function ConnectionView({ connected, form, setForm, logs, profile
                     {sel ? (
                       <>
                         <span className="font-medium truncate">{sel}</span>
-                        {dirty && <span className="w-1.5 h-1.5 rounded-full bg-caution shrink-0" title="Unsaved changes" />}
+                        {dirty && <span className="w-1.5 h-1.5 rounded-full bg-caution shrink-0" title={t("conn.profile.dirtyShort")} />}
                         <span className="ml-auto text-[11.5px] text-t-ink5 font-mono shrink-0">{loaded?.host}:{loaded?.port}</span>
                       </>
                     ) : (
-                      <span className="text-t-ink4 italic">No profile — using current form</span>
+                      <span className="text-t-ink4 italic">{t("conn.profile.none")}</span>
                     )}
                     <ChevronDown className="w-3.5 h-3.5 text-t-ink4 shrink-0" />
                   </button>
@@ -485,7 +487,7 @@ export default function ConnectionView({ connected, form, setForm, logs, profile
               >
                 <div className="max-h-64 overflow-y-auto">
                   {profiles.length === 0 ? (
-                    <p className="text-[11.5px] text-t-ink5 text-center py-4">No saved profiles</p>
+                    <p className="text-[11.5px] text-t-ink5 text-center py-4">{t("conn.profile.empty")}</p>
                   ) : profiles.map(p => (
                     <DropdownItem
                       key={p.name}
@@ -504,7 +506,7 @@ export default function ConnectionView({ connected, form, setForm, logs, profile
                     className="w-full flex items-center gap-2 px-3 py-1.5 text-left hover:bg-t-hover transition-colors text-accent"
                   >
                     <Plus className="w-3 h-3 shrink-0" />
-                    <span className="text-[12.5px] font-medium">New profile</span>
+                    <span className="text-[12.5px] font-medium">{t("conn.profile.new")}</span>
                   </button>
                 </DropdownFooter>
               </Dropdown>
@@ -514,23 +516,23 @@ export default function ConnectionView({ connected, form, setForm, logs, profile
             <button
               onClick={saveChanges}
               disabled={!sel || !dirty}
-              title={sel ? (dirty ? "Save changes" : "No changes to save") : "Use 'Save As' for new profiles"}
+              title={sel ? (dirty ? t("conn.save.hint") : t("conn.save.clean")) : t("conn.save.needsName")}
               className="px-2.5 py-1.5 rounded-lg bg-t-card border border-t-line text-t-ink4 hover:text-accent hover:border-accent/50 disabled:opacity-30 disabled:hover:text-t-ink4 disabled:hover:border-t-line transition-colors flex items-center gap-1 text-[11.5px] font-medium"
             >
               <Save className="w-3.5 h-3.5" />
-              Save
+              {t("conn.save")}
             </button>
             <button
               onClick={() => startSaveAs()}
-              title="Save as new profile"
+              title={t("conn.saveAs.hint")}
               className="px-2.5 py-1.5 rounded-lg bg-t-card border border-t-line text-t-ink4 hover:text-accent hover:border-accent/50 transition-colors text-[11.5px] font-medium"
             >
-              Save as…
+              {t("conn.saveAs")}
             </button>
             <button
               onClick={duplicateProfile}
               disabled={!sel}
-              title="Duplicate"
+              title={t("conn.duplicate")}
               className="px-2.5 py-1.5 rounded-lg bg-t-card border border-t-line text-t-ink4 hover:text-accent hover:border-accent/50 disabled:opacity-30 disabled:hover:text-t-ink4 disabled:hover:border-t-line transition-colors"
             >
               <Copy className="w-3.5 h-3.5" />
@@ -538,7 +540,7 @@ export default function ConnectionView({ connected, form, setForm, logs, profile
             <button
               onClick={startDelete}
               disabled={!sel}
-              title="Delete profile"
+              title={t("conn.delete")}
               className="px-2.5 py-1.5 rounded-lg bg-t-card border border-t-line text-t-ink4 hover:text-negative hover:border-negative/50 disabled:opacity-30 disabled:hover:text-t-ink4 disabled:hover:border-t-line transition-colors"
             >
               <Trash2 className="w-3.5 h-3.5" />
@@ -555,7 +557,7 @@ export default function ConnectionView({ connected, form, setForm, logs, profile
                   type="button"
                   onClick={toggle}
                   aria-expanded={open}
-                  title="More profile actions"
+                  title={t("conn.more")}
                   className="px-2.5 py-1.5 rounded-lg bg-t-card border border-t-line text-t-ink4 hover:text-t-ink hover:border-t-line2 transition-colors"
                 >
                   <MoreVertical className="w-3.5 h-3.5" />
@@ -563,7 +565,7 @@ export default function ConnectionView({ connected, form, setForm, logs, profile
               )}
             >
               <DropdownItem onClick={() => setQuickConnectOpen(true)}>
-                <span className="flex items-center gap-2"><Zap className="w-3 h-3 shrink-0" /> Quick-connect from URL…</span>
+                <span className="flex items-center gap-2"><Zap className="w-3 h-3 shrink-0" /> {t("conn.quick")}</span>
               </DropdownItem>
               <DropdownItem
                 onClick={async () => {
@@ -571,41 +573,41 @@ export default function ConnectionView({ connected, form, setForm, logs, profile
                     const f = await openFileDialog({
                       multiple: false,
                       directory: false,
-                      title: "Import profiles",
+                      title: t("conn.import.title"),
                       filters: [{ name: "JSON", extensions: ["json"] }],
                     });
                     if (typeof f !== "string") return;
                     // Ask overwrite only when there's something that could collide.
                     const collide = profiles.length > 0
-                      ? window.confirm("Overwrite existing profiles on name collision? Cancel = skip collisions, keep existing.")
+                      ? window.confirm(t("conn.import.overwrite"))
                       : false;
                     const r = await invoke<{ added: number; overwritten: number; skipped: number; failed: number }>("import_profiles", { path: f, overwrite: collide });
                     await onProfilesChanged();
-                    onLog("ok", `Imported profiles — ${r.added} added · ${r.overwritten} overwritten · ${r.skipped} skipped${r.failed > 0 ? ` · ${r.failed} failed` : ""}`);
+                    onLog("ok", t("conn.import.done", { added: r.added, overwritten: r.overwritten, skipped: r.skipped }));
                   } catch (e) {
-                    onLog("err", `Import profiles: ${e}`);
+                    onLog("err", t("conn.import.failed", { error: String(e) }));
                   }
                 }}
               >
-                <span className="flex items-center gap-2"><Upload className="w-3 h-3 shrink-0" /> Import profiles…</span>
+                <span className="flex items-center gap-2"><Upload className="w-3 h-3 shrink-0" /> {t("conn.import")}</span>
               </DropdownItem>
               <DropdownItem
                 onClick={async () => {
                   try {
                     const f = await saveFileDialog({
-                      title: "Export profiles",
+                      title: t("conn.export.title"),
                       defaultPath: "amqpush-profiles.json",
                       filters: [{ name: "JSON", extensions: ["json"] }],
                     });
                     if (!f) return;
                     const n = await invoke<number>("export_profiles", { path: f });
-                    onLog("ok", `Exported ${n} profile${n === 1 ? "" : "s"} → ${f}`);
+                    onLog("ok", t("conn.export.done", { count: n, path: f }));
                   } catch (e) {
-                    onLog("err", `Export profiles: ${e}`);
+                    onLog("err", t("conn.export.failed", { error: String(e) }));
                   }
                 }}
               >
-                <span className="flex items-center gap-2"><DownloadIcon className="w-3 h-3 shrink-0" /> Export profiles…</span>
+                <span className="flex items-center gap-2"><DownloadIcon className="w-3 h-3 shrink-0" /> {t("conn.export")}</span>
               </DropdownItem>
             </Dropdown>
           </div>
@@ -615,7 +617,7 @@ export default function ConnectionView({ connected, form, setForm, logs, profile
             <div className="mt-2">
               <Callout variant="info">
                 <div className="flex items-center gap-2">
-                  <span className="text-accent font-medium shrink-0">New profile name:</span>
+                  <span className="text-accent font-medium shrink-0">{t("conn.newName")}</span>
                   <input
                     autoFocus
                     value={newName}
@@ -624,16 +626,16 @@ export default function ConnectionView({ connected, form, setForm, logs, profile
                       if (e.key === "Enter") confirmSaveAs();
                       if (e.key === "Escape") { setSavingAs(false); setNewName(""); }
                     }}
-                    placeholder="Profile name…"
+                    placeholder={t("conn.newName.placeholder")}
                     className={`${INPUT} flex-1`}
                   />
                   <button onClick={confirmSaveAs} disabled={!newName.trim()}
                     className="px-2.5 py-1.5 rounded-lg bg-accent-strong text-white text-[11.5px] font-semibold hover:bg-accent disabled:opacity-40 transition-colors">
-                    Save
+                    {t("conn.save")}
                   </button>
                   <button onClick={() => { setSavingAs(false); setNewName(""); }}
                     className="px-2 py-1.5 rounded-lg text-t-ink4 hover:text-t-ink hover:bg-t-hover text-[11.5px] transition-colors">
-                    Cancel
+                    {t("conn.cancel")}
                   </button>
                 </div>
               </Callout>
@@ -646,16 +648,16 @@ export default function ConnectionView({ connected, form, setForm, logs, profile
               <Callout variant="error">
                 <div className="flex items-center gap-2">
                   <span className="text-negative font-medium shrink-0">
-                    Delete profile '{sel}'?
+                    {t("conn.delete.confirm", { name: sel })}
                   </span>
                   <div className="ml-auto flex gap-1">
                     <button onClick={confirmDelete}
                       className="px-2.5 py-1 rounded-lg bg-negative text-white text-[11.5px] font-semibold hover:bg-negative transition-colors">
-                      Delete
+                      {t("conn.delete.yes")}
                     </button>
                     <button onClick={() => setConfirmDel(false)}
                       className="px-2 py-1 rounded-lg text-t-ink4 hover:text-t-ink hover:bg-t-hover text-[11.5px] transition-colors">
-                      Cancel
+                      {t("conn.cancel")}
                     </button>
                   </div>
                 </div>
@@ -667,10 +669,10 @@ export default function ConnectionView({ connected, form, setForm, logs, profile
 
         {/* Server section */}
         <div className="mb-4">
-          <SectionLabel className="block mb-2">Server</SectionLabel>
+          <SectionLabel className="block mb-2">{t("conn.server")}</SectionLabel>
           <div className="grid grid-cols-2 gap-3">
-            <div><label className={LABEL}>Host <span className="text-negative">*</span></label><input value={host} onChange={e => setHost(e.target.value)} placeholder="127.0.0.1" className={INPUT} /></div>
-            <div><label className={LABEL}>Port <span className="text-negative">*</span></label><input value={port} onChange={e => setPort(e.target.value)} placeholder="5672" className={INPUT} /></div>
+            <div><label className={LABEL}>{t("conn.host")} <span className="text-negative">*</span></label><input value={host} onChange={e => setHost(e.target.value)} placeholder="127.0.0.1" className={INPUT} /></div>
+            <div><label className={LABEL}>{t("conn.port")} <span className="text-negative">*</span></label><input value={port} onChange={e => setPort(e.target.value)} placeholder="5672" className={INPUT} /></div>
           </div>
           {/* Workspace — groups this profile under a named bucket in the
               header picker and Cmd+K palette. Free-form text with autocomplete
@@ -679,7 +681,7 @@ export default function ConnectionView({ connected, form, setForm, logs, profile
               renderer) styles its dropdown unreadably — white-on-white text.
               Custom combobox matches the rest of the app's look. */}
           <div className="mt-3">
-            <label className={LABEL} htmlFor="profile-workspace">Workspace</label>
+            <label className={LABEL} htmlFor="profile-workspace">{t("conn.workspace")}</label>
             <WorkspaceCombobox
               value={workspace}
               onChange={setWorkspace}
@@ -687,32 +689,30 @@ export default function ConnectionView({ connected, form, setForm, logs, profile
               usage={workspaceUsage}
               onDelete={deleteWorkspace}
             />
-            <p className="text-[10.5px] text-t-ink5 mt-1">
-              Profiles are grouped by workspace in the header picker and Cmd+K palette.
-            </p>
+            <p className="text-[10.5px] text-t-ink5 mt-1">{t("conn.workspace.hint")}</p>
           </div>
         </div>
 
         {/* Auth section */}
         <div className="mb-4">
-          <SectionLabel className="block mb-2">Authentication</SectionLabel>
+          <SectionLabel className="block mb-2">{t("conn.auth")}</SectionLabel>
           <div className="grid grid-cols-2 gap-3">
-            <div><label className={LABEL}>Username</label><input value={username} disabled={saslAnonymous} onChange={e => setUsername(e.target.value)} placeholder="optional" className={`${INPUT} disabled:opacity-50`} /></div>
-            <div><label className={LABEL}>Password</label><input type="password" value={password} disabled={saslAnonymous} onChange={e => setPassword(e.target.value)} placeholder="optional" className={`${INPUT} disabled:opacity-50`} /></div>
+            <div><label className={LABEL}>{t("conn.username")}</label><input value={username} disabled={saslAnonymous} onChange={e => setUsername(e.target.value)} placeholder={t("conn.optional")} className={`${INPUT} disabled:opacity-50`} /></div>
+            <div><label className={LABEL}>{t("conn.password")}</label><input type="password" value={password} disabled={saslAnonymous} onChange={e => setPassword(e.target.value)} placeholder={t("conn.optional")} className={`${INPUT} disabled:opacity-50`} /></div>
           </div>
         </div>
 
         {/* Security section */}
         <div className="mb-4">
-          <SectionLabel className="block mb-2">Security</SectionLabel>
+          <SectionLabel className="block mb-2">{t("conn.security")}</SectionLabel>
 
           {/* TLS / AMQPS toggle card */}
           <div className="flex items-center justify-between p-2.5 rounded-xl bg-t-card border border-t-line mb-2">
             <div className="flex flex-col">
-              <span className="text-[13px] text-t-ink2">TLS / AMQPS</span>
-              <span className="text-[10.5px] text-t-ink5">Encrypt connection with TLS</span>
+              <span className="text-[13px] text-t-ink2">{t("conn.tls")}</span>
+              <span className="text-[10.5px] text-t-ink5">{t("conn.tls.hint")}</span>
             </div>
-            <Toggle checked={useTls} onChange={setUseTls} ariaLabel="TLS / AMQPS" />
+            <Toggle checked={useTls} onChange={setUseTls} ariaLabel={t("conn.tls")} />
           </div>
 
           {/* Skip cert verification — sub-option, only when TLS on */}
@@ -720,18 +720,18 @@ export default function ConnectionView({ connected, form, setForm, logs, profile
             <label className="flex items-center gap-2 cursor-pointer text-[11.5px] text-t-ink3 px-2.5 mb-2">
               <input type="checkbox" checked={tlsSkipVerify} onChange={e => setTlsSkipVerify(e.target.checked)}
                 className="w-3.5 h-3.5 accent-accent-strong cursor-pointer" />
-              Skip certificate verification
-              <span className="text-caution text-[10.5px]">(insecure — only for self-signed/test brokers)</span>
+              {t("conn.tls.skip")}
+              <span className="text-caution text-[10.5px]">{t("conn.tls.skip.hint")}</span>
             </label>
           )}
 
           {/* Force SASL ANONYMOUS — same toggle-card style */}
           <div className="flex items-center justify-between p-2.5 rounded-xl bg-t-card border border-t-line mb-2">
             <div className="flex flex-col">
-              <span className="text-[13px] text-t-ink2">Force SASL ANONYMOUS</span>
-              <span className="text-[10.5px] text-t-ink5">Skip credentials and connect anonymously</span>
+              <span className="text-[13px] text-t-ink2">{t("conn.sasl")}</span>
+              <span className="text-[10.5px] text-t-ink5">{t("conn.sasl.hint")}</span>
             </div>
-            <Toggle checked={saslAnonymous} onChange={setSaslAnonymous} ariaLabel="Force SASL ANONYMOUS" />
+            <Toggle checked={saslAnonymous} onChange={setSaslAnonymous} ariaLabel={t("conn.sasl")} />
           </div>
 
           {/* WebSocket transport — opt-in. AMQP rides over ws:// (or wss://
@@ -739,12 +739,12 @@ export default function ConnectionView({ connected, form, setForm, logs, profile
               5671/5672, and for cloud brokers (Azure SB, Amazon MQ, etc.). */}
           <div className="flex items-center justify-between p-2.5 rounded-xl bg-t-card border border-t-line">
             <div className="flex flex-col">
-              <span className="text-[13px] text-t-ink2">AMQP over WebSocket</span>
+              <span className="text-[13px] text-t-ink2">{t("conn.ws")}</span>
               <span className="text-[10.5px] text-t-ink5">
-                Tunnel AMQP through {useTls ? "wss" : "ws"}://host:port{wsPath ? `/${wsPath}` : ""}
+                {t("conn.ws.hint", { scheme: useTls ? "wss" : "ws", path: wsPath ? `/${wsPath}` : "" })}
               </span>
             </div>
-            <Toggle checked={useWs} onChange={setUseWs} ariaLabel="AMQP over WebSocket" />
+            <Toggle checked={useWs} onChange={setUseWs} ariaLabel={t("conn.ws")} />
           </div>
 
           {/* WebSocket URL path — sub-option, only when WS on */}
@@ -752,13 +752,13 @@ export default function ConnectionView({ connected, form, setForm, logs, profile
             <div className="px-2.5 mt-2">
               <label className="flex flex-col gap-1">
                 <span className="text-[10.5px] font-semibold text-t-ink4 uppercase tracking-wider">
-                  WS path
-                  <span className="text-t-ink5 normal-case font-normal"> — optional; broker-specific (e.g. <span className="font-mono">ws</span> for some RabbitMQ setups)</span>
+                  {t("conn.ws.path")}
+                  <span className="text-t-ink5 normal-case font-normal">{t("conn.ws.path.hint")}</span>
                 </span>
                 <input
                   value={wsPath}
                   onChange={e => setWsPath(e.target.value)}
-                  placeholder="(empty → root /)"
+                  placeholder={t("conn.ws.path.placeholder")}
                   spellCheck={false}
                   className={`${INPUT} font-mono`}
                 />
@@ -771,18 +771,18 @@ export default function ConnectionView({ connected, form, setForm, logs, profile
         {tab === "advanced" && <>
         {/* Default Queue (optional) */}
         <div className="mb-4">
-          <label className={LABEL}>Default Queue / Address <span className="text-t-ink5 normal-case font-normal">— optional, used as initial Target in Send</span></label>
-          <input value={queue} onChange={e => setQueue(e.target.value)} placeholder="(none)" className={INPUT} />
+          <label className={LABEL}>{t("conn.queue")} <span className="text-t-ink5 normal-case font-normal">{t("conn.queue.hint")}</span></label>
+          <input value={queue} onChange={e => setQueue(e.target.value)} placeholder={t("conn.queue.placeholder")} className={INPUT} />
         </div>
 
         {/* Connection options */}
         <div className="mb-4">
-          <SectionLabel className="block mb-2">Connection options</SectionLabel>
+          <SectionLabel className="block mb-2">{t("conn.options")}</SectionLabel>
           <div className="space-y-3">
             <div>
               <label className={LABEL}>
-                Container ID
-                <span className="text-t-ink5 normal-case font-normal"> — appears in broker logs; auto-generated if empty</span>
+                {t("conn.containerId")}
+                <span className="text-t-ink5 normal-case font-normal">{t("conn.containerId.hint")}</span>
               </label>
               <input value={containerId} onChange={e => setContainerId(e.target.value)}
                 placeholder="auto: amqpush-<uuid>" className={`${INPUT} font-mono`} />
@@ -790,8 +790,8 @@ export default function ConnectionView({ connected, form, setForm, logs, profile
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className={LABEL}>
-                  Heartbeat
-                  <span className="text-t-ink5 normal-case font-normal"> — sec, 0 = off</span>
+                  {t("conn.heartbeat")}
+                  <span className="text-t-ink5 normal-case font-normal">{t("conn.heartbeat.unit")}</span>
                 </label>
                 <input type="number" min="0" value={heartbeatSecs}
                   onChange={e => setHeartbeatSecs(e.target.value)}
@@ -799,18 +799,15 @@ export default function ConnectionView({ connected, form, setForm, logs, profile
               </div>
               <div>
                 <label className={LABEL}>
-                  Connect timeout
-                  <span className="text-t-ink5 normal-case font-normal"> — sec</span>
+                  {t("conn.timeout")}
+                  <span className="text-t-ink5 normal-case font-normal">{t("conn.timeout.unit")}</span>
                 </label>
                 <input type="number" min="0" value={connectTimeoutSecs}
                   onChange={e => setConnectTimeoutSecs(e.target.value)}
                   placeholder="10" className={INPUT} />
               </div>
             </div>
-            <p className="text-[10.5px] text-t-ink5 leading-relaxed">
-              <strong className="text-t-ink4">Heartbeat</strong> sends idle keepalive frames every N seconds — useful when a firewall/NAT closes idle TCP connections. Most brokers default to 30s.<br/>
-              <strong className="text-t-ink4">Connect timeout</strong> aborts the initial connection attempt if it takes longer than N seconds. 0 disables the timeout.
-            </p>
+            <p className="text-[10.5px] text-t-ink5 leading-relaxed">{t("conn.options.note")}</p>
           </div>
         </div>
 
@@ -819,13 +816,13 @@ export default function ConnectionView({ connected, form, setForm, logs, profile
             multiplier, capped at max. Bigger ceilings save log volume during
             long outages; small starting delays react fast on flaky networks. */}
         <div className="mb-4">
-          <SectionLabel className="block mb-2">Subscriber reconnect backoff</SectionLabel>
+          <SectionLabel className="block mb-2">{t("conn.backoff")}</SectionLabel>
           <div className="bg-t-card border border-t-line rounded-xl p-3 space-y-3">
             <div className="grid grid-cols-3 gap-3">
               <div>
                 <label className={LABEL}>
-                  Initial delay
-                  <span className="text-t-ink5 normal-case font-normal"> — ms</span>
+                  {t("conn.backoff.initial")}
+                  <span className="text-t-ink5 normal-case font-normal">{t("conn.backoff.ms")}</span>
                 </label>
                 <input type="number" min="0" value={reconnectBaseMs}
                   onChange={e => setReconnectBaseMs(e.target.value)}
@@ -833,8 +830,8 @@ export default function ConnectionView({ connected, form, setForm, logs, profile
               </div>
               <div>
                 <label className={LABEL}>
-                  Maximum delay
-                  <span className="text-t-ink5 normal-case font-normal"> — ms</span>
+                  {t("conn.backoff.max")}
+                  <span className="text-t-ink5 normal-case font-normal">{t("conn.backoff.ms")}</span>
                 </label>
                 <input type="number" min="0" value={reconnectMaxMs}
                   onChange={e => setReconnectMaxMs(e.target.value)}
@@ -842,21 +839,15 @@ export default function ConnectionView({ connected, form, setForm, logs, profile
               </div>
               <div>
                 <label className={LABEL}>
-                  Multiplier
-                  <span className="text-t-ink5 normal-case font-normal"> — per step</span>
+                  {t("conn.backoff.mult")}
+                  <span className="text-t-ink5 normal-case font-normal">{t("conn.backoff.step")}</span>
                 </label>
                 <input type="number" min="1.01" step="0.1" value={reconnectMultiplier}
                   onChange={e => setReconnectMult(e.target.value)}
                   placeholder="2" className={INPUT} />
               </div>
             </div>
-            <p className="text-[10.5px] text-t-ink5 leading-relaxed">
-              Subscriber waits <strong className="text-t-ink4">initial delay</strong> after a failed
-              receive, then multiplies by <strong className="text-t-ink4">multiplier</strong> on each
-              subsequent failure, capped at <strong className="text-t-ink4">maximum delay</strong>.
-              Resets to initial on the first successful message. Defaults: 1000 / 30000 / 2 — same as
-              before the field existed.
-            </p>
+            <p className="text-[10.5px] text-t-ink5 leading-relaxed">{t("conn.backoff.note")}</p>
           </div>
         </div>
 
@@ -864,13 +855,13 @@ export default function ConnectionView({ connected, form, setForm, logs, profile
             fixed delay. Transient broker hiccups (rate limiting, replica
             failover) get absorbed instead of bubbling up to the user. */}
         <div className="mb-4">
-          <SectionLabel className="block mb-2">Publisher send retry</SectionLabel>
+          <SectionLabel className="block mb-2">{t("conn.retry")}</SectionLabel>
           <div className="bg-t-card border border-t-line rounded-xl p-3 space-y-3">
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className={LABEL}>
-                  Max attempts
-                  <span className="text-t-ink5 normal-case font-normal"> — 1 = no retry</span>
+                  {t("conn.retry.attempts")}
+                  <span className="text-t-ink5 normal-case font-normal">{t("conn.retry.attempts.hint")}</span>
                 </label>
                 <input type="number" min="1" max="20" value={sendRetryAttempts}
                   onChange={e => setSendRetryAttempts(e.target.value)}
@@ -878,53 +869,43 @@ export default function ConnectionView({ connected, form, setForm, logs, profile
               </div>
               <div>
                 <label className={LABEL}>
-                  Delay between attempts
-                  <span className="text-t-ink5 normal-case font-normal"> — ms</span>
+                  {t("conn.retry.delay")}
+                  <span className="text-t-ink5 normal-case font-normal">{t("conn.backoff.ms")}</span>
                 </label>
                 <input type="number" min="0" value={sendRetryDelayMs}
                   onChange={e => setSendRetryDelayMs(e.target.value)}
                   placeholder="250" className={INPUT} />
               </div>
             </div>
-            <p className="text-[10.5px] text-t-ink5 leading-relaxed">
-              Each user-visible send goes through up to <strong className="text-t-ink4">N attempts</strong>,
-              waiting <strong className="text-t-ink4">delay</strong> ms between them. Disconnected
-              sessions reopen transparently per-attempt — those don't count against the budget.
-              Default <strong className="text-t-ink4">1 / 250</strong> = no retry, matches the
-              pre-1.5.x behaviour.
-            </p>
+            <p className="text-[10.5px] text-t-ink5 leading-relaxed">{t("conn.retry.note")}</p>
           </div>
         </div>
 
         {/* mTLS client certificate — opt-in mutual TLS. Only meaningful with
             server-side TLS on; otherwise the cert has no transport to ride. */}
         <div className="mb-4">
-          <SectionLabel className="block mb-2">mTLS client certificate</SectionLabel>
+          <SectionLabel className="block mb-2">{t("conn.mtls")}</SectionLabel>
           {!useTls && (
             // Inline warning instead of silently dimming the card — makes
             // it obvious *why* the fields are inert and exactly which toggle
             // unlocks them.
             <div className="flex items-start gap-2 px-3 py-2 mb-2 rounded-lg bg-caution/10 border border-caution/30 text-[11.5px] text-caution leading-relaxed">
               <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-              <span>
-                <b>TLS / AMQPS</b> is off — enable it under <b>General → Security</b> to use a client
-                certificate. The cert rides on top of server TLS, so without server TLS there's
-                nothing to attach it to.
-              </span>
+              <span>{t("conn.mtls.needsTls")}</span>
             </div>
           )}
           <div className={`bg-t-card border border-t-line rounded-xl p-3 space-y-3 ${useTls ? "" : "opacity-50"}`}>
             <div>
               <label className={LABEL}>
-                Certificate file
-                <span className="text-t-ink5 normal-case font-normal"> — PEM <span className="font-mono">.crt</span> / <span className="font-mono">.pem</span> or PKCS#12 <span className="font-mono">.p12</span> / <span className="font-mono">.pfx</span></span>
+                {t("conn.mtls.cert")}
+                <span className="text-t-ink5 normal-case font-normal">{t("conn.mtls.cert.hint")}</span>
               </label>
               <div className="flex items-center gap-2">
                 <input
                   value={clientCertPath}
                   onChange={e => setClientCertPath(e.target.value)}
                   disabled={!useTls}
-                  placeholder="/path/to/client.crt or /path/to/bundle.p12"
+                  placeholder={t("conn.mtls.cert.placeholder")}
                   spellCheck={false}
                   className={`${INPUT} font-mono disabled:opacity-50 flex-1`}
                 />
@@ -935,16 +916,16 @@ export default function ConnectionView({ connected, form, setForm, logs, profile
                     const f = await openFileDialog({
                       multiple: false,
                       directory: false,
-                      title: "Pick client certificate",
+                      title: t("conn.mtls.cert.pick"),
                       filters: [
-                        { name: "Certificates", extensions: ["crt", "pem", "cer", "p12", "pfx"] },
-                        { name: "All files", extensions: ["*"] },
+                        { name: t("conn.mtls.certificates"), extensions: ["crt", "pem", "cer", "p12", "pfx"] },
+                        { name: t("conn.mtls.allFiles"), extensions: ["*"] },
                       ],
                     });
                     if (typeof f === "string") setClientCertPath(f);
                   }}
-                  title="Browse for certificate file"
-                  aria-label="Browse for certificate file"
+                  title={t("conn.mtls.cert.browse")}
+                  aria-label={t("conn.mtls.cert.browse")}
                   className="shrink-0 h-9 px-2.5 rounded-lg border border-t-line2 bg-t-card text-t-ink3 hover:text-t-ink hover:bg-t-hover transition-colors text-[12.5px] flex items-center disabled:opacity-50"
                 >
                   <FolderOpen className="w-3.5 h-3.5" />
@@ -954,15 +935,15 @@ export default function ConnectionView({ connected, form, setForm, logs, profile
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className={LABEL}>
-                  Private key file
-                  <span className="text-t-ink5 normal-case font-normal"> — PEM only; ignored for <span className="font-mono">.p12</span></span>
+                  {t("conn.mtls.key")}
+                  <span className="text-t-ink5 normal-case font-normal">{t("conn.mtls.key.hint")}</span>
                 </label>
                 <div className="flex items-center gap-2">
                   <input
                     value={clientKeyPath}
                     onChange={e => setClientKeyPath(e.target.value)}
                     disabled={!useTls}
-                    placeholder="/path/to/client.key"
+                    placeholder={t("conn.mtls.key.placeholder")}
                     spellCheck={false}
                     className={`${INPUT} font-mono disabled:opacity-50 flex-1`}
                   />
@@ -973,16 +954,16 @@ export default function ConnectionView({ connected, form, setForm, logs, profile
                       const f = await openFileDialog({
                         multiple: false,
                         directory: false,
-                        title: "Pick private key",
+                        title: t("conn.mtls.key.pick"),
                         filters: [
-                          { name: "Keys", extensions: ["key", "pem"] },
-                          { name: "All files", extensions: ["*"] },
+                          { name: t("conn.mtls.keys"), extensions: ["key", "pem"] },
+                          { name: t("conn.mtls.allFiles"), extensions: ["*"] },
                         ],
                       });
                       if (typeof f === "string") setClientKeyPath(f);
                     }}
-                    title="Browse for private key file"
-                    aria-label="Browse for private key file"
+                    title={t("conn.mtls.key.browse")}
+                    aria-label={t("conn.mtls.key.browse")}
                     className="shrink-0 h-9 px-2.5 rounded-lg border border-t-line2 bg-t-card text-t-ink3 hover:text-t-ink hover:bg-t-hover transition-colors text-[12.5px] flex items-center disabled:opacity-50"
                   >
                     <FolderOpen className="w-3.5 h-3.5" />
@@ -991,25 +972,20 @@ export default function ConnectionView({ connected, form, setForm, logs, profile
               </div>
               <div>
                 <label className={LABEL}>
-                  Passphrase
-                  <span className="text-t-ink5 normal-case font-normal"> — PKCS#12 only</span>
+                  {t("conn.mtls.pass")}
+                  <span className="text-t-ink5 normal-case font-normal">{t("conn.mtls.pass.hint")}</span>
                 </label>
                 <input
                   type="password"
                   value={clientKeyPassphrase}
                   onChange={e => setClientKeyPassphrase(e.target.value)}
                   disabled={!useTls}
-                  placeholder="optional"
+                  placeholder={t("conn.optional")}
                   className={`${INPUT} disabled:opacity-50`}
                 />
               </div>
             </div>
-            <p className="text-[10.5px] text-t-ink5 leading-relaxed">
-              Used for <strong className="text-t-ink4">mutual TLS</strong> — broker authenticates
-              the client by certificate. PEM keys must be unencrypted PKCS#8 (convert with{" "}
-              <span className="font-mono">openssl pkcs8 -topk8 -nocrypt</span>); use a PKCS#12 bundle
-              with a passphrase if your key is encrypted. Leave all three blank to skip mTLS.
-            </p>
+            <p className="text-[10.5px] text-t-ink5 leading-relaxed">{t("conn.mtls.note")}</p>
           </div>
         </div>
         </>}
@@ -1049,6 +1025,7 @@ const LOG_ICON = {
 const LOG_COLOR = { ok: "text-positive", err: "text-negative", info: "text-t-ink3" };
 
 function ActivityPanel({ logs, bottomRef }: { logs: LogEntry[]; bottomRef: React.RefObject<HTMLDivElement | null> }) {
+  const t = useAmqpText();
   const [open, setOpen] = useState(true);
 
   // Filter to connection-related entries only, last 30
@@ -1066,15 +1043,15 @@ function ActivityPanel({ logs, bottomRef }: { logs: LogEntry[]; bottomRef: React
       <button onClick={() => setOpen(o => !o)}
         aria-expanded={open}
         className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-t-hover/50 transition-colors">
-        <SectionLabel icon={<Activity className="w-3 h-3" />}>Activity</SectionLabel>
+        <SectionLabel icon={<Activity className="w-3 h-3" />}>{t("conn.activity")}</SectionLabel>
         <span className="ml-auto text-[10.5px] text-t-ink5">
-          {filtered.length} event{filtered.length !== 1 ? "s" : ""}{!open && " — click to expand"}
+          {t("conn.activity.count", { count: filtered.length })}{!open && t("conn.activity.expand")}
         </span>
       </button>
       {open && (
         <div className="border-t border-t-line h-[120px] overflow-y-auto p-2 space-y-0.5 font-mono log-selectable">
           {filtered.length === 0 ? (
-            <p className="text-[11.5px] text-t-ink5 text-center py-4">No connection events yet</p>
+            <p className="text-[11.5px] text-t-ink5 text-center py-4">{t("conn.activity.empty")}</p>
           ) : (
             <>
               {filtered.map(entry => {
@@ -1121,6 +1098,7 @@ function WorkspaceCombobox({ value, onChange, suggestions, usage, onDelete }: {
   /** Move every profile in this workspace back to "Default" and refresh. */
   onDelete: (name: string) => Promise<void>;
 }) {
+  const t = useAmqpText();
   const [open, setOpen] = useState(false);
   // Workspace name currently in "are you sure?" mode. Inline confirm avoids
   // pulling in a modal for a tiny destructive-ish action.
@@ -1161,7 +1139,7 @@ function WorkspaceCombobox({ value, onChange, suggestions, usage, onDelete }: {
         onChange={e => { onChange(e.target.value); setOpen(true); }}
         onFocus={() => setOpen(true)}
         onKeyDown={e => { if (e.key === "Escape") { setOpen(false); setConfirmDelete(null); } }}
-        placeholder="Default"
+        placeholder={t("conn.workspace.default")}
         // Same INPUT classes as everywhere else in this view, plus padding
         // on the right to make room for the caret button.
         className="w-full bg-t-field border border-t-line2 rounded-lg pl-3 pr-8 py-1.5 text-[13px] text-t-ink outline-none focus:border-accent focus:ring-1 focus:ring-accent/30 transition-all placeholder:text-t-ink5 box-border h-9 appearance-none"
@@ -1171,7 +1149,7 @@ function WorkspaceCombobox({ value, onChange, suggestions, usage, onDelete }: {
         tabIndex={-1}
         onClick={() => setOpen(o => !o)}
         className="absolute right-2 top-1/2 -translate-y-1/2 text-t-ink4 hover:text-t-ink2 transition-colors"
-        aria-label="Toggle workspace suggestions"
+        aria-label={t("conn.workspace.toggle")}
       >
         <ChevronDown className={`w-3.5 h-3.5 transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
@@ -1194,8 +1172,8 @@ function WorkspaceCombobox({ value, onChange, suggestions, usage, onDelete }: {
                   className="flex items-center gap-2 px-3 py-2 text-[11.5px] bg-negative/5 border-b border-negative/20"
                 >
                   <span className="text-t-ink2 flex-1 min-w-0 truncate">
-                    Delete <b className="text-t-ink">{w}</b>?
-                    {count > 0 && <> Moves {count} profile{count === 1 ? "" : "s"} → Default.</>}
+                    {t("conn.workspace.delete", { name: w })}
+                    {count > 0 && t("conn.workspace.moves", { count })}
                   </span>
                   <button
                     type="button"
@@ -1311,6 +1289,7 @@ function QuickConnectModal({ onApply, onLog, onClose }: {
   onLog: (kind: "info" | "ok" | "err", text: string) => void;
   onClose: () => void;
 }) {
+  const t = useAmqpText();
   const [url, setUrl] = useState("");
   const [previewErr, setPreviewErr] = useState<string | null>(null);
   const preview = useMemo(() => {
@@ -1321,11 +1300,11 @@ function QuickConnectModal({ onApply, onLog, onClose }: {
   }, [url]);
 
   useEffect(() => {
-    setPreviewErr(url.trim() && !preview ? "Couldn't parse — expected something like amqp://user:pass@host:port/queue" : null);
+    setPreviewErr(url.trim() && !preview ? t("conn.quick.bad") : null);
   }, [url, preview]);
 
   function apply() {
-    if (!preview) { onLog("err", "Quick-connect: paste a valid AMQP URL first"); return; }
+    if (!preview) { onLog("err", t("conn.quick.empty")); return; }
     onApply(preview);
   }
 
@@ -1336,18 +1315,14 @@ function QuickConnectModal({ onApply, onLog, onClose }: {
 
         <div className="shrink-0 px-4 py-2.5 border-b border-t-line bg-t-panel flex items-center gap-2">
           <Zap className="w-3.5 h-3.5 text-accent" />
-          <span className="text-[13px] font-semibold text-t-ink">Quick-connect from URL</span>
+          <span className="text-[13px] font-semibold text-t-ink">{t("conn.quick.title")}</span>
           <button onClick={onClose} className="ml-auto p-1 rounded-md hover:bg-t-hover text-t-ink4 hover:text-t-ink">
             <X className="w-3.5 h-3.5" />
           </button>
         </div>
 
         <div className="px-4 py-3 space-y-3 text-[13px]">
-          <p className="text-t-ink5 text-[11.5px] leading-relaxed">
-            Paste a connection URL — fields below preview the parsed result.{" "}
-            <b>Apply</b> fills the Connection form; nothing's saved until you click{" "}
-            <b>Save as…</b> or <b>Save</b> on the main form.
-          </p>
+          <p className="text-t-ink5 text-[11.5px] leading-relaxed">{t("conn.quick.note")}</p>
           <textarea
             value={url}
             onChange={e => setUrl(e.target.value)}
@@ -1364,31 +1339,27 @@ function QuickConnectModal({ onApply, onLog, onClose }: {
           {previewErr && <p className="text-[11.5px] text-negative">{previewErr}</p>}
           {preview && (
             <div className="rounded-md border border-t-line bg-t-card/40 p-2.5 space-y-1 text-[11.5px] font-mono">
-              <div className="text-[10.5px] uppercase tracking-wider text-t-ink4 font-semibold mb-1">Preview</div>
-              <PreviewRow label="Host">{preview.host}</PreviewRow>
-              <PreviewRow label="Port">{preview.port}</PreviewRow>
-              {preview.username && <PreviewRow label="User">{preview.username}</PreviewRow>}
-              {preview.password && <PreviewRow label="Pass">{"•".repeat(Math.min(8, preview.password.length))}</PreviewRow>}
-              {preview.queue && <PreviewRow label="Queue">{preview.queue}</PreviewRow>}
-              <PreviewRow label="TLS">{preview.useTls ? "yes" : "no"}</PreviewRow>
-              {preview.useWs && <PreviewRow label="WebSocket">{preview.wsPath ? `path: ${preview.wsPath}` : "yes (root path)"}</PreviewRow>}
+              <div className="text-[10.5px] uppercase tracking-wider text-t-ink4 font-semibold mb-1">{t("conn.quick.preview")}</div>
+              <PreviewRow label={t("conn.host")}>{preview.host}</PreviewRow>
+              <PreviewRow label={t("conn.port")}>{preview.port}</PreviewRow>
+              {preview.username && <PreviewRow label={t("conn.quick.user")}>{preview.username}</PreviewRow>}
+              {preview.password && <PreviewRow label={t("conn.quick.pass")}>{"•".repeat(Math.min(8, preview.password.length))}</PreviewRow>}
+              {preview.queue && <PreviewRow label={t("conn.quick.queue")}>{preview.queue}</PreviewRow>}
+              <PreviewRow label="TLS">{preview.useTls ? t("conn.quick.yes") : t("conn.quick.no")}</PreviewRow>
+              {preview.useWs && <PreviewRow label={t("conn.quick.ws")}>{preview.wsPath ? t("conn.quick.wsPath", { path: preview.wsPath }) : t("conn.quick.wsRoot")}</PreviewRow>}
             </div>
           )}
-          <p className="text-[10.5px] text-t-ink5 leading-relaxed">
-            Schemes: <Code>amqp://</Code> = plain TCP, <Code>amqps://</Code> = TLS,{" "}
-            <Code>ws://</Code> / <Code>wss://</Code> = WebSocket transport. Port defaults: 5672
-            (plain) / 5671 (TLS). The first non-slash path segment becomes the default queue.
-          </p>
+          <p className="text-[10.5px] text-t-ink5 leading-relaxed">{t("conn.quick.schemes")}</p>
         </div>
 
         <div className="shrink-0 px-3 py-2 border-t border-t-line bg-t-panel flex items-center justify-end gap-2">
           <button onClick={onClose}
             className="px-3 py-1 rounded-lg text-[11.5px] font-medium text-t-ink4 hover:text-t-ink hover:bg-t-hover transition-colors">
-            Cancel
+            {t("conn.cancel")}
           </button>
           <button onClick={apply} disabled={!preview}
             className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-accent hover:bg-accent-strong text-white text-[11.5px] font-semibold transition-colors disabled:opacity-40">
-            <Zap className="w-3 h-3" /> Apply to form
+            <Zap className="w-3 h-3" /> {t("conn.quick.apply")}
           </button>
         </div>
       </div>
@@ -1403,9 +1374,4 @@ function PreviewRow({ label, children }: { label: string; children: React.ReactN
       <span className="text-t-ink2 truncate">{children}</span>
     </div>
   );
-}
-
-// Tiny local <code> primitive for the QuickConnect modal.
-function Code({ children }: { children: React.ReactNode }) {
-  return <code className="text-[10.5px] font-mono px-1 py-0.5 rounded-md bg-t-card/60 text-t-ink2">{children}</code>;
 }
