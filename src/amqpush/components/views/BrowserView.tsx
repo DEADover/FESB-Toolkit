@@ -9,6 +9,7 @@ import {
 import CollapsibleSection from "../CollapsibleSection";
 import PropsList from "../PropsList";
 import EmptyState from "../EmptyState";
+import { useAmqpText } from "../../i18n";
 import ViewTopBar from "../ViewTopBar";
 import CopyButton from "../CopyButton";
 import CodeEditor from "../CodeEditor";
@@ -139,6 +140,7 @@ function originalDestination(props: Record<string, string>): string | null {
 }
 
 export default function BrowserView({ connected, visible, onLog, onPublishTo, onSubscribeTo, profiles = [], activeProfile = "" }: Props) {
+  const t = useAmqpText();
   const [queues,    setQueues]    = useState<BrokerQueue[]>([]);
   const [loading,   setLoading]   = useState(false);
   const [err,       setErr]       = useState<string | null>(null);
@@ -190,7 +192,7 @@ export default function BrowserView({ connected, visible, onLog, onPublishTo, on
 
   /** Reload queue list. `silent` = no spinner / no log entries (used by polling). */
   async function refreshQueues(silent: boolean) {
-    if (!connected) { setErr("Not connected to broker"); return; }
+    if (!connected) { setErr(t("browser.notConnectedLog")); return; }
     if (!silent) {
       setLoading(true);
       setErr(null);
@@ -301,7 +303,7 @@ export default function BrowserView({ connected, visible, onLog, onPublishTo, on
       .filter((x): x is { msg: PeekedMessage; origin: string } => !!x.origin);
 
     if (targets.length === 0) {
-      onLog("err", "No messages have an original-destination property to requeue to.");
+      onLog("err", t("browser.noOrigin"));
       return;
     }
 
@@ -387,16 +389,16 @@ export default function BrowserView({ connected, visible, onLog, onPublishTo, on
       {/* ─── TOP BAR ─── */}
       <ViewTopBar
         icon={<Radar className="w-3.5 h-3.5" />}
-        title="Broker Browser"
+        title={t("browser.title")}
         count={loaded ? (
           filtered.length === queues.length
-            ? `${queues.length} queue${queues.length !== 1 ? "s" : ""}`
+            ? t("browser.queues", { count: queues.length })
             : `${filtered.length} / ${queues.length}`
         ) : null}
         status={connected && autoOn && pollErr ? (
-          <span className="flex items-center gap-1 text-[10.5px] text-caution font-mono" title={`Polling error: ${pollErr}`}>
+          <span className="flex items-center gap-1 text-[10.5px] text-caution font-mono" title={t("browser.pollError.hint", { error: pollErr })}>
             <span className="w-1.5 h-1.5 rounded-full bg-caution" />
-            poll error
+            {t("browser.pollError")}
           </span>
         ) : connected && autoOn && loaded ? (
           <span className="flex items-center gap-1 text-[10.5px] text-t-ink5 font-mono" title={`Auto-refresh every ${QUEUE_POLL_INTERVAL_MS / 1000}s`}>
@@ -411,9 +413,9 @@ export default function BrowserView({ connected, visible, onLog, onPublishTo, on
           className={`text-[11.5px] transition-colors px-1.5 py-0.5 rounded-md ${
             autoOn ? "text-accent bg-accent/10" : "text-t-ink4 hover:text-t-ink3"
           }`}
-          title={autoOn ? "Auto-refresh on — click to pause" : "Auto-refresh paused"}
+          title={autoOn ? t("browser.auto.on") : t("browser.auto.off")}
         >
-          {autoOn ? "● Auto" : "○ Auto"}
+          {autoOn ? `● ${t("browser.auto")}` : `○ ${t("browser.auto")}`}
         </button>
         <button
           onClick={() => setHideEmpty(h => !h)}
@@ -421,13 +423,13 @@ export default function BrowserView({ connected, visible, onLog, onPublishTo, on
           className={`text-[11.5px] transition-colors px-1.5 py-0.5 rounded-md ${
             hideEmpty ? "text-accent bg-accent/10" : "text-t-ink4 hover:text-t-ink3"
           }`}
-          title="Hide queues with zero messages"
+          title={t("browser.hideEmpty.hint")}
         >
-          Hide empty
+          {t("browser.hideEmpty")}
         </button>
         <button onClick={() => refreshQueues(false)} disabled={!connected || loading}
           className="px-2 py-1 rounded-md text-[11.5px] font-medium text-t-ink4 hover:text-accent hover:bg-accent/10 transition-colors flex items-center gap-1 disabled:opacity-40">
-          <RotateCcw className={`w-3 h-3 ${loading ? "animate-spin" : ""}`} /> Refresh
+          <RotateCcw className={`w-3 h-3 ${loading ? "animate-spin" : ""}`} /> {t("browser.refresh")}
         </button>
       </ViewTopBar>
 
@@ -436,7 +438,7 @@ export default function BrowserView({ connected, visible, onLog, onPublishTo, on
         <div className="shrink-0 px-3 py-1 border-b border-t-line bg-t-panel flex items-center gap-2">
           <Search className="w-3.5 h-3.5 text-t-ink5 shrink-0" />
           <input value={search} onChange={e => setSearch(e.target.value)}
-            placeholder="Filter queues by name or address…"
+            placeholder={t("browser.search")}
             className="flex-1 bg-transparent text-xs text-t-ink outline-none placeholder:text-t-ink5" />
           {search && (
             <button onClick={() => setSearch("")} className="text-t-ink5 hover:text-t-ink3 transition-colors">
@@ -452,36 +454,36 @@ export default function BrowserView({ connected, visible, onLog, onPublishTo, on
         {/* ─── LEFT: QUEUE TABLE ─── */}
         <div className={`${selectedQueue ? "w-[45%] border-r border-t-line" : "flex-1"} flex flex-col min-w-0 min-h-0 overflow-hidden`}>
           {!connected ? (
-            <EmptyState icon={<Radar className="w-8 h-8" />} title="Not connected" subtitle="Connect to a broker to discover queues" />
+            <EmptyState icon={<Radar className="w-8 h-8" />} title={t("browser.notConnected")} subtitle={t("browser.notConnected.hint")} />
           ) : loading && queues.length === 0 ? (
-            <EmptyState icon={<Loader2 className="w-8 h-8 animate-spin" />} title="Querying broker…" />
+            <EmptyState icon={<Loader2 className="w-8 h-8 animate-spin" />} title={t("browser.querying")} />
           ) : err ? (
             <EmptyState
               variant="error"
-              title="Discovery failed"
+              title={t("browser.failed")}
               subtitle={<>
                 {err}
-                <p className="text-[10.5px] mt-3 text-t-ink5">Requires Artemis or ActiveMQ Classic with AMQP management enabled</p>
+                <p className="text-[10.5px] mt-3 text-t-ink5">{t("browser.failed.hint")}</p>
               </>}
               action={
                 <button onClick={() => refreshQueues(false)}
                   className="px-2.5 py-1 rounded-lg text-[11.5px] font-medium bg-t-card border border-t-line text-t-ink2 hover:bg-t-hover transition-colors">
-                  Retry
+                  {t("browser.retry")}
                 </button>
               }
             />
           ) : filtered.length === 0 ? (
-            <EmptyState icon={<Radar className="w-8 h-8" />} title={search || hideEmpty ? "No queues match" : "No queues on broker"} />
+            <EmptyState icon={<Radar className="w-8 h-8" />} title={search || hideEmpty ? t("browser.nothing") : t("browser.none")} />
           ) : (
             <div className="flex-1 overflow-auto min-h-0">
               <table className="w-full text-[12.5px] font-mono table-fixed">
                 <thead className="sticky top-0 z-10 bg-t-panel border-b border-t-line">
                   <tr className="text-[10.5px] uppercase tracking-wider text-t-ink4 select-none">
-                    <SortableHeader label="Name"  sortKey="name"      current={sortKey} dir={sortDir} onClick={toggleSort} className="text-left  pl-3" />
-                    <SortableHeader label="Type"  sortKey="type"      current={sortKey} dir={sortDir} onClick={toggleSort} className="text-left  w-24" />
-                    <SortableHeader label="Msgs"  sortKey="messages"  current={sortKey} dir={sortDir} onClick={toggleSort} className="text-right w-14" />
-                    <SortableHeader label="Cons"  sortKey="consumers" current={sortKey} dir={sortDir} onClick={toggleSort} className="text-right w-12" />
-                    {!selectedQueue && <th className="text-left w-44 font-semibold py-1.5 px-2">Address</th>}
+                    <SortableHeader label={t("browser.column.name")}  sortKey="name"      current={sortKey} dir={sortDir} onClick={toggleSort} className="text-left  pl-3" />
+                    <SortableHeader label={t("browser.column.type")}  sortKey="type"      current={sortKey} dir={sortDir} onClick={toggleSort} className="text-left  w-24" />
+                    <SortableHeader label={t("browser.column.msgs")}  sortKey="messages"  current={sortKey} dir={sortDir} onClick={toggleSort} className="text-right w-14" />
+                    <SortableHeader label={t("browser.column.cons")}  sortKey="consumers" current={sortKey} dir={sortDir} onClick={toggleSort} className="text-right w-12" />
+                    {!selectedQueue && <th className="text-left w-44 font-semibold py-1.5 px-2">{t("browser.column.address")}</th>}
                     <th className="w-24 pr-2"></th>
                   </tr>
                 </thead>
@@ -513,10 +515,10 @@ export default function BrowserView({ connected, visible, onLog, onPublishTo, on
                         )}
                         <td className="py-1.5 pr-2">
                           <div className="flex items-center justify-end gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <IconBtn title="Publish to" onClick={(e) => { e.stopPropagation(); onPublishTo(bq.address); }} colorClass="hover:text-accent hover:bg-accent/10">
+                            <IconBtn title={t("browser.publishTo")} onClick={(e) => { e.stopPropagation(); onPublishTo(bq.address); }} colorClass="hover:text-accent hover:bg-accent/10">
                               <Send className="w-3 h-3" />
                             </IconBtn>
-                            <IconBtn title="Subscribe" onClick={(e) => { e.stopPropagation(); onSubscribeTo(bq.address); }} colorClass="hover:text-positive hover:bg-positive/10">
+                            <IconBtn title={t("browser.subscribeTo")} onClick={(e) => { e.stopPropagation(); onSubscribeTo(bq.address); }} colorClass="hover:text-positive hover:bg-positive/10">
                               <Inbox className="w-3 h-3" />
                             </IconBtn>
                           </div>
@@ -556,27 +558,27 @@ export default function BrowserView({ connected, visible, onLog, onPublishTo, on
                     }
                   }}
                   className="bg-t-field border border-t-line2 rounded-md px-1.5 py-0.5 text-[11.5px] text-t-ink2 outline-none"
-                  title="Max messages to peek (All resolves to the queue's broker-reported message_count)">
+                  title={t("browser.peekMax")}>
                   {PEEK_PRESETS.map(n => (
-                    <option key={n} value={n}>{n === 0 ? "All" : n}</option>
+                    <option key={n} value={n}>{n === 0 ? t("browser.all") : n}</option>
                   ))}
                 </select>
                 <button onClick={() => peekQueue(selectedQueue)}
-                  title="Refresh"
+                  title={t("browser.refresh")}
                   className="flex items-center gap-1 px-2 py-1 rounded-md text-[11.5px] font-medium text-t-ink4 hover:text-accent hover:bg-accent/10 transition-colors">
-                  <RotateCcw className={`w-3 h-3 ${peekLoading ? "animate-spin" : ""}`} /> Refresh
+                  <RotateCcw className={`w-3 h-3 ${peekLoading ? "animate-spin" : ""}`} /> {t("browser.refresh")}
                 </button>
                 <button
                   onClick={() => setShovelMsgs(messages)}
                   disabled={messages.length === 0 || peekLoading || profiles.length < 2}
                   title={profiles.length < 2
-                    ? "Need at least two saved profiles to shovel between brokers"
+                    ? t("browser.shovel.needsProfiles")
                     : messages.length === 0
-                      ? "Queue is empty — nothing to shovel"
-                      : "Copy peeked messages to a queue on another broker"}
+                      ? t("browser.shovel.empty")
+                      : t("browser.shovel.hint")}
                   className="flex items-center gap-1 px-2 py-1 rounded-md text-[11.5px] font-medium text-t-ink4 hover:text-accent hover:bg-accent/10 transition-colors disabled:opacity-40 disabled:hover:bg-transparent"
                 >
-                  <ArrowRightLeft className="w-3 h-3" /> Shovel…
+                  <ArrowRightLeft className="w-3 h-3" /> {t("browser.shovel")}
                 </button>
                 {/* On DLQ queues we always render the Requeue-all button so
                     its location is discoverable even when the queue is
@@ -589,28 +591,28 @@ export default function BrowserView({ connected, visible, onLog, onPublishTo, on
                     disabled={!!requeueProgress || peekLoading || messages.length === 0}
                     title={
                       messages.length === 0
-                        ? "Queue is empty — nothing to requeue"
-                        : `Republish all ${messages.length} peeked message${messages.length !== 1 ? "s" : ""} to their original destinations`
+                        ? t("browser.requeue.empty")
+                        : t("browser.requeue.hint", { count: messages.length })
                     }
                     className="flex items-center gap-1 px-2 py-1 rounded-md text-[11.5px] font-medium text-accent bg-accent/10 hover:bg-accent/20 transition-colors disabled:opacity-40 disabled:hover:bg-accent/10"
                   >
                     {requeueProgress
-                      ? <><Loader2 className="w-3 h-3 animate-spin" /> Requeue {requeueProgress.done}/{requeueProgress.total}</>
-                      : <><CornerUpLeft className="w-3 h-3" /> Requeue all</>}
+                      ? <><Loader2 className="w-3 h-3 animate-spin" /> {t("browser.requeue.progress", { done: requeueProgress.done, total: requeueProgress.total })}</>
+                      : <><CornerUpLeft className="w-3 h-3" /> {t("browser.requeue.all")}</>}
                   </button>
                 )}
                 <button
                   onClick={() => setPurgeConfirm(selectedQueue)}
                   disabled={messages.length === 0 || peekLoading}
                   title={messages.length === 0
-                    ? "Queue is empty — nothing to purge"
-                    : "Permanently delete all messages from this queue"}
+                    ? t("browser.purge.empty")
+                    : t("browser.purge.hint")}
                   className="flex items-center gap-1 px-2 py-1 rounded-md text-[11.5px] font-medium text-t-ink4 hover:text-negative hover:bg-negative/10 transition-colors disabled:opacity-40 disabled:hover:text-t-ink4 disabled:hover:bg-transparent"
                 >
-                  <Trash2 className="w-3 h-3" /> Purge
+                  <Trash2 className="w-3 h-3" /> {t("browser.purge")}
                 </button>
                 <button onClick={closePeek}
-                  title="Close peek"
+                  title={t("browser.close")}
                   className="p-1 rounded-md text-t-ink4 hover:text-t-ink hover:bg-t-hover transition-colors">
                   <X className="w-3 h-3" />
                 </button>
@@ -624,22 +626,18 @@ export default function BrowserView({ connected, visible, onLog, onPublishTo, on
               <div className="shrink-0 px-3 py-2 border-b border-t-line bg-caution/5 flex items-start gap-2 text-[11.5px]">
                 <ShieldAlert className="w-3.5 h-3.5 text-caution shrink-0 mt-0.5" />
                 <div className="text-t-ink2 leading-relaxed">
-                  <span className="text-caution font-medium">Dead-letter queue.</span>{" "}
-                  Messages here usually carry an original-destination property
-                  (<span className="font-mono text-[10.5px]">_AMQ_ORIG_ADDRESS</span>{" "}
-                  on Artemis, <span className="font-mono text-[10.5px]">originalDestination</span>{" "}
-                  on Classic). <b>Requeue all</b> republishes each message to
-                  its origin so consumers get another delivery attempt.
+                  <span className="text-caution font-medium">{t("browser.dlq")}</span>{" "}
+                  {t("browser.dlq.note")}
                 </div>
               </div>
             )}
 
             {peekLoading ? (
-              <EmptyState icon={<Loader2 className="w-8 h-8 animate-spin" />} title="Peeking messages…" subtitle="Reading from queue without consuming" />
+              <EmptyState icon={<Loader2 className="w-8 h-8 animate-spin" />} title={t("browser.peeking")} subtitle={t("browser.peeking.hint")} />
             ) : peekErr ? (
-              <EmptyState variant="error" title="Peek failed" subtitle={peekErr} />
+              <EmptyState variant="error" title={t("browser.peekFailed")} subtitle={peekErr} />
             ) : messages.length === 0 ? (
-              <EmptyState icon={<Inbox className="w-8 h-8" />} title="Queue is empty" />
+              <EmptyState icon={<Inbox className="w-8 h-8" />} title={t("browser.empty")} />
             ) : (
               <>
                 {/* Selection bar — shown on any queue when ≥1 row is picked.
@@ -652,14 +650,14 @@ export default function BrowserView({ connected, visible, onLog, onPublishTo, on
                   return (
                     <div className="shrink-0 px-3 py-1.5 border-b border-t-line bg-accent/5 flex items-center gap-2 flex-wrap">
                       <span className="text-[11.5px] text-accent font-medium">
-                        {selectedIdxs.size} selected
+                        {t("browser.selected", { count: selectedIdxs.size })}
                       </span>
                       <button
                         type="button"
                         onClick={() => setSelectedIdxs(new Set())}
                         className="text-[11.5px] text-t-ink4 hover:text-t-ink2 transition-colors"
                       >
-                        Clear
+                        {t("browser.clear")}
                       </button>
                       <button
                         type="button"
@@ -667,7 +665,7 @@ export default function BrowserView({ connected, visible, onLog, onPublishTo, on
                         disabled={selectedIdxs.size === messages.length}
                         className="text-[11.5px] text-t-ink4 hover:text-t-ink2 transition-colors disabled:opacity-40"
                       >
-                        Select all
+                        {t("browser.selectAll")}
                       </button>
 
                       <div className="ml-auto flex items-center gap-1">
@@ -678,19 +676,19 @@ export default function BrowserView({ connected, visible, onLog, onPublishTo, on
                               type="button"
                               onClick={() => setEditRequeueMsgs(picked)}
                               disabled={!!requeueProgress}
-                              title="Walk through selected messages, edit body / target per-message, resubmit"
+                              title={t("browser.editRequeue.hint")}
                               className="flex items-center gap-1 px-2 py-1 rounded-md text-[11.5px] font-medium text-accent bg-accent/10 hover:bg-accent/20 transition-colors disabled:opacity-40"
                             >
-                              <Edit3 className="w-3 h-3" /> Edit & Requeue…
+                              <Edit3 className="w-3 h-3" /> {t("browser.editRequeue")}
                             </button>
                             <button
                               type="button"
                               onClick={() => requeueMessages(picked)}
                               disabled={!!requeueProgress}
-                              title="Republish selected messages to their original destinations without editing"
+                              title={t("browser.requeue.selected.hint")}
                               className="flex items-center gap-1 px-2 py-1 rounded-md text-[11.5px] font-medium text-t-ink2 hover:text-t-ink hover:bg-t-hover transition-colors disabled:opacity-40"
                             >
-                              <CornerUpLeft className="w-3 h-3" /> Requeue selected
+                              <CornerUpLeft className="w-3 h-3" /> {t("browser.requeue.selected")}
                             </button>
                           </>
                         )}
@@ -700,11 +698,11 @@ export default function BrowserView({ connected, visible, onLog, onPublishTo, on
                           onClick={() => setShovelMsgs(picked)}
                           disabled={profiles.length < 2}
                           title={profiles.length < 2
-                            ? "Need at least two saved profiles to shovel between brokers"
-                            : "Copy selected messages to a queue on another broker"}
+                            ? t("browser.shovel.needsProfiles")
+                            : t("browser.shovel.selected.hint")}
                           className="flex items-center gap-1 px-2 py-1 rounded-md text-[11.5px] font-medium text-t-ink2 hover:text-accent hover:bg-accent/10 transition-colors disabled:opacity-40 disabled:hover:bg-transparent"
                         >
-                          <ArrowRightLeft className="w-3 h-3" /> Shovel selected…
+                          <ArrowRightLeft className="w-3 h-3" /> {t("browser.shovel.selected")}
                         </button>
                         {/* Universal: Purge selected. Requires message-ids on
                             every picked message (Artemis removeMessages selector
@@ -718,11 +716,11 @@ export default function BrowserView({ connected, visible, onLog, onPublishTo, on
                           })}
                           disabled={withId !== picked.length || withId === 0}
                           title={withId === picked.length
-                            ? `Permanently delete the ${picked.length} selected message${picked.length === 1 ? "" : "s"} from the broker`
-                            : `${picked.length - withId} of the selected messages have no message-id — selective delete needs message-ids (Artemis removeMessages selector uses them)`}
+                            ? t("browser.purge.selected.hint", { count: picked.length })
+                            : t("browser.purge.selected.noIds", { count: picked.length - withId })}
                           className="flex items-center gap-1 px-2 py-1 rounded-md text-[11.5px] font-medium text-t-ink4 hover:text-negative hover:bg-negative/10 transition-colors disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-t-ink4"
                         >
-                          <Trash2 className="w-3 h-3" /> Purge selected
+                          <Trash2 className="w-3 h-3" /> {t("browser.purge.selected")}
                         </button>
                       </div>
                     </div>
@@ -740,8 +738,8 @@ export default function BrowserView({ connected, visible, onLog, onPublishTo, on
                     <span className="w-3.5 shrink-0" /> {/* checkbox column */}
                     <span className="w-3 shrink-0" />   {/* message-icon column */}
                     <span className="w-6 shrink-0 font-semibold">#</span>
-                    <span className="font-semibold flex-1">Message ID</span>
-                    <span className="font-semibold shrink-0">Date-Time</span>
+                    <span className="font-semibold flex-1">{t("browser.column.messageId")}</span>
+                    <span className="font-semibold shrink-0">{t("browser.column.time")}</span>
                   </div>
                   {[...messages]
                     .map((m, origIdx) => ({ m, origIdx }))
@@ -809,7 +807,7 @@ export default function BrowserView({ connected, visible, onLog, onPublishTo, on
                               <span className="text-t-ink4 font-mono">P{msg.priority}</span>
                             )}
                             {msg.delivery_count > 0 && (
-                              <span className="text-t-ink4 font-mono" title="Delivery count">↻ {msg.delivery_count}</span>
+                              <span className="text-t-ink4 font-mono" title={t("browser.delivery")}>↻ {msg.delivery_count}</span>
                             )}
                           </div>
                         </button>
@@ -912,6 +910,7 @@ function PurgeConfirmModal({ queue, messageCount, purging, onConfirm, onCancel }
   onConfirm: () => void;
   onCancel: () => void;
 }) {
+  const t = useAmqpText();
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={onCancel}>
       <div onClick={e => e.stopPropagation()}
@@ -919,22 +918,15 @@ function PurgeConfirmModal({ queue, messageCount, purging, onConfirm, onCancel }
 
         <div className="shrink-0 px-4 py-2.5 border-b border-t-line bg-t-panel flex items-center gap-2">
           <AlertTriangle className="w-3.5 h-3.5 text-negative" />
-          <span className="text-[13px] font-semibold text-t-ink">Purge queue</span>
+          <span className="text-[13px] font-semibold text-t-ink">{t("browser.purge.title")}</span>
           <button onClick={onCancel} className="ml-auto p-1 rounded-md hover:bg-t-hover text-t-ink4 hover:text-t-ink">
             <X className="w-3.5 h-3.5" />
           </button>
         </div>
 
         <div className="px-4 py-3 space-y-2 text-[13px] text-t-ink2">
-          <p>
-            Permanently delete <span className="font-mono font-bold text-t-ink">{messageCount.toLocaleString()}</span>{" "}
-            message{messageCount !== 1 ? "s" : ""} from queue{" "}
-            <span className="font-mono text-accent">{queue}</span>?
-          </p>
-          <p className="text-[11.5px] text-t-ink5">
-            This calls Artemis's <code className="text-t-ink4">removeAllMessages</code> management
-            operation. The action cannot be undone — drained messages do <em>not</em> go to the DLQ.
-          </p>
+          <p>{t("browser.purge.body", { count: messageCount.toLocaleString(), queue })}</p>
+          <p className="text-[11.5px] text-t-ink5">{t("browser.purge.note")}</p>
         </div>
 
         <div className="shrink-0 px-3 py-2 border-t border-t-line bg-t-panel flex items-center justify-end gap-2">
@@ -951,7 +943,7 @@ function PurgeConfirmModal({ queue, messageCount, purging, onConfirm, onCancel }
             className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-negative hover:bg-negative text-white text-[11.5px] font-semibold transition-colors disabled:opacity-40"
           >
             {purging ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
-            {purging ? "Purging…" : `Delete ${messageCount.toLocaleString()} message${messageCount !== 1 ? "s" : ""}`}
+            {purging ? t("browser.purging") : t("browser.purge.confirm", { count: messageCount.toLocaleString() })}
           </button>
         </div>
       </div>
@@ -976,34 +968,26 @@ function SelectivePurgeModal({ queue, ids, total, purging, onConfirm, onCancel }
   onConfirm: () => void;
   onCancel: () => void;
 }) {
+  const t = useAmqpText();
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={onCancel}>
       <div onClick={e => e.stopPropagation()}
         className="bg-t-bg border border-t-line rounded-xl shadow-2xl w-[460px] max-w-[90vw] flex flex-col overflow-hidden">
         <div className="shrink-0 px-4 py-2.5 border-b border-t-line bg-t-panel flex items-center gap-2">
           <AlertTriangle className="w-3.5 h-3.5 text-negative" />
-          <span className="text-[13px] font-semibold text-t-ink">Delete selected messages</span>
+          <span className="text-[13px] font-semibold text-t-ink">{t("browser.purgeSel.title")}</span>
           <button onClick={onCancel} className="ml-auto p-1 rounded-md hover:bg-t-hover text-t-ink4 hover:text-t-ink">
             <X className="w-3.5 h-3.5" />
           </button>
         </div>
         <div className="px-4 py-3 space-y-2 text-[13px] text-t-ink2">
-          <p>
-            Permanently delete <span className="font-mono font-bold text-t-ink">{ids.length.toLocaleString()}</span>{" "}
-            message{ids.length === 1 ? "" : "s"} from queue{" "}
-            <span className="font-mono text-accent">{queue}</span>?
-          </p>
+          <p>{t("browser.purgeSel.body", { count: ids.length.toLocaleString(), queue })}</p>
           {ids.length !== total && (
             <p className="text-[11.5px] text-caution">
-              {total - ids.length} of {total} selected message{total === 1 ? " has" : "s have"} no message-id
-              and will be left in place — selective delete needs message-ids.
+              {t("browser.purgeSel.partial", { count: total - ids.length, total })}
             </p>
           )}
-          <p className="text-[11.5px] text-t-ink5">
-            Calls Artemis's <code className="text-t-ink4">queue.removeMessages</code> with a JMS selector
-            matching the message-ids of the selected rows. Cannot be undone — deleted messages do{" "}
-            <em>not</em> go to the DLQ.
-          </p>
+          <p className="text-[11.5px] text-t-ink5">{t("browser.purgeSel.note")}</p>
         </div>
         <div className="shrink-0 px-3 py-2 border-t border-t-line bg-t-panel flex items-center justify-end gap-2">
           <button
@@ -1019,7 +1003,7 @@ function SelectivePurgeModal({ queue, ids, total, purging, onConfirm, onCancel }
             className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-negative hover:bg-negative text-white text-[11.5px] font-semibold transition-colors disabled:opacity-40"
           >
             {purging ? <Spinner className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
-            {purging ? "Deleting…" : `Delete ${ids.length.toLocaleString()} message${ids.length === 1 ? "" : "s"}`}
+            {purging ? t("browser.deleting") : t("browser.purge.confirm", { count: ids.length.toLocaleString() })}
           </button>
         </div>
       </div>
@@ -1068,6 +1052,7 @@ function MessageDetails({ msg, idx, queue, onLog, onRequeue, onEditRequeue, requ
   onEditRequeue?: () => void;
   requeueDisabled?: boolean;
 }) {
+  const t = useAmqpText();
   const [bodyOpen,  setBodyOpen]  = useState(true);
   const [propsOpen, setPropsOpen] = useState(true);
   const [appOpen,   setAppOpen]   = useState(true);
@@ -1145,21 +1130,21 @@ function MessageDetails({ msg, idx, queue, onLog, onRequeue, onEditRequeue, requ
         <span className="text-[10.5px] px-1.5 py-0.5 rounded-md bg-t-hover text-t-ink3 font-medium uppercase">{msg.body_kind}</span>
         <span className="text-t-ink5 font-mono">{fmtBytes(msg.body_size)}</span>
         {msg.delivery_count > 0 && (
-          <span className="text-t-ink4" title="Delivery count">↻ {msg.delivery_count}</span>
+          <span className="text-t-ink4" title={t("browser.delivery")}>↻ {msg.delivery_count}</span>
         )}
         {msg.priority !== null && msg.priority !== 4 && <span className="text-t-ink4">P{msg.priority}</span>}
-        {msg.durable && <span className="text-accent">durable</span>}
+        {msg.durable && <span className="text-accent">{t("browser.durable")}</span>}
         <button
           type="button"
           onClick={toggleHolders}
-          title="Show consumers currently attached to this queue (Artemis doesn't expose a per-message lock owner — the practical answer is which clients have credit outstanding)"
+          title={t("browser.whoHolds.hint")}
           className={`ml-auto flex items-center gap-1 text-[11.5px] transition-colors px-1.5 py-0.5 rounded-md ${
             holderOpen
               ? "text-accent bg-accent/10"
               : "text-t-ink4 hover:text-accent hover:bg-accent/10"
           }`}
         >
-          <Users className="w-3 h-3" /> Who holds it?
+          <Users className="w-3 h-3" /> {t("clients.whoHolds")}
         </button>
         {onEditRequeue && (
           // Edit & Requeue chip is shown on DLQ for every peeked message —
@@ -1169,10 +1154,10 @@ function MessageDetails({ msg, idx, queue, onLog, onRequeue, onEditRequeue, requ
             type="button"
             onClick={onEditRequeue}
             disabled={requeueDisabled}
-            title="Open the message in an editor — tweak body / target, then resubmit"
+            title={t("browser.edit")}
             className="flex items-center gap-1 text-[11.5px] font-medium text-t-ink3 hover:text-accent disabled:opacity-40 transition-colors"
           >
-            <Edit3 className="w-3 h-3" /> Edit & Requeue…
+            <Edit3 className="w-3 h-3" /> {t("browser.editRequeue")}
           </button>
         )}
         {onRequeue && (() => {
@@ -1187,7 +1172,7 @@ function MessageDetails({ msg, idx, queue, onLog, onRequeue, onEditRequeue, requ
               type="button"
               onClick={onRequeue}
               disabled={requeueDisabled}
-              title={`Republish this message to ${origin} without editing`}
+              title={t("browser.requeueOne", { origin })}
               className="flex items-center gap-1 text-[11.5px] font-medium text-accent hover:text-accent-content disabled:opacity-40 transition-colors"
             >
               <CornerUpLeft className="w-3 h-3" /> Requeue → <span className="font-mono">{origin}</span>
@@ -1201,37 +1186,37 @@ function MessageDetails({ msg, idx, queue, onLog, onRequeue, onEditRequeue, requ
         <div className="rounded-md border border-t-line bg-t-card/40 p-2">
           <div className="flex items-center gap-2 mb-2 text-[11.5px]">
             <Users className="w-3 h-3 text-t-ink4" />
-            <span className="text-t-ink2 font-medium">Consumers on this queue</span>
+            <span className="text-t-ink2 font-medium">{t("browser.consumers")}</span>
             <span className="text-t-ink5 font-mono">{holderCons.length}</span>
             <button
               type="button"
               onClick={loadHolders}
               disabled={holderLoading}
-              title="Refresh"
+              title={t("browser.refresh")}
               className="ml-auto flex items-center gap-1 text-[10.5px] text-t-ink4 hover:text-t-ink2 transition-colors px-1 py-0.5 rounded-md hover:bg-t-hover disabled:opacity-40"
             >
               <RotateCcw className={`w-3 h-3 ${holderLoading ? "animate-spin" : ""}`} />
             </button>
           </div>
           {holderLoading && holderCons.length === 0 ? (
-            <div className="text-[11.5px] text-t-ink5 italic">Loading consumers…</div>
+            <div className="text-[11.5px] text-t-ink5 italic">{t("browser.consumers.loading")}</div>
           ) : holderErr ? (
-            <div className="text-[11.5px] text-negative">Failed: {holderErr}</div>
+            <div className="text-[11.5px] text-negative">{t("browser.consumers.failed", { error: holderErr })}</div>
           ) : holderCons.length === 0 ? (
             <div className="text-[11.5px] text-t-ink5">
-              No consumers are currently attached to this queue.{" "}
+              {t("browser.consumers.noneNow")}{" "}
               {msg.delivery_count > 0
-                ? <>Message has been redelivered <b>{msg.delivery_count}×</b>, so a previous consumer may have given up.</>
-                : <>Messages will sit here until a consumer subscribes.</>}
+                ? t("browser.consumers.redelivered", { count: msg.delivery_count })
+                : t("browser.consumers.none")}
             </div>
           ) : (
             <table className="w-full text-[11.5px] font-mono">
               <thead className="text-[10.5px] uppercase tracking-wider text-t-ink5">
                 <tr className="border-b border-t-line/60">
-                  <th className="text-left pb-1 font-semibold">Client</th>
-                  <th className="text-left pb-1 font-semibold w-24">User</th>
-                  <th className="text-right pb-1 font-semibold w-12" title="Credit currently outstanding">Credit</th>
-                  <th className="text-right pb-1 font-semibold w-20">Last RX</th>
+                  <th className="text-left pb-1 font-semibold">{t("browser.consumers.client")}</th>
+                  <th className="text-left pb-1 font-semibold w-24">{t("browser.consumers.user")}</th>
+                  <th className="text-right pb-1 font-semibold w-12" title={t("browser.consumers.credit.hint")}>{t("browser.consumers.credit")}</th>
+                  <th className="text-right pb-1 font-semibold w-20">{t("browser.consumers.lastRx")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -1267,7 +1252,7 @@ function MessageDetails({ msg, idx, queue, onLog, onRequeue, onEditRequeue, requ
         </div>
       )}
 
-      <CollapsibleSection title="Properties" icon={<Tag className="w-3 h-3" />} open={propsOpen} onToggle={() => setPropsOpen(o => !o)}>
+      <CollapsibleSection title={t("browser.props")} icon={<Tag className="w-3 h-3" />} open={propsOpen} onToggle={() => setPropsOpen(o => !o)}>
         <PropsList onLog={onLog} items={[
           ["message-id",       msg.message_id],
           ["correlation-id",   msg.correlation_id],
@@ -1296,7 +1281,7 @@ function MessageDetails({ msg, idx, queue, onLog, onRequeue, onEditRequeue, requ
       )}
 
       <CollapsibleSection
-        title="Body"
+        title={t("browser.body")}
         icon={<MessageSquare className="w-3 h-3" />}
         open={bodyOpen}
         onToggle={() => setBodyOpen(o => !o)}
@@ -1311,8 +1296,8 @@ function MessageDetails({ msg, idx, queue, onLog, onRequeue, onEditRequeue, requ
                     bodyMode === m ? "bg-accent/15 text-accent" : "text-t-ink4 hover:text-t-ink2 hover:bg-t-hover"
                   }`}
                   title={
-                    m === "auto" ? `Auto (${detected})` :
-                    m === "raw"  ? "Raw text" : "Hex dump"
+                    m === "auto" ? t("history.body.auto", { kind: detected }) :
+                    m === "raw"  ? t("browser.body.raw") : t("browser.body.hex")
                   }
                 >
                   {m === "auto" ? "Auto" : m === "raw" ? "Raw" : "Hex"}
@@ -1322,8 +1307,8 @@ function MessageDetails({ msg, idx, queue, onLog, onRequeue, onEditRequeue, requ
             {msg.body_text && (
               <CopyButton
                 value={msg.body_text}
-                onCopied={() => onLog("info", "Body copied")}
-                label="Copy"
+                onCopied={() => onLog("info", t("browser.copied"))}
+                label={t("history.copy")}
                 className="flex items-center gap-1 text-[10.5px] text-t-ink4 hover:text-t-ink2 transition-colors px-1.5 py-0.5 rounded-md hover:bg-t-hover"
               />
             )}
@@ -1331,7 +1316,7 @@ function MessageDetails({ msg, idx, queue, onLog, onRequeue, onEditRequeue, requ
         }
       >
         <pre className="text-[11.5px] text-t-ink2 font-mono bg-t-field border border-t-line rounded-lg p-2.5 overflow-x-auto whitespace-pre break-all max-h-64 overflow-y-auto select-text">
-          {bodyContent ?? <em className="text-t-ink5">no body</em>}
+          {bodyContent ?? <em className="text-t-ink5">{t("browser.body.none")}</em>}
         </pre>
       </CollapsibleSection>
     </div>
@@ -1363,6 +1348,7 @@ function EditRequeueModal({ messages, onResubmit, onLog, onClose }: {
   onLog: (k: "info" | "ok" | "err", t: string) => void;
   onClose: () => void;
 }) {
+  const t = useAmqpText();
   // Step index in the walkthrough — bounded to [0, messages.length].
   const [step, setStep] = useState(0);
   // Per-message draft (body + target). Initialised lazily from the message
@@ -1401,7 +1387,7 @@ function EditRequeueModal({ messages, onResubmit, onLog, onClose }: {
     if (!msg || !draft) return;
     const target = draft.target.trim();
     if (!target) {
-      onLog("err", "Target address is required");
+      onLog("err", t("browser.targetRequired"));
       return;
     }
     setSending(true);
@@ -1440,7 +1426,7 @@ function EditRequeueModal({ messages, onResubmit, onLog, onClose }: {
         <div className="shrink-0 px-4 py-2.5 border-b border-t-line bg-t-panel flex items-center gap-2">
           <Edit3 className="w-3.5 h-3.5 text-accent" />
           <span className="text-[13px] font-semibold text-t-ink">
-            {messages.length === 1 ? "Edit & Requeue" : "Edit & Requeue — bulk"}
+            {messages.length === 1 ? t("browser.edit.title") : t("browser.edit.titleBulk")}
           </span>
           {!finished && (
             <span className="text-[11.5px] text-t-ink5 font-mono">
@@ -1456,32 +1442,28 @@ function EditRequeueModal({ messages, onResubmit, onLog, onClose }: {
         {finished ? (
           // ── Summary screen ───────────────────────────────────────────────
           <div className="flex-1 overflow-auto px-4 py-4 space-y-2 text-[13px] text-t-ink2">
-            <p className="text-t-ink font-semibold">All done.</p>
+            <p className="text-t-ink font-semibold">{t("browser.edit.done")}</p>
             <ul className="text-[12.5px] space-y-0.5">
-              <li>✓ Resubmitted: <span className="font-mono text-positive">{sentCount}</span></li>
-              <li>○ Skipped: <span className="font-mono text-t-ink4">{skippedCount}</span></li>
+              <li>✓ {t("browser.edit.sent")} <span className="font-mono text-positive">{sentCount}</span></li>
+              <li>○ {t("browser.edit.skipped")} <span className="font-mono text-t-ink4">{skippedCount}</span></li>
               {failedCount > 0 && (
-                <li>✗ Failed: <span className="font-mono text-negative">{failedCount}</span></li>
+                <li>✗ {t("browser.edit.failed")} <span className="font-mono text-negative">{failedCount}</span></li>
               )}
             </ul>
-            <p className="text-[11.5px] text-t-ink5 leading-relaxed">
-              Source messages stay on the DLQ — this is a peek-and-republish flow.
-              Use <b>Purge</b> on the DLQ to drop the originals after you're satisfied
-              with the resubmit.
-            </p>
+            <p className="text-[11.5px] text-t-ink5 leading-relaxed">{t("browser.edit.note")}</p>
           </div>
         ) : msg && draft ? (
           <div className="flex-1 overflow-auto px-4 py-3 space-y-3 min-h-0">
             {/* Metadata strip */}
             <div className="flex items-center gap-2 text-[11.5px] text-t-ink4 flex-wrap">
               <span className="px-1.5 py-0.5 rounded-md bg-t-hover text-t-ink3 font-mono">
-                {msg.message_id ?? "no message-id"}
+                {msg.message_id ?? t("browser.edit.noId")}
               </span>
               {msg.content_type && (
                 <span className="font-mono">content-type: <span className="text-t-ink3">{msg.content_type}</span></span>
               )}
               {msg.delivery_count > 0 && (
-                <span className="font-mono" title="Delivery count">↻ {msg.delivery_count}</span>
+                <span className="font-mono" title={t("browser.delivery")}>↻ {msg.delivery_count}</span>
               )}
               <span className="font-mono">{fmtBytes(msg.body_size)}</span>
             </div>
@@ -1489,13 +1471,13 @@ function EditRequeueModal({ messages, onResubmit, onLog, onClose }: {
             {/* Target address */}
             <div>
               <label className="block text-[10.5px] font-semibold text-t-ink4 uppercase tracking-wider mb-1">
-                Resubmit to
+                {t("browser.edit.target")}
               </label>
               <div className="flex items-center gap-1">
                 <input
                   value={draft.target}
                   onChange={e => updateDraft({ target: e.target.value })}
-                  placeholder="queue.or.address"
+                  placeholder={t("browser.edit.target.placeholder")}
                   spellCheck={false}
                   className="flex-1 bg-t-field border border-t-line2 rounded-lg px-2.5 py-1.5 text-[12.5px] font-mono text-t-ink outline-none focus:border-accent focus:ring-1 focus:ring-accent/30 transition-all placeholder:text-t-ink5"
                 />
@@ -1506,24 +1488,21 @@ function EditRequeueModal({ messages, onResubmit, onLog, onClose }: {
                     <button
                       type="button"
                       onClick={() => updateDraft({ target: origin })}
-                      title={`Reset to original destination: ${origin}`}
+                      title={t("browser.edit.reset.hint", { origin })}
                       className="shrink-0 px-2 py-1 rounded-md text-[10.5px] font-medium text-t-ink4 hover:text-accent hover:bg-accent/10 transition-colors"
                     >
-                      Reset to origin
+                      {t("browser.edit.reset")}
                     </button>
                   );
                 })()}
               </div>
-              <p className="text-[10.5px] text-t-ink5 mt-1">
-                Default is the message's original destination from <span className="font-mono">_AMQ_ORIG_ADDRESS</span> /
-                <span className="font-mono"> originalDestination</span>. Type any address to redirect.
-              </p>
+              <p className="text-[10.5px] text-t-ink5 mt-1">{t("browser.edit.target.note")}</p>
             </div>
 
             {/* Body editor */}
             <div>
               <label className="block text-[10.5px] font-semibold text-t-ink4 uppercase tracking-wider mb-1">
-                Body
+                {t("browser.body")}
               </label>
               <CodeEditor
                 value={draft.body}
@@ -1557,7 +1536,7 @@ function EditRequeueModal({ messages, onResubmit, onLog, onClose }: {
                 type="button"
                 onClick={() => setStep(s => Math.max(0, s - 1))}
                 disabled={step === 0 || sending}
-                title="Previous message"
+                title={t("browser.edit.prev")}
                 className="p-1 rounded-md text-t-ink4 hover:text-t-ink hover:bg-t-hover transition-colors disabled:opacity-40"
               >
                 <ChevronLeft className="w-4 h-4" />
@@ -1566,7 +1545,7 @@ function EditRequeueModal({ messages, onResubmit, onLog, onClose }: {
                 type="button"
                 onClick={() => setStep(s => Math.min(messages.length, s + 1))}
                 disabled={step >= messages.length - 1 || sending}
-                title="Next message (without resubmitting)"
+                title={t("browser.edit.next")}
                 className="p-1 rounded-md text-t-ink4 hover:text-t-ink hover:bg-t-hover transition-colors disabled:opacity-40"
               >
                 <ChevronRight className="w-4 h-4" />
@@ -1583,7 +1562,7 @@ function EditRequeueModal({ messages, onResubmit, onLog, onClose }: {
               disabled={sending}
               className="px-3 py-1 rounded-lg text-[11.5px] font-medium text-t-ink4 hover:text-t-ink hover:bg-t-hover transition-colors disabled:opacity-40"
             >
-              {finished ? "Close" : "Cancel"}
+              {finished ? t("browser.close.short") : t("browser.cancel")}
             </button>
             {!finished && (
               <>
@@ -1591,7 +1570,7 @@ function EditRequeueModal({ messages, onResubmit, onLog, onClose }: {
                   type="button"
                   onClick={doSkip}
                   disabled={sending}
-                  title="Skip without sending; message stays on DLQ"
+                  title={t("browser.edit.skip")}
                   className="flex items-center gap-1 px-2 py-1 rounded-md text-[11.5px] font-medium text-t-ink4 hover:text-t-ink hover:bg-t-hover transition-colors disabled:opacity-40"
                 >
                   <SkipForward className="w-3 h-3" /> Skip
@@ -1606,8 +1585,8 @@ function EditRequeueModal({ messages, onResubmit, onLog, onClose }: {
                     ? <Loader2 className="w-3 h-3 animate-spin" />
                     : <CornerUpLeft className="w-3 h-3" />}
                   {sending
-                    ? "Resubmitting…"
-                    : step === messages.length - 1 ? "Resubmit & finish" : "Resubmit & next"}
+                    ? t("browser.edit.sending")
+                    : step === messages.length - 1 ? t("browser.edit.finish") : t("browser.edit.nextSend")}
                 </button>
               </>
             )}
@@ -1642,6 +1621,7 @@ function ShovelModal({ messages, sourceQueue, profiles, activeProfile, onLog, on
   onLog: (k: "info" | "ok" | "err", t: string) => void;
   onClose: () => void;
 }) {
+  const t = useAmqpText();
   // Target profile picker — default to the first saved profile that isn't
   // the active one (most common case: "I'm on prod, shovel to dev").
   const defaultTarget = useMemo(() => {
@@ -1683,8 +1663,8 @@ function ShovelModal({ messages, sourceQueue, profiles, activeProfile, onLog, on
   }
 
   async function run() {
-    if (!targetProfile) { onLog("err", "Pick a target profile"); return; }
-    if (!targetQueue.trim()) { onLog("err", "Pick a target queue"); return; }
+    if (!targetProfile) { onLog("err", t("browser.shovel.pickProfile")); return; }
+    if (!targetQueue.trim()) { onLog("err", t("browser.shovel.pickQueue")); return; }
     const profile = profiles.find(p => p.name === targetProfile);
     if (!profile) { onLog("err", `Profile '${targetProfile}' not found`); return; }
     const transform = buildTransform();
@@ -1768,7 +1748,7 @@ function ShovelModal({ messages, sourceQueue, profiles, activeProfile, onLog, on
 
         <div className="shrink-0 px-4 py-2.5 border-b border-t-line bg-t-panel flex items-center gap-2">
           <ArrowRightLeft className="w-3.5 h-3.5 text-accent" />
-          <span className="text-[13px] font-semibold text-t-ink">Cross-broker shovel</span>
+          <span className="text-[13px] font-semibold text-t-ink">{t("browser.shovel.title")}</span>
           <span className="text-[11.5px] text-t-ink5 font-mono">{messages.length} peeked</span>
           <button onClick={close} className="ml-auto p-1 rounded-md hover:bg-t-hover text-t-ink4 hover:text-t-ink">
             <X className="w-3.5 h-3.5" />
@@ -1778,7 +1758,7 @@ function ShovelModal({ messages, sourceQueue, profiles, activeProfile, onLog, on
         <div className="flex-1 overflow-auto px-4 py-3 space-y-3">
           {/* Source — fixed, just informational */}
           <div className="rounded-md border border-t-line bg-t-card/40 p-2.5">
-            <div className="text-[10.5px] font-semibold text-t-ink4 uppercase tracking-wider mb-1">Source</div>
+            <div className="text-[10.5px] font-semibold text-t-ink4 uppercase tracking-wider mb-1">{t("browser.shovel.source")}</div>
             <div className="text-[12.5px] text-t-ink font-mono">
               <span className="text-t-ink3">{activeProfile || "(no profile)"}</span>
               <span className="mx-1 text-t-ink5">/</span>
@@ -1791,7 +1771,7 @@ function ShovelModal({ messages, sourceQueue, profiles, activeProfile, onLog, on
 
           {/* Target — profile + queue */}
           <div className="rounded-md border border-t-line bg-t-card/40 p-2.5">
-            <div className="text-[10.5px] font-semibold text-t-ink4 uppercase tracking-wider mb-1">Target</div>
+            <div className="text-[10.5px] font-semibold text-t-ink4 uppercase tracking-wider mb-1">{t("browser.shovel.target")}</div>
             {otherProfiles.length === 0 ? (
               <div className="text-[11.5px] text-caution">
                 Only the active profile is saved — add another profile to shovel between brokers.
@@ -1799,7 +1779,7 @@ function ShovelModal({ messages, sourceQueue, profiles, activeProfile, onLog, on
             ) : (
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="block text-[10.5px] text-t-ink5 mb-1">Profile</label>
+                  <label className="block text-[10.5px] text-t-ink5 mb-1">{t("browser.shovel.profile")}</label>
                   {/* `appearance-none` + explicit `h-8` + `box-border` defeat
                       WebKit's default <select> sizing so it matches the
                       adjacent <input> pixel-for-pixel. The chevron is
@@ -1820,12 +1800,12 @@ function ShovelModal({ messages, sourceQueue, profiles, activeProfile, onLog, on
                   </div>
                 </div>
                 <div>
-                  <label className="block text-[10.5px] text-t-ink5 mb-1">Queue / address</label>
+                  <label className="block text-[10.5px] text-t-ink5 mb-1">{t("browser.shovel.queue")}</label>
                   <input
                     value={targetQueue}
                     onChange={e => setTargetQueue(e.target.value)}
                     disabled={running}
-                    placeholder="target queue"
+                    placeholder={t("browser.shovel.queue.placeholder")}
                     spellCheck={false}
                     className="w-full bg-t-field border border-t-line2 rounded-lg px-2 py-1 text-[12.5px] font-mono text-t-ink outline-none focus:border-accent disabled:opacity-50 h-8 box-border appearance-none"
                   />
@@ -1844,7 +1824,7 @@ function ShovelModal({ messages, sourceQueue, profiles, activeProfile, onLog, on
                 disabled={running}
                 className="w-3.5 h-3.5 accent-accent-strong cursor-pointer"
               />
-              <span className="text-[12.5px] text-t-ink2 font-medium">Transform body / properties (JS)</span>
+              <span className="text-[12.5px] text-t-ink2 font-medium">{t("browser.shovel.transform")}</span>
               <span className="text-[10.5px] text-t-ink5">— optional, async</span>
             </label>
             {transformOn && (
@@ -1883,15 +1863,13 @@ function ShovelModal({ messages, sourceQueue, profiles, activeProfile, onLog, on
         </div>
 
         <div className="shrink-0 px-3 py-2 border-t border-t-line bg-t-panel flex items-center gap-2">
-          <span className="text-[10.5px] text-t-ink5">
-            Source messages are <b className="text-t-ink4">not</b> deleted — this is a copy.
-          </span>
+          <span className="text-[10.5px] text-t-ink5">{t("browser.shovel.note")}</span>
           <div className="ml-auto flex items-center gap-2">
             <button
               onClick={close}
               className="px-3 py-1 rounded-lg text-[11.5px] font-medium text-t-ink4 hover:text-t-ink hover:bg-t-hover transition-colors"
             >
-              {running ? "Cancel" : "Close"}
+              {running ? t("browser.cancel") : t("browser.close.short")}
             </button>
             <button
               onClick={run}
@@ -1899,8 +1877,8 @@ function ShovelModal({ messages, sourceQueue, profiles, activeProfile, onLog, on
               className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-accent hover:bg-accent-strong text-white text-[11.5px] font-semibold transition-colors disabled:opacity-40"
             >
               {running
-                ? <><Spinner className="w-3 h-3 animate-spin" /> Shovelling…</>
-                : <><ArrowRightLeft className="w-3 h-3" /> Run</>}
+                ? <><Spinner className="w-3 h-3 animate-spin" /> {t("browser.shovel.running")}</>
+                : <><ArrowRightLeft className="w-3 h-3" /> {t("browser.shovel.run")}</>}
             </button>
           </div>
         </div>
