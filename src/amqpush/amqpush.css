@@ -1,0 +1,88 @@
+/**
+ * Раздел AMQP: мост между его палитрой и палитрой приложения.
+ *
+ * Перенесённые экраны размечены токенами `t-*` — `bg-t-panel`, `text-t-ink`,
+ * `border-t-line`. Переписывать шестнадцать тысяч строк разметки ради других
+ * имён незачем: вместо этого токены объявлены здесь и указывают на цвета
+ * хозяина. Раздел от этого сам меняет тему вместе с приложением и сам
+ * выглядит как остальные экраны — ни одного своего цвета у него не осталось.
+ *
+ * Пар получилось меньше, чем имён: у AMQPush было пять оттенков текста
+ * и шесть поверхностей, у приложения — по три. Лишние сведены к ближайшим,
+ * и это к лучшему: разница между `ink2` и `ink3` на глаз не читалась.
+ */
+
+@theme {
+  --color-t-bg: var(--color-canvas);
+  --color-t-panel: var(--color-surface);
+  --color-t-card: var(--color-surface-2);
+  --color-t-field: var(--color-surface);
+  --color-t-hover: var(--color-surface-2);
+  --color-t-active: var(--color-surface-3);
+
+  --color-t-line: var(--color-line);
+  --color-t-line2: var(--color-line-strong);
+
+  --color-t-ink: var(--color-content);
+  --color-t-ink2: var(--color-content-muted);
+  --color-t-ink3: var(--color-content-muted);
+  --color-t-ink4: var(--color-content-subtle);
+  --color-t-ink5: var(--color-line-strong);
+
+  /* Подсветка выделения и парной скобки в редакторе тела сообщения. */
+  --color-t-selection: var(--color-accent);
+}
+
+/* Пульс у кнопки «Скопировать»: подтверждает нажатие до того, как значок
+   успеет смениться на галочку. */
+@keyframes amqpush-copy-pulse {
+  0% { transform: scale(1); }
+  35% { transform: scale(1.25); }
+  100% { transform: scale(1); }
+}
+
+.animate-copy-pulse { animation: amqpush-copy-pulse 320ms ease-out; }
+
+/* Журнал и тела сообщений выделяются мышью, в отличие от остального
+   интерфейса: их копируют в задачи и в переписку. */
+.log-selectable { user-select: text; }
+
+/* ── Редактор тела сообщения ───────────────────────────────────────────── */
+
+.code-editor-wrap .cm-editor {
+  background: var(--color-surface);
+  color: var(--color-content);
+  height: 100%;
+}
+
+.code-editor-wrap .cm-editor.cm-focused { outline: none; }
+.code-editor-wrap .cm-editor .cm-scroller { background: var(--color-surface); }
+
+/* Цвета подсветки — тёмная тема по умолчанию, как и у самого приложения. */
+.cm-keyword { color: #60a5fa; }
+.cm-string { color: #86efac; }
+.cm-number { color: #fbbf24; }
+.cm-bool { color: #f472b6; }
+.cm-null { color: #94a3b8; }
+.cm-propertyName { color: #c4b5fd; }
+.cm-punctuation { color: var(--color-content-muted); }
+.cm-angleBracket, .cm-tagName, .cm-attributeName { color: #60a5fa; }
+.cm-attributeValue { color: #86efac; }
+
+/*
+ * Светлая тема.
+ *
+ * В отдельном приложении эти правила стояли под `:root`, а тёмные — без
+ * селектора вовсе, поэтому по весу светлые выигрывали всегда и подсветка
+ * в тёмной теме оставалась светлой. Здесь они привязаны к теме хозяина,
+ * и обе ветки работают.
+ */
+:root[data-theme="light"] .cm-keyword { color: #2563eb; }
+:root[data-theme="light"] .cm-string { color: #16a34a; }
+:root[data-theme="light"] .cm-number { color: #d97706; }
+:root[data-theme="light"] .cm-bool { color: #db2777; }
+:root[data-theme="light"] .cm-null { color: #64748b; }
+:root[data-theme="light"] .cm-propertyName { color: #7c3aed; }
+:root[data-theme="light"] .cm-tagName { color: #2563eb; }
+:root[data-theme="light"] .cm-attributeName { color: #0891b2; }
+:root[data-theme="light"] .cm-attributeValue { color: #16a34a; }

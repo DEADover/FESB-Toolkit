@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { ArrowsClockwise, DownloadSimple } from '@phosphor-icons/react'
 
+import { AmqpushSection } from './components/AmqpushSection'
 import { AuditScreen } from './components/AuditScreen'
 import { ConnectionScreen } from './components/ConnectionScreen'
 import { DomainLinksScreen } from './components/DomainLinksScreen'
@@ -318,7 +319,9 @@ export default function App() {
     return () => window.removeEventListener('keydown', onKey)
   }, [pickFolder, rescan, root, busy])
 
-  const isApiScreen = screen.startsWith('api.')
+  // Раздел AMQP разговаривает с брокером, а не с шиной: строка с папкой
+  // выгрузки и кнопки файлов ему так же ни к чему, как экранам API.
+  const isApiScreen = screen.startsWith('api.') || screen === 'amqp'
   const isLinksScreen = screen === 'files.links'
   // На первом экране кнопки шапки не нужны: те же действия стоят карточками
   // в самом экране, и дублировать их — только сбивать с толку.
@@ -348,6 +351,7 @@ export default function App() {
     'api.modules': 'nav.api.modules.title',
     'api.properties': 'nav.api.properties.title',
     'api.logs': 'nav.api.logs.title',
+    amqp: 'nav.amqp.title',
   }
   const screenTitle = t(API_TITLES[screen] ?? 'nav.files.trace')
 
@@ -432,7 +436,12 @@ export default function App() {
           )}
         </header>
 
-        {screen === 'welcome' ? (
+        {/* Раздел AMQP остаётся в дереве после первого открытия: принятые
+            сообщения и набранное тело живут в состоянии, и уход на соседний
+            экран не должен их терять. */}
+        <AmqpushSection active={screen === 'amqp'} />
+
+        {screen === 'amqp' ? null : screen === 'welcome' ? (
           <WelcomeScreen
             server={session?.server ?? null}
             connection={session?.connection ?? null}

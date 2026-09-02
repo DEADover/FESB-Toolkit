@@ -1,4 +1,4 @@
-import { ArrowsLeftRight, Broadcast, CaretLeft, CaretRight, Certificate, CircleHalf, Crosshair, CrosshairSimple, Cube, FingerprintSimple, FlowArrow, Gear, Key, GithubLogo, House, ListDashes, Moon, Plugs, Queue, SlidersHorizontal, Stack, Sun, type Icon } from '@phosphor-icons/react'
+import { ArrowsLeftRight, Broadcast, CaretLeft, PaperPlaneTilt, CaretRight, Certificate, CircleHalf, Crosshair, CrosshairSimple, Cube, FingerprintSimple, FlowArrow, Gear, Key, GithubLogo, House, ListDashes, Moon, Plugs, Queue, SlidersHorizontal, Stack, Sun, type Icon } from '@phosphor-icons/react'
 
 import { LANGUAGES, useI18n, type MessageKey } from '../i18n'
 import { openRepository, REPOSITORY_URL } from '../lib/api'
@@ -24,6 +24,7 @@ export type ScreenId =
   | 'api.logs'
   | 'api.audit'
   | 'api.access'
+  | 'amqp'
 
 /**
  * Экран раздела: подпись, значок и пояснение для первого экрана.
@@ -67,6 +68,17 @@ export const API_SCREENS: ScreenEntry[] = [
 ]
 
 /**
+ * Раздел AMQP: перенесённый целиком клиент брокеров AMQP 1.0.
+ *
+ * Пункт один, потому что внутри у него своя навигация вкладками —
+ * восемь экранов, которые не покидают дерево при переключении, чтобы
+ * живой подписчик продолжал слушать очередь.
+ */
+export const AMQP_SCREENS: ScreenEntry[] = [
+  { id: 'amqp', label: 'nav.amqp', title: 'nav.amqp.title', hint: 'welcome.hint.amqp', icon: PaperPlaneTilt },
+]
+
+/**
  * Разделы API — по алфавиту, и алфавит здесь зависит от языка: по-русски
  * первым идёт «Аудит», по-английски — «Access». Поэтому порядок считается
  * при отрисовке по видимой подписи, а не задаётся порядком в коде.
@@ -105,6 +117,13 @@ const SECTIONS: Section[] = [
     settings: { screen: 'api.connection', title: 'nav.api.connection.title' },
     sorted: true,
     items: API_SCREENS,
+  },
+  {
+    // Раздел из одного пункта: свои восемь экранов он показывает вкладками
+    // внутри себя. Заголовок всё равно нужен — он отделяет чужую машину
+    // (брокеры AMQP) от шины, с которой работают остальные разделы.
+    title: 'nav.amqp',
+    items: AMQP_SCREENS,
   },
 ]
 

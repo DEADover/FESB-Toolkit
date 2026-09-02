@@ -835,6 +835,10 @@ export const ru: Record<keyof typeof en, string> = {
   'property.part.rest': 'REST',
   'property.part.store': 'Хранилище',
 
+  'nav.amqp': 'AMQP',
+  'amqp.loading': 'Открываем раздел AMQP…',
+  'nav.amqp.title': 'Брокеры AMQP',
+  'welcome.hint.amqp': 'Отправка, приём и просмотр сообщений на брокерах AMQP 1.0',
   'nav.api.compare': 'Сравнение',
   'nav.api.compare.title': 'Сравнение двух стендов',
   'welcome.hint.compare': 'Что есть на тесте и нет на бою, и наоборот',

@@ -835,6 +835,10 @@ export const en = {
   'property.part.rest': 'REST',
   'property.part.store': 'Storage',
 
+  'nav.amqp': 'AMQP',
+  'amqp.loading': 'Opening the AMQP section…',
+  'nav.amqp.title': 'AMQP Brokers',
+  'welcome.hint.amqp': 'Send, receive and browse messages on AMQP 1.0 brokers',
   'nav.api.compare': 'Comparison',
   'nav.api.compare.title': 'Comparison of Two Stands',
   'welcome.hint.compare': 'What the test stand has that production does not, and the other way round',
