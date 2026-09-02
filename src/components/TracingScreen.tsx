@@ -1,18 +1,19 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
-import { DownloadSimple } from '@phosphor-icons/react'
+import { ArrowCounterClockwise, DownloadSimple, Play, Stop } from '@phosphor-icons/react'
 
 import { useI18n, type MessageKey, type Translate } from '../i18n'
-import { apiRoutesOverview, errorText, revealPath, saveReport, saveXlsxAs } from '../lib/api'
+import { apiRouteAction, apiRoutesOverview, errorText, revealPath, saveReport, saveXlsxAs } from '../lib/api'
 import { localStamp } from '../lib/paths'
-import type { Connection, RouteSummary, ServerInfo } from '../types'
+import type { Connection, RouteAction, RouteSummary, ServerInfo } from '../types'
 import {
   ErrorBar, NotConnected, Panel, RefreshButton, ScreenBody, StatsBar, TableMessage, useApiData,
   useDebounced,
 } from './ApiShell'
 import { useToast } from './Toaster'
 import {
-  Badge, Button, ButtonGlyph, CodePill, cx, DataTable, MultiSelect, Readout, rowClick, SearchInput, Select, Th, THead, Toggle,
+  Badge, Button, ButtonGlyph, Checkbox, CodePill, cx, DataTable, Modal, MultiSelect, Notice, Readout, rowClick,
+  SearchInput, Select, Spinner, Th, THead, Toggle,
 } from './ui'
 
 interface Props {
@@ -77,6 +78,23 @@ export function TracingScreen({ connection, server, onGoToConnection, onOpenRout
   const [state, setState] = useState<State>('all')
   const [onlyTraced, setOnlyTraced] = useState(false)
   const [saving, setSaving] = useState(false)
+  /** Отмеченные СОПС: ключ — их guid, он же приходит в действиях шины. */
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [asking, setAsking] = useState<RouteAction | null>(null)
+  /**
+   * Отмена долгой работы.
+   *
+   * Отмеченных бывает две тысячи, а запросы идут по одному: без выхода
+   * ошибка в отборе стоила бы нескольких минут ожидания у окна, которое
+   * ничего не предлагает.
+   */
+  const cancelled = useRef(false)
+  const [bulk, setBulk] = useState<{
+    done: number
+    total: number
+    failures: Array<{ row: RouteSummary; error: string }>
+    finished: boolean
+  } | null>(null)
   const query = useDebounced(search, 250)
 
   const all = useMemo(() => data ?? [], [data])
@@ -114,6 +132,44 @@ export function TracingScreen({ connection, server, onGoToConnection, onOpenRout
     untraced: all.filter((row) => !row.trace).length,
     beans: beanOptions.length,
   }), [all, beanOptions])
+
+  const chosen = useMemo(() => visible.filter((row) => selected.has(row.id)), [visible, selected])
+  const allVisibleSelected = visible.length > 0 && visible.every((row) => selected.has(row.id))
+
+  // Обновили список — прежние отметки указывают на строки, которых
+  // на экране может уже не быть.
+  useEffect(() => { setSelected(new Set()) }, [data])
+
+  /**
+   * Одно действие на все отмеченные СОПС.
+   *
+   * По одному запросу за раз: это живая шина, и две сотни одновременных
+   * остановок она встретит хуже, чем две сотни последовательных. Неудача
+   * на одном СОПС не останавливает остальные — про каждую видно в конце.
+   */
+  const runBulk = useCallback(async (action: RouteAction) => {
+    if (!connection) return
+    setAsking(null)
+    const targets = chosen
+    if (targets.length === 0) return
+    setBulk({ done: 0, total: targets.length, failures: [], finished: false })
+    cancelled.current = false
+
+    const failures: Array<{ row: RouteSummary; error: string }> = []
+    let done = 0
+    for (const row of targets) {
+      if (cancelled.current) break
+      try {
+        await apiRouteAction(connection, row.domainGuid, row.id, action)
+        done += 1
+      } catch (err) {
+        failures.push({ row, error: errorText(err) })
+      }
+      setBulk({ done: done + failures.length, total: targets.length, failures, finished: false })
+    }
+    setBulk({ done, total: targets.length, failures, finished: true })
+    await reload()
+  }, [connection, chosen, reload])
 
   /** В файл уходит то, что видно на экране: фильтры — часть списка. */
   const exportXlsx = useCallback(async () => {
@@ -209,11 +265,21 @@ export function TracingScreen({ connection, server, onGoToConnection, onOpenRout
       <Panel className="flex-1">
         <DataTable>
           <colgroup>
+            <col className="w-9" />
             {COLUMNS.map((column) => (
               <col key={column.key} className={cx(column.width, column.narrow && HIDDEN_COL)} />
             ))}
           </colgroup>
           <THead>
+            <Th className="w-9">
+              <Checkbox
+                checked={allVisibleSelected}
+                title={t('tracing.selectAll')}
+                onChange={(event) => setSelected(event.target.checked
+                  ? new Set(visible.map((row) => row.id))
+                  : new Set())}
+              />
+            </Th>
             {COLUMNS.map((column) => (
               <Th
                 key={column.key}
@@ -230,8 +296,22 @@ export function TracingScreen({ connection, server, onGoToConnection, onOpenRout
                 key={row.id}
                 onClick={rowClick(() => { if (row.domainGuid) onOpenRoutes(row.domainGuid) })}
                 title={t('tracing.openDomain')}
-                className="cursor-pointer border-b border-line/60 hover:bg-surface-2"
+                className={cx(
+                  'cursor-pointer border-b border-line/60',
+                  selected.has(row.id) ? 'bg-accent/8' : 'hover:bg-surface-2',
+                )}
               >
+                <td className="px-3 py-1.5">
+                  <Checkbox
+                    checked={selected.has(row.id)}
+                    onChange={(event) => setSelected((prev) => {
+                      const next = new Set(prev)
+                      if (event.target.checked) next.add(row.id)
+                      else next.delete(row.id)
+                      return next
+                    })}
+                  />
+                </td>
                 <td className="truncate px-3 py-1.5">{row.domain || '—'}</td>
                 <td className="truncate px-3 py-1.5 font-medium" title={row.name}>{row.name || '—'}</td>
                 <td className="px-3 py-1.5">
@@ -264,12 +344,104 @@ export function TracingScreen({ connection, server, onGoToConnection, onOpenRout
               </tr>
             ))}
             {visible.length === 0 && (
-              <TableMessage colSpan={COLUMNS.length} busy={loading}>{loading ? t('empty.scanning') : t('tracing.nothing')}
+              <TableMessage colSpan={COLUMNS.length + 1} busy={loading}>{loading ? t('empty.scanning') : t('tracing.nothing')}
               </TableMessage>
             )}
           </tbody>
         </DataTable>
       </Panel>
+
+      <div className="flex flex-wrap items-center gap-2">
+        {chosen.length > 0 ? (
+          <>
+            <Badge tone="accent">{t('tracing.selected', { count: chosen.length })}</Badge>
+            <Button size="sm" disabled={bulk !== null} onClick={() => void runBulk('start')}>
+              <ButtonGlyph><Play size={13} weight="bold" /></ButtonGlyph>
+              {t('modules.start')}
+            </Button>
+            <Button size="sm" disabled={bulk !== null} onClick={() => setAsking('stop')}>
+              <ButtonGlyph><Stop size={13} weight="bold" /></ButtonGlyph>
+              {t('modules.stop')}
+            </Button>
+            <Button size="sm" disabled={bulk !== null} onClick={() => setAsking('reset')}>
+              <ButtonGlyph><ArrowCounterClockwise size={13} weight="bold" /></ButtonGlyph>
+              {t('routes.reset')}
+            </Button>
+          </>
+        ) : (
+          <span className="text-[11.5px] text-content-subtle">{t('tracing.bulk.hint')}</span>
+        )}
+      </div>
+
+      <Modal
+        open={asking !== null}
+        onClose={() => setAsking(null)}
+        closeLabel={t('action.close')}
+        title={asking === 'reset' ? t('tracing.bulk.confirmReset') : t('tracing.bulk.confirmStop')}
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setAsking(null)}>{t('action.cancel')}</Button>
+            <Button variant="primary" onClick={() => asking && void runBulk(asking)}>
+              {asking === 'reset' ? t('routes.reset') : t('modules.stop')}
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-2">
+          <Notice tone="warn" small>
+            {asking === 'reset' ? t('tracing.bulk.confirmResetHint') : t('tracing.bulk.confirmStopHint')}
+          </Notice>
+          <div className="text-[11.5px] text-content-subtle">
+            {t('tracing.bulk.title', { count: chosen.length })}
+          </div>
+        </div>
+      </Modal>
+
+      <Modal
+        open={bulk !== null}
+        onClose={() => { if (bulk?.finished) { setBulk(null); setSelected(new Set()) } }}
+        closeLabel={t('action.close')}
+        title={t('tracing.bulk.title', { count: bulk?.total ?? 0 })}
+        footer={
+          <Button
+            variant="ghost"
+            onClick={() => {
+              if (bulk?.finished) { setBulk(null); setSelected(new Set()) } else cancelled.current = true
+            }}
+          >
+            {bulk?.finished ? t('action.close') : t('action.cancel')}
+          </Button>
+        }
+      >
+        {bulk && (
+          <div className="space-y-3">
+            {bulk.finished ? (
+              <Notice tone={bulk.failures.length > 0 ? 'warn' : 'ok'} small>
+                {t('tracing.bulk.done', { done: bulk.done })}
+                {bulk.failures.length > 0 && ` · ${t('tracing.bulk.failed', { count: bulk.failures.length })}`}
+              </Notice>
+            ) : (
+              <div className="flex items-center gap-2 text-[12px] text-content-muted">
+                <Spinner className="size-4" />
+                {t('tracing.bulk.running', { current: bulk.done, total: bulk.total })}
+              </div>
+            )}
+            {bulk.failures.length > 0 && (
+              <div className="max-h-64 overflow-y-auto rounded-lg border border-line">
+                {bulk.failures.map((failure) => (
+                  <div key={failure.row.id} className="border-b border-line/60 px-2.5 py-1.5 last:border-b-0">
+                    <div className="flex items-baseline gap-2 text-[11px] text-content-subtle">
+                      <span className="truncate">{failure.row.domain}</span>
+                      <span className="truncate font-medium text-content">{failure.row.name}</span>
+                    </div>
+                    <div className="mt-0.5 text-[11.5px] text-negative">{failure.error}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </Modal>
     </ScreenBody>
   )
 }

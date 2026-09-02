@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { useI18n } from '../i18n'
 import { apiSaveProperty, errorText } from '../lib/api'
@@ -44,6 +44,14 @@ export function PropertiesBulk({ open, connection, rows, initialFrom, onClose, o
   const [running, setRunning] = useState<{ done: number; total: number } | null>(null)
   const [failures, setFailures] = useState<Array<{ row: SweepRow; error: string }>>([])
   const [finished, setFinished] = useState<number | null>(null)
+  /**
+   * Отмена начатой замены.
+   *
+   * Строк бывает две сотни, и каждая — отдельный запрос: без выхода
+   * замеченная на третьей строке ошибка стоила бы всех остальных.
+   * Уже записанное остаётся записанным — об этом говорит счёт в конце.
+   */
+  const cancelled = useRef(false)
 
   // Окно живёт рядом с таблицей и переживает закрытие, поэтому поле поиска
   // подхватывает искомое не при создании, а при каждом открытии: иначе
@@ -77,6 +85,7 @@ export function PropertiesBulk({ open, connection, rows, initialFrom, onClose, o
   const apply = async () => {
     setRunning({ done: 0, total: changes.length })
     setFailures([])
+    cancelled.current = false
     const errors: Array<{ row: SweepRow; error: string }> = []
     let done = 0
 
@@ -84,6 +93,7 @@ export function PropertiesBulk({ open, connection, rows, initialFrom, onClose, o
     // «одна константа — один ответ» делает ошибку видимой сразу, а не
     // в куче одновременных отказов.
     for (const change of changes) {
+      if (cancelled.current) break
       try {
         await apiSaveProperty(
           connection,
@@ -120,7 +130,10 @@ export function PropertiesBulk({ open, connection, rows, initialFrom, onClose, o
       title={t('properties.replace.title')}
       footer={
         <>
-          <Button variant="ghost" onClick={close}>
+          <Button
+            variant="ghost"
+            onClick={() => { if (running) cancelled.current = true; else close() }}
+          >
             {finished === null ? t('action.cancel') : t('action.close')}
           </Button>
           {finished === null && (
