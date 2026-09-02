@@ -600,6 +600,7 @@ pub fn run() {
             amqpush::purge_queue,
             amqpush::remove_messages_by_ids,
             amqpush::ping_broker,
+            amqpush::probe_broker,
             amqpush::list_broker_connections,
             amqpush::list_broker_consumers,
             amqpush::fetch_broker_connections_raw,

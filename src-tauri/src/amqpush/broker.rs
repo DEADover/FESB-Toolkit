@@ -312,6 +312,20 @@ pub async fn ping_via(channel: &mut ManagementChannel) -> Result<u64, String> {
     Ok(started.elapsed().as_millis() as u64)
 }
 
+/// Ask the broker its name (`broker.getName`). The cheapest management
+/// call there is, and unlike a plain connect it proves the broker actually
+/// answers requests — used by the stand's "test broker" button.
+pub async fn name_via(channel: &mut ManagementChannel) -> Result<String, String> {
+    invoke_management::<String>(
+        &mut channel.sender,
+        &mut channel.receiver,
+        &channel.reply_to,
+        "broker",
+        "getName",
+        Body::Value(AmqpValue(Value::String("[]".into()))),
+    ).await
+}
+
 /// List active connections on the broker. Artemis returns the result as a
 /// JSON-encoded string (legacy `*AsJSON` operation), so we deserialize the
 /// inner String once via the management transport, then re-parse the JSON

@@ -13,6 +13,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use fe2o3_amqp::{Receiver, Session};
+use serde::Serialize;
 
 pub mod amqp;
 pub mod broker;
@@ -686,6 +687,85 @@ pub async fn ping_broker(state: tauri::State<'_, AppState>) -> Result<u64, Strin
     }
 }
 
+/// Что ответила проверка брокера.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BrokerProbe {
+    /// Куда достучались: `host:port`.
+    pub endpoint: String,
+    /// Сколько заняло рукопожатие вместе с входом, мс.
+    pub connect_ms: u64,
+    /// Как брокер себя назвал, если ответил на управляющий запрос.
+    pub broker_name: Option<String>,
+    /// Почему имени нет: управление могло быть закрыто правами.
+    pub note: Option<String>,
+}
+
+/// Проверка брокера стенда: соединение, вход и, если пустят, управляющий
+/// запрос — на своём, отдельном соединении.
+///
+/// Рабочее подключение раздела при этом не трогается: проверяют обычно
+/// чужой стенд или правку настроек, и обрывать ради этого живого подписчика
+/// нельзя. Очередь не проверяется намеренно: чтобы узнать, есть ли она,
+/// нужно к ней прицепиться, а на брокере с автосозданием это её заведёт —
+/// проверка не должна ничего менять на стенде.
+#[tauri::command]
+pub async fn probe_broker(profile: Profile) -> Result<BrokerProbe, String> {
+    let (cert, transport) = profile_to_connect_params(&profile);
+    let started = std::time::Instant::now();
+
+    let mut client = AmqpClient::new();
+    client
+        .connect(
+            &profile.host,
+            profile.port,
+            "",
+            &profile.username,
+            &profile.password,
+            profile.use_tls,
+            profile.container_id.as_str(),
+            profile.heartbeat_secs,
+            profile.connect_timeout_secs,
+            profile.sasl_anonymous,
+            profile.tls_skip_verify,
+            cert.clone(),
+            transport.clone(),
+        )
+        .await?;
+    let connect_ms = started.elapsed().as_millis() as u64;
+    let endpoint = client
+        .connection_info()
+        .unwrap_or_else(|| format!("{}:{}", profile.host, profile.port));
+
+    // Имя брокера — приятное дополнение, а не условие успеха: управление
+    // могут не дать, и это не повод объявлять стенд недоступным.
+    let (broker_name, note) = match ManagementChannel::open(
+        &profile.host,
+        profile.port,
+        &profile.username,
+        &profile.password,
+        profile.use_tls,
+        profile.tls_skip_verify,
+        &cert,
+        &transport,
+    )
+    .await
+    {
+        Ok(mut channel) => {
+            let answer = broker::name_via(&mut channel).await;
+            channel.close().await;
+            match answer {
+                Ok(name) => (Some(name), None),
+                Err(e) => (None, Some(e)),
+            }
+        }
+        Err(e) => (None, Some(e)),
+    };
+
+    client.disconnect().await.ok();
+    Ok(BrokerProbe { endpoint, connect_ms, broker_name, note })
+}
+
 /// List active broker connections (clients currently attached). Surfaces
 /// the data behind the Inspector view. Reuses the long-lived management
 /// channel; on RPC failure we drop it so the next call reopens.
@@ -1053,3 +1133,27 @@ pub async fn export_history(
 // `short_version` is the build date, so the parenthesised slot shows
 // `(ddMMyyyy)` instead of repeating the version. The build date itself comes
 // from `build.rs` via the `AMQPUSH_BUILD_DATE` env var (see that file).
+
+#[cfg(test)]
+mod probe_tests {
+    use super::*;
+
+    /// Проверка обязана отвечать отказом, а не молчанием: если бы ошибка
+    /// подключения терялась, кнопка «Проверить брокер» рапортовала бы об
+    /// успехе на закрытом порту.
+    #[tokio::test]
+    async fn a_closed_port_is_a_failure() {
+        let profile = Profile {
+            name: "проверка".into(),
+            host: "127.0.0.1".into(),
+            // Порт, на котором заведомо никто не слушает.
+            port: 1,
+            connect_timeout_secs: 2,
+            ..Profile::default()
+        };
+
+        let answer = probe_broker(profile).await;
+
+        assert!(answer.is_err(), "закрытый порт должен возвращать ошибку, вернулось {answer:?}");
+    }
+}

@@ -1,3 +1,5 @@
+import { invoke } from '@tauri-apps/api/core'
+
 import type { ConnectionProfile } from './connection'
 import type { Profile } from '../amqpush/types'
 
@@ -62,4 +64,26 @@ export function brokerProfile(profile: ConnectionProfile): Profile {
 /** Профиль, у которого есть куда подключаться: без узла брокер бесполезен. */
 export function hasBroker(profile: ConnectionProfile): boolean {
   return (profile.broker.host.trim() || busHost(profile.url)).length > 0
+}
+
+/** Что ответила проверка брокера. */
+export interface BrokerProbe {
+  /** Куда достучались: `host:port`. */
+  endpoint: string
+  /** Сколько заняло рукопожатие вместе с входом, мс. */
+  connectMs: number
+  /** Как брокер себя назвал, если ответил на управляющий запрос. */
+  brokerName: string | null
+  /** Почему имени нет: управление могло быть закрыто правами. */
+  note: string | null
+}
+
+/**
+ * Проверка брокера стенда.
+ *
+ * Идёт своим, отдельным соединением: проверяют обычно правку настроек или
+ * соседний стенд, и рвать ради этого живого подписчика раздела нельзя.
+ */
+export function probeBroker(profile: ConnectionProfile): Promise<BrokerProbe> {
+  return invoke<BrokerProbe>('probe_broker', { profile: brokerProfile(profile) })
 }

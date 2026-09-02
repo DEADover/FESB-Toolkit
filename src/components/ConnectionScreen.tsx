@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react'
 
-import { ArrowsLeftRight, CaretDown, Check, FolderOpen, Queue, Trash, Warning } from '@phosphor-icons/react'
+import { ArrowsLeftRight, CaretDown, Check, FolderOpen, Plugs, Queue, Trash, Warning } from '@phosphor-icons/react'
 
 import { useI18n, type MessageKey } from '../i18n'
 import { apiConnect, apiServerUsage, errorText, selectFile } from '../lib/api'
@@ -11,8 +11,8 @@ import {
 } from '../lib/connection'
 import type { Connection, DiskUsage, ServerInfo, ServerUsage } from '../types'
 import { ScreenBody, ScreenBodyRow, useApiData } from './ApiShell'
-import { Badge, Button, Checkbox, cx, FOCUS_RING, Modal, Notice, Segmented, Spinner, TextInput, TextReadout, Tip, Toggle } from './ui'
-import { busHost } from '../lib/broker'
+import { Badge, Button, ButtonGlyph, Checkbox, cx, FOCUS_RING, Modal, Notice, Segmented, Spinner, TextInput, TextReadout, Tip, Toggle } from './ui'
+import { busHost, hasBroker, probeBroker } from '../lib/broker'
 import type { BrokerSettings } from '../lib/connection'
 
 interface Props {
@@ -307,14 +307,25 @@ export function ConnectionScreen({ store, onStore, server, connection, activePro
                 </Field>
               </div>
 
-              <div className="grid grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)] gap-3 px-5 pt-3">
-                <Field label={t('api.url')} htmlFor="profile-url" hint={t('api.url.hint')}>
+              <div className="grid grid-cols-[minmax(0,2fr)_minmax(0,0.8fr)_minmax(0,1.2fr)_minmax(0,1.2fr)] gap-3 px-5 pt-3">
+                <Field label={t('api.url')} htmlFor="profile-url" tip={t('api.url.hint')}>
                   <TextInput
                     id="profile-url"
                     value={draft.url}
                     autoComplete="url"
-                    placeholder="localhost:8181"
+                    placeholder="localhost"
                     onChange={(event) => set('url', event.target.value)}
+                  />
+                </Field>
+                {/* Порт отдельным полем: в адресе его набирали через двоеточие
+                    и путали с портом брокера, а у менеджера он почти всегда
+                    один и тот же. */}
+                <Field label={t('api.port')} htmlFor="profile-port" tip={t('api.port.hint')}>
+                  <TextInput
+                    id="profile-port"
+                    value={draft.port}
+                    placeholder="8181"
+                    onChange={(event) => set('port', event.target.value)}
                   />
                 </Field>
                 <Field label={t('api.user')} htmlFor="profile-user">
@@ -361,6 +372,7 @@ export function ConnectionScreen({ store, onStore, server, connection, activePro
                 broker={draft.broker}
                 busUrl={draft.url}
                 busUser={draft.username}
+                stand={draft}
                 onChange={(next) => set('broker', next)}
               />
 
@@ -556,18 +568,47 @@ function formatWhen(value: string): string {
  * Под полем остаётся то, что меняется вместе с формой: унаследованные от
  * шины узел и пользователь.
  */
-function BrokerBlock({ broker, busUrl, busUser, onChange }: {
+function BrokerBlock({ broker, busUrl, busUser, stand, onChange }: {
   broker: BrokerSettings
   busUrl: string
   busUser: string
+  /** Стенд целиком: проверка идёт по тем же полям, что и подключение. */
+  stand: ConnectionProfile
   onChange: (broker: BrokerSettings) => void
 }) {
   const { t } = useI18n()
   const [advanced, setAdvanced] = useState(false)
+  const [probing, setProbing] = useState(false)
+  const [probe, setProbe] = useState<{ ok: boolean; text: string } | null>(null)
   const set = <K extends keyof BrokerSettings>(key: K, value: BrokerSettings[K]) =>
     onChange({ ...broker, [key]: value })
 
   const inheritedHost = busHost(busUrl)
+
+  /**
+   * Проверка брокера.
+   *
+   * Отвечает на тот же вопрос, что «Проверить связь» у шины: дойдёт ли
+   * приложение до узла и пустят ли его внутрь. Отдельным соединением —
+   * живой подписчик раздела AMQP от проверки не страдает.
+   */
+  const check = async () => {
+    setProbing(true)
+    setProbe(null)
+    try {
+      const answer = await probeBroker(stand)
+      setProbe({
+        ok: true,
+        text: answer.brokerName
+          ? t('broker.probe.ok', { endpoint: answer.endpoint, ms: answer.connectMs, name: answer.brokerName })
+          : t('broker.probe.okQuiet', { endpoint: answer.endpoint, ms: answer.connectMs }),
+      })
+    } catch (err) {
+      setProbe({ ok: false, text: errorText(err) })
+    } finally {
+      setProbing(false)
+    }
+  }
 
   /** Путь к файлу выбирается системным окном: набирать его руками незачем. */
   const pickFile = async (key: 'clientCertPath' | 'clientKeyPath', title: string, filter: { name: string; extensions: string[] }) => {
@@ -587,11 +628,27 @@ function BrokerBlock({ broker, busUrl, busUser, onChange }: {
           <div className="text-[12.5px] font-semibold">{t('broker.section')}</div>
           <p className="text-[11px] leading-relaxed text-content-subtle">{t('broker.section.hint')}</p>
         </div>
-        <Button size="sm" className="ml-auto" onClick={() => setAdvanced((open) => !open)} aria-expanded={advanced}>
+        <Button
+          size="sm"
+          className="ml-auto min-w-28"
+          onClick={() => void check()}
+          disabled={probing || !hasBroker(stand)}
+          title={hasBroker(stand) ? undefined : t('broker.probe.noHost')}
+        >
+          <ButtonGlyph busy={probing}><Plugs size={13} weight="regular" /></ButtonGlyph>
+          {probing ? t('broker.probing') : t('broker.probe')}
+        </Button>
+        <Button size="sm" onClick={() => setAdvanced((open) => !open)} aria-expanded={advanced}>
           <CaretDown size={12} weight="bold" className={cx('transition-transform', advanced && 'rotate-180')} />
           {advanced ? t('broker.less') : t('broker.more')}
         </Button>
       </div>
+
+      {probe && (
+        <Notice tone={probe.ok ? 'ok' : 'danger'} small className="mx-5 mt-3" onClose={() => setProbe(null)} closeLabel={t('action.close')}>
+          {probe.text}
+        </Notice>
+      )}
 
       <div className="px-5 pb-1 pt-4">
         <div className="grid grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,2fr)] gap-3">

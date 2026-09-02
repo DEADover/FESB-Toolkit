@@ -4,7 +4,7 @@ import { ArrowsLeftRight } from '@phosphor-icons/react'
 
 import { useI18n, type MessageKey } from '../i18n'
 import { apiCompareStands, errorText } from '../lib/api'
-import type { ConnectionProfile, ConnectionStore } from '../lib/connection'
+import { toConnection, type ConnectionProfile, type ConnectionStore } from '../lib/connection'
 import type { Comparison, Connection, ServerInfo, Side } from '../types'
 import { ErrorBar, NotConnected, Panel, ScreenBody, StatsBar, TableMessage } from './ApiShell'
 import {
@@ -244,9 +244,9 @@ const SIDE_TONE: Record<Side, 'accent' | 'warn' | 'neutral'> = {
 /** Профиль превращается в подключение только на время сравнения. */
 function connectionOf(profile: ConnectionProfile, password: string): Connection {
   return {
-    url: profile.url,
-    username: profile.username,
+    ...toConnection(profile),
+    // Пароль, набранный для сравнения, живёт только здесь: сохранять его
+    // ради одной операции незачем.
     password: profile.rememberPassword ? profile.password : password,
-    insecure: profile.insecure,
   }
 }

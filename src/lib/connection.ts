@@ -69,7 +69,10 @@ export interface ConnectionProfile {
   id: string
   name: string
   environment: Environment
+  /** Узел шины: `esb.corp`. Схему и путь до менеджера бэкенд подбирает сам. */
   url: string
+  /** Порт шины отдельным полем. Пусто — порт по умолчанию для схемы. */
+  port: string
   username: string
   password: string
   rememberPassword: boolean
@@ -95,6 +98,7 @@ export function blankProfile(): ConnectionProfile {
     name: '',
     environment: 'test',
     url: '',
+    port: DEFAULT_PORT,
     username: '',
     password: '',
     rememberPassword: false,
@@ -102,6 +106,43 @@ export function blankProfile(): ConnectionProfile {
     broker: blankBroker(),
     lastUsedAt: null,
   }
+}
+
+/** Порт менеджера FESB из коробки. */
+const DEFAULT_PORT = '8181'
+
+/**
+ * Адрес шины целиком: узел из одного поля, порт из другого.
+ *
+ * Порт долго жил внутри адреса, и профили из тех времён приходят с ним
+ * внутри. Такой адрес возвращается как есть: порт в нём указан явно,
+ * и подставлять второй поверх нельзя.
+ */
+export function busUrl(profile: ConnectionProfile): string {
+  const raw = profile.url.trim().replace(/\/+$/, '')
+  const port = profile.port.trim()
+  if (!raw || !port) return raw
+
+  const scheme = raw.match(/^[a-z][a-z0-9+.-]*:\/\//i)?.[0] ?? ''
+  const rest = raw.slice(scheme.length)
+  const slash = rest.indexOf('/')
+  const host = slash === -1 ? rest : rest.slice(0, slash)
+  const path = slash === -1 ? '' : rest.slice(slash)
+  if (/:\d+$/.test(host)) return raw
+
+  return `${scheme}${host}:${port}${path}`
+}
+
+/** Порт, вынутый из адреса старого профиля: `esb.corp:8181` → `8181`. */
+function portInside(url: string): { url: string; port: string } | null {
+  const scheme = url.match(/^[a-z][a-z0-9+.-]*:\/\//i)?.[0] ?? ''
+  const rest = url.slice(scheme.length)
+  const slash = rest.indexOf('/')
+  const host = slash === -1 ? rest : rest.slice(0, slash)
+  const path = slash === -1 ? '' : rest.slice(slash)
+  const found = host.match(/^(.*):(\d+)$/)
+  if (!found) return null
+  return { url: `${scheme}${found[1]}${path}`, port: found[2] }
 }
 
 function newId(): string {
@@ -117,11 +158,16 @@ function sanitize(raw: Partial<ConnectionProfile>): ConnectionProfile | null {
   const environment = ENVIRONMENTS.includes(raw.environment as Environment)
     ? (raw.environment as Environment)
     : 'test'
+  // Порт стал отдельным полем; у профилей, записанных до этого, он сидит
+  // внутри адреса — вынимаем его туда, где его теперь правят.
+  const split = typeof raw.port === 'string' ? null : portInside(raw.url.trim())
+
   return {
     id: typeof raw.id === 'string' && raw.id ? raw.id : newId(),
     name: typeof raw.name === 'string' && raw.name.trim() ? raw.name : raw.url,
     environment,
-    url: raw.url,
+    url: split ? split.url : raw.url,
+    port: typeof raw.port === 'string' ? raw.port : (split?.port ?? ''),
     username: typeof raw.username === 'string' ? raw.username : '',
     password: remember && typeof raw.password === 'string' ? raw.password : '',
     rememberPassword: remember,
@@ -244,7 +290,7 @@ export function autoConnectTarget(store: ConnectionStore): ConnectionProfile | n
 /** То, что уходит в бэкенд: без имени, среды и служебных отметок. */
 export function toConnection(profile: ConnectionProfile): Connection {
   return {
-    url: profile.url.trim(),
+    url: busUrl(profile),
     username: profile.username,
     password: profile.password,
     insecure: profile.insecure,

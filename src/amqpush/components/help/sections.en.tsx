@@ -69,6 +69,14 @@ export const SECTIONS_EN: HelpSection[] = [
           second list of profiles to keep in sync.
         </P>
 
+        <P>
+          <b>Test Broker</b> in the block header opens its own short-lived connection: it logs
+          in with these very settings and asks the broker its name. The section's live
+          subscriber is not disturbed, and nothing is created on the broker — the default
+          queue is deliberately left alone, since checking it would create it on a broker with
+          auto-create on.
+        </P>
+
         <H3>The three fields that matter</H3>
         <Row label="Broker host">Leave it empty and the bus host is used — the broker usually lives on the same machine. Fill it in when it doesn't.</Row>
         <Row label="Port">Default <Code>5672</Code> without TLS, <Code>5671</Code> with it.</Row>
