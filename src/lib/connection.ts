@@ -16,6 +16,55 @@ const LEGACY_KEY = 'fesb.connection'
 export const ENVIRONMENTS = ['dev', 'test', 'stage', 'prod'] as const
 export type Environment = (typeof ENVIRONMENTS)[number]
 
+/**
+ * Брокер стенда — часть его профиля, а не отдельная сущность.
+ *
+ * У шины и её брокера один хозяин и один стенд: разработка, тест, бой.
+ * Держать их порознь означало бы дважды заводить одно и то же и однажды
+ * переключить шину, забыв про брокер.
+ *
+ * Узел по умолчанию берётся у шины: брокер почти всегда живёт там же.
+ * `host` заполняют, только когда это не так.
+ */
+export interface BrokerSettings {
+  /** Пусто — тот же узел, что у шины. */
+  host: string
+  port: string
+  /** Пусто — те же учётные данные, что у шины. */
+  username: string
+  password: string
+  /** Очередь, которая подставляется в поле «Куда» при отправке. */
+  queue: string
+  useTls: boolean
+  tlsSkipVerify: boolean
+  saslAnonymous: boolean
+  useWs: boolean
+  wsPath: string
+  containerId: string
+  heartbeatSecs: string
+  connectTimeoutSecs: string
+  reconnectBaseMs: string
+  reconnectMaxMs: string
+  reconnectMultiplier: string
+  sendRetryAttempts: string
+  sendRetryDelayMs: string
+  clientCertPath: string
+  clientKeyPath: string
+  clientKeyPassphrase: string
+}
+
+export function blankBroker(): BrokerSettings {
+  return {
+    host: '', port: '5672', username: '', password: '', queue: '',
+    useTls: false, tlsSkipVerify: false, saslAnonymous: false,
+    useWs: false, wsPath: '', containerId: '',
+    heartbeatSecs: '0', connectTimeoutSecs: '10',
+    reconnectBaseMs: '1000', reconnectMaxMs: '30000', reconnectMultiplier: '2',
+    sendRetryAttempts: '1', sendRetryDelayMs: '250',
+    clientCertPath: '', clientKeyPath: '', clientKeyPassphrase: '',
+  }
+}
+
 export interface ConnectionProfile {
   id: string
   name: string
@@ -26,6 +75,8 @@ export interface ConnectionProfile {
   rememberPassword: boolean
   /** Принимать самоподписанные сертификаты. */
   insecure: boolean
+  /** Брокер AMQP этого же стенда. */
+  broker: BrokerSettings
   lastUsedAt: string | null
 }
 
@@ -48,6 +99,7 @@ export function blankProfile(): ConnectionProfile {
     password: '',
     rememberPassword: false,
     insecure: false,
+    broker: blankBroker(),
     lastUsedAt: null,
   }
 }
@@ -74,8 +126,18 @@ function sanitize(raw: Partial<ConnectionProfile>): ConnectionProfile | null {
     password: remember && typeof raw.password === 'string' ? raw.password : '',
     rememberPassword: remember,
     insecure: raw.insecure === true,
+    // Профили из версий до слияния брокера в стенд читаются как есть:
+    // недостающие поля берутся из пустой заготовки. Пароль брокера живёт
+    // по тем же правилам, что и пароль шины: галочка одна на стенд.
+    broker: forget(remember, { ...blankBroker(), ...(raw.broker ?? {}) }),
     lastUsedAt: typeof raw.lastUsedAt === 'string' ? raw.lastUsedAt : null,
   }
+}
+
+/** Секреты брокера — только при явно разрешённом хранении пароля. */
+function forget(remember: boolean, broker: BrokerSettings): BrokerSettings {
+  if (remember) return broker
+  return { ...broker, password: '', clientKeyPassphrase: '' }
 }
 
 /** Единственное подключение старых версий становится первым профилем. */
@@ -123,6 +185,7 @@ export function writeStore(store: ConnectionStore): void {
     profiles: store.profiles.map((profile) => ({
       ...profile,
       password: profile.rememberPassword ? profile.password : '',
+      broker: forget(profile.rememberPassword, profile.broker),
     })),
   }
   localStorage.setItem(STORAGE_KEY, JSON.stringify(payload))

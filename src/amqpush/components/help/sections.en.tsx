@@ -15,7 +15,7 @@ export const SECTIONS_EN: HelpSection[] = [
     id: "getting-started",
     title: "Getting started",
     icon: <BookOpen className="w-3.5 h-3.5" />,
-    searchText: "getting started overview connect first message profile broker amqp 1.0 artemis",
+    searchText: "getting started overview connect first message stand broker amqp 1.0 artemis",
     content: (
       <>
         <H><BookOpen className="w-4 h-4 text-accent" />Getting started</H>
@@ -26,22 +26,23 @@ export const SECTIONS_EN: HelpSection[] = [
         </P>
         <H3>The 60-second tour</H3>
         <UL>
-          <Li>Open <b>Connection</b> (sidebar) → fill host / port / credentials → <b>Save profile</b> → <b>Connect</b>.</Li>
+          <Li>Open the stand settings — the gear in the app header — fill in the <b>Broker</b> block at the bottom of the form, then hit <b>Connect</b> in this section's header.</Li>
           <Li>Switch to <b>Send Messages</b>, type a queue name (autocompletes from broker), put text in the Body, hit <b>Send</b> or <Kbd>⌘</Kbd><Kbd>Enter</Kbd>.</Li>
           <Li><b>Receive Messages</b> shows live messages; <b>REC</b> captures them to a recording, <b>Replay…</b> plays one back to any queue.</Li>
           <Li><b>Browser</b> peeks at queue contents without consuming — checkboxes enable selective <b>Purge</b>, <b>Shovel</b> (cross-broker copy) and DLQ <b>Edit &amp; Requeue</b>.</Li>
-          <Li><b>Broker Clients</b> (⌘5) shows every client connected to the broker and what each one is consuming.</Li>
+          <Li><b>Broker Clients</b> (⌘4) shows every client connected to the broker and what each one is consuming.</Li>
           <Li><b>History</b> keeps the last 200 sends with full payload for resend.</Li>
         </UL>
         <Note>
-          Press <Kbd>⌘</Kbd><Kbd>K</Kbd> anywhere to open the command palette — every action,
-          view, profile and theme is reachable from there.
+          Press <Kbd>⌘</Kbd><Kbd>K</Kbd> anywhere in this section to open its command palette —
+          every action and view is reachable from there.
         </Note>
         <H3>Where data lives</H3>
         <P>
-          Profiles, templates and history are stored as JSON under <Code>~/.amqpush/</Code>.
-          Logs and UI preferences live in the WebView's <Code>localStorage</Code>. No telemetry, no
-          cloud sync — everything is on your machine.
+          Templates and send history are stored as JSON under <Code>~/.amqpush/</Code>; broker
+          settings belong to the stand and live with the rest of the app's settings. Logs and view
+          preferences are in the window's storage. No telemetry, no cloud sync — everything is on
+          your machine.
         </P>
       </>
     ),
@@ -52,90 +53,62 @@ export const SECTIONS_EN: HelpSection[] = [
     id: "connection",
     title: "Connection",
     icon: <Plug className="w-3.5 h-3.5" />,
-    searchText: "connection profile host port username password tls ssl amqps heartbeat container id sasl anonymous certificate skip verify advanced workspace group dev staging prod default queue reconnect backoff multiplier latency activity log save duplicate delete profile mtls client certificate pem pkcs12 p12 pfx websocket ws wss firewall transport",
+    searchText: "connection stand broker host port queue username password tls ssl amqps heartbeat container id sasl anonymous certificate skip verify websocket ws wss reconnect backoff multiplier send retry mtls client certificate pem pkcs12 p12 pfx latency gear settings",
     content: (
       <>
-        <H><Plug className="w-4 h-4 text-accent" />Connection &amp; profiles</H>
+        <H><Plug className="w-4 h-4 text-accent" />Broker &amp; stand</H>
         <P>
-          A <b>profile</b> is a saved set of broker credentials and options. The dropdown at the
-          top of the header switches the active profile globally; the same profile is auto-loaded
-          on next launch. The form is split into a <b>General</b> tab (the things you change
-          often) and an <b>Advanced</b> tab (the things you set once per broker).
+          The broker belongs to a <b>stand</b>, right next to the bus address: one stand, one
+          set of settings. Open them with the gear in the app header — the <b>Broker of this
+          stand</b> block sits at the bottom of the stand form. The stand chip in this section's
+          header opens the very same screen.
+        </P>
+        <P>
+          Which stand is active is decided in the app header, the same one the API section
+          works against. This section's header names it and connects to its broker; there is no
+          second list of profiles to keep in sync.
         </P>
 
-        <H3>Profile picker row</H3>
-        <P>
-          The dropdown at the top of the form shows every saved profile, plus the active host /
-          port preview next to its name. Action buttons next to it:
-        </P>
-        <UL>
-          <Li><b>Save</b> — overwrite the currently-selected profile with the form values. Lit when the form differs from what's on disk.</Li>
-          <Li><b>Save as…</b> — save the current values under a new name (prompts for the name inline).</Li>
-          <Li><b>Duplicate</b> (📋 icon) — copy the selected profile under a "<i>name</i> (copy)" name; handy starting point for a sibling environment.</Li>
-          <Li><b>Delete</b> (🗑 icon) — confirms inline before removing the profile from disk.</Li>
-          <Li><b>⋮ overflow menu</b> — bulk profile actions:
-            <UL>
-              <Li><b>Quick-connect from URL…</b> — paste an{" "}
-                <Code>amqp://user:pass@host:port/queue</Code> (or <Code>amqps</Code> / <Code>ws</Code> / <Code>wss</Code>),
-                see a parsed preview, click <b>Apply to form</b>. Nothing's saved automatically — review the form, hit Save as…
-                when you're happy.</Li>
-              <Li><b>Import profiles…</b> — pick a JSON file (native file picker). Either the map shape AMQPush exports, or a bare
-                array of profile objects. On name collision you're asked whether to overwrite or skip. Reports counts after import.</Li>
-              <Li><b>Export profiles…</b> — write the entire profile collection to a JSON file via the native save dialog. Useful for
-                git / dotfile sharing — the file is portable across machines.</Li>
-            </UL>
-          </Li>
-        </UL>
+        <H3>The three fields that matter</H3>
+        <Row label="Broker host">Leave it empty and the bus host is used — the broker usually lives on the same machine. Fill it in when it doesn't.</Row>
+        <Row label="Port">Default <Code>5672</Code> without TLS, <Code>5671</Code> with it.</Row>
+        <Row label="Default queue">Optional. Pre-fills the destination in the Send view. Independent of the <b>Recent</b> queues in the queue picker.</Row>
 
-        <H3>General tab</H3>
-        <P>The settings you'll touch most often.</P>
-        <Row label="Host">Broker hostname or IP. <Code>localhost</Code> for local Artemis, <Code>amqps://broker.example.com</Code>-style hosts for cloud brokers.</Row>
-        <Row label="Port">Default <Code>5672</Code> (plain), <Code>5671</Code> (TLS).</Row>
-        <Row label="Workspace">Free-form group label (e.g. <Code>Dev</Code> / <Code>Staging</Code> / <Code>Prod</Code>, or per-service). Drives sectioned headers in the global profile picker and Cmd+K palette categories. Empty / missing falls back to <Code>Default</Code>. The combobox suggests existing workspaces and shows the profile count next to each one — hover a row to reveal a 🗑 icon that <b>deletes the workspace</b> (moves all its profiles back to <Code>Default</Code> with an inline confirm). <Code>Default</Code> itself can't be deleted.</Row>
-        <Row label="Username / Password">SASL PLAIN credentials. Leave blank with <i>Force SASL ANONYMOUS</i> on.</Row>
-        <Row label="TLS / AMQPS">Toggle to negotiate AMQPS on the wire. When on, a sub-option <b>Skip certificate verification</b> appears for self-signed / test brokers — leave off in production.</Row>
-        <Row label="Force SASL ANONYMOUS">Bypass username/password entirely; the broker must allow anonymous logins.</Row>
-        <Row label="AMQP over WebSocket">Tunnel AMQP through <Code>ws://</Code> (or <Code>wss://</Code> when TLS is also on) instead of raw TCP. Picks up brokers that publish AMQP over the WebSocket binding (Tanzu RabbitMQ with the <Code>rabbitmq_web_amqp</Code> plugin, Azure Service Bus, Amazon MQ RabbitMQ flavour, Solace's WS endpoint), and gets you through corporate firewalls that block 5671/5672. Optional <b>WS path</b> sub-field sets the URL path; empty = root.</Row>
+        <H3>Toggles</H3>
+        <Row label="TLS / AMQPS">Encrypt the connection. Turning it on reveals <b>Skip certificate check</b> for self-signed and test brokers — keep it off in production.</Row>
+        <Row label="SASL ANONYMOUS">Connect without credentials at all; the broker has to allow anonymous logins.</Row>
+        <Row label="Over WebSocket">Tunnel AMQP through <Code>ws://</Code> (or <Code>wss://</Code> with TLS on) instead of raw TCP. Reaches brokers that publish AMQP over a WebSocket binding — RabbitMQ with <Code>rabbitmq_web_amqp</Code>, Azure Service Bus, Amazon MQ, Solace — and gets through firewalls that block 5671 and 5672.</Row>
 
-        <H3>Advanced tab</H3>
-        <P>One-time-per-broker tuning. The General tab covers the day-to-day; come here when something specific needs changing.</P>
-        <Row label="Default Queue / Address">Optional. Pre-fills the destination on the Send view when this profile is active. Independent from the per-profile <b>Recent</b> queues MRU shown in the queue picker dropdown.</Row>
-        <Row label="Container ID">AMQP container identifier — defaults to <Code>amqpush-&lt;uuid&gt;</Code>. Set this only when the broker authorises connections by container name.</Row>
-        <Row label="Heartbeat">Idle-timeout for keep-alive frames, seconds. <Code>0</Code> disables. Useful when a firewall / NAT closes idle TCP connections — most brokers default to 30s.</Row>
-        <Row label="Connect timeout">Abort the initial connection attempt after N seconds. <Code>0</Code> disables.</Row>
-        <Row label="Subscriber reconnect backoff">Three knobs that control how the subscriber retries after a disconnect: <b>Initial delay</b> (ms), <b>Maximum delay</b> (ms), <b>Multiplier</b>. Defaults are 1000 / 30000 / 2.0 — start at 1 s, double each attempt, cap at 30 s. Bump the initial delay down for fast-iteration dev work; bump the cap up to spare broker logs during long outages.</Row>
-        <Row label="Publisher send retry">Per-profile budget for transient send failures: <b>Max attempts</b> (1 = disabled) and <b>Delay</b> in ms between attempts. Wraps every <Code>send_message</Code> call — useful when the broker rate-limits, replica-fails-over, or otherwise rejects sporadically. Disconnect-recovery is automatic and doesn't count against this budget. Defaults <Code>1 / 250</Code> preserve the pre-1.5.x single-attempt behaviour.</Row>
-        <Row label="mTLS client certificate">
-          Opt-in mutual TLS — the broker authenticates the client by certificate. Supply a path
-          to either a PEM <Code>.crt</Code> + a separate unencrypted PKCS#8 <Code>.key</Code>,
-          or a PKCS#12 <Code>.p12</Code>/<Code>.pfx</Code> bundle with a passphrase. Each file
-          field has a <b>Browse</b> button that opens the native file picker (Finder / Explorer)
-          with cert / key extension filters. PEM keys must be unencrypted — convert with{" "}
-          <Code>openssl pkcs8 -topk8 -nocrypt</Code>, or use a PKCS#12 bundle if your key is
-          encrypted. The whole card is disabled with an amber warning until you enable{" "}
-          <b>TLS / AMQPS</b> in General → Security, since the certificate has no transport to
-          attach to without server TLS. <b>Not yet supported on the WebSocket transport</b> —
-          connect will error out if you enable both.
+        <H3>More settings</H3>
+        <P>Set once per broker; the link at the top right of the block unfolds them.</P>
+        <Row label="Broker user / password">Empty means the bus credentials — same as the host. Fill them in when the broker has its own account.</Row>
+        <Row label="WebSocket path">The path in the URL when the WebSocket transport is on; empty is the root.</Row>
+        <Row label="Container id">How the client introduces itself to the broker; defaults to <Code>amqpush-&lt;uuid&gt;</Code>. Set it when the broker authorises connections by container name, or to make yourself recognisable in broker logs.</Row>
+        <Row label="Heartbeat">Seconds between keep-alive frames; <Code>0</Code> is off. Needed when a firewall or NAT drops idle connections — most brokers use 30 s.</Row>
+        <Row label="Connect timeout">Abort the first attempt after N seconds. <Code>0</Code> removes the limit.</Row>
+        <Row label="Reconnect delays">Three knobs for a dropped subscriber: <b>first delay</b> (ms), <b>longest delay</b> (ms) and <b>multiplier</b>. Defaults 1000 / 30000 / 2 — start at a second, double each attempt, cap at thirty. Lower the first delay for fast iteration; raise the cap to spare broker logs during a long outage.</Row>
+        <Row label="Send attempts / delay">A budget for sporadic send failures: attempts (<Code>1</Code> means no retry) and the pause between them. Wraps every send — useful when the broker rate-limits or fails over a replica. Reconnecting after a drop happens on its own and doesn't spend this budget.</Row>
+        <Row label="mTLS certificate / key / passphrase">
+          Mutual TLS, where the broker recognises the client by certificate. Give a path to a
+          PEM <Code>.crt</Code> plus a separate unencrypted PKCS#8 <Code>.key</Code>, or to a
+          PKCS#12 <Code>.p12</Code>/<Code>.pfx</Code> bundle with its passphrase. PEM keys must
+          be unencrypted — convert with <Code>openssl pkcs8 -topk8 -nocrypt</Code>, or use a
+          PKCS#12 bundle. The fields stay disabled until <b>TLS / AMQPS</b> is on: a certificate
+          has nothing to ride on without server TLS. <b>Not supported over WebSocket</b> — with
+          both enabled the connection errors out.
         </Row>
 
-        <H3>Header indicators (after Connect)</H3>
+        <H3>The section header</H3>
         <UL>
-          <Li><b>Green "Connected" dot + latency chip</b> — RTT to the broker, measured every 5 s via a trivial management ping. Goes amber at &gt; 100 ms, red at &gt; 500 ms. Surfaces degrading network / broker conditions <i>before</i> a send or subscribe stalls.</Li>
-          <Li><b>Active profile name + host:port</b> — clickable, opens the same profile-switch menu as Cmd+K.</Li>
+          <Li><b>Stand name and host:port</b> — click it to open the stand settings. Says <i>broker not set</i> when the stand has no host to connect to; Connect then takes you to the settings instead of failing.</Li>
+          <Li><b>Connect / Disconnect</b> — connects to the broker of the selected stand. Also on Cmd+K.</Li>
+          <Li><b>Green dot and latency</b> — round-trip to the broker, measured every 5 s by the cheapest management ping. Amber past 100 ms, red past 500 ms. Degrading network or broker health shows up <i>before</i> a send or a subscribe stalls.</Li>
         </UL>
 
-        <H3>Activity panel</H3>
-        <P>
-          The collapsible panel at the bottom of the view filters the global log down to
-          connection / subscriber / broker events. It stays mounted, so switching views and
-          coming back keeps the trace. Click the header to fold / unfold; the rest of the
-          stream still lives in <b>Logs</b> (⌘8).
-        </P>
-
         <Note>
-          Profiles are stored at <Code>~/.amqpush/profiles.json</Code> with a versioned schema —
-          adding new optional fields in future releases will not break older files, and we have
-          migration hooks for breaking shape changes.
+          Stands live with the rest of the app's settings, and the broker password follows the
+          same rule as the bus password: it is only written down when <b>Remember password</b>
+          is on for that stand. The mTLS key passphrase goes with it.
         </Note>
       </>
     ),
@@ -158,7 +131,7 @@ export const SECTIONS_EN: HelpSection[] = [
         <P>
           The destination field at the top of Send (and the equivalent on Receive) drops down a
           combined list. The <b>Recent</b> section is the 10 most recently used queues for the
-          current profile — anything you've successfully sent to or subscribed from. Hover a
+          current stand — anything you've successfully sent to or subscribed from. Hover a
           recent row to reveal a small × that forgets that entry; the rest fills up automatically.
           Below it is the <b>broker queues</b> table, refreshed when you open the dropdown.
         </P>
@@ -555,7 +528,7 @@ ctx.set("amount_cents", String(Math.round(usd * 100)));`}</pre>
         </Note>
         <Warn>
           Sending thousands of messages is destructive on production queues. Always test against
-          a dev profile first; the dry-run preview is your friend.
+          a dev stand first; the dry-run preview is your friend.
         </Warn>
       </>
     ),
@@ -793,7 +766,7 @@ ctx.set("amount_cents", String(Math.round(usd * 100)));`}</pre>
           name (e.g. "VIP priority", "Orders only"), and from then on pick it from the dropdown
           to refill the input in one click. Saves are persisted in <Code>localStorage</Code>{" "}
           (<Code>amqpush.subscriber.savedSelectors</Code>), survive restarts, and are shared
-          across all profiles. Saving under an existing name overwrites it. Hover a saved row
+          across all stands. Saving under an existing name overwrites it. Hover a saved row
           to reveal a × that forgets it.
         </P>
 
@@ -984,7 +957,7 @@ ctx.set("amount_cents", String(Math.round(usd * 100)));`}</pre>
         </P>
         <Note>
           Artemis doesn't expose a per-message lock owner through management, so this is an
-          inference rather than a guarantee. Use it together with <b>Clients</b> (⌘5)
+          inference rather than a guarantee. Use it together with <b>Clients</b> (⌘4)
           when chasing "why is this message stuck?".
         </Note>
       </>
@@ -1050,7 +1023,7 @@ ctx.set("amount_cents", String(Math.round(usd * 100)));`}</pre>
       <>
         <H><HistoryIcon className="w-4 h-4 text-accent" />History</H>
         <P>
-          The last <b>200 sends</b> (per profile) are persisted to <Code>~/.amqpush/history.json</Code>
+          The last <b>200 sends</b> (per stand) are persisted to <Code>~/.amqpush/history.json</Code>
           with full payload — text bodies always, file bodies up to 2&nbsp;MB (base64). Resend works
           even after a restart.
         </P>
@@ -1074,7 +1047,7 @@ ctx.set("amount_cents", String(Math.round(usd * 100)));`}</pre>
     id: "stats",
     title: "Stats",
     icon: <BarChart3 className="w-3.5 h-3.5" />,
-    searchText: "stats statistics throughput sparkline cards reliability per-queue rate sent received error per-profile profile compare dev prod aggregate all",
+    searchText: "stats statistics throughput sparkline cards reliability per-queue rate sent received error per-stand stand compare dev prod aggregate all",
     content: (
       <>
         <H><BarChart3 className="w-4 h-4 text-accent" />Stats</H>
@@ -1089,11 +1062,11 @@ ctx.set("amount_cents", String(Math.round(usd * 100)));`}</pre>
           <Li><b>Per-queue</b> — sortable table; click a header to flip direction.</Li>
         </UL>
         <P>
-          When you've sent traffic on more than one profile in the same session a{" "}
-          <b>profile selector</b> appears in the top bar. Pick a specific profile to see only
+          When you've sent traffic on more than one stand in the same session a{" "}
+          <b>stand selector</b> appears in the top bar. Pick a specific stand to see only
           its numbers, or <b>All</b> to merge every bucket into one aggregate view — useful for
           comparing prod vs staging side-by-side without re-running. The selector auto-follows
-          the global profile switch by default.
+          the stand chosen in the app header by default.
         </P>
       </>
     ),
@@ -1138,7 +1111,7 @@ ctx.set("amount_cents", String(Math.round(usd * 100)));`}</pre>
         <H><Keyboard className="w-4 h-4 text-accent" />Keyboard shortcuts</H>
         <H3>Global</H3>
         <Row label={<><Kbd>⌘</Kbd><Kbd>K</Kbd></>}>Open command palette.</Row>
-        <Row label={<><Kbd>⌘</Kbd><Kbd>1</Kbd>…<Kbd>8</Kbd></>}>Switch view (Connection / Send / Receive / Browser / Broker Clients / History / Stats / Logs).</Row>
+        <Row label={<><Kbd>⌘</Kbd><Kbd>1</Kbd>…<Kbd>7</Kbd></>}>Switch view (Send / Receive / Browser / Broker Clients / History / Stats / Logs).</Row>
         <Row label={<><Kbd>⌘</Kbd><Kbd>L</Kbd></>}>Open Logs.</Row>
         <Row label={<><Kbd>⌘</Kbd><Kbd>Enter</Kbd></>}>Send the current message (Send view).</Row>
         <Row label={<><Kbd>Esc</Kbd></>}>Close any open modal / palette.</Row>
@@ -1168,7 +1141,7 @@ ctx.set("amount_cents", String(Math.round(usd * 100)));`}</pre>
           <Li><b>Test request-reply locally</b>: open two AMQPush windows, one Subscribed to <Code>requests</Code>, the other Sending with Reply on. The reply lands in the original Send view.</Li>
           <Li><b>Stress-test with Batch</b>: Repeat = 10000, Delay = 0. Watch Stats → Throughput. Set Pre-script <Code>ctx.set("id", "batch-" + ctx.iter)</Code> to make every message unique.</Li>
           <Li><b>Validate before send</b>: paste a JSON Schema / XSD into the Body schema modal. Send is gated on the body validating — no more "oops, missing field" sends.</Li>
-          <Li><b>Profile-per-environment</b>: dev / staging / prod as separate profiles. The header dropdown switches the broker globally; nothing else changes.</Li>
+          <Li><b>One stand per environment</b>: dev / test / prod as separate stands. Switching the stand in the app header switches the bus and its broker together; nothing else changes.</Li>
         </UL>
       </>
     ),
@@ -1179,24 +1152,22 @@ ctx.set("amount_cents", String(Math.round(usd * 100)));`}</pre>
     id: "files",
     title: "Files & Storage",
     icon: <Database className="w-3.5 h-3.5" />,
-    searchText: "files storage paths config home directory amqpush profiles templates queues history localstorage",
+    searchText: "files storage paths config home directory amqpush stands templates queues history localstorage",
     content: (
       <>
         <H><Database className="w-4 h-4 text-accent" />Files &amp; Storage</H>
         <H3>~/.amqpush/</H3>
-        <Row label="profiles.json">Saved broker profiles.</Row>
         <Row label="templates.json">Saved Send templates.</Row>
-        <Row label="history.json">Last 200 sends per profile.</Row>
+        <Row label="history.json">Last 200 sends per stand.</Row>
         <Row label="queues.json">Legacy queue bookmarks (UI removed; file ignored).</Row>
-        <H3>localStorage (WebView)</H3>
-        <Row label="amqpush.lastProfile">Auto-connect target on startup.</Row>
+        <H3>Window storage</H3>
         <Row label="amqpush.logs">Last 500 log entries.</Row>
-        <Row label="amqpush.sidebarCollapsed">Sidebar state.</Row>
-        <Row label="amqpush-theme">Light / Dark / System.</Row>
-        <Row label="amqpush.dismissedUpdateVersion">"Skip this version" preference.</Row>
+        <Row label="amqpush.recentQueues.*">The Recent queues of each stand.</Row>
+        <Row label="amqpush.subscriber.*">Highlight rules, saved selectors, and kept messages.</Row>
         <Note>
-          Backing up <Code>~/.amqpush/</Code> to a private repo or a dotfiles store gives you all
-          your profiles and templates on a fresh machine.
+          Broker settings are not here: they belong to the stand, next to the bus address, and
+          live with the rest of the app's settings. Backing up <Code>~/.amqpush/</Code> carries
+          your templates and send history to a fresh machine.
         </Note>
       </>
     ),

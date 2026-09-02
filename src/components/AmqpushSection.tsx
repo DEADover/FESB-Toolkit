@@ -1,7 +1,9 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
 
 import { useI18n } from '../i18n'
-import type { View } from '../amqpush/types'
+import { brokerProfile, hasBroker } from '../lib/broker'
+import type { ConnectionProfile } from '../lib/connection'
+import type { Profile, View } from '../amqpush/types'
 import type { ScreenId } from './Sidebar'
 import { Spinner } from './ui'
 
@@ -26,7 +28,6 @@ const AmqpushScreen = lazy(() =>
 
 /** Экран приложения ↔ экран раздела. Имена внутри раздела свои, исторические. */
 const VIEWS: Partial<Record<ScreenId, View>> = {
-  'amqp.connection': 'connection',
   'amqp.publisher': 'publisher',
   'amqp.subscriber': 'subscriber',
   'amqp.browser': 'browser',
@@ -37,7 +38,6 @@ const VIEWS: Partial<Record<ScreenId, View>> = {
 }
 
 const SCREENS: Record<View, ScreenId> = {
-  connection: 'amqp.connection',
   publisher: 'amqp.publisher',
   subscriber: 'amqp.subscriber',
   browser: 'amqp.browser',
@@ -47,15 +47,24 @@ const SCREENS: Record<View, ScreenId> = {
   console: 'amqp.console',
 }
 
-export function AmqpushSection({ screen, onScreen }: {
+export function AmqpushSection({ screen, onScreen, profiles, activeProfileId }: {
   screen: ScreenId
   onScreen: (screen: ScreenId) => void
+  /** Стенды приложения: брокер — часть профиля стенда, а не своя сущность. */
+  profiles: ConnectionProfile[]
+  activeProfileId: string | null
 }) {
   const { t } = useI18n()
   const view = VIEWS[screen]
   const [opened, setOpened] = useState(view !== undefined)
 
   useEffect(() => { if (view) setOpened(true) }, [view])
+
+  // Брокер выбранного стенда — и брокеры остальных, чтобы было куда
+  // переливать сообщения.
+  const active = profiles.find((profile) => profile.id === activeProfileId) ?? null
+  const stand: Profile | null = active ? brokerProfile(active) : null
+  const stands: Profile[] = profiles.filter(hasBroker).map(brokerProfile)
 
   if (!opened) return null
 
@@ -78,6 +87,9 @@ export function AmqpushSection({ screen, onScreen }: {
         <AmqpushScreen
           view={view ?? 'publisher'}
           onView={(next) => onScreen(SCREENS[next])}
+          stand={stand}
+          stands={stands}
+          onConfigure={() => onScreen('connection')}
         />
       </Suspense>
     </div>

@@ -1,6 +1,5 @@
-import { useState, useCallback, useEffect, useRef } from "react";
-import { ChevronDown, HelpCircle, Plug, Sparkles, Terminal, User } from "lucide-react";
-import ConnectionView from "./components/views/ConnectionView";
+import { useState, useCallback, useEffect } from "react";
+import { HelpCircle, Plug, Sparkles, Terminal, User } from "lucide-react";
 import PublisherView from "./components/views/PublisherView";
 import SubscriberView from "./components/views/SubscriberView";
 import HistoryView from "./components/views/HistoryView";
@@ -8,7 +7,6 @@ import StatsView, { StatsData, emptyStats, trackSentInStats, trackReceivedInStat
 import ConsoleView from "./components/views/ConsoleView";
 import BrowserView from "./components/views/BrowserView";
 import InspectorView from "./components/views/InspectorView";
-import Dropdown, { DropdownItem, DropdownSection, DropdownFooter } from "./components/Dropdown";
 import CommandPalette, { PaletteAction } from "./components/CommandPalette";
 import HelpModal from "./components/help/HelpModal";
 import ConfirmDialog from "./components/ConfirmDialog";
@@ -20,8 +18,8 @@ import "./amqpush.css";
 let logId = 0;
 
 const VIEW_KEYS: Record<string, View> = {
-  "1": "connection", "2": "publisher", "3": "subscriber", "4": "browser",
-  "5": "inspector",  "6": "history",   "7": "stats",     "8": "console",
+  "1": "publisher", "2": "subscriber", "3": "browser", "4": "inspector",
+  "5": "history",   "6": "stats",      "7": "console",
 };
 
 /**
@@ -48,7 +46,6 @@ function helpSectionFor(view: View, pubTab: string): string {
     }
   }
   switch (view) {
-    case "connection": return "connection";
     case "subscriber": return "receive";
     case "browser":    return "browser";
     case "inspector":  return "inspector";
@@ -70,11 +67,20 @@ function helpSectionFor(view: View, pubTab: string): string {
  *
  * Тему, заголовок окна и обновления раздел не трогает: этим занят хозяин.
  */
-export function AmqpushScreen({ view, onView }: {
+export function AmqpushScreen({ view, onView, stand, stands, onConfigure }: {
   /** Какой экран показывать. Выбирается боковой панелью приложения. */
   view: View;
   /** Смена экрана изнутри: горячие клавиши и ссылки «отправить сюда». */
   onView: (view: View) => void;
+  /**
+   * Брокер выбранного стенда. Раздел не заводит своих профилей: стенд один
+   * на приложение, и брокер — его часть, а не отдельная сущность.
+   */
+  stand: Profile | null;
+  /** Остальные стенды — для переливки сообщений между брокерами. */
+  stands: Profile[];
+  /** Куда отправить за настройками, когда брокер не задан. */
+  onConfigure: () => void;
 }) {
   const t = useAmqpText();
 
@@ -107,15 +113,12 @@ export function AmqpushScreen({ view, onView }: {
     } catch { return []; }
   });
   const [sendTrigger,    setSendTrigger]    = useState(0);
-  // Profile state — declared early because the per-profile stats map
-  // (below) keys off `activeProfile`. The setter is still used way down
-  // by the profile-picker logic.
-  const [profiles,      setProfiles]      = useState<Profile[]>([]);
-  const [activeProfile, setActiveProfile] = useState<string>("");
-  /** Per-profile stats — `""` is the unknown-profile bucket (used by the
-   *  CommandPalette quick-send path that doesn't carry a profile). All
-   *  tracking functions write into the bucket for the currently-active
-   *  profile so users can compare prod vs dev side-by-side in StatsView. */
+  // Профилей у раздела своих нет: стенд приходит снаружи, его имя и служит
+  // ключом для статистики по стендам.
+  const activeProfile = stand?.name ?? "";
+  /** Статистика по стендам: `""` — ведро «стенд неизвестен» (быстрая
+   *  отправка из палитры). Всё, что считается, пишется в ведро текущего
+   *  стенда, чтобы в «Статистике» дев и прод стояли рядом. */
   const [statsByProfile, setStatsByProfile] = useState<Record<string, StatsData>>({});
   // Convenience accessor: the active profile's bucket, or an empty one
   // for first-render code paths that want stat numbers (sentCount, etc).
@@ -132,33 +135,6 @@ export function AmqpushScreen({ view, onView }: {
     nonce: number;
   } | null>(null);
   const [pendingSubAddr, setPendingSubAddr] = useState<{ address: string; nonce: number } | null>(null);
-
-  // Sidebar collapsed/expanded — persisted across sessions
-  // Connection form state — lifted to App so values persist across view switches
-  const [connForm, setConnForm] = useState({
-    host:     "127.0.0.1",
-    port:     "5672",
-    username: "",
-    password: "",
-    queue:    "",
-    useTls:   false,
-    containerId: "",
-    heartbeatSecs: "",
-    connectTimeoutSecs: "10",
-    tlsSkipVerify: false,
-    saslAnonymous: false,
-    workspace: "Default",
-    reconnectBaseMs: "1000",
-    reconnectMaxMs: "30000",
-    reconnectMultiplier: "2",
-    sendRetryAttempts: "1",
-    sendRetryDelayMs: "250",
-    clientCertPath: "",
-    clientKeyPath: "",
-    clientKeyPassphrase: "",
-    useWs: false,
-    wsPath: "",
-  });
 
   // Прошлый экран помнится ради ⌘L: он переключает журнал и обратно.
   function changeView(v: View) {
@@ -267,6 +243,76 @@ export function AmqpushScreen({ view, onView }: {
     };
   }, []);
 
+  /**
+   * Подключение к брокеру стенда.
+   *
+   * Параметры целиком приходят из профиля: свои поля раздел больше не
+   * держит. Без стенда подключаться не к чему — отправляем настраивать.
+   */
+  const [connecting, setConnecting] = useState(false);
+  async function connectStand() {
+    if (!stand || !stand.host) { onConfigure(); return; }
+    setConnecting(true);
+    try {
+      await invoke("connect", {
+        host: stand.host,
+        port: stand.port,
+        address: stand.queue,
+        username: stand.username,
+        password: stand.password,
+        useTls: stand.use_tls,
+        containerId: stand.container_id ?? "",
+        heartbeatSecs: stand.heartbeat_secs ?? 0,
+        connectTimeoutSecs: stand.connect_timeout_secs ?? 10,
+        saslAnonymous: stand.sasl_anonymous ?? false,
+        tlsSkipVerify: stand.tls_skip_verify ?? false,
+        reconnectBaseMs: stand.reconnect_base_ms ?? 1000,
+        reconnectMaxMs: stand.reconnect_max_ms ?? 30000,
+        reconnectMultiplier: stand.reconnect_multiplier ?? 2,
+        sendRetryAttempts: stand.send_retry_attempts ?? 1,
+        sendRetryDelayMs: stand.send_retry_delay_ms ?? 250,
+        clientCertPath: stand.client_cert_path ?? null,
+        clientKeyPath: stand.client_key_path ?? null,
+        clientKeyPassphrase: stand.client_key_passphrase ?? null,
+        useWs: stand.use_ws ?? false,
+        wsPath: stand.ws_path ?? null,
+      });
+      handleConnected(stand.queue);
+      addLog("ok", t("shell.connected") + ` → ${stand.host}:${stand.port}`);
+    } catch (e) {
+      addLog("err", `${t("shell.connect.failed")}: ${e}`);
+    } finally {
+      setConnecting(false);
+    }
+  }
+
+  async function disconnectStand() {
+    try {
+      await invoke("disconnect");
+      setConnected(false);
+      addLog("info", t("shell.disconnected"));
+    } catch (e) {
+      addLog("err", String(e));
+    }
+  }
+
+  /**
+   * Сменили стенд — отключаемся от прежнего брокера.
+   *
+   * Иначе шапка называла бы новый стенд, а сокет вёл бы к старому: отправки
+   * уходили бы не туда, куда написано. Подключение к новому брокеру остаётся
+   * осознанным действием, само оно не происходит.
+   */
+  const standKey = stand ? `${stand.host}:${stand.port}/${stand.queue}` : "";
+  useEffect(() => {
+    if (!connected) return;
+    void invoke("disconnect")
+      .then(() => { setConnected(false); addLog("info", t("shell.stand.changed")); })
+      .catch((e) => addLog("err", String(e)));
+    // Реагируем на смену стенда, а не на само подключение.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [standKey]);
+
   function handleConnected(addr: string) {
     setConnected(true);
     setDefaultAddress(addr);
@@ -289,17 +335,6 @@ export function AmqpushScreen({ view, onView }: {
   function handlePublishTo(address: string) { setResendPayload({ address, body: "", nonce: Date.now() }); changeView("publisher"); }
   function handleSubscribeTo(address: string) { setPendingSubAddr({ address, nonce: Date.now() }); changeView("subscriber"); }
 
-  // ─── Profile management (lifted to App so status bar can switch quickly) ──
-  // `profiles` / `activeProfile` state moved up to keep the per-profile
-  // stats map declaration order-correct. Setters stay used here for the
-  // profile-picker.
-  const loadProfiles = useCallback(async () => {
-    try { setProfiles(await invoke<Profile[]>("get_profiles")); }
-    catch (e) { addLog("err", `Load profiles: ${e}`); }
-  }, [addLog]);
-
-  useEffect(() => { loadProfiles(); }, []);
-
   // Broker-latency polling. Runs while connected, hits ping_broker every
   // 5 s. Cheapest possible management RPC (broker.getName) — reuses the
   // long-lived ManagementChannel, so a healthy ping costs the broker
@@ -321,93 +356,6 @@ export function AmqpushScreen({ view, onView }: {
     return () => { cancelled = true; clearInterval(interval); };
   }, [connected]);
 
-  function applyProfile(p: Profile) {
-    setConnForm({
-      host: p.host,
-      port: String(p.port),
-      username: p.username,
-      password: p.password,
-      queue: p.queue,
-      useTls: p.use_tls,
-      containerId:        p.container_id ?? "",
-      heartbeatSecs:      p.heartbeat_secs ? String(p.heartbeat_secs) : "",
-      connectTimeoutSecs: p.connect_timeout_secs !== undefined ? String(p.connect_timeout_secs) : "10",
-      tlsSkipVerify:      p.tls_skip_verify ?? false,
-      saslAnonymous:      p.sasl_anonymous ?? false,
-      workspace:          (p.workspace ?? "").trim() || "Default",
-      reconnectBaseMs:    p.reconnect_base_ms !== undefined ? String(p.reconnect_base_ms) : "1000",
-      reconnectMaxMs:     p.reconnect_max_ms !== undefined ? String(p.reconnect_max_ms) : "30000",
-      reconnectMultiplier: p.reconnect_multiplier !== undefined ? String(p.reconnect_multiplier) : "2",
-      sendRetryAttempts:  p.send_retry_attempts !== undefined ? String(p.send_retry_attempts) : "1",
-      sendRetryDelayMs:   p.send_retry_delay_ms !== undefined ? String(p.send_retry_delay_ms) : "250",
-      clientCertPath:     p.client_cert_path ?? "",
-      clientKeyPath:      p.client_key_path ?? "",
-      clientKeyPassphrase: p.client_key_passphrase ?? "",
-      useWs:              p.use_ws ?? false,
-      wsPath:             p.ws_path ?? "",
-    });
-    setActiveProfile(p.name);
-  }
-
-  // Persist active profile (any change — via header picker, ConnectionView, etc.)
-  useEffect(() => {
-    if (activeProfile) {
-      try { localStorage.setItem("amqpush.lastProfile", activeProfile); } catch {}
-    }
-  }, [activeProfile]);
-
-  // ─── Auto-connect to last used profile on startup ─────────────────────────
-  // Runs once when profiles are first loaded — applies last-used profile and
-  // attempts to connect with it.
-  const autoConnectAttempted = useRef(false);
-  useEffect(() => {
-    if (autoConnectAttempted.current) return;
-    if (profiles.length === 0) return;
-    autoConnectAttempted.current = true;
-
-    const lastName = localStorage.getItem("amqpush.lastProfile");
-    let target: Profile | undefined;
-    if (lastName) {
-      target = profiles.find(p => p.name === lastName);
-      if (!target) {
-        addLog("info", `Last-used profile '${lastName}' is gone — picking first available`);
-      }
-    }
-    // Fallback: if no lastProfile saved or it's missing, use the first profile
-    if (!target) target = profiles[0];
-    if (!target) return;
-
-    applyProfile(target);
-    addLog("info", `Auto-connecting to '${target.name}' (${target.host}:${target.port})…`);
-
-    (async () => {
-      try {
-        await invoke("connect", {
-          host: target.host, port: target.port, address: target.queue,
-          username: target.username, password: target.password, useTls: target.use_tls,
-          containerId: target.container_id ?? "",
-          heartbeatSecs: target.heartbeat_secs ?? 0,
-          connectTimeoutSecs: target.connect_timeout_secs ?? 10,
-          saslAnonymous: target.sasl_anonymous ?? false,
-          tlsSkipVerify: target.tls_skip_verify ?? false,
-          reconnectBaseMs: target.reconnect_base_ms ?? 1000,
-          reconnectMaxMs: target.reconnect_max_ms ?? 30000,
-          reconnectMultiplier: target.reconnect_multiplier ?? 2,
-          sendRetryAttempts: target.send_retry_attempts ?? 1,
-          sendRetryDelayMs: target.send_retry_delay_ms ?? 250,
-          clientCertPath: target.client_cert_path || null,
-          clientKeyPath: target.client_key_path || null,
-          clientKeyPassphrase: target.client_key_passphrase || null,
-          useWs: target.use_ws ?? false,
-          wsPath: target.ws_path || null,
-        });
-        handleConnected(target.queue);
-        addLog("ok", `Auto-connected → ${target.host}:${target.port}${target.queue ? `  (${target.queue})` : ""}  via '${target.name}'`);
-      } catch (e) {
-        addLog("err", `Auto-connect to '${target.name}' failed: ${e}`);
-      }
-    })();
-  }, [profiles]);
 
   const [showHelp, setShowHelp] = useState(false);
   /** Mirrors PublisherView's currently-active tab so we can open Help
@@ -471,70 +419,42 @@ export function AmqpushScreen({ view, onView }: {
 
         {/* ─── LEFT: Profile + Connection state ─── */}
         <div className="flex items-center gap-2">
-          {/* Profile picker — globally visible across all views */}
-          <Dropdown
-            align="left"
-            width="w-72"
-            trigger={({ open, toggle }) => (
-              <button
-                type="button"
-                onClick={toggle}
-                aria-expanded={open}
-                aria-label={t("shell.profile.switch")}
-                className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-t-ink3 hover:text-t-ink hover:bg-t-hover transition-colors text-[12.5px] border border-t-line"
-                title={t("shell.profile.switch")}
-              >
-                <User className="w-3 h-3 text-t-ink4" />
-                <span className="font-medium">{activeProfile || <span className="italic text-t-ink5">{t("shell.profile.none")}</span>}</span>
-                <ChevronDown className="w-3 h-3 text-t-ink4" />
-              </button>
-            )}
+          {/*
+            Стенд выбирается в шапке приложения — здесь он только назван,
+            и рядом стоит подключение к его брокеру. Своего списка профилей
+            у раздела больше нет: стенд один на приложение.
+          */}
+          <button
+            type="button"
+            onClick={onConfigure}
+            title={t("shell.stand.configure")}
+            className="flex items-center gap-1.5 rounded-lg border border-t-line px-2 py-1 text-[12px] text-t-ink3 transition hover:bg-t-bg2"
           >
-            {profiles.length === 0 ? (
-              <DropdownSection title={t("shell.profile.section")}>
-                <p className="text-[11.5px] text-t-ink5 text-center py-3">{t("shell.profile.empty")}</p>
-              </DropdownSection>
-            ) : (
-              // Group profiles by workspace. Stable workspace order: alphabetical,
-              // but "Default" always last so user-named groups float to the top.
-              (() => {
-                const groups = new Map<string, Profile[]>();
-                for (const p of profiles) {
-                  const ws = (p.workspace ?? "").trim() || "Default";
-                  if (!groups.has(ws)) groups.set(ws, []);
-                  groups.get(ws)!.push(p);
-                }
-                const ordered = [...groups.entries()].sort(([a], [b]) => {
-                  if (a === "Default") return 1;
-                  if (b === "Default") return -1;
-                  return a.localeCompare(b);
-                });
-                return ordered.map(([ws, items]) => (
-                  <DropdownSection key={ws} title={ws}>
-                    {items.map(p => (
-                      <DropdownItem
-                        key={p.name}
-                        active={p.name === activeProfile}
-                        onClick={() => applyProfile(p)}
-                        trailing={`${p.host}:${p.port}${p.use_tls ? " · TLS" : ""}`}
-                      >
-                        {p.name}
-                      </DropdownItem>
-                    ))}
-                  </DropdownSection>
-                ));
-              })()
-            )}
-            <DropdownFooter>
-              <button
-                onClick={() => changeView("connection")}
-                className="w-full flex items-center gap-2 px-3 py-1.5 text-left hover:bg-t-hover transition-colors text-[12.5px] text-accent hover:text-accent-content"
-              >
-                <Plug className="w-3 h-3" />
-                Manage profiles…
-              </button>
-            </DropdownFooter>
-          </Dropdown>
+            <User className="w-3 h-3 text-t-ink4" />
+            {stand
+              ? <span className="font-medium">{stand.name}</span>
+              : <span className="italic text-t-ink5">{t("shell.stand.none")}</span>}
+            {stand && (stand.host
+              ? <span className="font-mono text-t-ink5">{stand.host}:{stand.port}</span>
+              : <span className="italic text-t-ink5">{t("shell.stand.noBroker")}</span>)}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => (connected ? void disconnectStand() : void connectStand())}
+            disabled={connecting}
+            className={`flex h-7 shrink-0 items-center gap-1.5 rounded-lg px-2.5 text-[12px] font-medium transition disabled:opacity-40 ${
+              connected
+                ? "border border-negative/30 bg-negative/10 text-negative hover:bg-negative/20"
+                : "bg-accent-strong text-white hover:bg-accent"
+            }`}
+          >
+            {connecting
+              ? t("shell.connecting")
+              : connected
+                ? t("shell.disconnect")
+                : t("shell.connect")}
+          </button>
 
           {/* Connection status. When connected, the green dot is followed by
               a live latency chip — broker round-trip every 5 s via the
@@ -626,7 +546,7 @@ export function AmqpushScreen({ view, onView }: {
 
             {/* Browser */}
             <div className={view === "browser" ? "flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden" : "hidden"}>
-              <BrowserView connected={connected} visible={view === "browser"} onLog={addLog} onPublishTo={handlePublishTo} onSubscribeTo={handleSubscribeTo} profiles={profiles} activeProfile={activeProfile} />
+              <BrowserView connected={connected} visible={view === "browser"} onLog={addLog} onPublishTo={handlePublishTo} onSubscribeTo={handleSubscribeTo} profiles={stands} activeProfile={activeProfile} />
             </div>
 
             {/* Inspector */}
@@ -649,22 +569,6 @@ export function AmqpushScreen({ view, onView }: {
               <ConsoleView logs={logs} onClear={() => setLogs([])} />
             </div>
 
-            {/* Connection */}
-            <div className={view === "connection" ? "flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden" : "hidden"}>
-              <ConnectionView
-                connected={connected}
-                form={connForm}
-                setForm={setConnForm}
-                logs={logs}
-                profiles={profiles}
-                activeProfile={activeProfile}
-                onProfilesChanged={loadProfiles}
-                onProfileSelected={(name) => setActiveProfile(name)}
-                onConnected={handleConnected}
-                onDisconnected={() => setConnected(false)}
-                onLog={addLog}
-              />
-            </div>
           </div>
         </div>
       </div>
@@ -675,15 +579,10 @@ export function AmqpushScreen({ view, onView }: {
           actions={buildPaletteActions({
             view,
             connected,
-            profiles,
-            activeProfile,
-            applyProfile,
             changeView,
             triggerSend: () => setSendTrigger(n => n + 1),
-            disconnect: async () => {
-              try { await invoke("disconnect"); setConnected(false); addLog("info", "Disconnected"); }
-              catch (e) { addLog("err", String(e)); }
-            },
+            connect: connectStand,
+            disconnect: disconnectStand,
             clearLogs: () => setConfirmClearLogs(true),
             showHelp: () => setShowHelp(true),
           })}
@@ -730,11 +629,9 @@ export function AmqpushScreen({ view, onView }: {
 function buildPaletteActions(opts: {
   view: View;
   connected: boolean;
-  profiles: Profile[];
-  activeProfile: string;
-  applyProfile: (p: Profile) => void;
   changeView: (v: View) => void;
   triggerSend: () => void;
+  connect: () => Promise<void>;
   disconnect: () => Promise<void>;
   clearLogs: () => void;
   showHelp: () => void;
@@ -743,14 +640,13 @@ function buildPaletteActions(opts: {
 
   // ── Navigation ──
   const VIEWS: { id: View; label: string; kbd: string; icon: React.ReactNode }[] = [
-    { id: "connection", label: "Go to Connection", kbd: "⌘1", icon: <Plug      className="w-3.5 h-3.5" /> },
-    { id: "publisher",  label: "Go to Send",       kbd: "⌘2", icon: <Sparkles  className="w-3.5 h-3.5" /> },
-    { id: "subscriber", label: "Go to Receive",    kbd: "⌘3", icon: <Sparkles  className="w-3.5 h-3.5" /> },
-    { id: "browser",    label: "Go to Browser",    kbd: "⌘4", icon: <Sparkles  className="w-3.5 h-3.5" /> },
-    { id: "inspector",  label: "Go to Clients",    kbd: "⌘5", icon: <Sparkles  className="w-3.5 h-3.5" /> },
-    { id: "history",    label: "Go to History",    kbd: "⌘6", icon: <Sparkles  className="w-3.5 h-3.5" /> },
-    { id: "stats",      label: "Go to Stats",      kbd: "⌘7", icon: <Sparkles  className="w-3.5 h-3.5" /> },
-    { id: "console",    label: "Go to Logs",       kbd: "⌘8", icon: <Terminal  className="w-3.5 h-3.5" /> },
+    { id: "publisher",  label: "Go to Send",     kbd: "⌘1", icon: <Sparkles  className="w-3.5 h-3.5" /> },
+    { id: "subscriber", label: "Go to Receive",  kbd: "⌘2", icon: <Sparkles  className="w-3.5 h-3.5" /> },
+    { id: "browser",    label: "Go to Browser",  kbd: "⌘3", icon: <Sparkles  className="w-3.5 h-3.5" /> },
+    { id: "inspector",  label: "Go to Clients",  kbd: "⌘4", icon: <Sparkles  className="w-3.5 h-3.5" /> },
+    { id: "history",    label: "Go to History",  kbd: "⌘5", icon: <Sparkles  className="w-3.5 h-3.5" /> },
+    { id: "stats",      label: "Go to Stats",    kbd: "⌘6", icon: <Sparkles  className="w-3.5 h-3.5" /> },
+    { id: "console",    label: "Go to Logs",     kbd: "⌘7", icon: <Terminal  className="w-3.5 h-3.5" /> },
   ];
   for (const v of VIEWS) {
     out.push({
@@ -789,10 +685,11 @@ function buildPaletteActions(opts: {
   } else {
     out.push({
       id:      "conn:connect",
-      label:   "Open Connection view to connect",
+      label:   "Connect to broker",
+      hint:    "Uses the broker of the selected stand",
       category: "Actions",
       icon:    <Plug className="w-3.5 h-3.5" />,
-      run:     () => opts.changeView("connection"),
+      run:     () => { void opts.connect(); },
     });
   }
   out.push({
@@ -811,22 +708,5 @@ function buildPaletteActions(opts: {
     kbd:     "?",
     run:     opts.showHelp,
   });
-  // ── Profiles — categorise by workspace so the palette mirrors the
-  //    grouped header dropdown. "Default" workspace is folded into a plain
-  //    "Profiles" header for the common case where no grouping is in use.
-  for (const p of opts.profiles) {
-    const ws = (p.workspace ?? "").trim() || "Default";
-    const cat = ws === "Default" ? "Profiles" : `Profiles · ${ws}`;
-    out.push({
-      id:      `profile:${p.name}`,
-      label:   `Switch to profile: ${p.name}`,
-      hint:    `${p.host}:${p.port}${p.use_tls ? " · TLS" : ""}`,
-      category: cat,
-      icon:    <User className="w-3.5 h-3.5" />,
-      disabled: p.name === opts.activeProfile,
-      run:     () => opts.applyProfile(p),
-    });
-  }
-
   return out;
 }

@@ -5,7 +5,6 @@ import { ArrowsClockwise, DownloadSimple, Gear } from '@phosphor-icons/react'
 import { AmqpushSection } from './components/AmqpushSection'
 import { AuditScreen } from './components/AuditScreen'
 import { ConnectionScreen } from './components/ConnectionScreen'
-import { ConnectionTabs, isConnectionScreen } from './components/ConnectionsScreen'
 import { DomainLinksScreen } from './components/DomainLinksScreen'
 import { ServerSwitch } from './components/HeaderBar'
 import { DomainsScreen, type PullIntent } from './components/DomainsScreen'
@@ -322,7 +321,7 @@ export default function App() {
 
   // Раздел AMQP разговаривает с брокером, а не с шиной: строка с папкой
   // выгрузки и кнопки файлов ему так же ни к чему, как экранам API.
-  const isApiScreen = screen.startsWith('api.') || screen.startsWith('amqp.') || isConnectionScreen(screen)
+  const isApiScreen = screen.startsWith('api.') || screen.startsWith('amqp.') || screen === 'connection'
   const isLinksScreen = screen === 'files.links'
   // На первом экране кнопки шапки не нужны: те же действия стоят карточками
   // в самом экране, и дублировать их — только сбивать с толку.
@@ -352,7 +351,6 @@ export default function App() {
     'api.modules': 'nav.api.modules.title',
     'api.properties': 'nav.api.properties.title',
     'api.logs': 'nav.api.logs.title',
-    'amqp.connection': 'nav.connection',
     'amqp.publisher': 'nav.amqp.publisher',
     'amqp.subscriber': 'nav.amqp.subscriber',
     'amqp.browser': 'nav.amqp.browser',
@@ -424,7 +422,7 @@ export default function App() {
             className={cx(
               'grid size-9 shrink-0 place-items-center rounded-lg border transition',
               FOCUS_RING,
-              isConnectionScreen(screen)
+              screen === 'connection'
                 ? 'border-accent/40 bg-accent/15 text-accent-content'
                 : 'border-line-strong bg-surface-2 text-content-muted hover:bg-surface-3 hover:text-content',
             )}
@@ -464,14 +462,15 @@ export default function App() {
           )}
         </header>
 
-        {/* Подключение к шине и к брокеру — один экран с переключателем.
-            Формы под ним разные: общего у них мало, кроме самого слова. */}
-        {isConnectionScreen(screen) && <ConnectionTabs screen={screen} onScreen={setScreen} />}
-
         {/* Раздел AMQP остаётся в дереве после первого открытия: принятые
             сообщения и набранное тело живут в состоянии, и уход на соседний
             экран не должен их терять. */}
-        <AmqpushSection screen={screen} onScreen={setScreen} />
+        <AmqpushSection
+          screen={screen}
+          onScreen={setScreen}
+          profiles={connections.profiles}
+          activeProfileId={session?.profile.id ?? connections.lastUsedId}
+        />
 
         {screen.startsWith('amqp.') ? null : screen === 'welcome' ? (
           <WelcomeScreen

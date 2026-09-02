@@ -379,33 +379,6 @@ pub async fn clear_history(state: tauri::State<'_, AppState>) -> Result<(), Stri
     Ok(())
 }
 
-// ── profiles ──────────────────────────────────────────────────────────────────
-
-#[tauri::command]
-pub fn get_profiles() -> Vec<Profile> {
-    profiles::load_all()
-}
-
-#[tauri::command]
-pub fn save_profile(profile: Profile) -> Result<(), String> {
-    profiles::save(profile)
-}
-
-#[tauri::command]
-pub fn delete_profile(name: String) -> Result<(), String> {
-    profiles::delete(&name)
-}
-
-#[tauri::command]
-pub fn export_profiles(path: String) -> Result<usize, String> {
-    profiles::export_to(&path)
-}
-
-#[tauri::command]
-pub fn import_profiles(path: String, overwrite: bool) -> Result<profiles::ImportSummary, String> {
-    profiles::import_from(&path, overwrite)
-}
-
 // ── saved queues ──────────────────────────────────────────────────────────────
 
 #[tauri::command]

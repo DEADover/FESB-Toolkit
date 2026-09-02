@@ -1,17 +1,18 @@
+//! Форма профиля брокера — то, что уходит в движок AMQP при подключении
+//! и при переливке сообщений между стендами.
+//!
+//! Своего хранилища у профиля больше нет: брокер — часть профиля стенда
+//! и живёт там же, где адрес шины. Отдельный `~/.amqpush/profiles.json`
+//! означал бы, что стенд заводят дважды и однажды переключат шину, забыв
+//! про брокер.
+
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
-use std::path::PathBuf;
 
-/// Current schema version for `Profile`. Bump when a breaking change to the
-/// on-disk shape requires per-record translation (a field renames, a value
-/// remaps, a field gets a different meaning). Add a match arm in
-/// `migrate_profile` to translate prev → current.
-///
-/// Files saved by older AMQPush versions get migrated lazily on load
-/// (`migrate_profile` runs in a loop until `version == CURRENT_VERSION`) and
-/// the upgraded shape is written back on the next `save` — no separate
-/// "migration command", users don't have to think about it.
+/// Версия схемы профиля. Досталась от AMQPush, где профили лежали своим
+/// файлом; здесь профиль приходит из приложения и версия просто едет
+/// с ним — на случай, если у стенда однажды появится своя миграция.
 pub const CURRENT_VERSION: u32 = 1;
 
 fn default_version() -> u32 { 1 }
@@ -143,142 +144,4 @@ impl Default for Profile {
             extra: HashMap::new(),
         }
     }
-}
-
-fn profiles_path() -> PathBuf {
-    let dir = dirs::home_dir()
-        .unwrap_or_else(|| PathBuf::from("."))
-        .join(".amqpush");
-    std::fs::create_dir_all(&dir).ok();
-    dir.join("profiles.json")
-}
-
-/// Step a single `Profile` forward one schema version at a time until it
-/// reaches `CURRENT_VERSION`. Currently a no-op because v1 is the only
-/// version in the wild — but the match block is ready for future bumps:
-/// each new version adds an arm that mutates `p` and increments `p.version`.
-fn migrate_profile(p: &mut Profile) {
-    while p.version < CURRENT_VERSION {
-        match p.version {
-            // Example shape for future migrations:
-            // 1 => { ...translate v1 → v2 here...; p.version = 2 }
-            _ => {
-                // Unknown version (newer than this build understands, or a
-                // gap in the chain). Bail; the profile loads as-is but won't
-                // be migrated further.
-                eprintln!("profile '{}': unknown version {}, skipping migration", p.name, p.version);
-                break;
-            }
-        }
-    }
-}
-
-pub fn load_all() -> Vec<Profile> {
-    let path = profiles_path();
-    let data = std::fs::read_to_string(&path).unwrap_or_default();
-    let map: HashMap<String, Profile> = serde_json::from_str(&data).unwrap_or_default();
-    let mut list: Vec<Profile> = map.into_values().collect();
-    for p in list.iter_mut() {
-        migrate_profile(p);
-    }
-    list.sort_by(|a, b| a.name.cmp(&b.name));
-    list
-}
-
-pub fn save(mut profile: Profile) -> Result<(), String> {
-    let path = profiles_path();
-    let data = std::fs::read_to_string(&path).unwrap_or_default();
-    let mut map: HashMap<String, Profile> = serde_json::from_str(&data).unwrap_or_default();
-    // Preserve unknown fields ('extra') from the on-disk version — the
-    // frontend doesn't model them but a user (or a future AMQPush version)
-    // may have set them. Without this merge, save_profile silently wipes
-    // custom keys on the first round-trip.
-    if profile.extra.is_empty() {
-        if let Some(existing) = map.get_mut(&profile.name) {
-            profile.extra = std::mem::take(&mut existing.extra);
-        }
-    }
-    map.insert(profile.name.clone(), profile);
-    std::fs::write(&path, serde_json::to_string_pretty(&map).unwrap())
-        .map_err(|e| e.to_string())
-}
-
-pub fn delete(name: &str) -> Result<(), String> {
-    let path = profiles_path();
-    let data = std::fs::read_to_string(&path).unwrap_or_default();
-    let mut map: HashMap<String, Profile> = serde_json::from_str(&data).unwrap_or_default();
-    map.remove(name);
-    std::fs::write(&path, serde_json::to_string_pretty(&map).unwrap())
-        .map_err(|e| e.to_string())
-}
-
-/// Write the entire profile collection to an arbitrary path as pretty
-/// JSON. Used by the Connection view's Export action; the target path
-/// comes from the native save-file dialog.
-pub fn export_to(path: &str) -> Result<usize, String> {
-    let list = load_all();
-    // Use the same map-of-name shape as on disk so re-import is symmetric.
-    let map: HashMap<String, &Profile> = list.iter().map(|p| (p.name.clone(), p)).collect();
-    let json = serde_json::to_string_pretty(&map)
-        .map_err(|e| format!("serialize: {e}"))?;
-    std::fs::write(path, json)
-        .map_err(|e| format!("write {path}: {e}"))?;
-    Ok(list.len())
-}
-
-/// Result of `import_from` — counts so the UI can show a meaningful summary
-/// after a bulk import.
-#[derive(Debug, Clone, serde::Serialize)]
-pub struct ImportSummary {
-    pub added: usize,
-    pub overwritten: usize,
-    pub skipped: usize,
-    pub failed: usize,
-}
-
-/// Read a JSON file and merge its profiles into the on-disk collection.
-/// Accepts either the full map shape (`{ "name": Profile, ... }`) or a
-/// bare array (`[Profile, ...]`) for convenience when users hand-edit.
-/// `overwrite` controls collision behaviour: false → skip existing names,
-/// true → replace them.
-pub fn import_from(path: &str, overwrite: bool) -> Result<ImportSummary, String> {
-    let raw = std::fs::read_to_string(path)
-        .map_err(|e| format!("read {path}: {e}"))?;
-    // Try map shape first (our native export); fall back to array.
-    let incoming: Vec<Profile> = if let Ok(map) = serde_json::from_str::<HashMap<String, Profile>>(&raw) {
-        map.into_values().collect()
-    } else if let Ok(arr) = serde_json::from_str::<Vec<Profile>>(&raw) {
-        arr
-    } else {
-        return Err("File is not a valid profiles JSON (expected an object or array of profiles)".into());
-    };
-
-    let existing = load_all();
-    let existing_names: std::collections::HashSet<String> = existing.iter().map(|p| p.name.clone()).collect();
-    let mut added = 0usize;
-    let mut overwritten = 0usize;
-    let mut skipped = 0usize;
-    let mut failed = 0usize;
-
-    for mut p in incoming {
-        if p.name.trim().is_empty() {
-            failed += 1;
-            continue;
-        }
-        let collision = existing_names.contains(&p.name);
-        if collision && !overwrite {
-            skipped += 1;
-            continue;
-        }
-        migrate_profile(&mut p);
-        if let Err(e) = save(p) {
-            eprintln!("import: {e}");
-            failed += 1;
-        } else if collision {
-            overwritten += 1;
-        } else {
-            added += 1;
-        }
-    }
-    Ok(ImportSummary { added, overwritten, skipped, failed })
 }

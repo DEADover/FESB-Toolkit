@@ -26,7 +26,6 @@ export type ScreenId =
   | 'api.logs'
   | 'api.audit'
   | 'api.access'
-  | 'amqp.connection'
   | 'amqp.publisher'
   | 'amqp.subscriber'
   | 'amqp.browser'

@@ -11,7 +11,9 @@ import {
 } from '../lib/connection'
 import type { Connection, DiskUsage, ServerInfo, ServerUsage } from '../types'
 import { ScreenBody, ScreenBodyRow, useApiData } from './ApiShell'
-import { Badge, Button, Checkbox, cx, Modal, Notice, Segmented, Spinner, TextInput, TextReadout, Toggle } from './ui'
+import { Badge, Button, Checkbox, cx, FOCUS_RING, Modal, Notice, Segmented, Spinner, TextInput, TextReadout, Toggle } from './ui'
+import { busHost } from '../lib/broker'
+import type { BrokerSettings } from '../lib/connection'
 
 interface Props {
   store: ConnectionStore
@@ -346,6 +348,19 @@ export function ConnectionScreen({ store, onStore, server, connection, activePro
                 />
               </div>
 
+              {/*
+                Брокер того же стенда. Раньше это был отдельный экран за своей
+                шестерёнкой, и стенд приходилось заводить дважды: один раз
+                для шины, другой для брокера. Пустые поля берутся у шины —
+                узел и учётные данные почти всегда те же.
+              */}
+              <BrokerBlock
+                broker={draft.broker}
+                busUrl={draft.url}
+                busUser={draft.username}
+                onChange={(next) => set('broker', next)}
+              />
+
               {draft.environment === 'prod' && (
                 <Notice tone="danger" small className="mx-5 mt-3">
                   {t('profiles.prodWarning')}
@@ -521,6 +536,224 @@ function formatWhen(value: string): string {
   return match ? `${match[3]}.${match[2]} ${match[4]}` : value
 }
 
+
+/**
+ * Брокер AMQP этого стенда.
+ *
+ * Главное — узел, порт и очередь по умолчанию; остальное убрано под
+ * «Дополнительно», потому что трогают его редко, а места оно занимает
+ * больше, чем вся форма шины.
+ */
+function BrokerBlock({ broker, busUrl, busUser, onChange }: {
+  broker: BrokerSettings
+  busUrl: string
+  busUser: string
+  onChange: (broker: BrokerSettings) => void
+}) {
+  const { t } = useI18n()
+  const [advanced, setAdvanced] = useState(false)
+  const set = <K extends keyof BrokerSettings>(key: K, value: BrokerSettings[K]) =>
+    onChange({ ...broker, [key]: value })
+
+  const inheritedHost = busHost(busUrl)
+
+  return (
+    <div className="mt-4 border-t border-line px-5 pt-4">
+      <div className="mb-2.5 flex items-center gap-2">
+        <span className="text-[11px] tracking-wide text-content-subtle">{t('broker.section')}</span>
+        <button
+          type="button"
+          onClick={() => setAdvanced((open) => !open)}
+          className={cx('ml-auto text-[11.5px] text-content-muted transition hover:text-content', FOCUS_RING)}
+        >
+          {advanced ? t('broker.less') : t('broker.more')}
+        </button>
+      </div>
+
+      <div className="grid grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,2fr)] gap-3">
+        <Field label={t('broker.host')} htmlFor="broker-host" hint={inheritedHost ? t('broker.host.inherited', { host: inheritedHost }) : undefined}>
+          <TextInput
+            id="broker-host"
+            value={broker.host}
+            placeholder={inheritedHost || 'broker.corp'}
+            onChange={(event) => set('host', event.target.value)}
+          />
+        </Field>
+        <Field label={t('broker.port')} htmlFor="broker-port">
+          <TextInput
+            id="broker-port"
+            value={broker.port}
+            placeholder="5672"
+            onChange={(event) => set('port', event.target.value)}
+          />
+        </Field>
+        <Field label={t('broker.queue')} htmlFor="broker-queue" hint={t('broker.queue.hint')}>
+          <TextInput
+            id="broker-queue"
+            value={broker.queue}
+            onChange={(event) => set('queue', event.target.value)}
+          />
+        </Field>
+      </div>
+
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <Toggle
+          checked={broker.useTls}
+          onChange={(value) => set('useTls', value)}
+          label={t('broker.tls')}
+          title={t('broker.tls.hint')}
+        />
+        {broker.useTls && (
+          <Toggle
+            checked={broker.tlsSkipVerify}
+            onChange={(value) => set('tlsSkipVerify', value)}
+            label={t('broker.tls.skip')}
+            title={t('broker.tls.skip.hint')}
+          />
+        )}
+        <Toggle
+          checked={broker.saslAnonymous}
+          onChange={(value) => set('saslAnonymous', value)}
+          label={t('broker.anon')}
+          title={t('broker.anon.hint')}
+        />
+        <Toggle
+          checked={broker.useWs}
+          onChange={(value) => set('useWs', value)}
+          label={t('broker.ws')}
+          title={t('broker.ws.hint')}
+        />
+      </div>
+
+      {advanced && (
+        <div className="mt-3 space-y-3">
+          <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)] gap-3">
+            <Field label={t('broker.user')} htmlFor="broker-user" hint={busUser ? t('broker.user.inherited', { user: busUser }) : undefined}>
+              <TextInput
+                id="broker-user"
+                value={broker.username}
+                placeholder={busUser}
+                disabled={broker.saslAnonymous}
+                onChange={(event) => set('username', event.target.value)}
+              />
+            </Field>
+            <Field label={t('broker.password')} htmlFor="broker-password">
+              <TextInput
+                id="broker-password"
+                type="password"
+                value={broker.password}
+                disabled={broker.saslAnonymous}
+                onChange={(event) => set('password', event.target.value)}
+              />
+            </Field>
+            <Field label={t('broker.wsPath')} htmlFor="broker-ws-path">
+              <TextInput
+                id="broker-ws-path"
+                value={broker.wsPath}
+                disabled={!broker.useWs}
+                onChange={(event) => set('wsPath', event.target.value)}
+              />
+            </Field>
+          </div>
+
+          <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)] gap-3">
+            <Field label={t('broker.containerId')} htmlFor="broker-container" hint={t('broker.containerId.hint')}>
+              <TextInput
+                id="broker-container"
+                value={broker.containerId}
+                placeholder="amqpush-<uuid>"
+                onChange={(event) => set('containerId', event.target.value)}
+              />
+            </Field>
+            <Field label={t('broker.heartbeat')} htmlFor="broker-heartbeat" hint={t('broker.heartbeat.hint')}>
+              <TextInput
+                id="broker-heartbeat"
+                value={broker.heartbeatSecs}
+                onChange={(event) => set('heartbeatSecs', event.target.value)}
+              />
+            </Field>
+            <Field label={t('broker.timeout')} htmlFor="broker-timeout" hint={t('broker.timeout.hint')}>
+              <TextInput
+                id="broker-timeout"
+                value={broker.connectTimeoutSecs}
+                onChange={(event) => set('connectTimeoutSecs', event.target.value)}
+              />
+            </Field>
+          </div>
+
+          <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)] gap-3">
+            <Field label={t('broker.backoff.base')} htmlFor="broker-backoff-base" hint={t('broker.ms')}>
+              <TextInput
+                id="broker-backoff-base"
+                value={broker.reconnectBaseMs}
+                onChange={(event) => set('reconnectBaseMs', event.target.value)}
+              />
+            </Field>
+            <Field label={t('broker.backoff.max')} htmlFor="broker-backoff-max" hint={t('broker.ms')}>
+              <TextInput
+                id="broker-backoff-max"
+                value={broker.reconnectMaxMs}
+                onChange={(event) => set('reconnectMaxMs', event.target.value)}
+              />
+            </Field>
+            <Field label={t('broker.backoff.mult')} htmlFor="broker-backoff-mult" hint={t('broker.backoff.mult.hint')}>
+              <TextInput
+                id="broker-backoff-mult"
+                value={broker.reconnectMultiplier}
+                onChange={(event) => set('reconnectMultiplier', event.target.value)}
+              />
+            </Field>
+          </div>
+
+          <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-3">
+            <Field label={t('broker.retry.attempts')} htmlFor="broker-retry" hint={t('broker.retry.attempts.hint')}>
+              <TextInput
+                id="broker-retry"
+                value={broker.sendRetryAttempts}
+                onChange={(event) => set('sendRetryAttempts', event.target.value)}
+              />
+            </Field>
+            <Field label={t('broker.retry.delay')} htmlFor="broker-retry-delay" hint={t('broker.ms')}>
+              <TextInput
+                id="broker-retry-delay"
+                value={broker.sendRetryDelayMs}
+                onChange={(event) => set('sendRetryDelayMs', event.target.value)}
+              />
+            </Field>
+          </div>
+
+          <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)] gap-3">
+            <Field label={t('broker.cert')} htmlFor="broker-cert" hint={t('broker.cert.hint')}>
+              <TextInput
+                id="broker-cert"
+                value={broker.clientCertPath}
+                disabled={!broker.useTls}
+                onChange={(event) => set('clientCertPath', event.target.value)}
+              />
+            </Field>
+            <Field label={t('broker.key')} htmlFor="broker-key" hint={t('broker.key.hint')}>
+              <TextInput
+                id="broker-key"
+                value={broker.clientKeyPath}
+                disabled={!broker.useTls}
+                onChange={(event) => set('clientKeyPath', event.target.value)}
+              />
+            </Field>
+            <Field label={t('broker.keyPass')} htmlFor="broker-key-pass" hint={t('broker.keyPass.hint')}>
+              <TextInput
+                id="broker-key-pass"
+                type="password"
+                value={broker.clientKeyPassphrase}
+                disabled={!broker.useTls}
+                onChange={(event) => set('clientKeyPassphrase', event.target.value)}
+              />
+            </Field>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
 
 function Field({ label, htmlFor, hint, children }: {
   label: string

@@ -190,7 +190,7 @@ export interface Template {
   body_schema_xsd?: string | null;
 }
 
-export type View = "publisher" | "subscriber" | "history" | "connection" | "stats" | "console" | "browser" | "inspector";
+export type View = "publisher" | "subscriber" | "history" | "stats" | "console" | "browser" | "inspector";
 
 /** One client connection observed by the broker. Matches the `BrokerConnection`
  *  serde struct in src-tauri/src/broker.rs — Artemis camelCase via rename. */
