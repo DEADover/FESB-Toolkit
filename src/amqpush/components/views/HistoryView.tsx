@@ -131,20 +131,20 @@ export default function HistoryView({ refreshVersion, onLog, onResend }: Props) 
         count={filtered.length === entries.length ? t("history.count", { count: entries.length }) : `${filtered.length} / ${entries.length}`}
       >
         <button onClick={load}
-          className="px-2 py-1 rounded-md text-[11.5px] font-medium text-t-ink4 hover:text-accent hover:bg-accent/10 transition-colors flex items-center gap-1"
+          className="h-7 px-2.5 rounded-lg text-[12px] font-medium text-t-ink4 hover:text-accent hover:bg-accent/10 transition-colors flex items-center gap-1"
           title={t("history.refresh")}>
           <RotateCcw className={`w-3 h-3 ${loading ? "animate-spin" : ""}`} /> {t("history.refresh")}
         </button>
         <button onClick={() => exportAs("json")} disabled={entries.length === 0}
-          className="px-2 py-1 rounded-md text-[11.5px] font-medium text-t-ink4 hover:text-t-ink hover:bg-t-hover transition-colors disabled:opacity-40 disabled:hover:text-t-ink4 disabled:hover:bg-transparent flex items-center gap-1">
+          className="h-7 px-2.5 rounded-lg text-[12px] font-medium text-t-ink4 hover:text-t-ink hover:bg-t-hover transition-colors disabled:opacity-40 disabled:hover:text-t-ink4 disabled:hover:bg-transparent flex items-center gap-1">
           <Download className="w-3 h-3" /> JSON
         </button>
         <button onClick={() => exportAs("csv")} disabled={entries.length === 0}
-          className="px-2 py-1 rounded-md text-[11.5px] font-medium text-t-ink4 hover:text-t-ink hover:bg-t-hover transition-colors disabled:opacity-40 disabled:hover:text-t-ink4 disabled:hover:bg-transparent flex items-center gap-1">
+          className="h-7 px-2.5 rounded-lg text-[12px] font-medium text-t-ink4 hover:text-t-ink hover:bg-t-hover transition-colors disabled:opacity-40 disabled:hover:text-t-ink4 disabled:hover:bg-transparent flex items-center gap-1">
           <Download className="w-3 h-3" /> CSV
         </button>
         <button onClick={() => setConfirmClear(true)} disabled={entries.length === 0}
-          className="px-2 py-1 rounded-md text-[11.5px] font-medium text-t-ink4 hover:text-negative hover:bg-negative/10 transition-colors disabled:opacity-40 disabled:hover:text-t-ink4 disabled:hover:bg-transparent flex items-center gap-1">
+          className="h-7 px-2.5 rounded-lg text-[12px] font-medium text-t-ink4 hover:text-negative hover:bg-negative/10 transition-colors disabled:opacity-40 disabled:hover:text-t-ink4 disabled:hover:bg-transparent flex items-center gap-1">
           <Trash2 className="w-3 h-3" /> {t("history.clear.short")}
         </button>
       </ViewTopBar>
@@ -353,7 +353,7 @@ function PreviewPane({ entry, entries, onResend, onLog, onClose }: {
               <button
                 onClick={() => onResend({ address: entry.address, body: bodyText, properties: entry.properties })}
                 title={t("history.resend.message")}
-                className="flex items-center gap-1 px-2 py-1 rounded-md text-[11.5px] font-medium text-accent hover:bg-accent/10 transition-colors"
+                className="flex items-center gap-1 h-7 px-2.5 rounded-lg text-[12px] font-medium text-accent hover:bg-accent/10 transition-colors"
               >
                 <RotateCcw className="w-3 h-3" /> {t("history.resend")}
               </button>
@@ -363,7 +363,7 @@ function PreviewPane({ entry, entries, onResend, onLog, onClose }: {
                 title={previousToSameQueue
                   ? t("history.compare.with", { queue: entry.address, time: previousToSameQueue.timestamp })
                   : t("history.compare.none")}
-                className="flex items-center gap-1 px-2 py-1 rounded-md text-[11.5px] font-medium text-t-ink4 hover:text-t-ink hover:bg-t-hover transition-colors disabled:opacity-40 disabled:hover:text-t-ink4 disabled:hover:bg-transparent"
+                className="flex items-center gap-1 h-7 px-2.5 rounded-lg text-[12px] font-medium text-t-ink4 hover:text-t-ink hover:bg-t-hover transition-colors disabled:opacity-40 disabled:hover:text-t-ink4 disabled:hover:bg-transparent"
               >
                 <GitCompare className="w-3 h-3" /> {t("history.compare")}
               </button>
@@ -372,14 +372,14 @@ function PreviewPane({ entry, entries, onResend, onLog, onClose }: {
                 onCopied={() => onLog("info", t("history.copied"))}
                 label={t("history.copy")}
                 title={t("history.copy.body")}
-                className="flex items-center gap-1 px-2 py-1 rounded-md text-[11.5px] font-medium text-t-ink4 hover:text-t-ink hover:bg-t-hover transition-colors"
+                className="flex items-center gap-1 h-7 px-2.5 rounded-lg text-[12px] font-medium text-t-ink4 hover:text-t-ink hover:bg-t-hover transition-colors"
               />
             </>
           ) : entry.file_data_b64 ? (
             <button
               onClick={() => onResend({ address: entry.address, fileName: entry.file_name ?? "file", fileDataB64: entry.file_data_b64!, properties: entry.properties })}
               title={t("history.resend.file")}
-              className="flex items-center gap-1 px-2 py-1 rounded-md text-[11.5px] font-medium text-accent hover:bg-accent/10 transition-colors"
+              className="flex items-center gap-1 h-7 px-2.5 rounded-lg text-[12px] font-medium text-accent hover:bg-accent/10 transition-colors"
             >
               <RotateCcw className="w-3 h-3" /> {t("history.resend")}
             </button>

@@ -223,6 +223,10 @@ const en = {
   'copy.copiedBang': 'Copied!',
 
   'send.title': 'Send Messages',
+  'send.beautify': 'Beautify',
+  'send.body.placeholder': 'Type your {kind} message…',
+  'send.props.valuePlaceholder': 'value, variables allowed',
+
   'send.csv.clearBody': 'Discard {file} and its {count} rows? You will need to load the file again to send.',
   'send.chaos.whenNote': 'just before send',
   'send.copy': 'Copy',
@@ -1001,6 +1005,10 @@ const ru: Record<keyof typeof en, string> = {
   'copy.copiedBang': 'Скопировано!',
 
   'send.title': 'Отправка сообщений',
+  'send.beautify': 'Разложить',
+  'send.body.placeholder': 'Наберите сообщение в формате {kind}…',
+  'send.props.valuePlaceholder': 'значение, можно с переменными',
+
   'send.csv.clearBody': 'Убрать {file} и его строки ({count})? Чтобы снова отправлять, файл придётся загрузить заново.',
   'send.chaos.whenNote': 'прямо перед отправкой',
   'send.copy': 'Скопировать',

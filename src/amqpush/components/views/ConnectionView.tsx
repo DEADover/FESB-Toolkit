@@ -70,8 +70,8 @@ interface Props {
 
 // Canonical form-label class: matches `<SectionLabel>` typography
 // (`font-semibold tracking-wider`) so labels never drift from section headings.
-const LABEL = "block text-[10.5px] font-semibold text-t-ink4 uppercase tracking-wider mb-1.5";
-const INPUT = "w-full bg-t-field border border-t-line2 rounded-lg px-2.5 py-1.5 text-[12.5px] text-t-ink outline-none focus:border-accent focus:ring-1 focus:ring-accent/30 transition-all placeholder:text-t-ink5";
+const LABEL = "block text-[10px] uppercase tracking-wide text-content-subtle mb-1.5";
+const INPUT = "w-full bg-t-field border border-t-line2 rounded-lg px-2.5 py-1.5 text-[12.5px] text-t-ink outline-none focus:border-accent focus:ring-2 focus:ring-accent/25 transition-all placeholder:text-t-ink5";
 
 const DEFAULTS: ConnForm = {
   host: "127.0.0.1",
@@ -719,7 +719,7 @@ export default function ConnectionView({ connected, form, setForm, logs, profile
           {useTls && (
             <label className="flex items-center gap-2 cursor-pointer text-[11.5px] text-t-ink3 px-2.5 mb-2">
               <input type="checkbox" checked={tlsSkipVerify} onChange={e => setTlsSkipVerify(e.target.checked)}
-                className="w-3.5 h-3.5 accent-accent-strong cursor-pointer" />
+                className="amqp-checkbox" />
               {t("conn.tls.skip")}
               <span className="text-caution text-[10.5px]">{t("conn.tls.skip.hint")}</span>
             </label>
@@ -751,7 +751,7 @@ export default function ConnectionView({ connected, form, setForm, logs, profile
           {useWs && (
             <div className="px-2.5 mt-2">
               <label className="flex flex-col gap-1">
-                <span className="text-[10.5px] font-semibold text-t-ink4 uppercase tracking-wider">
+                <span className="text-[10px] uppercase tracking-wide text-content-subtle">
                   {t("conn.ws.path")}
                   <span className="text-t-ink5 normal-case font-normal">{t("conn.ws.path.hint")}</span>
                 </span>
@@ -1142,7 +1142,7 @@ function WorkspaceCombobox({ value, onChange, suggestions, usage, onDelete }: {
         placeholder={t("conn.workspace.default")}
         // Same INPUT classes as everywhere else in this view, plus padding
         // on the right to make room for the caret button.
-        className="w-full bg-t-field border border-t-line2 rounded-lg pl-3 pr-8 py-1.5 text-[13px] text-t-ink outline-none focus:border-accent focus:ring-1 focus:ring-accent/30 transition-all placeholder:text-t-ink5 box-border h-9 appearance-none"
+        className="w-full bg-t-field border border-t-line2 rounded-lg pl-3 pr-8 py-1.5 text-[13px] text-t-ink outline-none focus:border-accent focus:ring-2 focus:ring-accent/25 transition-all placeholder:text-t-ink5 box-border h-9 appearance-none"
       />
       <button
         type="button"
@@ -1339,7 +1339,7 @@ function QuickConnectModal({ onApply, onLog, onClose }: {
           {previewErr && <p className="text-[11.5px] text-negative">{previewErr}</p>}
           {preview && (
             <div className="rounded-md border border-t-line bg-t-card/40 p-2.5 space-y-1 text-[11.5px] font-mono">
-              <div className="text-[10.5px] uppercase tracking-wider text-t-ink4 font-semibold mb-1">{t("conn.quick.preview")}</div>
+              <div className="text-[10px] uppercase tracking-wide text-content-subtle mb-1">{t("conn.quick.preview")}</div>
               <PreviewRow label={t("conn.host")}>{preview.host}</PreviewRow>
               <PreviewRow label={t("conn.port")}>{preview.port}</PreviewRow>
               {preview.username && <PreviewRow label={t("conn.quick.user")}>{preview.username}</PreviewRow>}

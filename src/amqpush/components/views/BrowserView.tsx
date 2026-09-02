@@ -428,7 +428,7 @@ export default function BrowserView({ connected, visible, onLog, onPublishTo, on
           {t("browser.hideEmpty")}
         </button>
         <button onClick={() => refreshQueues(false)} disabled={!connected || loading}
-          className="px-2 py-1 rounded-md text-[11.5px] font-medium text-t-ink4 hover:text-accent hover:bg-accent/10 transition-colors flex items-center gap-1 disabled:opacity-40">
+          className="h-7 px-2.5 rounded-lg text-[12px] font-medium text-t-ink4 hover:text-accent hover:bg-accent/10 transition-colors flex items-center gap-1 disabled:opacity-40">
           <RotateCcw className={`w-3 h-3 ${loading ? "animate-spin" : ""}`} /> {t("browser.refresh")}
         </button>
       </ViewTopBar>
@@ -467,7 +467,7 @@ export default function BrowserView({ connected, visible, onLog, onPublishTo, on
               </>}
               action={
                 <button onClick={() => refreshQueues(false)}
-                  className="px-2.5 py-1 rounded-lg text-[11.5px] font-medium bg-t-card border border-t-line text-t-ink2 hover:bg-t-hover transition-colors">
+                  className="h-7 px-2.5 rounded-lg text-[12px] font-medium bg-t-card border border-t-line text-t-ink2 hover:bg-t-hover transition-colors">
                   {t("browser.retry")}
                 </button>
               }
@@ -478,7 +478,7 @@ export default function BrowserView({ connected, visible, onLog, onPublishTo, on
             <div className="flex-1 overflow-auto min-h-0">
               <table className="w-full text-[12.5px] font-mono table-fixed">
                 <thead className="sticky top-0 z-10 bg-t-panel border-b border-t-line">
-                  <tr className="text-[10.5px] uppercase tracking-wider text-t-ink4 select-none">
+                  <tr className="text-[11px] tracking-wide text-content-subtle select-none">
                     <SortableHeader label={t("browser.column.name")}  sortKey="name"      current={sortKey} dir={sortDir} onClick={toggleSort} className="text-left  pl-3" />
                     <SortableHeader label={t("browser.column.type")}  sortKey="type"      current={sortKey} dir={sortDir} onClick={toggleSort} className="text-left  w-24" />
                     <SortableHeader label={t("browser.column.msgs")}  sortKey="messages"  current={sortKey} dir={sortDir} onClick={toggleSort} className="text-right w-14" />
@@ -565,7 +565,7 @@ export default function BrowserView({ connected, visible, onLog, onPublishTo, on
                 </select>
                 <button onClick={() => peekQueue(selectedQueue)}
                   title={t("browser.refresh")}
-                  className="flex items-center gap-1 px-2 py-1 rounded-md text-[11.5px] font-medium text-t-ink4 hover:text-accent hover:bg-accent/10 transition-colors">
+                  className="flex items-center gap-1 h-7 px-2.5 rounded-lg text-[12px] font-medium text-t-ink4 hover:text-accent hover:bg-accent/10 transition-colors">
                   <RotateCcw className={`w-3 h-3 ${peekLoading ? "animate-spin" : ""}`} /> {t("browser.refresh")}
                 </button>
                 <button
@@ -576,7 +576,7 @@ export default function BrowserView({ connected, visible, onLog, onPublishTo, on
                     : messages.length === 0
                       ? t("browser.shovel.empty")
                       : t("browser.shovel.hint")}
-                  className="flex items-center gap-1 px-2 py-1 rounded-md text-[11.5px] font-medium text-t-ink4 hover:text-accent hover:bg-accent/10 transition-colors disabled:opacity-40 disabled:hover:bg-transparent"
+                  className="flex items-center gap-1 h-7 px-2.5 rounded-lg text-[12px] font-medium text-t-ink4 hover:text-accent hover:bg-accent/10 transition-colors disabled:opacity-40 disabled:hover:bg-transparent"
                 >
                   <ArrowRightLeft className="w-3 h-3" /> {t("browser.shovel")}
                 </button>
@@ -594,7 +594,7 @@ export default function BrowserView({ connected, visible, onLog, onPublishTo, on
                         ? t("browser.requeue.empty")
                         : t("browser.requeue.hint", { count: messages.length })
                     }
-                    className="flex items-center gap-1 px-2 py-1 rounded-md text-[11.5px] font-medium text-accent bg-accent/10 hover:bg-accent/20 transition-colors disabled:opacity-40 disabled:hover:bg-accent/10"
+                    className="flex items-center gap-1 h-7 px-2.5 rounded-lg text-[12px] font-medium text-accent bg-accent/10 hover:bg-accent/20 transition-colors disabled:opacity-40 disabled:hover:bg-accent/10"
                   >
                     {requeueProgress
                       ? <><Loader2 className="w-3 h-3 animate-spin" /> {t("browser.requeue.progress", { done: requeueProgress.done, total: requeueProgress.total })}</>
@@ -607,7 +607,7 @@ export default function BrowserView({ connected, visible, onLog, onPublishTo, on
                   title={messages.length === 0
                     ? t("browser.purge.empty")
                     : t("browser.purge.hint")}
-                  className="flex items-center gap-1 px-2 py-1 rounded-md text-[11.5px] font-medium text-t-ink4 hover:text-negative hover:bg-negative/10 transition-colors disabled:opacity-40 disabled:hover:text-t-ink4 disabled:hover:bg-transparent"
+                  className="flex items-center gap-1 h-7 px-2.5 rounded-lg text-[12px] font-medium text-t-ink4 hover:text-negative hover:bg-negative/10 transition-colors disabled:opacity-40 disabled:hover:text-t-ink4 disabled:hover:bg-transparent"
                 >
                   <Trash2 className="w-3 h-3" /> {t("browser.purge")}
                 </button>
@@ -677,7 +677,7 @@ export default function BrowserView({ connected, visible, onLog, onPublishTo, on
                               onClick={() => setEditRequeueMsgs(picked)}
                               disabled={!!requeueProgress}
                               title={t("browser.editRequeue.hint")}
-                              className="flex items-center gap-1 px-2 py-1 rounded-md text-[11.5px] font-medium text-accent bg-accent/10 hover:bg-accent/20 transition-colors disabled:opacity-40"
+                              className="flex items-center gap-1 h-7 px-2.5 rounded-lg text-[12px] font-medium text-accent bg-accent/10 hover:bg-accent/20 transition-colors disabled:opacity-40"
                             >
                               <Edit3 className="w-3 h-3" /> {t("browser.editRequeue")}
                             </button>
@@ -686,7 +686,7 @@ export default function BrowserView({ connected, visible, onLog, onPublishTo, on
                               onClick={() => requeueMessages(picked)}
                               disabled={!!requeueProgress}
                               title={t("browser.requeue.selected.hint")}
-                              className="flex items-center gap-1 px-2 py-1 rounded-md text-[11.5px] font-medium text-t-ink2 hover:text-t-ink hover:bg-t-hover transition-colors disabled:opacity-40"
+                              className="flex items-center gap-1 h-7 px-2.5 rounded-lg text-[12px] font-medium text-t-ink2 hover:text-t-ink hover:bg-t-hover transition-colors disabled:opacity-40"
                             >
                               <CornerUpLeft className="w-3 h-3" /> {t("browser.requeue.selected")}
                             </button>
@@ -700,7 +700,7 @@ export default function BrowserView({ connected, visible, onLog, onPublishTo, on
                           title={profiles.length < 2
                             ? t("browser.shovel.needsProfiles")
                             : t("browser.shovel.selected.hint")}
-                          className="flex items-center gap-1 px-2 py-1 rounded-md text-[11.5px] font-medium text-t-ink2 hover:text-accent hover:bg-accent/10 transition-colors disabled:opacity-40 disabled:hover:bg-transparent"
+                          className="flex items-center gap-1 h-7 px-2.5 rounded-lg text-[12px] font-medium text-t-ink2 hover:text-accent hover:bg-accent/10 transition-colors disabled:opacity-40 disabled:hover:bg-transparent"
                         >
                           <ArrowRightLeft className="w-3 h-3" /> {t("browser.shovel.selected")}
                         </button>
@@ -718,7 +718,7 @@ export default function BrowserView({ connected, visible, onLog, onPublishTo, on
                           title={withId === picked.length
                             ? t("browser.purge.selected.hint", { count: picked.length })
                             : t("browser.purge.selected.noIds", { count: picked.length - withId })}
-                          className="flex items-center gap-1 px-2 py-1 rounded-md text-[11.5px] font-medium text-t-ink4 hover:text-negative hover:bg-negative/10 transition-colors disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-t-ink4"
+                          className="flex items-center gap-1 h-7 px-2.5 rounded-lg text-[12px] font-medium text-t-ink4 hover:text-negative hover:bg-negative/10 transition-colors disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-t-ink4"
                         >
                           <Trash2 className="w-3 h-3" /> {t("browser.purge.selected")}
                         </button>
@@ -734,7 +734,7 @@ export default function BrowserView({ connected, visible, onLog, onPublishTo, on
                 <div className="flex-1 overflow-auto min-h-0 border-b border-t-line">
                   {/* Column header — sticky on scroll. Second-row chips are
                       heterogeneous so no label is useful there. */}
-                  <div className="sticky top-0 z-10 flex items-center gap-2 px-3 py-1 bg-t-panel/95 backdrop-blur-sm border-b border-t-line text-[10.5px] uppercase tracking-wider text-t-ink4 select-none">
+                  <div className="sticky top-0 z-10 flex items-center gap-2 px-3 py-1 bg-t-panel/95 backdrop-blur-sm border-b border-t-line text-[11px] tracking-wide text-content-subtle select-none">
                     <span className="w-3.5 shrink-0" /> {/* checkbox column */}
                     <span className="w-3 shrink-0" />   {/* message-icon column */}
                     <span className="w-6 shrink-0 font-semibold">#</span>
@@ -1211,7 +1211,7 @@ function MessageDetails({ msg, idx, queue, onLog, onRequeue, onEditRequeue, requ
             </div>
           ) : (
             <table className="w-full text-[11.5px] font-mono">
-              <thead className="text-[10.5px] uppercase tracking-wider text-t-ink5">
+              <thead className="text-[10px] uppercase tracking-wide text-content-subtle">
                 <tr className="border-b border-t-line/60">
                   <th className="text-left pb-1 font-semibold">{t("browser.consumers.client")}</th>
                   <th className="text-left pb-1 font-semibold w-24">{t("browser.consumers.user")}</th>
@@ -1470,7 +1470,7 @@ function EditRequeueModal({ messages, onResubmit, onLog, onClose }: {
 
             {/* Target address */}
             <div>
-              <label className="block text-[10.5px] font-semibold text-t-ink4 uppercase tracking-wider mb-1">
+              <label className="block text-[10px] uppercase tracking-wide text-content-subtle mb-1">
                 {t("browser.edit.target")}
               </label>
               <div className="flex items-center gap-1">
@@ -1479,7 +1479,7 @@ function EditRequeueModal({ messages, onResubmit, onLog, onClose }: {
                   onChange={e => updateDraft({ target: e.target.value })}
                   placeholder={t("browser.edit.target.placeholder")}
                   spellCheck={false}
-                  className="flex-1 bg-t-field border border-t-line2 rounded-lg px-2.5 py-1.5 text-[12.5px] font-mono text-t-ink outline-none focus:border-accent focus:ring-1 focus:ring-accent/30 transition-all placeholder:text-t-ink5"
+                  className="flex-1 bg-t-field border border-t-line2 rounded-lg px-2.5 py-1.5 text-[12.5px] font-mono text-t-ink outline-none focus:border-accent focus:ring-2 focus:ring-accent/25 transition-all placeholder:text-t-ink5"
                 />
                 {(() => {
                   const origin = originalDestination(msg.application_properties);
@@ -1501,7 +1501,7 @@ function EditRequeueModal({ messages, onResubmit, onLog, onClose }: {
 
             {/* Body editor */}
             <div>
-              <label className="block text-[10.5px] font-semibold text-t-ink4 uppercase tracking-wider mb-1">
+              <label className="block text-[10px] uppercase tracking-wide text-content-subtle mb-1">
                 {t("browser.body")}
               </label>
               <CodeEditor
@@ -1571,7 +1571,7 @@ function EditRequeueModal({ messages, onResubmit, onLog, onClose }: {
                   onClick={doSkip}
                   disabled={sending}
                   title={t("browser.edit.skip")}
-                  className="flex items-center gap-1 px-2 py-1 rounded-md text-[11.5px] font-medium text-t-ink4 hover:text-t-ink hover:bg-t-hover transition-colors disabled:opacity-40"
+                  className="flex items-center gap-1 h-7 px-2.5 rounded-lg text-[12px] font-medium text-t-ink4 hover:text-t-ink hover:bg-t-hover transition-colors disabled:opacity-40"
                 >
                   <SkipForward className="w-3 h-3" /> Skip
                 </button>
@@ -1758,7 +1758,7 @@ function ShovelModal({ messages, sourceQueue, profiles, activeProfile, onLog, on
         <div className="flex-1 overflow-auto px-4 py-3 space-y-3">
           {/* Source — fixed, just informational */}
           <div className="rounded-md border border-t-line bg-t-card/40 p-2.5">
-            <div className="text-[10.5px] font-semibold text-t-ink4 uppercase tracking-wider mb-1">{t("browser.shovel.source")}</div>
+            <div className="text-[10px] uppercase tracking-wide text-content-subtle mb-1">{t("browser.shovel.source")}</div>
             <div className="text-[12.5px] text-t-ink font-mono">
               <span className="text-t-ink3">{activeProfile || "(no profile)"}</span>
               <span className="mx-1 text-t-ink5">/</span>
@@ -1771,7 +1771,7 @@ function ShovelModal({ messages, sourceQueue, profiles, activeProfile, onLog, on
 
           {/* Target — profile + queue */}
           <div className="rounded-md border border-t-line bg-t-card/40 p-2.5">
-            <div className="text-[10.5px] font-semibold text-t-ink4 uppercase tracking-wider mb-1">{t("browser.shovel.target")}</div>
+            <div className="text-[10px] uppercase tracking-wide text-content-subtle mb-1">{t("browser.shovel.target")}</div>
             {otherProfiles.length === 0 ? (
               <div className="text-[11.5px] text-caution">
                 Only the active profile is saved — add another profile to shovel between brokers.
@@ -1822,7 +1822,7 @@ function ShovelModal({ messages, sourceQueue, profiles, activeProfile, onLog, on
                 checked={transformOn}
                 onChange={e => setTransformOn(e.target.checked)}
                 disabled={running}
-                className="w-3.5 h-3.5 accent-accent-strong cursor-pointer"
+                className="amqp-checkbox"
               />
               <span className="text-[12.5px] text-t-ink2 font-medium">{t("browser.shovel.transform")}</span>
               <span className="text-[10.5px] text-t-ink5">— optional, async</span>

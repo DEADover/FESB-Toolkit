@@ -128,7 +128,7 @@ export default function QueuePicker({
           onFocus={() => setOpen(true)}
           placeholder={placeholder}
           disabled={disabled}
-          className="w-full bg-t-field border border-t-line2 rounded-lg pl-2.5 pr-12 py-1.5 text-[12.5px] text-t-ink font-mono outline-none focus:border-accent focus:ring-1 focus:ring-accent/30 transition-all placeholder:text-t-ink5 disabled:opacity-50"
+          className="w-full bg-t-field border border-t-line2 rounded-lg pl-2.5 pr-12 py-1.5 text-[12.5px] text-t-ink font-mono outline-none focus:border-accent focus:ring-2 focus:ring-accent/25 transition-all placeholder:text-t-ink5 disabled:opacity-50"
         />
         {!disabled && value && (
           <button

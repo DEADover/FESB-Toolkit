@@ -759,7 +759,7 @@ export default function SubscriberView({ connected, defaultAddress, activeProfil
               onChange={e => setSelector(e.target.value)}
               placeholder={t("recv.selector.placeholder")}
               spellCheck={false}
-              className="w-full font-mono text-[12.5px] bg-t-field border border-t-line2 rounded-lg px-2.5 py-1.5 text-t-ink outline-none focus:border-accent focus:ring-1 focus:ring-accent/30 transition-all placeholder:text-t-ink5"
+              className="w-full font-mono text-[12.5px] bg-t-field border border-t-line2 rounded-lg px-2.5 py-1.5 text-t-ink outline-none focus:border-accent focus:ring-2 focus:ring-accent/25 transition-all placeholder:text-t-ink5"
             />
             <p className="text-[10.5px] text-t-ink5 mt-1">
               {t("recv.selector.note")}
@@ -783,7 +783,7 @@ export default function SubscriberView({ connected, defaultAddress, activeProfil
             </button>
             {savedSelectorsOpen && (
               <div className="absolute right-0 top-full mt-1 z-50 bg-t-card border border-t-line rounded-lg shadow-lg overflow-hidden w-72">
-                <div className="px-3 py-1.5 border-b border-t-line bg-t-panel text-[10.5px] uppercase tracking-wider text-t-ink4 font-semibold">
+                <div className="px-3 py-1.5 border-b border-t-line bg-t-panel text-[10px] uppercase tracking-wide text-content-subtle">
                   Saved selectors
                 </div>
                 <div className="max-h-56 overflow-y-auto">
@@ -1182,7 +1182,7 @@ export default function SubscriberView({ connected, defaultAddress, activeProfil
                   card so the user sees what each column means. Stays pinned
                   on scroll. Second line is heterogeneous chips (queue / type /
                   size / priority / reply-to) so no labels are useful there. */}
-              <div className="sticky top-0 z-10 flex items-center gap-2 px-3 py-1 bg-t-panel/95 backdrop-blur-sm border-b border-t-line text-[10.5px] uppercase tracking-wider text-t-ink4 select-none">
+              <div className="sticky top-0 z-10 flex items-center gap-2 px-3 py-1 bg-t-panel/95 backdrop-blur-sm border-b border-t-line text-[11px] tracking-wide text-content-subtle select-none">
                 <span className="w-3 shrink-0" />
                 <span className="font-semibold flex-1">{t("recv.column.messageId")}</span>
                 <span className="font-semibold shrink-0">{t("recv.column.time")}</span>
@@ -1266,7 +1266,7 @@ export default function SubscriberView({ connected, defaultAddress, activeProfil
                   <button
                     onClick={() => setDiffOpen(true)}
                     title={`Compare to '${refMsg.meta.message_id ?? "ref"}'`}
-                    className="flex items-center gap-1 px-2 py-1 rounded-md text-[11.5px] font-medium text-accent hover:bg-accent/10 transition-colors"
+                    className="flex items-center gap-1 h-7 px-2.5 rounded-lg text-[12px] font-medium text-accent hover:bg-accent/10 transition-colors"
                   >
                     <GitCompare className="w-3 h-3" /> Diff
                   </button>
@@ -1274,7 +1274,7 @@ export default function SubscriberView({ connected, defaultAddress, activeProfil
                   <button
                     onClick={() => setRefId(refId === selected.id ? null : selected.id)}
                     title={refId === selected.id ? t("recv.ref.clear") : t("recv.ref.mark")}
-                    className={`flex items-center gap-1 px-2 py-1 rounded-md text-[11.5px] font-medium transition-colors ${
+                    className={`flex items-center gap-1 h-7 px-2.5 rounded-lg text-[12px] font-medium transition-colors ${
                       refId === selected.id ? "text-accent bg-accent/10" : "text-t-ink4 hover:text-t-ink hover:bg-t-hover"
                     }`}
                   >
@@ -1288,7 +1288,7 @@ export default function SubscriberView({ connected, defaultAddress, activeProfil
                     title={selected.meta.correlation_id
                       ? t("recv.reply.hintCorr", { to: selected.meta.reply_to, corr: selected.meta.correlation_id })
                       : t("recv.reply.hint", { to: selected.meta.reply_to })}
-                    className="flex items-center gap-1 px-2 py-1 rounded-md text-[11.5px] font-medium text-accent hover:bg-accent/10 transition-colors"
+                    className="flex items-center gap-1 h-7 px-2.5 rounded-lg text-[12px] font-medium text-accent hover:bg-accent/10 transition-colors"
                   >
                     <CornerUpLeft className="w-3 h-3" /> {t("recv.reply")}
                   </button>
@@ -1366,7 +1366,7 @@ export default function SubscriberView({ connected, defaultAddress, activeProfil
                   if (e.key === "Escape") setRecordSaveOpen(false);
                 }}
                 placeholder={t("recv.rec.name")}
-                className="w-full bg-t-field border border-t-line2 rounded-lg px-2.5 py-1.5 text-[12.5px] text-t-ink outline-none focus:border-accent focus:ring-1 focus:ring-accent/30 transition-all"
+                className="w-full bg-t-field border border-t-line2 rounded-lg px-2.5 py-1.5 text-[12.5px] text-t-ink outline-none focus:border-accent focus:ring-2 focus:ring-accent/25 transition-all"
               />
               <p className="text-[10.5px] text-t-ink5">
                 {t("recv.rec.note", { name: recordSaveName.trim() || "…" })}
@@ -1580,13 +1580,13 @@ function RulesModal({ rules, onChange, onClose }: {
                       type="checkbox"
                       checked={r.enabled}
                       onChange={e => update(r.id, { enabled: e.target.checked })}
-                      className="w-3.5 h-3.5 accent-accent-strong cursor-pointer"
+                      className="amqp-checkbox"
                     />
                     <input
                       value={r.name}
                       onChange={e => update(r.id, { name: e.target.value })}
                       placeholder={t("recv.rules.name")}
-                      className="bg-transparent text-[12.5px] text-t-ink outline-none placeholder:text-t-ink5 px-1.5 py-1 rounded-md hover:bg-t-card focus:bg-t-field focus:ring-1 focus:ring-accent/30 flex-1 font-medium"
+                      className="bg-transparent text-[12.5px] text-t-ink outline-none placeholder:text-t-ink5 px-1.5 py-1 rounded-md hover:bg-t-card focus:bg-t-field focus:ring-2 focus:ring-accent/25 flex-1 font-medium"
                     />
                     <div className="flex items-center gap-0.5 shrink-0">
                       {HIGHLIGHT_COLORS.map(c => (
@@ -1608,7 +1608,7 @@ function RulesModal({ rules, onChange, onClose }: {
                       value={r.pattern}
                       onChange={e => update(r.id, { pattern: e.target.value })}
                       placeholder={t("recv.rules.pattern")}
-                      className="w-full bg-t-field border border-t-line2 rounded-lg px-2 py-1 text-[11.5px] text-t-ink font-mono outline-none focus:border-accent focus:ring-1 focus:ring-accent/30"
+                      className="w-full bg-t-field border border-t-line2 rounded-lg px-2 py-1 text-[11.5px] text-t-ink font-mono outline-none focus:border-accent focus:ring-2 focus:ring-accent/25"
                     />
                     {regexErr && <p className="text-[10.5px] text-negative mt-1 font-mono">⚠ {regexErr}</p>}
                   </div>
@@ -1621,7 +1621,7 @@ function RulesModal({ rules, onChange, onClose }: {
         <div className="shrink-0 px-3 py-2 border-t border-t-line bg-t-panel flex items-center gap-2">
           {rules.length > 0 && (
             <button onClick={add}
-              className="flex items-center gap-1 px-2 py-1 rounded-md text-[11.5px] font-medium text-t-ink3 hover:text-t-ink hover:bg-t-hover transition-colors">
+              className="flex items-center gap-1 h-7 px-2.5 rounded-lg text-[12px] font-medium text-t-ink3 hover:text-t-ink hover:bg-t-hover transition-colors">
               <Plus className="w-3 h-3" /> Add rule
             </button>
           )}
@@ -1750,7 +1750,7 @@ function DiffModal({ left, right, onClose }: { left: ReceivedMessage; right: Rec
 
           {/* Properties diff */}
           <div className="px-3 py-2">
-            <p className="text-[10.5px] uppercase tracking-wider text-t-ink4 font-semibold mb-1.5">{t("recv.diff.props")}</p>
+            <p className="text-[10px] uppercase tracking-wide text-content-subtle mb-1.5">{t("recv.diff.props")}</p>
             <div className="font-mono text-[11.5px] space-y-px">
               {allKeys.std.map(k => {
                 const lv = stdProp(left, k);
@@ -1768,7 +1768,7 @@ function DiffModal({ left, right, onClose }: { left: ReceivedMessage; right: Rec
                 );
               })}
               {allKeys.app.length > 0 && (
-                <p className="text-[10.5px] uppercase tracking-wider text-t-ink4 font-semibold mt-3 mb-1.5">{t("recv.diff.appProps")}</p>
+                <p className="text-[10px] uppercase tracking-wide text-content-subtle mt-3 mb-1.5">{t("recv.diff.appProps")}</p>
               )}
               {allKeys.app.map(k => {
                 const lv = left.meta.application_properties[k]  ?? "";
@@ -1789,7 +1789,7 @@ function DiffModal({ left, right, onClose }: { left: ReceivedMessage; right: Rec
 
           {/* Body diff */}
           <div className="px-3 pb-3">
-            <p className="text-[10.5px] uppercase tracking-wider text-t-ink4 font-semibold mb-1.5">{t("recv.diff.body")}</p>
+            <p className="text-[10px] uppercase tracking-wide text-content-subtle mb-1.5">{t("recv.diff.body")}</p>
             <div className="font-mono text-[11.5px] bg-t-field border border-t-line rounded-lg overflow-x-auto select-text">
               {ops.length === 0 ? (
                 <p className="p-3 text-t-ink5 italic">{t("recv.diff.empty")}</p>
@@ -1961,7 +1961,7 @@ function ReplayModal({ connected, activeProfile, onLog, onClose }: {
             {sel ? (
               <div className="flex-1 overflow-auto px-4 py-3 space-y-3">
                 <div>
-                  <div className="text-[10.5px] font-semibold text-t-ink4 uppercase tracking-wider mb-1">{t("recv.replay.recording")}</div>
+                  <div className="text-[10px] uppercase tracking-wide text-content-subtle mb-1">{t("recv.replay.recording")}</div>
                   <div className="text-[13px] text-t-ink font-mono truncate">{sel.name}</div>
                   <div className="text-[11.5px] text-t-ink5 mt-0.5">
                     {sel.message_count} message{sel.message_count === 1 ? "" : "s"} · {fmtBytes(sel.bytes)}
@@ -1970,12 +1970,12 @@ function ReplayModal({ connected, activeProfile, onLog, onClose }: {
                 </div>
 
                 <div>
-                  <label className="block text-[10.5px] font-semibold text-t-ink4 uppercase tracking-wider mb-1">{t("recv.replay.target")}</label>
+                  <label className="block text-[10px] uppercase tracking-wide text-content-subtle mb-1">{t("recv.replay.target")}</label>
                   <QueuePicker value={target} onChange={setTarget} connected={connected} profileName={activeProfile} />
                 </div>
 
                 <div>
-                  <label className="block text-[10.5px] font-semibold text-t-ink4 uppercase tracking-wider mb-1">
+                  <label className="block text-[10px] uppercase tracking-wide text-content-subtle mb-1">
                     Speed
                     <span className="text-t-ink5 normal-case font-normal"> — 1 = real-time, 0 = max speed (no delays)</span>
                   </label>
@@ -1983,7 +1983,7 @@ function ReplayModal({ connected, activeProfile, onLog, onClose }: {
                     {["0.5", "1", "2", "5", "0"].map(s => (
                       <button key={s} type="button"
                         onClick={() => setSpeed(s)}
-                        className={`px-2 py-1 rounded-md text-[11.5px] font-mono transition-colors ${
+                        className={`h-7 px-2.5 rounded-lg text-[12px] font-mono transition-colors ${
                           speed === s ? "bg-accent/15 text-accent" : "text-t-ink4 hover:text-t-ink2 hover:bg-t-hover"
                         }`}>
                         {s === "0" ? "max" : `${s}×`}
@@ -2023,7 +2023,7 @@ function ReplayModal({ connected, activeProfile, onLog, onClose }: {
               {sel && (
                 <button onClick={deleteSelected} disabled={playing}
                   title={t("recv.replay.delete")}
-                  className="flex items-center gap-1 px-2 py-1 rounded-md text-[11.5px] font-medium text-t-ink4 hover:text-negative hover:bg-negative/10 transition-colors disabled:opacity-40">
+                  className="flex items-center gap-1 h-7 px-2.5 rounded-lg text-[12px] font-medium text-t-ink4 hover:text-negative hover:bg-negative/10 transition-colors disabled:opacity-40">
                   <Trash2 className="w-3 h-3" /> Delete
                 </button>
               )}

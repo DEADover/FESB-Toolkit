@@ -4,7 +4,7 @@ import { ChevronDown, ChevronRight } from "lucide-react";
 /**
  * Standard expandable section used inside preview panes (Browser peek,
  * Subscriber preview, History preview). Header strip is `bg-t-card/60` with a
- * `text-[10.5px] uppercase tracking-wider text-t-ink4 font-semibold` label —
+ * `text-[10px] uppercase tracking-wide text-content-subtle` label —
  * this is the canonical token set; do not drift these per-view.
  */
 export default function CollapsibleSection({
@@ -21,7 +21,7 @@ export default function CollapsibleSection({
     <div className="border border-t-line rounded-lg overflow-hidden bg-t-panel">
       <div className="flex items-center justify-between px-2 py-1 bg-t-card/60">
         <button onClick={onToggle}
-          className="flex items-center gap-1.5 text-[10.5px] uppercase tracking-wider text-t-ink4 font-semibold hover:text-t-ink2 transition-colors">
+          className="flex items-center gap-1.5 text-[10px] uppercase tracking-wide text-content-subtle hover:text-t-ink2 transition-colors">
           {open ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
           {icon}
           {title}

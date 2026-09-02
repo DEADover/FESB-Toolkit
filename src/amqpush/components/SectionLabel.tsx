@@ -1,6 +1,10 @@
 import { ReactNode } from "react";
 
 /**
+ * Мелкий заголовок над блоком — тот же, что на остальных экранах
+ * приложения: `text-[10px] uppercase tracking-wide text-content-subtle`.
+ * Прежде он был крупнее и жирнее и выделялся среди соседних подписей.
+ *
  * Canonical section-label typography used across the app — small uppercase
  * `text-[10.5px] tracking-wider text-t-ink4 font-semibold`. Use this anywhere
  * a screen needs an "uppercase mini-heading" so the spelling stays consistent
@@ -20,7 +24,7 @@ export default function SectionLabel({
   className?: string;
 }) {
   return (
-    <span className={`inline-flex items-center gap-1.5 text-[10.5px] uppercase tracking-wider text-t-ink4 font-semibold ${className}`}>
+    <span className={`inline-flex items-center gap-1.5 text-[10px] uppercase tracking-wide text-content-subtle ${className}`}>
       {icon}
       {children}
       {trailing && (

@@ -82,7 +82,7 @@ export function DropdownSection({
   return (
     <>
       {title && (
-        <div className="px-3 py-1.5 text-[10.5px] uppercase tracking-wider text-t-ink4 font-semibold border-b border-t-line">
+        <div className="px-3 py-1.5 text-[10px] uppercase tracking-wide text-content-subtle border-b border-t-line">
           {title}
         </div>
       )}

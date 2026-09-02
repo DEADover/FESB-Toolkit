@@ -321,7 +321,7 @@ export default function InspectorView({ connected, visible, onLog }: Props) {
         <button
           onClick={() => refresh(false)}
           disabled={!connected || loading}
-          className="px-2 py-1 rounded-md text-[11.5px] font-medium text-t-ink4 hover:text-accent hover:bg-accent/10 transition-colors flex items-center gap-1 disabled:opacity-40"
+          className="h-7 px-2.5 rounded-lg text-[12px] font-medium text-t-ink4 hover:text-accent hover:bg-accent/10 transition-colors flex items-center gap-1 disabled:opacity-40"
         >
           <RotateCcw className={`w-3 h-3 ${loading ? "animate-spin" : ""}`} /> {t("clients.refresh")}
         </button>
@@ -377,7 +377,7 @@ export default function InspectorView({ connected, visible, onLog }: Props) {
           )}
           <div className="flex-1 grid grid-cols-2 gap-px bg-t-line overflow-hidden min-h-0">
             <div className="flex flex-col bg-t-bg min-h-0 overflow-hidden">
-              <div className="shrink-0 px-3 py-1.5 text-[10.5px] uppercase tracking-wider text-t-ink4 bg-t-panel border-b border-t-line font-semibold">
+              <div className="shrink-0 px-3 py-1.5 text-[10px] uppercase tracking-wide text-content-subtle bg-t-panel border-b border-t-line font-semibold">
                 listConnectionsAsJSON
               </div>
               <pre className="flex-1 overflow-auto p-3 text-[11.5px] font-mono text-t-ink2 whitespace-pre">
@@ -385,7 +385,7 @@ export default function InspectorView({ connected, visible, onLog }: Props) {
               </pre>
             </div>
             <div className="flex flex-col bg-t-bg min-h-0 overflow-hidden">
-              <div className="shrink-0 px-3 py-1.5 text-[10.5px] uppercase tracking-wider text-t-ink4 bg-t-panel border-b border-t-line font-semibold">
+              <div className="shrink-0 px-3 py-1.5 text-[10px] uppercase tracking-wide text-content-subtle bg-t-panel border-b border-t-line font-semibold">
                 listAllConsumersAsJSON
               </div>
               <pre className="flex-1 overflow-auto p-3 text-[11.5px] font-mono text-t-ink2 whitespace-pre">
@@ -415,7 +415,7 @@ export default function InspectorView({ connected, visible, onLog }: Props) {
               </>}
               action={
                 <button onClick={() => refresh(false)}
-                  className="px-2.5 py-1 rounded-lg text-[11.5px] font-medium bg-t-card border border-t-line text-t-ink2 hover:bg-t-hover transition-colors">
+                  className="h-7 px-2.5 rounded-lg text-[12px] font-medium bg-t-card border border-t-line text-t-ink2 hover:bg-t-hover transition-colors">
                   {t("clients.retry")}
                 </button>
               }
@@ -430,7 +430,7 @@ export default function InspectorView({ connected, visible, onLog }: Props) {
                       container without a trailing spacer, while keeping the
                       relative column sizes the user picked (Client narrow,
                       Age wider). With `table-fixed` these are honored exactly. */}
-                  <tr className="text-[10.5px] uppercase tracking-wider text-t-ink4 select-none">
+                  <tr className="text-[11px] tracking-wide text-content-subtle select-none">
                     <th className="text-left pl-3 py-1.5 font-semibold w-[24%]">{t("clients.column.client")}</th>
                     <th className="text-left px-2 py-1.5 font-semibold w-[28%]">{t("clients.column.user")}</th>
                     <th className="text-left px-2 py-1.5 font-semibold w-[12%]">{t("clients.column.proto")}</th>
@@ -567,7 +567,7 @@ export default function InspectorView({ connected, visible, onLog }: Props) {
               ) : (
                 <table className="w-full text-[12.5px] font-mono table-fixed">
                   <thead className="sticky top-0 z-10 bg-t-panel border-b border-t-line">
-                    <tr className="text-[10.5px] uppercase tracking-wider text-t-ink4 select-none">
+                    <tr className="text-[11px] tracking-wide text-content-subtle select-none">
                       <th className="text-left pl-3 py-1.5 font-semibold w-[30%]">{t("clients.column.queue")}</th>
                       <th className="text-left px-2 py-1.5 font-semibold w-[30%]">{t("clients.column.address")}</th>
                       <th className="text-left px-2 py-1.5 font-semibold w-[10%]" title={t("clients.column.credit.hint")}>{t("clients.column.credit")}</th>

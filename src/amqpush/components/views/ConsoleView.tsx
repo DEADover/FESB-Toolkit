@@ -235,7 +235,7 @@ export default function ConsoleView({ logs, onClear }: Props) {
           onClick={togglePause}
           aria-pressed={paused}
           title={paused ? t("console.resume.hint") : t("console.pause.hint")}
-          className={`flex items-center gap-1 px-2 py-1 rounded-md text-[11.5px] font-medium transition-colors ${
+          className={`flex items-center gap-1 h-7 px-2.5 rounded-lg text-[12px] font-medium transition-colors ${
             paused
               ? "text-caution bg-caution/10 hover:bg-caution/20"
               : "text-t-ink4 hover:text-t-ink hover:bg-t-hover"
@@ -256,7 +256,7 @@ export default function ConsoleView({ logs, onClear }: Props) {
               aria-expanded={open}
               disabled={filtered.length === 0}
               title={t("console.export")}
-              className="flex items-center gap-1 px-2 py-1 rounded-md text-[11.5px] font-medium text-t-ink4 hover:text-accent hover:bg-accent/10 transition-colors disabled:opacity-40"
+              className="flex items-center gap-1 h-7 px-2.5 rounded-lg text-[12px] font-medium text-t-ink4 hover:text-accent hover:bg-accent/10 transition-colors disabled:opacity-40"
             >
               <Download className="w-3 h-3" /> {t("console.export.short")}
               <ChevronDown className="w-3 h-3" />
@@ -271,7 +271,7 @@ export default function ConsoleView({ logs, onClear }: Props) {
         <button
           onClick={() => setConfirmClear(true)}
           disabled={logs.length === 0}
-          className="flex items-center gap-1.5 px-2 py-1 rounded-md text-[11.5px] font-medium text-t-ink4 hover:text-negative hover:bg-negative/10 transition-colors disabled:opacity-40 disabled:hover:text-t-ink4 disabled:hover:bg-transparent"
+          className="flex items-center gap-1.5 h-7 px-2.5 rounded-lg text-[12px] font-medium text-t-ink4 hover:text-negative hover:bg-negative/10 transition-colors disabled:opacity-40 disabled:hover:text-t-ink4 disabled:hover:bg-transparent"
         >
           <Trash2 className="w-3 h-3" /> {t("console.clear.short")}
         </button>

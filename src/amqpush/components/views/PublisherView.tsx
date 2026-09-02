@@ -55,7 +55,7 @@ interface Props {
   onTabChange?: (tab: string) => void;
 }
 
-const INPUT = "bg-t-field border border-t-line2 rounded-lg px-2.5 py-1.5 text-[12.5px] text-t-ink outline-none focus:border-accent focus:ring-1 focus:ring-accent/30 transition-all placeholder:text-t-ink5";
+const INPUT = "bg-t-field border border-t-line2 rounded-lg px-2.5 py-1.5 text-[12.5px] text-t-ink outline-none focus:border-accent focus:ring-2 focus:ring-accent/25 transition-all placeholder:text-t-ink5";
 
 type BodyMode = "none" | "raw" | "binary";
 type RawType  = "text" | "json" | "xml";
@@ -1216,7 +1216,7 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
                 {mode === "raw" && rawType !== "text" && (
                   <button onClick={handleFormat}
                     className="flex items-center gap-1 text-[11.5px] text-t-ink4 hover:text-accent transition-colors font-medium">
-                    <Wand2 className="w-3 h-3" /> Beautify
+                    <Wand2 className="w-3 h-3" /> {t("send.beautify")}
                   </button>
                 )}
               </div>
@@ -1240,7 +1240,7 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
                   value={text}
                   onChange={v => setText(v)}
                   language={rawType === "json" ? "json" : rawType === "xml" ? "xml" : "text"}
-                  placeholder={`Type your ${RAW_TYPE_LABEL[rawType]} message…`}
+                  placeholder={t("send.body.placeholder", { kind: RAW_TYPE_LABEL[rawType] })}
                   minHeight="120px"
                   className={`flex-1 ${text && !textOk ? "ring-1 ring-negative/30" : ""}`}
                   variables={variableSuggestions}
@@ -1304,7 +1304,7 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
                 Custom application-properties — values support <code className="text-accent font-mono">{`{{token}}`}</code> substitution.
               </span>
               <button onClick={addProp}
-                className="ml-auto px-2 py-1 rounded-md text-[11.5px] font-medium text-t-ink4 hover:text-t-ink hover:bg-t-hover transition-colors flex items-center gap-1">
+                className="ml-auto h-7 px-2.5 rounded-lg text-[12px] font-medium text-t-ink4 hover:text-t-ink hover:bg-t-hover transition-colors flex items-center gap-1">
                 <Plus className="w-3 h-3" /> Add
               </button>
             </div>
@@ -1342,7 +1342,7 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
                     <label className="flex items-center justify-center cursor-pointer">
                       <input type="checkbox" checked={row.enabled !== false}
                         onChange={e => updateProp(row.id, "enabled", e.target.checked)}
-                        className="w-3.5 h-3.5 accent-accent-strong cursor-pointer" />
+                        className="amqp-checkbox" />
                     </label>
                     {/* Key — autocomplete from previously-sent property names
                         in History. Particularly useful for the long Artemis
@@ -1352,7 +1352,7 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
                       onChange={v => updateProp(row.id, "key", v)}
                       suggestions={historyProps.keys}
                       placeholder={t("send.props.keyPlaceholder")}
-                      className="bg-transparent text-[12.5px] leading-4 h-7 w-full box-border appearance-none text-t-ink outline-none placeholder:text-t-ink5 font-mono py-1.5 px-1.5 rounded-md hover:bg-t-card focus:bg-t-field focus:ring-1 focus:ring-accent/30"
+                      className="bg-transparent text-[12.5px] leading-4 h-7 w-full box-border appearance-none text-t-ink outline-none placeholder:text-t-ink5 font-mono py-1.5 px-1.5 rounded-md hover:bg-t-card focus:bg-t-field focus:ring-2 focus:ring-accent/25"
                     />
                     {/* Value — keeps TokenInput for the `{{var}}` flow; on
                         focus we additionally show a small history-picker
@@ -1367,7 +1367,7 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
                     />
                     <input value={row.description ?? ""} onChange={e => updateProp(row.id, "description", e.target.value)}
                       placeholder={t("send.props.descPlaceholder")}
-                      className="bg-transparent text-[12.5px] leading-4 h-7 box-border appearance-none text-t-ink3 outline-none placeholder:text-t-ink5 font-mono py-1.5 px-1.5 rounded-md hover:bg-t-card focus:bg-t-field focus:ring-1 focus:ring-accent/30" />
+                      className="bg-transparent text-[12.5px] leading-4 h-7 box-border appearance-none text-t-ink3 outline-none placeholder:text-t-ink5 font-mono py-1.5 px-1.5 rounded-md hover:bg-t-card focus:bg-t-field focus:ring-2 focus:ring-accent/25" />
                     <button onClick={() => removeProp(row.id)}
                       className="opacity-0 group-hover:opacity-100 p-1 text-t-ink5 hover:text-negative transition-all rounded-md">
                       <X className="w-3.5 h-3.5" />
@@ -1399,7 +1399,7 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
                       type="button"
                       onClick={toggle}
                       aria-expanded={open}
-                      className="px-2 py-1 rounded-md text-[11.5px] font-medium text-t-ink4 hover:text-t-ink hover:bg-t-hover transition-colors flex items-center gap-1 border border-t-line"
+                      className="h-7 px-2.5 rounded-lg text-[12px] font-medium text-t-ink4 hover:text-t-ink hover:bg-t-hover transition-colors flex items-center gap-1 border border-t-line"
                     >
                       <Braces className="w-3 h-3" /> Built-in presets
                       <ChevronDown className="w-3 h-3" />
@@ -1422,7 +1422,7 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
               </div>
 
               <button onClick={addUserVar}
-                className="px-2 py-1 rounded-md text-[11.5px] font-medium text-t-ink4 hover:text-t-ink hover:bg-t-hover transition-colors flex items-center gap-1">
+                className="h-7 px-2.5 rounded-lg text-[12px] font-medium text-t-ink4 hover:text-t-ink hover:bg-t-hover transition-colors flex items-center gap-1">
                 <Plus className="w-3 h-3" /> Add
               </button>
             </div>
@@ -1462,17 +1462,17 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
                     <label className="flex items-center justify-center cursor-pointer">
                       <input type="checkbox" checked={v.enabled}
                         onChange={e => updateUserVar(v.id, "enabled", e.target.checked)}
-                        className="w-3.5 h-3.5 accent-accent-strong cursor-pointer" />
+                        className="amqp-checkbox" />
                     </label>
                     <input value={v.key} onChange={e => updateUserVar(v.id, "key", e.target.value)}
                       placeholder={t("send.props.keyPlaceholder")}
-                      className="bg-transparent text-[12.5px] leading-4 h-7 box-border appearance-none text-t-ink outline-none placeholder:text-t-ink5 font-mono py-1.5 px-1.5 rounded-md hover:bg-t-card focus:bg-t-field focus:ring-1 focus:ring-accent/30" />
+                      className="bg-transparent text-[12.5px] leading-4 h-7 box-border appearance-none text-t-ink outline-none placeholder:text-t-ink5 font-mono py-1.5 px-1.5 rounded-md hover:bg-t-card focus:bg-t-field focus:ring-2 focus:ring-accent/25" />
                     <input value={v.value} onChange={e => updateUserVar(v.id, "value", e.target.value)}
                       placeholder={t("send.vars.valuePlaceholder")}
-                      className="bg-transparent text-[12.5px] leading-4 h-7 box-border appearance-none text-t-ink outline-none placeholder:text-t-ink5 font-mono py-1.5 px-1.5 rounded-md hover:bg-t-card focus:bg-t-field focus:ring-1 focus:ring-accent/30" />
+                      className="bg-transparent text-[12.5px] leading-4 h-7 box-border appearance-none text-t-ink outline-none placeholder:text-t-ink5 font-mono py-1.5 px-1.5 rounded-md hover:bg-t-card focus:bg-t-field focus:ring-2 focus:ring-accent/25" />
                     <input value={v.description} onChange={e => updateUserVar(v.id, "description", e.target.value)}
                       placeholder={t("send.props.descPlaceholder")}
-                      className="bg-transparent text-[12.5px] leading-4 h-7 box-border appearance-none text-t-ink3 outline-none placeholder:text-t-ink5 font-mono py-1.5 px-1.5 rounded-md hover:bg-t-card focus:bg-t-field focus:ring-1 focus:ring-accent/30" />
+                      className="bg-transparent text-[12.5px] leading-4 h-7 box-border appearance-none text-t-ink3 outline-none placeholder:text-t-ink5 font-mono py-1.5 px-1.5 rounded-md hover:bg-t-card focus:bg-t-field focus:ring-2 focus:ring-accent/25" />
                     <button onClick={() => removeUserVar(v.id)}
                       className="opacity-0 group-hover:opacity-100 p-1 text-t-ink5 hover:text-negative transition-all rounded-md">
                       <X className="w-3.5 h-3.5" />
@@ -1522,7 +1522,7 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
                   }
                 }}
                 disabled={!preScript.trim()}
-                className="ml-auto px-2 py-1 rounded-md text-[11.5px] font-medium text-t-ink4 hover:text-accent hover:bg-accent/10 transition-colors flex items-center gap-1 disabled:opacity-40"
+                className="ml-auto h-7 px-2.5 rounded-lg text-[12px] font-medium text-t-ink4 hover:text-accent hover:bg-accent/10 transition-colors flex items-center gap-1 disabled:opacity-40"
                 title={t("send.prescript.run")}
               >
                 <Code2 className="w-3 h-3" /> Test run
@@ -1553,7 +1553,7 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
                 <SectionLabel className="block mb-2">{t("send.batch.params")}</SectionLabel>
                 <div className={`bg-t-card border border-t-line rounded-xl p-3 space-y-3 ${batchEnabled ? "" : "opacity-50"}`}>
                   <div>
-                    <label className="block text-[10.5px] font-semibold text-t-ink4 uppercase tracking-wider mb-1.5">
+                    <label className="block text-[10px] uppercase tracking-wide text-content-subtle mb-1.5">
                       {t("send.batch.count")}
                       <span className="text-t-ink5 normal-case font-normal">{t("send.batch.count.hint")}</span>
                     </label>
@@ -1561,7 +1561,7 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
                       className={`${INPUT} w-32`} />
                   </div>
                   <div>
-                    <label className="block text-[10.5px] font-semibold text-t-ink4 uppercase tracking-wider mb-1.5">
+                    <label className="block text-[10px] uppercase tracking-wide text-content-subtle mb-1.5">
                       {t("send.batch.delayLabel")}
                       <span className="text-t-ink5 normal-case font-normal">{t("send.batch.delay.hint")}</span>
                     </label>
@@ -1591,7 +1591,7 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
                 <SectionLabel className="block mb-2">{t("send.schedule.params")}</SectionLabel>
                 <div className={`bg-t-card border border-t-line rounded-xl p-3 space-y-3 ${scheduleEnabled ? "" : "opacity-50"}`}>
                   <div>
-                    <label className="block text-[10.5px] font-semibold text-t-ink4 uppercase tracking-wider mb-1.5">
+                    <label className="block text-[10px] uppercase tracking-wide text-content-subtle mb-1.5">
                       {t("send.schedule.delay")}
                       <span className="text-t-ink5 normal-case font-normal">{t("send.schedule.delay.hint")}</span>
                     </label>
@@ -1771,7 +1771,7 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
                       <div>
                         <SectionLabel className="block mb-2">{t("send.params")}</SectionLabel>
                         <div className="bg-t-card border border-t-line rounded-xl p-3">
-                          <label className="block text-[10.5px] font-semibold text-t-ink4 uppercase tracking-wider mb-1.5">
+                          <label className="block text-[10px] uppercase tracking-wide text-content-subtle mb-1.5">
                             Delay between rows
                             <span className="text-t-ink5 normal-case font-normal"> — milliseconds, 0 = as fast as possible</span>
                           </label>
@@ -1875,7 +1875,7 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
                 <SectionLabel className="block mb-2">{t("send.reply.target")}</SectionLabel>
                 <div className={`bg-t-card border border-t-line rounded-xl p-3 space-y-3 ${rrEnabled ? "" : "opacity-50"}`}>
                   <div>
-                    <label className="block text-[10.5px] font-semibold text-t-ink4 uppercase tracking-wider mb-1.5">
+                    <label className="block text-[10px] uppercase tracking-wide text-content-subtle mb-1.5">
                       Reply-to address
                       <span className="text-t-ink5 normal-case font-normal"> — queue we'll listen on</span>
                     </label>
@@ -1889,7 +1889,7 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
                     />
                   </div>
                   <div>
-                    <label className="block text-[10.5px] font-semibold text-t-ink4 uppercase tracking-wider mb-1.5">
+                    <label className="block text-[10px] uppercase tracking-wide text-content-subtle mb-1.5">
                       Timeout
                       <span className="text-t-ink5 normal-case font-normal"> — milliseconds before giving up</span>
                     </label>
@@ -1952,7 +1952,7 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
                   </div>
                 ) : (
                   <button onClick={() => setSavingTpl(true)}
-                    className="flex items-center gap-1 px-2 py-1 rounded-md text-[11.5px] font-medium text-t-ink3 hover:text-t-ink hover:bg-t-hover transition-colors">
+                    className="flex items-center gap-1 h-7 px-2.5 rounded-lg text-[12px] font-medium text-t-ink3 hover:text-t-ink hover:bg-t-hover transition-colors">
                     <Save className="w-3 h-3" /> Save current
                   </button>
                 )}
@@ -1984,7 +1984,7 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
                     <col className="w-[64px]" />{/* Actions */}
                   </colgroup>
                   <thead className="sticky top-0 bg-t-panel border-b border-t-line z-10">
-                    <tr className="text-[10.5px] uppercase tracking-wider text-t-ink4 font-semibold">
+                    <tr className="text-[10px] uppercase tracking-wide text-content-subtle">
                       <th className="px-3 py-2 text-left font-semibold">{t("send.tpl.column.name")}</th>
                       <th className="px-2 py-2 text-left font-semibold">{t("send.tpl.column.address")}</th>
                       <th className="px-2 py-2 text-left font-semibold">{t("send.tpl.column.kind")}</th>
@@ -2189,7 +2189,7 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
             <div className="bg-t-card border border-t-line rounded-xl p-3 space-y-2">
               <label className="flex items-center gap-2 cursor-pointer">
                 <input type="checkbox" checked={chaosPadBody} onChange={e => setChaosPadBody(e.target.checked)}
-                  className="w-3.5 h-3.5 accent-accent-strong cursor-pointer" />
+                  className="amqp-checkbox" />
                 <span className="text-[13px] text-t-ink2 font-medium">{t("send.chaos.oversized")}</span>
               </label>
               <div className={`pl-5 space-y-1 text-[11.5px] ${chaosPadBody ? "" : "opacity-50"}`}>
@@ -2198,7 +2198,7 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
                   max-message-size limits or testing how the consumer streams large frames.
                 </p>
                 <div className="flex items-center gap-2">
-                  <label className="text-[10.5px] text-t-ink4 uppercase tracking-wider">{t("send.chaos.size")}</label>
+                  <label className="text-[10px] uppercase tracking-wide text-content-subtle">{t("send.chaos.size")}</label>
                   <input type="number" min="0.1" step="0.5" value={chaosPadSizeMb}
                     disabled={!chaosPadBody}
                     onChange={e => setChaosPadSizeMb(e.target.value)}
@@ -2212,7 +2212,7 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
             <div className="bg-t-card border border-t-line rounded-xl p-3 space-y-2">
               <label className="flex items-center gap-2 cursor-pointer">
                 <input type="checkbox" checked={chaosWrongCt} onChange={e => setChaosWrongCt(e.target.checked)}
-                  className="w-3.5 h-3.5 accent-accent-strong cursor-pointer" />
+                  className="amqp-checkbox" />
                 <span className="text-[13px] text-t-ink2 font-medium">{t("send.chaos.contentType")}</span>
               </label>
               <div className={`pl-5 space-y-1 text-[11.5px] ${chaosWrongCt ? "" : "opacity-50"}`}>
@@ -2233,7 +2233,7 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
             <div className="bg-t-card border border-t-line rounded-xl p-3 space-y-2">
               <label className="flex items-center gap-2 cursor-pointer">
                 <input type="checkbox" checked={chaosCorruptJson} onChange={e => setChaosCorruptJson(e.target.checked)}
-                  className="w-3.5 h-3.5 accent-accent-strong cursor-pointer" />
+                  className="amqp-checkbox" />
                 <span className="text-[13px] text-t-ink2 font-medium">{t("send.chaos.malformed")}</span>
               </label>
               <p className={`pl-5 text-[11.5px] text-t-ink5 ${chaosCorruptJson ? "" : "opacity-50"}`}>
@@ -2248,7 +2248,7 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
             <div className="bg-t-card border border-t-line rounded-xl p-3 space-y-2">
               <label className="flex items-center gap-2 cursor-pointer">
                 <input type="checkbox" checked={chaosDropProp} onChange={e => setChaosDropProp(e.target.checked)}
-                  className="w-3.5 h-3.5 accent-accent-strong cursor-pointer" />
+                  className="amqp-checkbox" />
                 <span className="text-[13px] text-t-ink2 font-medium">{t("send.chaos.strip")}</span>
               </label>
               <div className={`pl-5 space-y-1 text-[11.5px] ${chaosDropProp ? "" : "opacity-50"}`}>
@@ -2720,7 +2720,7 @@ function ValueWithHistoryPick({ row, historyValues, variableSuggestions, onChang
         value={row.value}
         onChange={onChange}
         suggestions={variableSuggestions}
-        placeholder="value (support vars)"
+        placeholder={t("send.props.valuePlaceholder")}
         className="flex-1 min-w-0 text-[12.5px] leading-4 h-7 box-border py-1.5 px-1.5 rounded-md hover:bg-t-card focus-within:bg-t-field focus-within:ring-1 focus-within:ring-accent/30"
       />
       {hasValues && (
@@ -2738,7 +2738,7 @@ function ValueWithHistoryPick({ row, historyValues, variableSuggestions, onChang
       )}
       {open && hasValues && (
         <div className="absolute right-0 top-full mt-1 z-50 bg-t-card border border-t-line rounded-lg shadow-lg overflow-hidden w-72 max-h-64 overflow-y-auto">
-          <div className="px-3 py-1 border-b border-t-line bg-t-panel text-[10.5px] uppercase tracking-wider text-t-ink4 font-semibold">
+          <div className="px-3 py-1 border-b border-t-line bg-t-panel text-[10px] uppercase tracking-wide text-content-subtle">
             History values for <span className="font-mono normal-case text-t-ink3">{row.key || "(empty key)"}</span>
           </div>
           {historyValues.map(v => (

@@ -172,7 +172,7 @@ export default function CommandPalette({ actions, onClose }: {
           ) : groups.map(g => (
             <div key={g.category}>
               {g.category && (
-                <div className="sticky top-0 px-3 py-1 text-[10.5px] uppercase tracking-wider text-t-ink4 font-semibold bg-t-card/80 backdrop-blur-sm border-b border-t-line">
+                <div className="sticky top-0 px-3 py-1 text-[10px] uppercase tracking-wide text-content-subtle bg-t-card/80 backdrop-blur-sm border-b border-t-line">
                   {g.category}
                 </div>
               )}
