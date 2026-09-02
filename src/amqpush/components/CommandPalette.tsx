@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, ReactNode, KeyboardEvent } from "react";
 import { Search, X, ArrowRight } from "lucide-react";
+import { useAmqpText } from "../i18n";
 
 export interface PaletteAction {
   /** Stable id used for React keys; never displayed. */
@@ -65,6 +66,7 @@ export default function CommandPalette({ actions, onClose }: {
   actions: PaletteAction[];
   onClose: () => void;
 }) {
+  const t = useAmqpText();
   const [query, setQuery] = useState("");
   const [activeIdx, setActiveIdx] = useState(0);
   const listRef = useRef<HTMLDivElement>(null);
@@ -155,18 +157,18 @@ export default function CommandPalette({ actions, onClose }: {
             autoFocus
             value={query}
             onChange={e => { setQuery(e.target.value); setActiveIdx(0); }}
-            placeholder="Type a command or search…"
+            placeholder={t("palette.search")}
             className="flex-1 bg-transparent text-[13px] text-t-ink outline-none placeholder:text-t-ink5"
           />
           <kbd className="text-[10px] text-t-ink5 font-mono px-1.5 py-0.5 border border-t-line rounded">Esc</kbd>
-          <button onClick={onClose} className="p-1 rounded text-t-ink4 hover:text-t-ink hover:bg-t-hover" aria-label="Close">
+          <button onClick={onClose} className="p-1 rounded text-t-ink4 hover:text-t-ink hover:bg-t-hover" aria-label={t("palette.close")}>
             <X className="w-3.5 h-3.5" />
           </button>
         </div>
 
         <div ref={listRef} className="flex-1 overflow-y-auto">
           {filtered.length === 0 ? (
-            <p className="text-[12px] text-t-ink5 text-center py-8">No matching commands</p>
+            <p className="text-[12px] text-t-ink5 text-center py-8">{t("palette.nothing")}</p>
           ) : groups.map(g => (
             <div key={g.category}>
               {g.category && (

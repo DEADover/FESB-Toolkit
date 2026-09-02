@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { ChevronDown, RotateCcw, Radar, X, AlertCircle, Check, Clock } from "lucide-react";
 import SectionLabel from "./SectionLabel";
 import { readRecentQueues, forgetRecentQueue, type RecentQueueEntry } from "../utils/recentQueues";
+import { useAmqpText } from "../i18n";
 
 interface BrokerQueue {
   name: string;
@@ -35,6 +36,7 @@ export default function QueuePicker({
   className = "",
   profileName = "",
 }: Props) {
+  const t = useAmqpText();
   const [brokerQueues,   setBrokerQueues]   = useState<BrokerQueue[]>([]);
   const [open,           setOpen]           = useState(false);
   const [brokerLoading,  setBrokerLoading]  = useState(false);
@@ -133,7 +135,7 @@ export default function QueuePicker({
             type="button"
             tabIndex={-1}
             onClick={() => { onChange(""); setOpen(true); }}
-            title="Clear"
+            title={t("picker.clear")}
             className="absolute right-6 top-1/2 -translate-y-1/2 text-t-ink5 hover:text-t-ink2 transition-colors"
           >
             <X className="w-3 h-3" />
@@ -158,7 +160,7 @@ export default function QueuePicker({
           {/* Top bar — status + refresh */}
           <div className="flex items-center gap-2 px-3 py-1.5 border-b border-t-line bg-t-panel">
             <SectionLabel icon={<Radar className="w-3 h-3" />}>
-              {connected ? "Broker queues" : "Not connected"}
+              {connected ? t("picker.broker") : t("picker.notConnected")}
             </SectionLabel>
             {showLiveBadge && (
               <span className="text-[10px] text-t-ink5 font-mono">{brokerQueues.length}</span>
@@ -168,8 +170,8 @@ export default function QueuePicker({
               onClick={() => loadBroker()}
               disabled={!connected || brokerLoading}
               className="ml-auto p-1 text-t-ink4 hover:text-blue-500 transition-colors disabled:opacity-40"
-              title={connected ? "Refresh queue list" : "Connect to a broker first"}
-              aria-label="Refresh broker queue list"
+              title={connected ? t("picker.refresh") : t("picker.refresh.blocked")}
+              aria-label={t("picker.refresh")}
             >
               <RotateCcw className={`w-3 h-3 ${brokerLoading ? "animate-spin" : ""}`} />
             </button>
@@ -190,7 +192,7 @@ export default function QueuePicker({
           {filteredRecent.length > 0 && (
             <>
               <div className="flex items-center gap-2 px-3 py-1 border-b border-t-line bg-t-panel/60">
-                <SectionLabel icon={<Clock className="w-3 h-3" />}>Recent</SectionLabel>
+                <SectionLabel icon={<Clock className="w-3 h-3" />}>{t("picker.recent")}</SectionLabel>
                 <span className="text-[10px] text-t-ink5 font-mono">{filteredRecent.length}</span>
               </div>
               <div className="max-h-40 overflow-y-auto border-b border-t-line">
@@ -215,7 +217,7 @@ export default function QueuePicker({
                       <button
                         type="button"
                         onClick={(ev) => { ev.stopPropagation(); forget(e.address); }}
-                        title="Forget this recent queue"
+                        title={t("picker.forget")}
                         aria-label={`Forget ${e.address}`}
                         className="shrink-0 opacity-0 group-hover:opacity-100 text-t-ink5 hover:text-red-500 transition-all p-0.5"
                       >
@@ -232,10 +234,10 @@ export default function QueuePicker({
           {/* Table header — visible when there are entries */}
           {filtered.length > 0 && (
             <div className="grid grid-cols-[1fr_50px_50px_50px_18px] items-center gap-2 px-3 py-1 border-b border-t-line bg-t-panel/60">
-              <SectionLabel>Name</SectionLabel>
-              <SectionLabel className="justify-center">Type</SectionLabel>
-              <SectionLabel className="justify-end">Msgs</SectionLabel>
-              <SectionLabel className="justify-end">Cons</SectionLabel>
+              <SectionLabel>{t("picker.column.name")}</SectionLabel>
+              <SectionLabel className="justify-center">{t("picker.column.type")}</SectionLabel>
+              <SectionLabel className="justify-end">{t("picker.column.msgs")}</SectionLabel>
+              <SectionLabel className="justify-end">{t("picker.column.cons")}</SectionLabel>
               <div></div>
             </div>
           )}
@@ -244,7 +246,7 @@ export default function QueuePicker({
           <div className="max-h-72 overflow-y-auto">
             {filtered.length === 0 ? (
               <p className="px-3 py-3 text-[11px] text-t-ink5 text-center">
-                {q ? "No matches" : connected ? "No queues on broker" : "Connect to a broker to discover queues"}
+                {q ? t("picker.nothing") : connected ? t("picker.none") : t("picker.none.hint")}
               </p>
             ) : (
               filtered.map(it => {
@@ -305,7 +307,7 @@ export default function QueuePicker({
           {/* Footer hint for custom address */}
           {value.trim() && !brokerQueues.some(it => it.address === value.trim()) && (
             <div className="px-3 py-1.5 border-t border-t-line text-[10px] text-t-ink5 bg-t-panel">
-              Press <kbd className="px-1 bg-t-card border border-t-line rounded text-[9px]">Enter</kbd> to use <span className="font-mono text-t-ink3">{value.trim()}</span> (custom address)
+              {t("picker.press")} <kbd className="px-1 bg-t-card border border-t-line rounded text-[9px]">Enter</kbd> {t("picker.use")} <span className="font-mono text-t-ink3">{value.trim()}</span> {t("picker.custom")}
             </div>
           )}
         </div>

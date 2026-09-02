@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo } from "react";
 import { BarChart2, Send, Inbox, Clock, Zap, FileText, Layers, AlertTriangle, TrendingUp, Activity, ShieldCheck } from "lucide-react";
 import ViewTopBar from "../ViewTopBar";
 import SectionLabel from "../SectionLabel";
+import { useAmqpText, type AmqpTranslate } from "../../i18n";
 import EmptyState from "../EmptyState";
 
 export interface QueueStat {
@@ -240,6 +241,7 @@ function mergeStats(buckets: StatsData[]): StatsData {
 }
 
 export default function StatsView({ statsByProfile, activeProfile }: Props) {
+  const t = useAmqpText();
   const [, tick] = useState(0);
   useEffect(() => {
     const id = setInterval(() => tick(n => n + 1), 1000);
@@ -294,7 +296,7 @@ export default function StatsView({ statsByProfile, activeProfile }: Props) {
       {/* ─── TOP BAR ─── */}
       <ViewTopBar
         icon={<BarChart2 className="w-3.5 h-3.5" />}
-        title="Session Statistics"
+        title={t("stats.title")}
         count={elapsed(stats.sessionStart)}
       >
         {/* Profile selector — shown only when there's more than one bucket
@@ -304,11 +306,11 @@ export default function StatsView({ statsByProfile, activeProfile }: Props) {
             value={viewProfile}
             onChange={e => setViewProfile(e.target.value)}
             className="bg-t-field border border-t-line2 rounded px-1.5 py-0.5 text-[11px] text-t-ink2 outline-none focus:border-blue-500 mr-1"
-            title="Switch which profile's stats are shown — 'All' merges every bucket."
+            title={t("stats.profile.hint")}
           >
-            <option value="__all__">All ({profileBuckets.length})</option>
+            <option value="__all__">{t("stats.profile.all", { count: profileBuckets.length })}</option>
             {profileBuckets.map(([name]) => (
-              <option key={name} value={name}>{name || "(no profile)"}</option>
+              <option key={name} value={name}>{name || t("stats.profile.none")}</option>
             ))}
           </select>
         )}
@@ -323,23 +325,26 @@ export default function StatsView({ statsByProfile, activeProfile }: Props) {
 
         {/* OVERVIEW — 6 stat cards */}
         <div className="grid grid-cols-2 lg:grid-cols-6 gap-2">
-          <Card icon={<Send  className="w-4 h-4 text-blue-500" />} label="Sent"
+          <Card icon={<Send  className="w-4 h-4 text-blue-500" />} label={t("stats.sent")}
             value={stats.sentCount.toLocaleString()} sub={fmt(stats.sentBytes)}
-            footer={stats.lastSentAt ? `last ${timeAgo(stats.lastSentAt)}` : undefined} />
-          <Card icon={<Inbox className="w-4 h-4 text-green-500" />} label="Received"
+            footer={stats.lastSentAt ? t("stats.last", { ago: timeAgo(stats.lastSentAt) }) : undefined} />
+          <Card icon={<Inbox className="w-4 h-4 text-green-500" />} label={t("stats.received")}
             value={stats.receivedCount.toLocaleString()} sub={fmt(stats.receivedBytes)}
-            footer={stats.lastReceivedAt ? `last ${timeAgo(stats.lastReceivedAt)}` : undefined} />
-          <Card icon={<Zap className="w-4 h-4 text-amber-500" />} label="Throughput"
+            footer={stats.lastReceivedAt ? t("stats.last", { ago: timeAgo(stats.lastReceivedAt) }) : undefined} />
+          <Card icon={<Zap className="w-4 h-4 text-amber-500" />} label={t("stats.throughput")}
             value={`${rateLabel(sendRate)} ↑`} sub={`${rateLabel(recvRate)} ↓`}
-            footer={`peak ${stats.peakSendRate.toFixed(1)}/s ↑ · ${stats.peakRecvRate.toFixed(1)}/s ↓`} />
-          <Card icon={<FileText className="w-4 h-4 text-violet-500" />} label="Avg size"
+            footer={t("stats.peak", { up: stats.peakSendRate.toFixed(1), down: stats.peakRecvRate.toFixed(1) })} />
+          <Card icon={<FileText className="w-4 h-4 text-violet-500" />} label={t("stats.avgSize")}
             value={sentSizeStats ? fmt(sentSizeStats.avg) : "—"}
-            sub={`min ${sentSizeStats ? fmt(sentSizeStats.min) : "—"} · max ${sentSizeStats ? fmt(sentSizeStats.max) : "—"}`}
-            footer="of sent messages" />
-          <Card icon={<Clock className="w-4 h-4 text-t-ink4" />} label="Uptime"
+            sub={t("stats.avgSize.range", {
+              min: sentSizeStats ? fmt(sentSizeStats.min) : "—",
+              max: sentSizeStats ? fmt(sentSizeStats.max) : "—",
+            })}
+            footer={t("stats.avgSize.footer")} />
+          <Card icon={<Clock className="w-4 h-4 text-t-ink4" />} label={t("stats.uptime")}
             value={elapsed(stats.sessionStart)}
             sub={new Date(stats.sessionStart).toLocaleTimeString()}
-            footer={stats.reconnectCount > 0 ? `${stats.reconnectCount} reconnect${stats.reconnectCount !== 1 ? "s" : ""}` : "stable"} />
+            footer={stats.reconnectCount > 0 ? t("stats.reconnects", { count: stats.reconnectCount }) : t("stats.stable")} />
 
           {/* RELIABILITY — success rate + errors + reconnects */}
           {(() => {
@@ -357,19 +362,17 @@ export default function StatsView({ statsByProfile, activeProfile }: Props) {
               successPct >= 95               ? "text-amber-500" :
                                                "text-red-500";
             const subText = totalAttempts === 0
-              ? "no sends yet"
-              : stats.sendErrorCount === 0
-                ? `${stats.sentCount} ok · 0 err`
-                : `${stats.sentCount} ok · ${stats.sendErrorCount} err`;
+              ? t("stats.noSends")
+              : t("stats.okErr", { ok: stats.sentCount, err: stats.sendErrorCount });
             const footer = stats.reconnectCount > 0
-              ? `${stats.reconnectCount} reconnect${stats.reconnectCount !== 1 ? "s" : ""}`
+              ? t("stats.reconnects", { count: stats.reconnectCount })
               : hasIssues
                 ? ""
-                : "no issues";
+                : t("stats.noIssues");
             return (
               <Card
                 icon={<ShieldCheck className={`w-4 h-4 ${hasIssues ? "text-amber-500" : "text-green-500"}`} />}
-                label="Reliability"
+                label={t("stats.reliability")}
                 value={<span className={valueColor}>{valueText}</span>}
                 sub={subText}
                 footer={footer}
@@ -379,35 +382,35 @@ export default function StatsView({ statsByProfile, activeProfile }: Props) {
         </div>
 
         {/* THROUGHPUT — sparkline charts */}
-        <Section title="Throughput · last 60s" icon={<TrendingUp className="w-3.5 h-3.5" />}>
+        <Section title={t("stats.throughput.section")} icon={<TrendingUp className="w-3.5 h-3.5" />}>
           <div className="grid grid-cols-2 gap-3">
-            <Sparkline buckets={sentBuckets}  label="Sent"     color="bg-blue-500"  rate={sendRate} count={stats.sentCount} />
-            <Sparkline buckets={recvBuckets} label="Received" color="bg-green-500" rate={recvRate} count={stats.receivedCount} />
+            <Sparkline buckets={sentBuckets}  label={t("stats.sent")}     color="bg-blue-500"  rate={sendRate} count={stats.sentCount} t={t} />
+            <Sparkline buckets={recvBuckets} label={t("stats.received")} color="bg-green-500" rate={recvRate} count={stats.receivedCount} t={t} />
           </div>
         </Section>
 
         {/* TOP QUEUES */}
-        <Section title="Top queues" icon={<Layers className="w-3.5 h-3.5" />}>
+        <Section title={t("stats.queues")} icon={<Layers className="w-3.5 h-3.5" />}>
           <div className="grid grid-cols-2 gap-3">
-            <QueueLeaderboard title="Sent → " entries={topSentQueues} totalCount={stats.sentCount} accent="blue" />
-            <QueueLeaderboard title="Received ← " entries={topRecvQueues} totalCount={stats.receivedCount} accent="green" />
+            <QueueLeaderboard title={t("stats.queues.sent")} entries={topSentQueues} totalCount={stats.sentCount} accent="blue" t={t} />
+            <QueueLeaderboard title={t("stats.queues.received")} entries={topRecvQueues} totalCount={stats.receivedCount} accent="green" t={t} />
           </div>
         </Section>
 
         {/* SIZE DISTRIBUTION + CONTENT KIND */}
-        <Section title="Distribution" icon={<Activity className="w-3.5 h-3.5" />}>
+        <Section title={t("stats.distribution")} icon={<Activity className="w-3.5 h-3.5" />}>
           <div className="grid grid-cols-2 gap-3">
             <div className="bg-t-card border border-t-line rounded-lg p-3">
-              <SectionLabel className="block mb-2">Sent message size</SectionLabel>
-              <SizeBar stats={sentSizeStats} />
+              <SectionLabel className="block mb-2">{t("stats.size.sent")}</SectionLabel>
+              <SizeBar stats={sentSizeStats} t={t} />
             </div>
             <div className="bg-t-card border border-t-line rounded-lg p-3">
-              <SectionLabel className="block mb-2">Received message size</SectionLabel>
-              <SizeBar stats={recvSizeStats} />
+              <SectionLabel className="block mb-2">{t("stats.size.received")}</SectionLabel>
+              <SizeBar stats={recvSizeStats} t={t} />
             </div>
             {kindEntries.length > 0 && (
               <div className="col-span-2 bg-t-card border border-t-line rounded-lg p-3">
-                <SectionLabel className="block mb-2">Sent by content type</SectionLabel>
+                <SectionLabel className="block mb-2">{t("stats.byKind")}</SectionLabel>
                 <KindBar entries={kindEntries} total={stats.sentCount} />
               </div>
             )}
@@ -416,14 +419,14 @@ export default function StatsView({ statsByProfile, activeProfile }: Props) {
 
         {/* ERRORS */}
         {(stats.sendErrorCount > 0 || stats.reconnectCount > 0) && (
-          <Section title="Issues" icon={<AlertTriangle className="w-3.5 h-3.5 text-amber-500" />}>
+          <Section title={t("stats.issues")} icon={<AlertTriangle className="w-3.5 h-3.5 text-amber-500" />}>
             <div className="bg-t-card border border-t-line rounded-lg p-3 grid grid-cols-2 gap-3 text-[12px]">
               <div>
-                <SectionLabel className="block mb-1">Send errors</SectionLabel>
+                <SectionLabel className="block mb-1">{t("stats.sendErrors")}</SectionLabel>
                 <p className="text-xl font-bold font-mono text-red-500">{stats.sendErrorCount}</p>
               </div>
               <div>
-                <SectionLabel className="block mb-1">Reconnects</SectionLabel>
+                <SectionLabel className="block mb-1">{t("stats.reconnectCount")}</SectionLabel>
                 <p className="text-xl font-bold font-mono text-amber-500">{stats.reconnectCount}</p>
               </div>
             </div>
@@ -433,8 +436,8 @@ export default function StatsView({ statsByProfile, activeProfile }: Props) {
         {empty && (
           <EmptyState
             icon={<BarChart2 className="w-8 h-8" />}
-            title="No statistics yet"
-            subtitle="Send or receive messages to see throughput, distribution and reliability."
+            title={t("stats.empty")}
+            subtitle={t("stats.empty.hint")}
           />
         )}
       </div>
@@ -467,7 +470,7 @@ function Section({ title, icon, children }: { title: string; icon: React.ReactNo
   );
 }
 
-function Sparkline({ buckets, label, color, rate, count }: { buckets: number[]; label: string; color: string; rate: number; count: number }) {
+function Sparkline({ buckets, label, color, rate, count, t }: { buckets: number[]; label: string; color: string; rate: number; count: number; t: AmqpTranslate }) {
   const max = Math.max(1, ...buckets);
   return (
     <div className="bg-t-card border border-t-line rounded-lg p-3">
@@ -483,28 +486,28 @@ function Sparkline({ buckets, label, color, rate, count }: { buckets: number[]; 
           <div key={i}
             className={`flex-1 ${color} rounded-sm transition-all min-h-[1px] ${b === 0 ? "opacity-20" : ""}`}
             style={{ height: `${Math.max(2, (b / max) * 100)}%` }}
-            title={`${b} msg, ${60 - i}s ago`}
+            title={t("stats.bucket", { count: b, ago: 60 - i })}
           />
         ))}
       </div>
       <div className="flex justify-between text-[9px] text-t-ink5 font-mono mt-1">
         <span>−60s</span>
         <span>−30s</span>
-        <span>now</span>
+        <span>{t("stats.now")}</span>
       </div>
     </div>
   );
 }
 
-function QueueLeaderboard({ title, entries, totalCount, accent }: {
-  title: string; entries: Array<[string, QueueStat]>; totalCount: number; accent: "blue" | "green";
+function QueueLeaderboard({ title, entries, totalCount, accent, t }: {
+  title: string; entries: Array<[string, QueueStat]>; totalCount: number; accent: "blue" | "green"; t: AmqpTranslate;
 }) {
   const accentBg = accent === "blue" ? "bg-blue-500" : "bg-green-500";
   return (
     <div className="bg-t-card border border-t-line rounded-lg p-3">
       <SectionLabel className="block mb-2">{title}</SectionLabel>
       {entries.length === 0 ? (
-        <p className="text-[11px] text-t-ink5 py-2">No data yet</p>
+        <p className="text-[11px] text-t-ink5 py-2">{t("stats.noData")}</p>
       ) : (
         <div className="space-y-1.5">
           {entries.map(([name, st]) => {
@@ -530,23 +533,23 @@ function QueueLeaderboard({ title, entries, totalCount, accent }: {
   );
 }
 
-function SizeBar({ stats }: { stats: { min: number; max: number; avg: number } | null }) {
-  if (!stats) return <p className="text-[11px] text-t-ink5 py-2">No data yet</p>;
+function SizeBar({ stats, t }: { stats: { min: number; max: number; avg: number } | null; t: AmqpTranslate }) {
+  if (!stats) return <p className="text-[11px] text-t-ink5 py-2">{t("stats.noData")}</p>;
   const range = stats.max - stats.min;
   const avgPct = range > 0 ? ((stats.avg - stats.min) / range) * 100 : 50;
   return (
     <div>
       <div className="flex items-center justify-between text-[11px] font-mono mb-2">
         <div>
-          <span className="text-t-ink5 mr-1">min</span>
+          <span className="text-t-ink5 mr-1">{t("stats.min")}</span>
           <span className="text-t-ink2">{fmt(stats.min)}</span>
         </div>
         <div>
-          <span className="text-t-ink5 mr-1">avg</span>
+          <span className="text-t-ink5 mr-1">{t("stats.avg")}</span>
           <span className="text-t-ink font-bold">{fmt(stats.avg)}</span>
         </div>
         <div>
-          <span className="text-t-ink5 mr-1">max</span>
+          <span className="text-t-ink5 mr-1">{t("stats.max")}</span>
           <span className="text-t-ink2">{fmt(stats.max)}</span>
         </div>
       </div>

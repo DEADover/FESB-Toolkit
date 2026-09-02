@@ -1,5 +1,6 @@
 import { useEffect, ReactNode } from "react";
 import { AlertTriangle, X, Loader2 } from "lucide-react";
+import { useAmqpText } from "../i18n";
 
 /**
  * Generic destructive-action confirm dialog. Used everywhere a Clear / Delete /
@@ -40,6 +41,7 @@ export default function ConfirmDialog({
   onConfirm: () => void;
   onCancel: () => void;
 }) {
+  const t = useAmqpText();
   // Esc cancels; Enter confirms (when not busy).
   useEffect(() => {
     if (!open) return;
@@ -78,7 +80,7 @@ export default function ConfirmDialog({
           <button
             onClick={onCancel}
             disabled={busy}
-            aria-label="Close"
+            aria-label={t("dialog.close")}
             className="ml-auto p-1 rounded hover:bg-t-hover text-t-ink4 hover:text-t-ink disabled:opacity-40"
           >
             <X className="w-3.5 h-3.5" />

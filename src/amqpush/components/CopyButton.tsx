@@ -1,4 +1,5 @@
 import { Copy, Check } from "lucide-react";
+import { useAmqpText } from "../i18n";
 import { useState, useRef, useEffect, MouseEvent } from "react";
 
 interface Props {
@@ -34,11 +35,12 @@ export default function CopyButton({
   value,
   onCopied,
   label,
-  title = "Copy",
+  title,
   className,
   iconClassName = "w-3 h-3",
   feedbackMs = 1500,
 }: Props) {
+  const t = useAmqpText();
   const [copied, setCopied] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -65,8 +67,8 @@ export default function CopyButton({
     <button
       type="button"
       onClick={handleClick}
-      title={copied ? "Copied!" : title}
-      aria-label={copied ? "Copied" : title}
+      title={copied ? t("copy.copiedBang") : (title ?? t("copy.copy"))}
+      aria-label={copied ? t("copy.copied") : (title ?? t("copy.copy"))}
       className={className}
     >
       {copied ? (

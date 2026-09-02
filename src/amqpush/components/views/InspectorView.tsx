@@ -25,6 +25,7 @@ import {
   ChevronRight, ChevronDown,
 } from "lucide-react";
 import EmptyState from "../EmptyState";
+import { useAmqpText } from "../../i18n";
 import ViewTopBar from "../ViewTopBar";
 import { fmtDuration } from "../../utils/format";
 import type { BrokerConnection, BrokerConsumer } from "../../types";
@@ -83,6 +84,7 @@ function isInternalConsumer(k: { queue: string; address: string }): boolean {
 }
 
 export default function InspectorView({ connected, visible, onLog }: Props) {
+  const t = useAmqpText();
   const [conns, setConns] = useState<BrokerConnection[]>([]);
   const [cons, setCons] = useState<BrokerConsumer[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -270,13 +272,16 @@ export default function InspectorView({ connected, visible, onLog }: Props) {
     <div className="flex-1 flex flex-col min-h-0 min-w-0 bg-t-bg overflow-hidden">
       <ViewTopBar
         icon={<Network className="w-3.5 h-3.5" />}
-        title="Broker Clients"
-        count={loaded && !err ? `${conns.length} active · ${visibleCons.length} consumers${hiddenCount > 0 && !showInternal ? ` (+${hiddenCount} internal)` : ""}` : undefined}
+        title={t("clients.title")}
+        count={loaded && !err
+          ? t("clients.count", { conns: conns.length, cons: visibleCons.length })
+            + (hiddenCount > 0 && !showInternal ? t("clients.count.hidden", { count: hiddenCount }) : "")
+          : undefined}
         status={
           connected && autoOn && loaded ? (
-            <span className="flex items-center gap-1 text-[10px] text-t-ink5 font-mono" title={`Auto-refresh every ${POLL_INTERVAL_MS / 1000}s`}>
+            <span className="flex items-center gap-1 text-[10px] text-t-ink5 font-mono" title={t("clients.auto.hint", { sec: POLL_INTERVAL_MS / 1000 })}>
               <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
-              live
+              {t("clients.live")}
             </span>
           ) : null
         }
@@ -287,9 +292,9 @@ export default function InspectorView({ connected, visible, onLog }: Props) {
           className={`text-[11px] transition-colors px-1.5 py-0.5 rounded ${
             autoOn ? "text-blue-500 bg-blue-500/10" : "text-t-ink4 hover:text-t-ink3"
           }`}
-          title={autoOn ? "Auto-refresh on — click to pause" : "Auto-refresh paused"}
+          title={autoOn ? t("clients.auto.on") : t("clients.auto.off")}
         >
-          {autoOn ? "● Auto" : "○ Auto"}
+          {autoOn ? `● ${t("clients.auto")}` : `○ ${t("clients.auto")}`}
         </button>
         <button
           onClick={() => setShowInternal(s => !s)}
@@ -298,9 +303,9 @@ export default function InspectorView({ connected, visible, onLog }: Props) {
           className={`text-[11px] transition-colors px-1.5 py-0.5 rounded ${
             showInternal ? "text-amber-500 bg-amber-500/10" : "text-t-ink4 hover:text-t-ink3"
           } disabled:opacity-40`}
-          title="Show internal AMQPush consumers (management RPC, notif drainer, await-reply receivers). These have UUID queue names and represent AMQPush itself talking to the broker."
+          title={t("clients.internal.hint")}
         >
-          {showInternal ? "● Internal" : "○ Internal"}
+          {showInternal ? `● ${t("clients.internal")}` : `○ ${t("clients.internal")}`}
         </button>
         <button
           onClick={toggleRaw}
@@ -309,16 +314,16 @@ export default function InspectorView({ connected, visible, onLog }: Props) {
           className={`text-[11px] transition-colors px-1.5 py-0.5 rounded flex items-center gap-1 ${
             showRaw ? "text-blue-500 bg-blue-500/10" : "text-t-ink4 hover:text-t-ink3"
           } disabled:opacity-40`}
-          title="Show the raw JSON Artemis returned — useful when fields show as dashes (field name mismatch across broker versions)"
+          title={t("clients.raw.hint")}
         >
-          <Code className="w-3 h-3" /> Raw
+          <Code className="w-3 h-3" /> {t("clients.raw")}
         </button>
         <button
           onClick={() => refresh(false)}
           disabled={!connected || loading}
           className="px-2 py-1 rounded text-[11px] font-medium text-t-ink4 hover:text-blue-500 hover:bg-blue-500/10 transition-colors flex items-center gap-1 disabled:opacity-40"
         >
-          <RotateCcw className={`w-3 h-3 ${loading ? "animate-spin" : ""}`} /> Refresh
+          <RotateCcw className={`w-3 h-3 ${loading ? "animate-spin" : ""}`} /> {t("clients.refresh")}
         </button>
       </ViewTopBar>
 
@@ -326,13 +331,7 @@ export default function InspectorView({ connected, visible, onLog }: Props) {
       {connected && loaded && !selected && conns.length > 0 && (
         <div className="shrink-0 px-3 py-2 border-b border-t-line bg-blue-500/5 flex items-start gap-2 text-[11px]">
           <Info className="w-3.5 h-3.5 text-blue-500 shrink-0 mt-0.5" />
-          <div className="text-t-ink2 leading-relaxed">
-            Each row is a client currently attached to the broker — including AMQPush itself.
-            Click a row to see what queues that client is consuming and how many messages
-            it currently holds (the <b>Credit</b> column). Use this alongside the{" "}
-            <b>Who holds it?</b> button on a peeked message in Browser to chase "why is
-            this message stuck?".
-          </div>
+          <div className="text-t-ink2 leading-relaxed">{t("clients.intro")}</div>
         </div>
       )}
 
@@ -343,7 +342,7 @@ export default function InspectorView({ connected, visible, onLog }: Props) {
           <input
             value={search}
             onChange={e => setSearch(e.target.value)}
-            placeholder="Filter by user, host, protocol…"
+            placeholder={t("clients.search")}
             className="flex-1 bg-transparent text-xs text-t-ink outline-none placeholder:text-t-ink5"
           />
           {search && (
@@ -360,11 +359,8 @@ export default function InspectorView({ connected, visible, onLog }: Props) {
           <div className="shrink-0 px-3 py-2 border-b border-t-line bg-amber-500/5 flex items-start gap-2 text-[11px]">
             <Info className="w-3.5 h-3.5 text-amber-500 shrink-0 mt-0.5" />
             <div className="text-t-ink2 leading-relaxed flex-1">
-              <span className="text-amber-500 font-medium">Debug view.</span>{" "}
-              Verbatim JSON from <Codey>broker.listConnectionsAsJSON</Codey> and{" "}
-              <Codey>broker.listAllConsumersAsJSON</Codey>. If table fields above show
-              <Codey>—</Codey>, compare the key names below to what AMQPush expects (see
-              source: <Codey>src-tauri/src/broker.rs</Codey>) and report the version mismatch.
+              <span className="text-amber-500 font-medium">{t("clients.debug")}</span>{" "}
+              {t("clients.debug.note")}
             </div>
             <button
               onClick={loadRaw}
@@ -406,26 +402,26 @@ export default function InspectorView({ connected, visible, onLog }: Props) {
         {/* LEFT: connections table */}
         <div className={`${selected ? "w-[55%] border-r border-t-line" : "flex-1"} flex flex-col min-w-0 min-h-0 overflow-hidden`}>
           {!connected ? (
-            <EmptyState icon={<Plug className="w-8 h-8" />} title="Not connected" subtitle="Connect to a broker to inspect active clients" />
+            <EmptyState icon={<Plug className="w-8 h-8" />} title={t("clients.notConnected")} subtitle={t("clients.notConnected.hint")} />
           ) : loading && conns.length === 0 ? (
-            <EmptyState icon={<Loader2 className="w-8 h-8 animate-spin" />} title="Querying broker…" />
+            <EmptyState icon={<Loader2 className="w-8 h-8 animate-spin" />} title={t("clients.querying")} />
           ) : err && conns.length === 0 ? (
             <EmptyState
               variant="error"
-              title="Inspection failed"
+              title={t("clients.failed")}
               subtitle={<>
                 {err}
-                <p className="text-[10px] mt-3 text-t-ink5">Requires Artemis or ActiveMQ Classic with AMQP management enabled</p>
+                <p className="text-[10px] mt-3 text-t-ink5">{t("clients.failed.hint")}</p>
               </>}
               action={
                 <button onClick={() => refresh(false)}
                   className="px-2.5 py-1 rounded-md text-[11px] font-medium bg-t-card border border-t-line text-t-ink2 hover:bg-t-hover transition-colors">
-                  Retry
+                  {t("clients.retry")}
                 </button>
               }
             />
           ) : filteredConns.length === 0 ? (
-            <EmptyState icon={<Network className="w-8 h-8" />} title={search ? "No connections match" : "No active connections"} />
+            <EmptyState icon={<Network className="w-8 h-8" />} title={search ? t("clients.nothing") : t("clients.none")} />
           ) : (
             <div className="flex-1 overflow-auto min-h-0">
               <table className="w-full text-[12px] font-mono table-fixed">
@@ -435,12 +431,12 @@ export default function InspectorView({ connected, visible, onLog }: Props) {
                       relative column sizes the user picked (Client narrow,
                       Age wider). With `table-fixed` these are honored exactly. */}
                   <tr className="text-[10px] uppercase tracking-wider text-t-ink4 select-none">
-                    <th className="text-left pl-3 py-1.5 font-semibold w-[24%]">Client</th>
-                    <th className="text-left px-2 py-1.5 font-semibold w-[28%]">User</th>
-                    <th className="text-left px-2 py-1.5 font-semibold w-[12%]">Proto</th>
-                    <th className="text-left px-2 py-1.5 font-semibold w-[8%]">Cons</th>
-                    <th className="text-left px-2 py-1.5 font-semibold w-[8%]">Sess</th>
-                    <th className="text-left pr-3 px-2 py-1.5 font-semibold w-[20%]">Age</th>
+                    <th className="text-left pl-3 py-1.5 font-semibold w-[24%]">{t("clients.column.client")}</th>
+                    <th className="text-left px-2 py-1.5 font-semibold w-[28%]">{t("clients.column.user")}</th>
+                    <th className="text-left px-2 py-1.5 font-semibold w-[12%]">{t("clients.column.proto")}</th>
+                    <th className="text-left px-2 py-1.5 font-semibold w-[8%]">{t("clients.column.cons")}</th>
+                    <th className="text-left px-2 py-1.5 font-semibold w-[8%]">{t("clients.column.sess")}</th>
+                    <th className="text-left pr-3 px-2 py-1.5 font-semibold w-[20%]">{t("clients.column.age")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -554,11 +550,11 @@ export default function InspectorView({ connected, visible, onLog }: Props) {
                 {conns.find(c => c.connection_id === selected)?.client_address || selected}
               </span>
               <span className="text-[11px] text-t-ink5 font-mono">
-                {selectedConsumers.length} {selectedConsumers.length === 1 ? "consumer" : "consumers"}
+                {t("clients.consumers", { count: selectedConsumers.length })}
               </span>
               <button
                 onClick={() => setSelected(null)}
-                title="Close pane"
+                title={t("clients.close")}
                 className="ml-auto text-t-ink5 hover:text-t-ink3 transition-colors"
               >
                 <X className="w-3.5 h-3.5" />
@@ -567,16 +563,16 @@ export default function InspectorView({ connected, visible, onLog }: Props) {
 
             <div className="flex-1 overflow-auto min-h-0">
               {selectedConsumers.length === 0 ? (
-                <EmptyState icon={<Inbox className="w-8 h-8" />} title="No consumers on this connection" subtitle="The client is connected but isn't subscribed to any queue" />
+                <EmptyState icon={<Inbox className="w-8 h-8" />} title={t("clients.noConsumers")} subtitle={t("clients.noConsumers.hint")} />
               ) : (
                 <table className="w-full text-[12px] font-mono table-fixed">
                   <thead className="sticky top-0 z-10 bg-t-panel border-b border-t-line">
                     <tr className="text-[10px] uppercase tracking-wider text-t-ink4 select-none">
-                      <th className="text-left pl-3 py-1.5 font-semibold w-[30%]">Queue</th>
-                      <th className="text-left px-2 py-1.5 font-semibold w-[30%]">Address</th>
-                      <th className="text-left px-2 py-1.5 font-semibold w-[10%]" title="Credit currently outstanding to this consumer">Credit</th>
-                      <th className="text-left px-2 py-1.5 font-semibold w-[15%]" title="Time since last delivery">Last RX</th>
-                      <th className="text-left pr-3 px-2 py-1.5 font-semibold w-[15%]">Age</th>
+                      <th className="text-left pl-3 py-1.5 font-semibold w-[30%]">{t("clients.column.queue")}</th>
+                      <th className="text-left px-2 py-1.5 font-semibold w-[30%]">{t("clients.column.address")}</th>
+                      <th className="text-left px-2 py-1.5 font-semibold w-[10%]" title={t("clients.column.credit.hint")}>{t("clients.column.credit")}</th>
+                      <th className="text-left px-2 py-1.5 font-semibold w-[15%]" title={t("clients.column.lastRx.hint")}>{t("clients.column.lastRx")}</th>
+                      <th className="text-left pr-3 px-2 py-1.5 font-semibold w-[15%]">{t("clients.column.age")}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -585,7 +581,7 @@ export default function InspectorView({ connected, visible, onLog }: Props) {
                         <td className="py-1.5 pl-3 truncate text-t-ink" title={k.queue}>
                           {k.queue}
                           {k.browse_only && (
-                            <span className="ml-1.5 text-[10px] px-1 rounded font-medium bg-amber-500/15 text-amber-500" title="Browse-only consumer">browse</span>
+                            <span className="ml-1.5 text-[10px] px-1 rounded font-medium bg-amber-500/15 text-amber-500" title={t("clients.browse.hint")}>{t("clients.browse")}</span>
                           )}
                         </td>
                         <td className="py-1.5 px-2 truncate text-t-ink3" title={cleanAddress(k.address)}>{cleanAddress(k.address)}</td>
@@ -606,9 +602,4 @@ export default function InspectorView({ connected, visible, onLog }: Props) {
       )}
     </div>
   );
-}
-
-/** Tiny inline-code helper so the file doesn't need a Code import. */
-function Codey({ children }: { children: React.ReactNode }) {
-  return <code className="text-[10.5px] font-mono px-1 py-0.5 rounded bg-t-card/60 text-t-ink2">{children}</code>;
 }
