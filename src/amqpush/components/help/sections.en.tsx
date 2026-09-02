@@ -59,9 +59,9 @@ export const SECTIONS_EN: HelpSection[] = [
         <H><Plug className="w-4 h-4 text-accent" />Broker &amp; stand</H>
         <P>
           The broker belongs to a <b>stand</b>, right next to the bus address: one stand, one
-          set of settings. Open <b>Connections</b> in the sidebar — the <b>AMQP broker of this
-          stand</b> block sits at the bottom of the stand form. The stand chip in this section's
-          header opens the very same screen.
+          set of settings. Open <b>Connections</b> in the sidebar — the <b>AMQP</b> block sits
+          at the bottom of the stand form. The stand chip in this section's header opens the
+          very same screen.
         </P>
         <P>
           Which stand is active is decided in the app header, the same one the API section
@@ -79,8 +79,8 @@ export const SECTIONS_EN: HelpSection[] = [
         <Row label="SASL ANONYMOUS">Connect without credentials at all; the broker has to allow anonymous logins.</Row>
         <Row label="Over WebSocket">Tunnel AMQP through <Code>ws://</Code> (or <Code>wss://</Code> with TLS on) instead of raw TCP. Reaches brokers that publish AMQP over a WebSocket binding — RabbitMQ with <Code>rabbitmq_web_amqp</Code>, Azure Service Bus, Amazon MQ, Solace — and gets through firewalls that block 5671 and 5672.</Row>
 
-        <H3>More settings</H3>
-        <P>Set once per broker; <b>More settings</b> at the top right of the block unfolds them, grouped by what they are for.</P>
+        <H3>More Settings</H3>
+        <P>Set once per broker; <b>More Settings</b> at the top right of the block unfolds them, grouped by what they are for. A question mark next to a label opens what that field does.</P>
         <Row label="Broker user / password">Empty means the bus credentials — same as the host. Fill them in when the broker has its own account.</Row>
         <Row label="WebSocket path">The path in the URL when the WebSocket transport is on; empty is the root.</Row>
         <Row label="Container id">How the client introduces itself to the broker; defaults to <Code>amqpush-&lt;uuid&gt;</Code>. Set it when the broker authorises connections by container name, or to make yourself recognisable in broker logs.</Row>
@@ -91,8 +91,9 @@ export const SECTIONS_EN: HelpSection[] = [
         <Row label="mTLS certificate / key / passphrase">
           Mutual TLS, where the broker recognises the client by certificate. Give a path to a
           PEM <Code>.crt</Code> plus a separate unencrypted PKCS#8 <Code>.key</Code>, or to a
-          PKCS#12 <Code>.p12</Code>/<Code>.pfx</Code> bundle with its passphrase. <b>Browse…</b>
-          next to each field opens the system file picker. PEM keys must be unencrypted — convert with <Code>openssl pkcs8 -topk8 -nocrypt</Code>, or use a
+          PKCS#12 <Code>.p12</Code>/<Code>.pfx</Code> bundle with its passphrase. The folder
+          icon inside each field opens the system file picker. PEM keys must be unencrypted —
+          convert with <Code>openssl pkcs8 -topk8 -nocrypt</Code>, or use a
           PKCS#12 bundle. The fields stay disabled until <b>TLS / AMQPS</b> is on: a certificate
           has nothing to ride on without server TLS. <b>Not supported over WebSocket</b> — with
           both enabled the connection errors out.

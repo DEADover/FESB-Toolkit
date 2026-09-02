@@ -1,6 +1,8 @@
-import { useEffect, useId, useMemo, useRef, useState, type ComponentProps, type ReactNode } from 'react'
+import { useCallback, useEffect, useId, useMemo, useRef, useState, type ComponentProps, type ReactNode } from 'react'
 
-import { CaretDown, CaretUp, Check, MagnifyingGlass, X, type Icon } from '@phosphor-icons/react'
+import { createPortal } from 'react-dom'
+
+import { CaretDown, CaretUp, Check, MagnifyingGlass, Question, X, type Icon } from '@phosphor-icons/react'
 
 export function cx(...parts: Array<string | false | null | undefined>): string {
   return parts.filter(Boolean).join(' ')
@@ -251,6 +253,97 @@ export function useClickAway(ref: React.RefObject<HTMLElement | null>, close: ()
     }
   }, [ref, close])
 }
+
+/**
+ * Пояснение к полю: знак вопроса у подписи, по нажатию — текст под ним.
+ *
+ * Всплывающая по наведению подсказка достаётся только мыши и только тому,
+ * кто задержал курсор ровно там, где нужно. Нажатие честнее: за пояснением
+ * приходят осознанно, оно открывается и остаётся, пока его не закроют.
+ *
+ * Само окошко рисуется в конце страницы и стоит по координатам знака:
+ * внутри прокручиваемой формы обычный слой обрезался бы её краем.
+ */
+export function Tip({ text }: { text: string }) {
+  const [open, setOpen] = useState(false)
+  const [at, setAt] = useState<{ left: number; top: number } | null>(null)
+  const box = useRef<HTMLSpanElement>(null)
+  const mark = useRef<HTMLButtonElement>(null)
+  useClickAway(box, useCallback(() => setOpen(false), []))
+
+  /** Координаты берутся у самого знака: форма под окошком может ехать. */
+  const place = useCallback(() => {
+    const rect = mark.current?.getBoundingClientRect()
+    if (!rect) return
+    // Половина ширины окошка — чтобы у края экрана оно не уезжало за него.
+    const half = TIP_WIDTH / 2
+    setAt({
+      left: Math.min(Math.max(rect.left + rect.width / 2, half + 8), window.innerWidth - half - 8),
+      top: rect.bottom + 6,
+    })
+  }, [])
+
+  // Прокрутка формы не закрывает подсказку, а везёт её за знаком: нажатие
+  // на знак у края само подкручивает форму, и закрытие по прокрутке
+  // захлопывало окошко в тот же миг, как оно открылось.
+  useEffect(() => {
+    if (!open) return
+    window.addEventListener('scroll', place, true)
+    window.addEventListener('resize', place)
+    return () => {
+      window.removeEventListener('scroll', place, true)
+      window.removeEventListener('resize', place)
+    }
+  }, [open, place])
+
+  return (
+    <span ref={box} className="inline-flex">
+      <button
+        ref={mark}
+        type="button"
+        title={text}
+        aria-label={text}
+        aria-expanded={open}
+        onClick={() => { place(); setOpen((shown) => !shown) }}
+        className={cx(
+          'grid size-4 place-items-center rounded-full text-content-subtle transition',
+          'hover:bg-surface-3 hover:text-content',
+          open && 'bg-accent/15 text-accent-content',
+          FOCUS_RING,
+        )}
+      >
+        <Question size={11} weight="bold" />
+      </button>
+      {open && at && createPortal(
+        <span
+          role="tooltip"
+          style={{ left: at.left, top: at.top, width: TIP_WIDTH }}
+          className={cx(
+            // Окошко ложится поверх формы, и оно должно читаться как слой
+            // над ней, а не как ещё одно поле: свой фон, рамка, тень
+            // и уголок, указывающий на знак вопроса.
+            'fixed z-50 -translate-x-1/2 rounded-lg border border-accent/40 px-2.5 py-2 ' + TIP_FILL,
+            'text-[11.5px] leading-relaxed text-content shadow-[0_10px_28px_rgba(0,0,0,0.35)]',
+          )}
+        >
+          <span className={cx('absolute -top-1 left-1/2 size-2 -translate-x-1/2 rotate-45 border-l border-t border-accent/40', TIP_FILL)} />
+          {text}
+        </span>,
+        document.body,
+      )}
+    </span>
+  )
+}
+
+const TIP_WIDTH = 240
+
+/**
+ * Заливка подсказки: поверхность с примесью акцента.
+ *
+ * Полупрозрачный акцент показал бы сквозь себя поле под окошком, поэтому
+ * цвет смешивается заранее и остаётся непрозрачным.
+ */
+const TIP_FILL = 'bg-[color-mix(in_oklab,var(--color-accent)_14%,var(--color-surface-3))]' 
 
 /**
  * Одиночный выбор.
@@ -530,9 +623,14 @@ export function Toggle({ checked, onChange, label, disabled, title }: {
       className={cx(
         CONTROL_HEIGHT,
         'flex shrink-0 items-center gap-2 whitespace-nowrap rounded-lg border border-line-strong',
-        'bg-surface px-3 text-[12.5px] text-content-muted',
+        'px-3 text-[12.5px]',
         'has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-1 has-[:focus-visible]:outline-accent',
-        disabled ? 'cursor-not-allowed opacity-45' : 'cursor-pointer',
+        // Недоступный переключатель гасили прозрачностью, и подпись падала
+        // до 1.9:1 — её не прочитать. Он должен быть виден и понятен:
+        // приглушённый фон и тусклый, но читаемый текст.
+        disabled
+          ? 'cursor-not-allowed bg-surface-2 text-content-subtle'
+          : 'cursor-pointer bg-surface text-content-muted',
       )}
     >
       <Checkbox checked={checked} disabled={disabled} onChange={(event) => onChange(event.target.checked)} />

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react'
 
-import { ArrowsLeftRight, CaretDown, Check, FolderOpen, Info, Queue, Trash, Warning } from '@phosphor-icons/react'
+import { ArrowsLeftRight, CaretDown, Check, FolderOpen, Queue, Trash, Warning } from '@phosphor-icons/react'
 
 import { useI18n, type MessageKey } from '../i18n'
 import { apiConnect, apiServerUsage, errorText, selectFile } from '../lib/api'
@@ -11,7 +11,7 @@ import {
 } from '../lib/connection'
 import type { Connection, DiskUsage, ServerInfo, ServerUsage } from '../types'
 import { ScreenBody, ScreenBodyRow, useApiData } from './ApiShell'
-import { Badge, Button, Checkbox, cx, Modal, Notice, Segmented, Spinner, TextInput, TextReadout, Toggle } from './ui'
+import { Badge, Button, Checkbox, cx, FOCUS_RING, Modal, Notice, Segmented, Spinner, TextInput, TextReadout, Tip, Toggle } from './ui'
 import { busHost } from '../lib/broker'
 import type { BrokerSettings } from '../lib/connection'
 
@@ -261,7 +261,10 @@ export function ConnectionScreen({ store, onStore, server, connection, activePro
           </div>
         </div>
 
-        <div className="min-h-0 min-w-0 flex-1 overflow-y-auto">
+        {/* Место под полосу прокрутки занято всегда: без этого нажатие
+            «Больше настроек» удлиняло форму, появлялась полоса — и вся
+            карточка дёргалась влево на её ширину. */}
+        <div className="min-h-0 min-w-0 flex-1 overflow-y-auto [scrollbar-gutter:stable]">
           {draft ? (
             <form onSubmit={submit} className="rounded-xl border border-line bg-surface">
               <div className="flex items-center gap-2 border-b border-line px-5 py-3">
@@ -578,7 +581,9 @@ function BrokerBlock({ broker, busUrl, busUser, onChange }: {
         <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-accent/12 text-accent-content">
           <Queue size={16} weight="regular" />
         </span>
-        <div className="min-w-0 flex-1">
+        {/* Узкое окно скорее перенесёт кнопку вниз, чем сломает подпись
+            по слову: три строки в заголовке читаются хуже, чем два ряда. */}
+        <div className="min-w-40 flex-1">
           <div className="text-[12.5px] font-semibold">{t('broker.section')}</div>
           <p className="text-[11px] leading-relaxed text-content-subtle">{t('broker.section.hint')}</p>
         </div>
@@ -628,14 +633,15 @@ function BrokerBlock({ broker, busUrl, busUser, onChange }: {
             label={t('broker.tls')}
             title={t('broker.tls.hint')}
           />
-          {broker.useTls && (
-            <Toggle
-              checked={broker.tlsSkipVerify}
-              onChange={(value) => set('tlsSkipVerify', value)}
-              label={t('broker.tls.skip')}
-              title={t('broker.tls.skip.hint')}
-            />
-          )}
+          {/* Переключатель не исчезает без TLS, а гаснет: пропавший орган
+              управления заставляет гадать, был ли он вообще. */}
+          <Toggle
+            checked={broker.tlsSkipVerify && broker.useTls}
+            disabled={!broker.useTls}
+            onChange={(value) => set('tlsSkipVerify', value)}
+            label={t('broker.tls.skip')}
+            title={broker.useTls ? t('broker.tls.skip.hint') : t('broker.tls.skip.needsTls')}
+          />
           <Toggle
             checked={broker.saslAnonymous}
             onChange={(value) => set('saslAnonymous', value)}
@@ -786,6 +792,7 @@ function BrokerBlock({ broker, busUrl, busUser, onChange }: {
                     value={broker.clientCertPath}
                     placeholder={fileExample('client.crt')}
                     disabled={!broker.useTls}
+                    pickLabel={t('broker.cert.pick')}
                     onChange={(value) => set('clientCertPath', value)}
                     onPick={() => void pickFile('clientCertPath', t('broker.cert.pick'), {
                       name: t('broker.mtls.certificates'),
@@ -799,6 +806,7 @@ function BrokerBlock({ broker, busUrl, busUser, onChange }: {
                     value={broker.clientKeyPath}
                     placeholder={fileExample('client.key')}
                     disabled={!broker.useTls}
+                    pickLabel={t('broker.key.pick')}
                     onChange={(value) => set('clientKeyPath', value)}
                     onPick={() => void pickFile('clientKeyPath', t('broker.key.pick'), {
                       name: t('broker.mtls.keys'),
@@ -867,30 +875,48 @@ function fileExample(name: string): string {
   return navigator.userAgent.includes('Windows') ? `C:\\certs\\${name}` : `~/certs/${name}`
 }
 
-/** Путь к файлу: поле и кнопка выбора системным окном рядом с ним. */
-function FilePick({ id, value, placeholder, disabled, onChange, onPick }: {
+/**
+ * Путь к файлу: поле, а в нём значок выбора.
+ *
+ * Кнопка со словом «Обзор» рядом с полем отнимала у пути треть ширины,
+ * и в двух полях подряд читалась дважды. Значок стоит в самом поле —
+ * там же, где его ищут в системных диалогах.
+ */
+function FilePick({ id, value, placeholder, disabled, pickLabel, onChange, onPick }: {
   id: string
   value: string
   placeholder: string
   disabled?: boolean
+  /** Что делает значок: подсказка мышью и подпись для экранного диктора. */
+  pickLabel: string
   onChange: (value: string) => void
   onPick: () => void
 }) {
-  const { t } = useI18n()
   return (
-    <div className="flex items-center gap-2">
+    <div className="relative">
       <TextInput
         id={id}
-        className="min-w-0 flex-1"
+        className="pr-9"
         value={value}
         placeholder={placeholder}
         disabled={disabled}
         onChange={(event) => onChange(event.target.value)}
       />
-      <Button size="sm" className="h-9 shrink-0" onClick={onPick} disabled={disabled}>
-        <FolderOpen size={13} weight="regular" />
-        {t('broker.browse')}
-      </Button>
+      <button
+        type="button"
+        onClick={onPick}
+        disabled={disabled}
+        title={pickLabel}
+        aria-label={pickLabel}
+        className={cx(
+          'absolute right-1 top-1/2 grid size-7 -translate-y-1/2 place-items-center rounded-md transition',
+          'text-content-subtle hover:bg-surface-3 hover:text-content',
+          'disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent',
+          FOCUS_RING,
+        )}
+      >
+        <FolderOpen size={15} weight="regular" />
+      </button>
     </div>
   )
 }
@@ -912,14 +938,12 @@ function Field({ label, htmlFor, hint, tip, children }: {
 }) {
   return (
     <div className="min-w-0">
-      <label className="mb-1.5 flex items-center gap-1 text-[11px] tracking-wide text-content-subtle" htmlFor={htmlFor}>
-        <span className="min-w-0 truncate">{label}</span>
-        {tip && (
-          <span title={tip} aria-label={tip} className="shrink-0 cursor-help text-content-subtle/80">
-            <Info size={12} weight="bold" />
-          </span>
-        )}
-      </label>
+      {/* Знак вопроса стоит рядом с подписью, но вне её: нажатие на него
+          не должно попадать в поле, к которому подпись привязана. */}
+      <div className="mb-1.5 flex items-center gap-1">
+        <label className="min-w-0 truncate text-[11px] tracking-wide text-content-subtle" htmlFor={htmlFor}>{label}</label>
+        {tip && <Tip text={tip} />}
+      </div>
       {children}
       {hint && <p className="mt-1 truncate text-[10.5px] text-content-subtle" title={hint}>{hint}</p>}
     </div>
