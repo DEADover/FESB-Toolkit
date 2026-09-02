@@ -890,7 +890,7 @@ export default function SubscriberView({ connected, defaultAddress, activeProfil
               className="w-full font-mono text-[12.5px] bg-t-field border border-t-line2 rounded-lg px-2.5 py-1.5 text-t-ink outline-none focus:border-accent-content focus:ring-1 focus:ring-accent-content/30 transition-all placeholder:text-t-ink5"
             />
             <p className="text-[10.5px] text-t-ink5 mt-1">
-              Wildcard pattern applied via <span className="font-mono">apache.org:legacy-amqp-topic-binding:string</span>.
+              {t("recv.topic.applied")}
               Wildcard syntax is broker-specific — Artemis multicast: <span className="font-mono">*</span> (one word) / <span className="font-mono">#</span> (zero+ words).
               Solace: <span className="font-mono">*</span> / <span className="font-mono">&gt;</span>. Works alongside Selector if both are set.
             </p>
@@ -1514,7 +1514,7 @@ function PreviewDetails({ msg, bodyMode, setBodyMode, onLog }: {
           {bodyContent ?? <em className="text-t-ink5">{t("recv.body.none")}</em>}
         </pre>
         {msg.is_truncated && (
-          <p className="text-[10.5px] text-caution mt-1">⚠ Truncated for list display.</p>
+          <p className="text-[10.5px] text-caution mt-1">{t("recv.truncated")}</p>
         )}
       </CollapsibleSection>
     </div>
@@ -1548,7 +1548,7 @@ function RulesModal({ rules, onChange, onClose }: {
         <div className="shrink-0 px-4 py-2.5 border-b border-t-line bg-t-panel flex items-center gap-2">
           <Palette className="w-3.5 h-3.5 text-t-ink4" />
           <span className="text-[13px] font-semibold text-t-ink">{t("recv.rules")}</span>
-          <span className="text-[11.5px] text-t-ink5">— colour-tag matching messages in the list</span>
+          <span className="text-[11.5px] text-t-ink5">{t("recv.rules.colour")}</span>
           <button onClick={onClose} className="ml-auto p-1 rounded-md hover:bg-t-hover text-t-ink4 hover:text-t-ink">
             <X className="w-3.5 h-3.5" />
           </button>

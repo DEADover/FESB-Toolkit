@@ -55,7 +55,7 @@ interface Props {
   onTabChange?: (tab: string) => void;
 }
 
-const INPUT = "bg-t-field border border-t-line2 rounded-lg px-2.5 py-1.5 text-[12.5px] text-t-ink outline-none focus:border-accent focus:ring-2 focus:ring-accent/25 transition-all placeholder:text-t-ink5";
+const INPUT = "h-9 rounded-lg border border-line-strong bg-surface px-3 text-[12.5px] text-content outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/25 placeholder:text-content-subtle";
 
 type BodyMode = "none" | "raw" | "binary";
 type RawType  = "text" | "json" | "xml";
@@ -1301,7 +1301,7 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
             {/* Sub-toolbar */}
             <div className="shrink-0 h-9 px-3 flex items-center gap-2 border-b border-t-line bg-t-panel">
               <span className="text-[11.5px] text-t-ink4">
-                Custom application-properties — values support <code className="text-accent font-mono">{`{{token}}`}</code> substitution.
+                {t("send.props.note")}
               </span>
               <button onClick={addProp}
                 className="ml-auto h-7 px-2.5 rounded-lg text-[12px] font-medium text-t-ink4 hover:text-t-ink hover:bg-t-hover transition-colors flex items-center gap-1">
@@ -1331,7 +1331,7 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
                   action={
                     <button onClick={addProp}
                       className="text-[11.5px] text-accent hover:text-accent-content transition-colors">
-                      + Add your first property
+                      {t("send.props.first")}
                     </button>
                   }
                 />
@@ -1386,7 +1386,7 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
             {/* Sub-toolbar: caption + Presets dropdown + Add */}
             <div className="shrink-0 h-9 px-3 border-b border-t-line bg-t-panel flex items-center gap-2">
               <span className="text-[11.5px] text-t-ink4">
-                Use <code className="text-accent font-mono">{`{{key}}`}</code> in body — replaced on each send.
+                {t("send.vars.note")}
               </span>
 
               {/* Presets dropdown — click-to-open via shared Dropdown */}
@@ -1450,7 +1450,7 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
                   action={
                     <button onClick={addUserVar}
                       className="text-[11.5px] text-accent hover:text-accent-content transition-colors">
-                      + Add your first variable
+                      {t("send.vars.first")}
                     </button>
                   }
                 />
@@ -1509,7 +1509,7 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
 
             <div className="shrink-0 px-3 py-1.5 border-t border-t-line bg-t-panel flex items-center gap-2">
               <span className="text-[10.5px] text-t-ink5">
-                Runs once per send (so once per batch iteration too — useful for unique IDs and timestamps).
+                {t("send.prescript.note")}
               </span>
               <button
                 onClick={async () => {
@@ -1842,8 +1842,7 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
                       </div>
 
                       <Callout variant="info">
-                        Pre-script runs once per row with column values available via <code>ctx.get("col_name")</code>.
-                        Schema validation is skipped in CSV mode for throughput.
+                        {t("send.csv.prescriptNote")}
                       </Callout>
                     </>
                   )}
@@ -2177,12 +2176,8 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
         {tab === "chaos" && (
           <div className="flex-1 min-h-0 overflow-y-auto p-3 space-y-3">
             <div className="text-[11.5px] text-t-ink5 leading-relaxed">
-              Apply opt-in mutations to the message <i>{t("send.chaos.whenNote")}</i>, so you can poke at how
-              your consumer handles malformed input without hand-crafting bad payloads. Each toggle
-              is independent; combine them to stress multiple paths at once.
-              <span className="block mt-1 text-caution">
-                ⚠ These break the contract on purpose — don't leave them on for normal sends.
-              </span>
+              {t("send.chaos.intro")}
+              <span className="block mt-1 text-caution">{t("send.chaos.warn")}</span>
             </div>
 
             {/* 1) Oversized body — pad to N MB */}
@@ -2193,10 +2188,7 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
                 <span className="text-[13px] text-t-ink2 font-medium">{t("send.chaos.oversized")}</span>
               </label>
               <div className={`pl-5 space-y-1 text-[11.5px] ${chaosPadBody ? "" : "opacity-50"}`}>
-                <p className="text-t-ink5">
-                  Pad the body with random ASCII to the size below. Useful for triggering broker
-                  max-message-size limits or testing how the consumer streams large frames.
-                </p>
+                <p className="text-t-ink5">{t("send.chaos.oversized.note")}</p>
                 <div className="flex items-center gap-2">
                   <label className="text-[10px] uppercase tracking-wide text-content-subtle">{t("send.chaos.size")}</label>
                   <input type="number" min="0.1" step="0.5" value={chaosPadSizeMb}
@@ -2216,11 +2208,7 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
                 <span className="text-[13px] text-t-ink2 font-medium">{t("send.chaos.contentType")}</span>
               </label>
               <div className={`pl-5 space-y-1 text-[11.5px] ${chaosWrongCt ? "" : "opacity-50"}`}>
-                <p className="text-t-ink5">
-                  Force <span className="font-mono">content-type</span> regardless of what the
-                  body subtype dictates — surfaces consumers that trust the header instead of
-                  sniffing the body.
-                </p>
+                <p className="text-t-ink5">{t("send.chaos.contentType.note")}</p>
                 <input value={chaosWrongCtValue}
                   disabled={!chaosWrongCt}
                   onChange={e => setChaosWrongCtValue(e.target.value)}
@@ -2237,10 +2225,7 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
                 <span className="text-[13px] text-t-ink2 font-medium">{t("send.chaos.malformed")}</span>
               </label>
               <p className={`pl-5 text-[11.5px] text-t-ink5 ${chaosCorruptJson ? "" : "opacity-50"}`}>
-                Drop the closing <span className="font-mono">{"}"}</span> or <span className="font-mono">]</span>{" "}
-                of the body so consumers using a strict JSON parser blow up. Only takes effect when
-                the body looks like JSON (starts with <span className="font-mono">{"{"}</span> or{" "}
-                <span className="font-mono">[</span>); ignored otherwise.
+                {t("send.chaos.malformed.note")}
               </p>
             </div>
 
@@ -2252,12 +2237,7 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
                 <span className="text-[13px] text-t-ink2 font-medium">{t("send.chaos.strip")}</span>
               </label>
               <div className={`pl-5 space-y-1 text-[11.5px] ${chaosDropProp ? "" : "opacity-50"}`}>
-                <p className="text-t-ink5">
-                  Removes the named property from the outgoing message — useful for testing
-                  consumers that expect a required header (e.g.{" "}
-                  <span className="font-mono">tenant_id</span>,{" "}
-                  <span className="font-mono">trace_id</span>).
-                </p>
+                <p className="text-t-ink5">{t("send.chaos.strip.note")}</p>
                 <input value={chaosDropPropKey}
                   disabled={!chaosDropProp}
                   onChange={e => setChaosDropPropKey(e.target.value)}
@@ -2601,7 +2581,7 @@ function SchemaModal({
           <div className="flex-1 min-w-0">
             <div className="text-[13px] text-t-ink font-medium">{title}</div>
             <div className="text-[10.5px] text-t-ink5">
-              Validates the Body against this schema before sending.
+              {t("send.schemaModal.note")}
             </div>
           </div>
           <button

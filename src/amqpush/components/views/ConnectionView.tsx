@@ -71,7 +71,7 @@ interface Props {
 // Canonical form-label class: matches `<SectionLabel>` typography
 // (`font-semibold tracking-wider`) so labels never drift from section headings.
 const LABEL = "block text-[10px] uppercase tracking-wide text-content-subtle mb-1.5";
-const INPUT = "w-full bg-t-field border border-t-line2 rounded-lg px-2.5 py-1.5 text-[12.5px] text-t-ink outline-none focus:border-accent focus:ring-2 focus:ring-accent/25 transition-all placeholder:text-t-ink5";
+const INPUT = "w-full h-9 rounded-lg border border-line-strong bg-surface px-3 text-[12.5px] text-content outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/25 placeholder:text-content-subtle";
 
 const DEFAULTS: ConnForm = {
   host: "127.0.0.1",

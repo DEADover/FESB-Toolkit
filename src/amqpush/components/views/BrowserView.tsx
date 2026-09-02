@@ -1244,9 +1244,7 @@ function MessageDetails({ msg, idx, queue, onLog, onRequeue, onEditRequeue, requ
           )}
           {holderCons.some(k => k.messages_in_transit > 0) && (
             <div className="mt-2 text-[10.5px] text-t-ink5 leading-relaxed">
-              Rows highlighted in blue have unacked credit. They're the most likely
-              candidates for holding this message — but Artemis doesn't expose a per-message
-              lock owner via management, so this is an inference, not a guarantee.
+              {t("browser.holders.note")}
             </div>
           )}
         </div>
@@ -1479,7 +1477,7 @@ function EditRequeueModal({ messages, onResubmit, onLog, onClose }: {
                   onChange={e => updateDraft({ target: e.target.value })}
                   placeholder={t("browser.edit.target.placeholder")}
                   spellCheck={false}
-                  className="flex-1 bg-t-field border border-t-line2 rounded-lg px-2.5 py-1.5 text-[12.5px] font-mono text-t-ink outline-none focus:border-accent focus:ring-2 focus:ring-accent/25 transition-all placeholder:text-t-ink5"
+                  className="flex-1 h-9 rounded-lg border border-line-strong bg-surface px-3 text-[12.5px] text-content outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/25 placeholder:text-content-subtle font-mono"
                 />
                 {(() => {
                   const origin = originalDestination(msg.application_properties);
@@ -1512,17 +1510,16 @@ function EditRequeueModal({ messages, onResubmit, onLog, onClose }: {
                 className="bg-t-field border border-t-line2 rounded-lg overflow-hidden"
               />
               <p className="text-[10.5px] text-t-ink5 mt-1">
-                Application properties are preserved automatically (minus DLQ-internal markers
-                like <span className="font-mono">_AMQ_ORIG_*</span>). Only the body is editable here.
+                {t("browser.edit.propsNote")}
               </p>
             </div>
 
             {/* Per-step result indicator (if user came back to a completed step) */}
             {results[step] && (
               <div className="text-[11.5px] flex items-center gap-1">
-                {results[step] === "sent" && <span className="text-positive">✓ Already resubmitted this step</span>}
+                {results[step] === "sent" && <span className="text-positive">{t("browser.edit.already")}</span>}
                 {results[step] === "skipped" && <span className="text-t-ink4">○ Previously skipped</span>}
-                {results[step] === "failed" && <span className="text-negative">✗ Previous attempt failed — try again</span>}
+                {results[step] === "failed" && <span className="text-negative">{t("browser.edit.prevFailed")}</span>}
               </div>
             )}
           </div>
@@ -1774,7 +1771,7 @@ function ShovelModal({ messages, sourceQueue, profiles, activeProfile, onLog, on
             <div className="text-[10px] uppercase tracking-wide text-content-subtle mb-1">{t("browser.shovel.target")}</div>
             {otherProfiles.length === 0 ? (
               <div className="text-[11.5px] text-caution">
-                Only the active profile is saved — add another profile to shovel between brokers.
+                {t("browser.shovel.onlyOne")}
               </div>
             ) : (
               <div className="grid grid-cols-2 gap-2">
