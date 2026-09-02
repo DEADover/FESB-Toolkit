@@ -22,6 +22,26 @@ chrono = { version = "0.4", default-features = false, features = ["clock", "std"
 zip = { version = "2", default-features = false, features = ["deflate"] }
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "multipart", "json", "charset", "http2"] }
 
+# ── AMQPush: клиент брокеров AMQP 1.0 ───────────────────────────────────────
+# Движок перенесён из отдельного приложения целиком. Он ходит по AMQP через
+# native-tls (SChannel на Windows, Security.framework на macOS), тогда как
+# HTTP к шине идёт через rustls: это разные крейты, они не спорят.
+tauri-plugin-notification = "2"
+tokio = { version = "1", features = ["full"] }
+fe2o3-amqp = { version = "0.14", features = ["native-tls"] }
+fe2o3-amqp-types = "0.14"
+# Транспорт поверх WebSocket — для брокеров за корпоративным фаерволом,
+# где 5671/5672 закрыты.
+fe2o3-amqp-ws = { version = "0.14", features = ["native-tls"] }
+# Нужен напрямую, чтобы собрать Described<Value> для набора фильтров
+# JMS-селектора; fe2o3-amqp-types тянет ту же версию транзитивно.
+serde_amqp = "0.14"
+native-tls = "0.2"
+tokio-native-tls = "0.3"
+uuid = { version = "1", features = ["v4"] }
+dirs = "6"
+base64 = "0.22"
+
 [dev-dependencies]
 zip = { version = "2", default-features = false, features = ["deflate"] }
 

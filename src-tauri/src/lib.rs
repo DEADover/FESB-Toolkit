@@ -7,6 +7,7 @@ mod applier;
 mod analytics;
 mod api_report;
 mod archive;
+mod amqpush;
 mod certificates;
 mod compare;
 mod domain_xml;
@@ -510,6 +511,13 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
+        // Уведомления нужны разделу AMQP: он сообщает о пришедшем сообщении,
+        // когда окно свёрнуто.
+        .plugin(tauri_plugin_notification::init())
+        // Состояние раздела AMQP: открытое соединение с брокером, живые
+        // подписчики и история отправок. Живёт рядом с состоянием шины
+        // и ничего о ней не знает.
+        .manage(amqpush::AppState::new())
         .invoke_handler(tauri::generate_handler![
             app_info,
             scan_directory,
@@ -558,7 +566,49 @@ pub fn run() {
             api_delete_property,
             api_log_files,
             api_log,
-            api_audit
+            api_audit,
+            // ── раздел AMQP: перенесённый движок AMQPush ──────────────────
+            amqpush::connect,
+            amqpush::disconnect,
+            amqpush::connection_info,
+            amqpush::send_message,
+            amqpush::start_subscriber,
+            amqpush::stop_subscriber,
+            amqpush::list_subscribers,
+            amqpush::get_history,
+            amqpush::clear_history,
+            amqpush::get_profiles,
+            amqpush::save_profile,
+            amqpush::delete_profile,
+            amqpush::export_profiles,
+            amqpush::import_profiles,
+            amqpush::get_saved_queues,
+            amqpush::save_queue,
+            amqpush::delete_queue,
+            amqpush::verify_queue,
+            amqpush::get_templates,
+            amqpush::save_template,
+            amqpush::delete_template,
+            amqpush::rename_template,
+            amqpush::list_recordings,
+            amqpush::get_recording,
+            amqpush::save_recording,
+            amqpush::delete_recording,
+            amqpush::play_recording,
+            amqpush::shovel_open_target,
+            amqpush::shovel_send_to_target,
+            amqpush::shovel_close_target,
+            amqpush::export_history,
+            amqpush::await_reply,
+            amqpush::list_broker_queues,
+            amqpush::peek_messages,
+            amqpush::purge_queue,
+            amqpush::remove_messages_by_ids,
+            amqpush::ping_broker,
+            amqpush::list_broker_connections,
+            amqpush::list_broker_consumers,
+            amqpush::fetch_broker_connections_raw,
+            amqpush::fetch_broker_consumers_raw
         ])
         .run(tauri::generate_context!())
         .expect("failed to start the application");
