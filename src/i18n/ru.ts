@@ -48,7 +48,6 @@ export const ru: Record<keyof typeof en, string> = {
   'domainLinks.empty': 'Связей не найдено',
 
   'nav.api': 'API',
-  'nav.api.connection': 'Подключение',
   'nav.api.domains': 'Домены',
 
   'action.selectFolder': 'Выбрать папку',
@@ -318,7 +317,6 @@ export const ru: Record<keyof typeof en, string> = {
   'skip.value-changed': 'Значение изменилось с момента сканирования',
   'skip.already-set': 'Значение уже было нужным',
 
-  'nav.api.connection.title': 'Подключение к Серверу',
   'nav.api.domains.title': 'Домены Сервера',
 
   'header.server': 'Сервер',
@@ -836,7 +834,10 @@ export const ru: Record<keyof typeof en, string> = {
   'property.part.store': 'Хранилище',
 
   'nav.amqp': 'AMQP Client',
-  'nav.amqp.connection': 'Подключение к брокеру',
+  'nav.connection': 'Подключения',
+  'connections.kind': 'К чему подключаемся',
+  'connections.fesb': 'Шина FESB',
+  'connections.amqp': 'Брокер AMQP',
   'nav.amqp.publisher': 'Отправка',
   'nav.amqp.subscriber': 'Приём',
   'nav.amqp.browser': 'Очереди',

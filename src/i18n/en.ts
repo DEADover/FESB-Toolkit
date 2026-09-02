@@ -47,7 +47,6 @@ export const en = {
   'domainLinks.empty': 'No links found',
 
   'nav.api': 'API',
-  'nav.api.connection': 'Connection',
   'nav.api.domains': 'Domains',
 
   'action.selectFolder': 'Select Folder',
@@ -318,7 +317,6 @@ export const en = {
   'skip.already-set': 'Value was already correct',
 
 
-  'nav.api.connection.title': 'Server Connection',
   'nav.api.domains.title': 'Server Domains',
 
   'header.server': 'Server',
@@ -836,7 +834,10 @@ export const en = {
   'property.part.store': 'Storage',
 
   'nav.amqp': 'AMQP Client',
-  'nav.amqp.connection': 'Broker Connection',
+  'nav.connection': 'Connections',
+  'connections.kind': 'What to connect to',
+  'connections.fesb': 'FESB Bus',
+  'connections.amqp': 'AMQP Broker',
   'nav.amqp.publisher': 'Send',
   'nav.amqp.subscriber': 'Receive',
   'nav.amqp.browser': 'Queues',

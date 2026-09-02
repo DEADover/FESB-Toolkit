@@ -64,11 +64,11 @@ export function CommandPalette({ open, onClose, store, onScreen, onConnect, onCo
         run: () => onScreen(entry.id),
       })),
       {
-        id: 'api.connection',
-        label: t('nav.api.connection.title'),
+        id: 'connection',
+        label: t('nav.connection'),
         group: t('nav.api'),
         icon: Gear,
-        run: () => onScreen('api.connection'),
+        run: () => onScreen('connection'),
       },
       ...sortByLabel(API_SCREENS, (entry) => t(entry.label), language).map((entry) => ({
         id: entry.id,

@@ -24,7 +24,7 @@ export function NotConnected({ onGoToConnection }: { onGoToConnection: () => voi
       text={rich('api.notConnected.text', {
         connection: <ActionLink onClick={onGoToConnection}>{t('link.connection')}</ActionLink>,
       })}
-      action={<Button variant="primary" onClick={onGoToConnection}>{t('nav.api.connection')}</Button>}
+      action={<Button variant="primary" onClick={onGoToConnection}>{t('nav.connection')}</Button>}
     />
   )
 }

@@ -12,7 +12,7 @@ export type ScreenId =
   | 'welcome'
   | 'files.trace'
   | 'files.links'
-  | 'api.connection'
+  | 'connection'
   | 'api.domains'
   | 'api.routes'
   | 'api.tracing'
@@ -129,7 +129,6 @@ const SECTIONS: Section[] = [
   },
   {
     title: 'nav.api',
-    settings: { screen: 'api.connection', title: 'nav.api.connection.title' },
     sorted: true,
     items: API_SCREENS,
   },
@@ -138,7 +137,6 @@ const SECTIONS: Section[] = [
     // разделов в панели три, и у всех трёх одинаковые правила. Подключение
     // к брокеру ушло под шестерёнку — как подключение к шине у раздела API.
     title: 'nav.amqp',
-    settings: { screen: 'amqp.connection', title: 'nav.amqp.connection' },
     items: AMQP_SCREENS,
   },
 ]

@@ -122,14 +122,14 @@ export function WelcomeScreen({
                     {t('nav.api.domains.title')} <ArrowRight size={13} weight="bold" />
                   </Button>
                   <Button onClick={() => onScreen('api.endpoints')}>{t('nav.api.endpoints')}</Button>
-                  <Button variant="ghost" onClick={() => onScreen('api.connection')}>{t('nav.api.connection')}</Button>
+                  <Button variant="ghost" onClick={() => onScreen('connection')}>{t('nav.connection')}</Button>
                 </Actions>
               </>
             ) : (
               <>
                 <p className="text-[12px] leading-relaxed text-content-subtle">{t('welcome.server.text')}</p>
                 <Actions>
-                  <Button variant="primary" onClick={() => onScreen('api.connection')}>
+                  <Button variant="primary" onClick={() => onScreen('connection')}>
                     {t('welcome.connect')}
                   </Button>
                 </Actions>
@@ -150,7 +150,7 @@ export function WelcomeScreen({
                     key={profile.id}
                     type="button"
                     disabled={connecting}
-                    onClick={() => (ready ? onConnect(profile) : onScreen('api.connection'))}
+                    onClick={() => (ready ? onConnect(profile) : onScreen('connection'))}
                     className={cx(
                       'group flex items-center gap-3 rounded-xl border border-line bg-surface px-4 py-3 text-left transition',
                       'hover:border-accent/40 hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-50',

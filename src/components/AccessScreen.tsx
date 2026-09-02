@@ -96,7 +96,7 @@ export function AccessScreen({ connection, server, onGoToConnection }: Props) {
         <ErrorBar error={error} />
         <EmptyState icon={ShieldWarning} title={t('access.empty')} text={t('access.empty.text')}>
           <div className="mt-4">
-            <Button onClick={onGoToConnection}>{t('nav.api.connection')}</Button>
+            <Button onClick={onGoToConnection}>{t('nav.connection')}</Button>
           </div>
         </EmptyState>
       </ScreenBody>
