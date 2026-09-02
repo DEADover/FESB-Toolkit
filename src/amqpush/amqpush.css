@@ -1,38 +1,11 @@
 /**
- * Раздел AMQP: мост между его палитрой и палитрой приложения.
+ * Раздел AMQP: собственные стили, которых нет в утилитах.
  *
- * Перенесённые экраны размечены токенами `t-*` — `bg-t-panel`, `text-t-ink`,
- * `border-t-line`. Переписывать шестнадцать тысяч строк разметки ради других
- * имён незачем: вместо этого токены объявлены здесь и указывают на цвета
- * хозяина. Раздел от этого сам меняет тему вместе с приложением и сам
- * выглядит как остальные экраны — ни одного своего цвета у него не осталось.
- *
- * Пар получилось меньше, чем имён: у AMQPush было пять оттенков текста
- * и шесть поверхностей, у приложения — по три. Лишние сведены к ближайшим,
- * и это к лучшему: разница между `ink2` и `ink3` на глаз не читалась.
+ * Палитра раздела объявлена не здесь, а в `src/index.css`: утилиты Tailwind
+ * рождаются только из темы, которую видит точка входа со своим
+ * `@import "tailwindcss"`. Объявление рядом с разделом давало переменные,
+ * из которых не рождалось ни одной утилиты.
  */
-
-@theme {
-  --color-t-bg: var(--color-canvas);
-  --color-t-panel: var(--color-surface);
-  --color-t-card: var(--color-surface-2);
-  --color-t-field: var(--color-surface);
-  --color-t-hover: var(--color-surface-2);
-  --color-t-active: var(--color-surface-3);
-
-  --color-t-line: var(--color-line);
-  --color-t-line2: var(--color-line-strong);
-
-  --color-t-ink: var(--color-content);
-  --color-t-ink2: var(--color-content-muted);
-  --color-t-ink3: var(--color-content-muted);
-  --color-t-ink4: var(--color-content-subtle);
-  --color-t-ink5: var(--color-line-strong);
-
-  /* Подсветка выделения и парной скобки в редакторе тела сообщения. */
-  --color-t-selection: var(--color-accent);
-}
-
 /* Пульс у кнопки «Скопировать»: подтверждает нажатие до того, как значок
    успеет смениться на галочку. */
 @keyframes amqpush-copy-pulse {

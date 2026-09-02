@@ -69,8 +69,8 @@ interface Props {
 
 // Canonical form-label class: matches `<SectionLabel>` typography
 // (`font-semibold tracking-wider`) so labels never drift from section headings.
-const LABEL = "block text-[10px] font-semibold text-t-ink4 uppercase tracking-wider mb-1.5";
-const INPUT = "w-full bg-t-field border border-t-line2 rounded-md px-2.5 py-1.5 text-[12px] text-t-ink outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30 transition-all placeholder:text-t-ink5";
+const LABEL = "block text-[10.5px] font-semibold text-t-ink4 uppercase tracking-wider mb-1.5";
+const INPUT = "w-full bg-t-field border border-t-line2 rounded-lg px-2.5 py-1.5 text-[12.5px] text-t-ink outline-none focus:border-accent focus:ring-1 focus:ring-accent/30 transition-all placeholder:text-t-ink5";
 
 const DEFAULTS: ConnForm = {
   host: "127.0.0.1",
@@ -422,10 +422,10 @@ export default function ConnectionView({ connected, form, setForm, logs, profile
         <button
           onClick={toggle}
           disabled={connecting}
-          className={`px-3.5 py-1.5 rounded-md text-[12px] font-semibold transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-sm shrink-0 flex items-center gap-1.5 ${
+          className={`px-3.5 py-1.5 rounded-lg text-[12.5px] font-semibold transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-sm shrink-0 flex items-center gap-1.5 ${
             connected
-              ? "bg-red-500/10 border border-red-500/30 text-red-500 hover:bg-red-500/20"
-              : "bg-blue-600 hover:bg-blue-500 text-white"
+              ? "bg-negative/10 border border-negative/30 text-negative hover:bg-negative/20"
+              : "bg-accent-strong hover:bg-accent text-white"
           }`}
         >
           {connecting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : connected ? <Unplug className="w-3.5 h-3.5" /> : <Plug className="w-3.5 h-3.5" />}
@@ -452,8 +452,8 @@ export default function ConnectionView({ connected, form, setForm, logs, profile
           <div className="flex items-center gap-2 mb-1.5 h-4">
             <SectionLabel className="leading-none">Profile</SectionLabel>
             {dirty && sel && !savingAs && !confirmDel && (
-              <span className="text-[10px] text-amber-500 flex items-center gap-1 normal-case font-normal leading-none">
-                <span className="w-1 h-1 rounded-full bg-amber-500" /> Unsaved changes — click Save to update '{sel}'
+              <span className="text-[10.5px] text-caution flex items-center gap-1 normal-case font-normal leading-none">
+                <span className="w-1 h-1 rounded-full bg-caution" /> Unsaved changes — click Save to update '{sel}'
               </span>
             )}
           </div>
@@ -468,13 +468,13 @@ export default function ConnectionView({ connected, form, setForm, logs, profile
                     type="button"
                     onClick={toggle}
                     aria-expanded={open}
-                    className="w-full flex items-center gap-2 bg-t-field border border-t-line2 rounded-md px-2.5 py-1.5 text-[12px] text-t-ink hover:border-t-line2 transition-colors"
+                    className="w-full flex items-center gap-2 bg-t-field border border-t-line2 rounded-lg px-2.5 py-1.5 text-[12.5px] text-t-ink hover:border-t-line2 transition-colors"
                   >
                     {sel ? (
                       <>
                         <span className="font-medium truncate">{sel}</span>
-                        {dirty && <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" title="Unsaved changes" />}
-                        <span className="ml-auto text-[11px] text-t-ink5 font-mono shrink-0">{loaded?.host}:{loaded?.port}</span>
+                        {dirty && <span className="w-1.5 h-1.5 rounded-full bg-caution shrink-0" title="Unsaved changes" />}
+                        <span className="ml-auto text-[11.5px] text-t-ink5 font-mono shrink-0">{loaded?.host}:{loaded?.port}</span>
                       </>
                     ) : (
                       <span className="text-t-ink4 italic">No profile — using current form</span>
@@ -485,7 +485,7 @@ export default function ConnectionView({ connected, form, setForm, logs, profile
               >
                 <div className="max-h-64 overflow-y-auto">
                   {profiles.length === 0 ? (
-                    <p className="text-[11px] text-t-ink5 text-center py-4">No saved profiles</p>
+                    <p className="text-[11.5px] text-t-ink5 text-center py-4">No saved profiles</p>
                   ) : profiles.map(p => (
                     <DropdownItem
                       key={p.name}
@@ -501,10 +501,10 @@ export default function ConnectionView({ connected, form, setForm, logs, profile
                   <button
                     type="button"
                     onClick={newProfile}
-                    className="w-full flex items-center gap-2 px-3 py-1.5 text-left hover:bg-t-hover transition-colors text-blue-500"
+                    className="w-full flex items-center gap-2 px-3 py-1.5 text-left hover:bg-t-hover transition-colors text-accent"
                   >
                     <Plus className="w-3 h-3 shrink-0" />
-                    <span className="text-[12px] font-medium">New profile</span>
+                    <span className="text-[12.5px] font-medium">New profile</span>
                   </button>
                 </DropdownFooter>
               </Dropdown>
@@ -515,7 +515,7 @@ export default function ConnectionView({ connected, form, setForm, logs, profile
               onClick={saveChanges}
               disabled={!sel || !dirty}
               title={sel ? (dirty ? "Save changes" : "No changes to save") : "Use 'Save As' for new profiles"}
-              className="px-2.5 py-1.5 rounded-md bg-t-card border border-t-line text-t-ink4 hover:text-blue-500 hover:border-blue-500/50 disabled:opacity-30 disabled:hover:text-t-ink4 disabled:hover:border-t-line transition-colors flex items-center gap-1 text-[11px] font-medium"
+              className="px-2.5 py-1.5 rounded-lg bg-t-card border border-t-line text-t-ink4 hover:text-accent hover:border-accent/50 disabled:opacity-30 disabled:hover:text-t-ink4 disabled:hover:border-t-line transition-colors flex items-center gap-1 text-[11.5px] font-medium"
             >
               <Save className="w-3.5 h-3.5" />
               Save
@@ -523,7 +523,7 @@ export default function ConnectionView({ connected, form, setForm, logs, profile
             <button
               onClick={() => startSaveAs()}
               title="Save as new profile"
-              className="px-2.5 py-1.5 rounded-md bg-t-card border border-t-line text-t-ink4 hover:text-blue-500 hover:border-blue-500/50 transition-colors text-[11px] font-medium"
+              className="px-2.5 py-1.5 rounded-lg bg-t-card border border-t-line text-t-ink4 hover:text-accent hover:border-accent/50 transition-colors text-[11.5px] font-medium"
             >
               Save as…
             </button>
@@ -531,7 +531,7 @@ export default function ConnectionView({ connected, form, setForm, logs, profile
               onClick={duplicateProfile}
               disabled={!sel}
               title="Duplicate"
-              className="px-2.5 py-1.5 rounded-md bg-t-card border border-t-line text-t-ink4 hover:text-blue-500 hover:border-blue-500/50 disabled:opacity-30 disabled:hover:text-t-ink4 disabled:hover:border-t-line transition-colors"
+              className="px-2.5 py-1.5 rounded-lg bg-t-card border border-t-line text-t-ink4 hover:text-accent hover:border-accent/50 disabled:opacity-30 disabled:hover:text-t-ink4 disabled:hover:border-t-line transition-colors"
             >
               <Copy className="w-3.5 h-3.5" />
             </button>
@@ -539,7 +539,7 @@ export default function ConnectionView({ connected, form, setForm, logs, profile
               onClick={startDelete}
               disabled={!sel}
               title="Delete profile"
-              className="px-2.5 py-1.5 rounded-md bg-t-card border border-t-line text-t-ink4 hover:text-red-500 hover:border-red-500/50 disabled:opacity-30 disabled:hover:text-t-ink4 disabled:hover:border-t-line transition-colors"
+              className="px-2.5 py-1.5 rounded-lg bg-t-card border border-t-line text-t-ink4 hover:text-negative hover:border-negative/50 disabled:opacity-30 disabled:hover:text-t-ink4 disabled:hover:border-t-line transition-colors"
             >
               <Trash2 className="w-3.5 h-3.5" />
             </button>
@@ -556,7 +556,7 @@ export default function ConnectionView({ connected, form, setForm, logs, profile
                   onClick={toggle}
                   aria-expanded={open}
                   title="More profile actions"
-                  className="px-2.5 py-1.5 rounded-md bg-t-card border border-t-line text-t-ink4 hover:text-t-ink hover:border-t-line2 transition-colors"
+                  className="px-2.5 py-1.5 rounded-lg bg-t-card border border-t-line text-t-ink4 hover:text-t-ink hover:border-t-line2 transition-colors"
                 >
                   <MoreVertical className="w-3.5 h-3.5" />
                 </button>
@@ -615,7 +615,7 @@ export default function ConnectionView({ connected, form, setForm, logs, profile
             <div className="mt-2">
               <Callout variant="info">
                 <div className="flex items-center gap-2">
-                  <span className="text-blue-500 font-medium shrink-0">New profile name:</span>
+                  <span className="text-accent font-medium shrink-0">New profile name:</span>
                   <input
                     autoFocus
                     value={newName}
@@ -628,11 +628,11 @@ export default function ConnectionView({ connected, form, setForm, logs, profile
                     className={`${INPUT} flex-1`}
                   />
                   <button onClick={confirmSaveAs} disabled={!newName.trim()}
-                    className="px-2.5 py-1.5 rounded-md bg-blue-600 text-white text-[11px] font-semibold hover:bg-blue-500 disabled:opacity-40 transition-colors">
+                    className="px-2.5 py-1.5 rounded-lg bg-accent-strong text-white text-[11.5px] font-semibold hover:bg-accent disabled:opacity-40 transition-colors">
                     Save
                   </button>
                   <button onClick={() => { setSavingAs(false); setNewName(""); }}
-                    className="px-2 py-1.5 rounded-md text-t-ink4 hover:text-t-ink hover:bg-t-hover text-[11px] transition-colors">
+                    className="px-2 py-1.5 rounded-lg text-t-ink4 hover:text-t-ink hover:bg-t-hover text-[11.5px] transition-colors">
                     Cancel
                   </button>
                 </div>
@@ -645,16 +645,16 @@ export default function ConnectionView({ connected, form, setForm, logs, profile
             <div className="mt-2">
               <Callout variant="error">
                 <div className="flex items-center gap-2">
-                  <span className="text-red-500 font-medium shrink-0">
+                  <span className="text-negative font-medium shrink-0">
                     Delete profile '{sel}'?
                   </span>
                   <div className="ml-auto flex gap-1">
                     <button onClick={confirmDelete}
-                      className="px-2.5 py-1 rounded-md bg-red-500 text-white text-[11px] font-semibold hover:bg-red-600 transition-colors">
+                      className="px-2.5 py-1 rounded-lg bg-negative text-white text-[11.5px] font-semibold hover:bg-negative transition-colors">
                       Delete
                     </button>
                     <button onClick={() => setConfirmDel(false)}
-                      className="px-2 py-1 rounded-md text-t-ink4 hover:text-t-ink hover:bg-t-hover text-[11px] transition-colors">
+                      className="px-2 py-1 rounded-lg text-t-ink4 hover:text-t-ink hover:bg-t-hover text-[11.5px] transition-colors">
                       Cancel
                     </button>
                   </div>
@@ -669,8 +669,8 @@ export default function ConnectionView({ connected, form, setForm, logs, profile
         <div className="mb-4">
           <SectionLabel className="block mb-2">Server</SectionLabel>
           <div className="grid grid-cols-2 gap-3">
-            <div><label className={LABEL}>Host <span className="text-red-500">*</span></label><input value={host} onChange={e => setHost(e.target.value)} placeholder="127.0.0.1" className={INPUT} /></div>
-            <div><label className={LABEL}>Port <span className="text-red-500">*</span></label><input value={port} onChange={e => setPort(e.target.value)} placeholder="5672" className={INPUT} /></div>
+            <div><label className={LABEL}>Host <span className="text-negative">*</span></label><input value={host} onChange={e => setHost(e.target.value)} placeholder="127.0.0.1" className={INPUT} /></div>
+            <div><label className={LABEL}>Port <span className="text-negative">*</span></label><input value={port} onChange={e => setPort(e.target.value)} placeholder="5672" className={INPUT} /></div>
           </div>
           {/* Workspace — groups this profile under a named bucket in the
               header picker and Cmd+K palette. Free-form text with autocomplete
@@ -687,7 +687,7 @@ export default function ConnectionView({ connected, form, setForm, logs, profile
               usage={workspaceUsage}
               onDelete={deleteWorkspace}
             />
-            <p className="text-[10px] text-t-ink5 mt-1">
+            <p className="text-[10.5px] text-t-ink5 mt-1">
               Profiles are grouped by workspace in the header picker and Cmd+K palette.
             </p>
           </div>
@@ -707,29 +707,29 @@ export default function ConnectionView({ connected, form, setForm, logs, profile
           <SectionLabel className="block mb-2">Security</SectionLabel>
 
           {/* TLS / AMQPS toggle card */}
-          <div className="flex items-center justify-between p-2.5 rounded-lg bg-t-card border border-t-line mb-2">
+          <div className="flex items-center justify-between p-2.5 rounded-xl bg-t-card border border-t-line mb-2">
             <div className="flex flex-col">
               <span className="text-[13px] text-t-ink2">TLS / AMQPS</span>
-              <span className="text-[10px] text-t-ink5">Encrypt connection with TLS</span>
+              <span className="text-[10.5px] text-t-ink5">Encrypt connection with TLS</span>
             </div>
             <Toggle checked={useTls} onChange={setUseTls} ariaLabel="TLS / AMQPS" />
           </div>
 
           {/* Skip cert verification — sub-option, only when TLS on */}
           {useTls && (
-            <label className="flex items-center gap-2 cursor-pointer text-[11px] text-t-ink3 px-2.5 mb-2">
+            <label className="flex items-center gap-2 cursor-pointer text-[11.5px] text-t-ink3 px-2.5 mb-2">
               <input type="checkbox" checked={tlsSkipVerify} onChange={e => setTlsSkipVerify(e.target.checked)}
-                className="w-3.5 h-3.5 accent-blue-600 cursor-pointer" />
+                className="w-3.5 h-3.5 accent-accent-strong cursor-pointer" />
               Skip certificate verification
-              <span className="text-amber-500 text-[10px]">(insecure — only for self-signed/test brokers)</span>
+              <span className="text-caution text-[10.5px]">(insecure — only for self-signed/test brokers)</span>
             </label>
           )}
 
           {/* Force SASL ANONYMOUS — same toggle-card style */}
-          <div className="flex items-center justify-between p-2.5 rounded-lg bg-t-card border border-t-line mb-2">
+          <div className="flex items-center justify-between p-2.5 rounded-xl bg-t-card border border-t-line mb-2">
             <div className="flex flex-col">
               <span className="text-[13px] text-t-ink2">Force SASL ANONYMOUS</span>
-              <span className="text-[10px] text-t-ink5">Skip credentials and connect anonymously</span>
+              <span className="text-[10.5px] text-t-ink5">Skip credentials and connect anonymously</span>
             </div>
             <Toggle checked={saslAnonymous} onChange={setSaslAnonymous} ariaLabel="Force SASL ANONYMOUS" />
           </div>
@@ -737,10 +737,10 @@ export default function ConnectionView({ connected, form, setForm, logs, profile
           {/* WebSocket transport — opt-in. AMQP rides over ws:// (or wss://
               when TLS is also on). Useful behind firewalls that block raw
               5671/5672, and for cloud brokers (Azure SB, Amazon MQ, etc.). */}
-          <div className="flex items-center justify-between p-2.5 rounded-lg bg-t-card border border-t-line">
+          <div className="flex items-center justify-between p-2.5 rounded-xl bg-t-card border border-t-line">
             <div className="flex flex-col">
               <span className="text-[13px] text-t-ink2">AMQP over WebSocket</span>
-              <span className="text-[10px] text-t-ink5">
+              <span className="text-[10.5px] text-t-ink5">
                 Tunnel AMQP through {useTls ? "wss" : "ws"}://host:port{wsPath ? `/${wsPath}` : ""}
               </span>
             </div>
@@ -751,7 +751,7 @@ export default function ConnectionView({ connected, form, setForm, logs, profile
           {useWs && (
             <div className="px-2.5 mt-2">
               <label className="flex flex-col gap-1">
-                <span className="text-[10px] font-semibold text-t-ink4 uppercase tracking-wider">
+                <span className="text-[10.5px] font-semibold text-t-ink4 uppercase tracking-wider">
                   WS path
                   <span className="text-t-ink5 normal-case font-normal"> — optional; broker-specific (e.g. <span className="font-mono">ws</span> for some RabbitMQ setups)</span>
                 </span>
@@ -807,7 +807,7 @@ export default function ConnectionView({ connected, form, setForm, logs, profile
                   placeholder="10" className={INPUT} />
               </div>
             </div>
-            <p className="text-[10px] text-t-ink5 leading-relaxed">
+            <p className="text-[10.5px] text-t-ink5 leading-relaxed">
               <strong className="text-t-ink4">Heartbeat</strong> sends idle keepalive frames every N seconds — useful when a firewall/NAT closes idle TCP connections. Most brokers default to 30s.<br/>
               <strong className="text-t-ink4">Connect timeout</strong> aborts the initial connection attempt if it takes longer than N seconds. 0 disables the timeout.
             </p>
@@ -820,7 +820,7 @@ export default function ConnectionView({ connected, form, setForm, logs, profile
             long outages; small starting delays react fast on flaky networks. */}
         <div className="mb-4">
           <SectionLabel className="block mb-2">Subscriber reconnect backoff</SectionLabel>
-          <div className="bg-t-card border border-t-line rounded-lg p-3 space-y-3">
+          <div className="bg-t-card border border-t-line rounded-xl p-3 space-y-3">
             <div className="grid grid-cols-3 gap-3">
               <div>
                 <label className={LABEL}>
@@ -850,7 +850,7 @@ export default function ConnectionView({ connected, form, setForm, logs, profile
                   placeholder="2" className={INPUT} />
               </div>
             </div>
-            <p className="text-[10px] text-t-ink5 leading-relaxed">
+            <p className="text-[10.5px] text-t-ink5 leading-relaxed">
               Subscriber waits <strong className="text-t-ink4">initial delay</strong> after a failed
               receive, then multiplies by <strong className="text-t-ink4">multiplier</strong> on each
               subsequent failure, capped at <strong className="text-t-ink4">maximum delay</strong>.
@@ -865,7 +865,7 @@ export default function ConnectionView({ connected, form, setForm, logs, profile
             failover) get absorbed instead of bubbling up to the user. */}
         <div className="mb-4">
           <SectionLabel className="block mb-2">Publisher send retry</SectionLabel>
-          <div className="bg-t-card border border-t-line rounded-lg p-3 space-y-3">
+          <div className="bg-t-card border border-t-line rounded-xl p-3 space-y-3">
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className={LABEL}>
@@ -886,7 +886,7 @@ export default function ConnectionView({ connected, form, setForm, logs, profile
                   placeholder="250" className={INPUT} />
               </div>
             </div>
-            <p className="text-[10px] text-t-ink5 leading-relaxed">
+            <p className="text-[10.5px] text-t-ink5 leading-relaxed">
               Each user-visible send goes through up to <strong className="text-t-ink4">N attempts</strong>,
               waiting <strong className="text-t-ink4">delay</strong> ms between them. Disconnected
               sessions reopen transparently per-attempt — those don't count against the budget.
@@ -904,7 +904,7 @@ export default function ConnectionView({ connected, form, setForm, logs, profile
             // Inline warning instead of silently dimming the card — makes
             // it obvious *why* the fields are inert and exactly which toggle
             // unlocks them.
-            <div className="flex items-start gap-2 px-3 py-2 mb-2 rounded-md bg-amber-500/10 border border-amber-500/30 text-[11px] text-amber-500 leading-relaxed">
+            <div className="flex items-start gap-2 px-3 py-2 mb-2 rounded-lg bg-caution/10 border border-caution/30 text-[11.5px] text-caution leading-relaxed">
               <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
               <span>
                 <b>TLS / AMQPS</b> is off — enable it under <b>General → Security</b> to use a client
@@ -913,7 +913,7 @@ export default function ConnectionView({ connected, form, setForm, logs, profile
               </span>
             </div>
           )}
-          <div className={`bg-t-card border border-t-line rounded-lg p-3 space-y-3 ${useTls ? "" : "opacity-50"}`}>
+          <div className={`bg-t-card border border-t-line rounded-xl p-3 space-y-3 ${useTls ? "" : "opacity-50"}`}>
             <div>
               <label className={LABEL}>
                 Certificate file
@@ -945,7 +945,7 @@ export default function ConnectionView({ connected, form, setForm, logs, profile
                   }}
                   title="Browse for certificate file"
                   aria-label="Browse for certificate file"
-                  className="shrink-0 h-9 px-2.5 rounded-md border border-t-line2 bg-t-card text-t-ink3 hover:text-t-ink hover:bg-t-hover transition-colors text-[12px] flex items-center disabled:opacity-50"
+                  className="shrink-0 h-9 px-2.5 rounded-lg border border-t-line2 bg-t-card text-t-ink3 hover:text-t-ink hover:bg-t-hover transition-colors text-[12.5px] flex items-center disabled:opacity-50"
                 >
                   <FolderOpen className="w-3.5 h-3.5" />
                 </button>
@@ -983,7 +983,7 @@ export default function ConnectionView({ connected, form, setForm, logs, profile
                     }}
                     title="Browse for private key file"
                     aria-label="Browse for private key file"
-                    className="shrink-0 h-9 px-2.5 rounded-md border border-t-line2 bg-t-card text-t-ink3 hover:text-t-ink hover:bg-t-hover transition-colors text-[12px] flex items-center disabled:opacity-50"
+                    className="shrink-0 h-9 px-2.5 rounded-lg border border-t-line2 bg-t-card text-t-ink3 hover:text-t-ink hover:bg-t-hover transition-colors text-[12.5px] flex items-center disabled:opacity-50"
                   >
                     <FolderOpen className="w-3.5 h-3.5" />
                   </button>
@@ -1004,7 +1004,7 @@ export default function ConnectionView({ connected, form, setForm, logs, profile
                 />
               </div>
             </div>
-            <p className="text-[10px] text-t-ink5 leading-relaxed">
+            <p className="text-[10.5px] text-t-ink5 leading-relaxed">
               Used for <strong className="text-t-ink4">mutual TLS</strong> — broker authenticates
               the client by certificate. PEM keys must be unencrypted PKCS#8 (convert with{" "}
               <span className="font-mono">openssl pkcs8 -topk8 -nocrypt</span>); use a PKCS#12 bundle
@@ -1042,11 +1042,11 @@ export default function ConnectionView({ connected, form, setForm, logs, profile
 // ─────────────────────────────────────────────────────────────────────────────
 
 const LOG_ICON = {
-  ok:   <CheckCircle className="w-3 h-3 text-green-500 shrink-0" />,
-  err:  <XCircle     className="w-3 h-3 text-red-500   shrink-0" />,
+  ok:   <CheckCircle className="w-3 h-3 text-positive shrink-0" />,
+  err:  <XCircle     className="w-3 h-3 text-negative   shrink-0" />,
   info: <Info        className="w-3 h-3 text-t-ink4    shrink-0" />,
 };
-const LOG_COLOR = { ok: "text-green-500", err: "text-red-500", info: "text-t-ink3" };
+const LOG_COLOR = { ok: "text-positive", err: "text-negative", info: "text-t-ink3" };
 
 function ActivityPanel({ logs, bottomRef }: { logs: LogEntry[]; bottomRef: React.RefObject<HTMLDivElement | null> }) {
   const [open, setOpen] = useState(true);
@@ -1067,21 +1067,21 @@ function ActivityPanel({ logs, bottomRef }: { logs: LogEntry[]; bottomRef: React
         aria-expanded={open}
         className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-t-hover/50 transition-colors">
         <SectionLabel icon={<Activity className="w-3 h-3" />}>Activity</SectionLabel>
-        <span className="ml-auto text-[10px] text-t-ink5">
+        <span className="ml-auto text-[10.5px] text-t-ink5">
           {filtered.length} event{filtered.length !== 1 ? "s" : ""}{!open && " — click to expand"}
         </span>
       </button>
       {open && (
         <div className="border-t border-t-line h-[120px] overflow-y-auto p-2 space-y-0.5 font-mono log-selectable">
           {filtered.length === 0 ? (
-            <p className="text-[11px] text-t-ink5 text-center py-4">No connection events yet</p>
+            <p className="text-[11.5px] text-t-ink5 text-center py-4">No connection events yet</p>
           ) : (
             <>
               {filtered.map(entry => {
                 const d = new Date(entry.tsMs);
                 const time = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}:${String(d.getSeconds()).padStart(2, "0")}`;
                 return (
-                  <div key={entry.id} className="flex items-center gap-2 text-[11px] leading-5">
+                  <div key={entry.id} className="flex items-center gap-2 text-[11.5px] leading-5">
                     <span className="text-t-ink5 shrink-0 font-mono">{time}</span>
                     {LOG_ICON[entry.kind]}
                     <span className={`${LOG_COLOR[entry.kind]} break-all`}>{entry.text}</span>
@@ -1164,7 +1164,7 @@ function WorkspaceCombobox({ value, onChange, suggestions, usage, onDelete }: {
         placeholder="Default"
         // Same INPUT classes as everywhere else in this view, plus padding
         // on the right to make room for the caret button.
-        className="w-full bg-t-field border border-t-line2 rounded-md pl-3 pr-8 py-1.5 text-[13px] text-t-ink outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30 transition-all placeholder:text-t-ink5 box-border h-9 appearance-none"
+        className="w-full bg-t-field border border-t-line2 rounded-lg pl-3 pr-8 py-1.5 text-[13px] text-t-ink outline-none focus:border-accent focus:ring-1 focus:ring-accent/30 transition-all placeholder:text-t-ink5 box-border h-9 appearance-none"
       />
       <button
         type="button"
@@ -1177,7 +1177,7 @@ function WorkspaceCombobox({ value, onChange, suggestions, usage, onDelete }: {
       </button>
 
       {open && filtered.length > 0 && (
-        <div className="absolute top-full left-0 right-0 mt-1 z-30 bg-t-card border border-t-line rounded-md shadow-lg overflow-hidden max-h-56 overflow-y-auto">
+        <div className="absolute top-full left-0 right-0 mt-1 z-30 bg-t-card border border-t-line rounded-lg shadow-lg overflow-hidden max-h-56 overflow-y-auto">
           {filtered.map(w => {
             const isCurrent = w === value;
             const count = usage.get(w) ?? 0;
@@ -1191,7 +1191,7 @@ function WorkspaceCombobox({ value, onChange, suggestions, usage, onDelete }: {
                 <div
                   key={w}
                   onMouseDown={e => e.preventDefault()}
-                  className="flex items-center gap-2 px-3 py-2 text-[11px] bg-red-500/5 border-b border-red-500/20"
+                  className="flex items-center gap-2 px-3 py-2 text-[11.5px] bg-negative/5 border-b border-negative/20"
                 >
                   <span className="text-t-ink2 flex-1 min-w-0 truncate">
                     Delete <b className="text-t-ink">{w}</b>?
@@ -1201,7 +1201,7 @@ function WorkspaceCombobox({ value, onChange, suggestions, usage, onDelete }: {
                     type="button"
                     onClick={() => setConfirmDelete(null)}
                     disabled={deleting}
-                    className="px-2 py-0.5 rounded text-t-ink4 hover:text-t-ink2 hover:bg-t-hover transition-colors disabled:opacity-40"
+                    className="px-2 py-0.5 rounded-md text-t-ink4 hover:text-t-ink2 hover:bg-t-hover transition-colors disabled:opacity-40"
                   >
                     Cancel
                   </button>
@@ -1209,7 +1209,7 @@ function WorkspaceCombobox({ value, onChange, suggestions, usage, onDelete }: {
                     type="button"
                     onClick={() => doDelete(w)}
                     disabled={deleting}
-                    className="px-2 py-0.5 rounded text-red-500 bg-red-500/10 hover:bg-red-500/20 transition-colors disabled:opacity-40 flex items-center gap-1"
+                    className="px-2 py-0.5 rounded-md text-negative bg-negative/10 hover:bg-negative/20 transition-colors disabled:opacity-40 flex items-center gap-1"
                   >
                     {deleting && <Loader2 className="w-3 h-3 animate-spin" />}
                     Delete
@@ -1222,20 +1222,20 @@ function WorkspaceCombobox({ value, onChange, suggestions, usage, onDelete }: {
               <div
                 key={w}
                 onMouseDown={e => e.preventDefault()}
-                className={`group flex items-center gap-2 px-3 py-1.5 text-[12px] transition-colors ${
-                  isCurrent ? "bg-blue-500/10" : "hover:bg-t-hover"
+                className={`group flex items-center gap-2 px-3 py-1.5 text-[12.5px] transition-colors ${
+                  isCurrent ? "bg-accent/10" : "hover:bg-t-hover"
                 }`}
               >
                 <button
                   type="button"
                   onClick={() => { onChange(w); setOpen(false); }}
                   className={`flex-1 min-w-0 text-left truncate ${
-                    isCurrent ? "text-blue-500" : "text-t-ink2 group-hover:text-t-ink"
+                    isCurrent ? "text-accent" : "text-t-ink2 group-hover:text-t-ink"
                   }`}
                 >
                   {w}
                 </button>
-                <span className="shrink-0 text-[10px] font-mono text-t-ink5 tabular-nums">
+                <span className="shrink-0 text-[10.5px] font-mono text-t-ink5 tabular-nums">
                   {count}
                 </span>
                 {deletable ? (
@@ -1244,7 +1244,7 @@ function WorkspaceCombobox({ value, onChange, suggestions, usage, onDelete }: {
                     onClick={() => setConfirmDelete(w)}
                     title={`Delete workspace '${w}'`}
                     aria-label={`Delete workspace ${w}`}
-                    className="shrink-0 opacity-0 group-hover:opacity-100 text-t-ink5 hover:text-red-500 transition-all"
+                    className="shrink-0 opacity-0 group-hover:opacity-100 text-t-ink5 hover:text-negative transition-all"
                   >
                     <Trash2 className="w-3 h-3" />
                   </button>
@@ -1332,18 +1332,18 @@ function QuickConnectModal({ onApply, onLog, onClose }: {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={onClose}>
       <div onClick={e => e.stopPropagation()}
-        className="bg-t-bg border border-t-line rounded-lg shadow-2xl w-[560px] max-w-[95vw] flex flex-col overflow-hidden">
+        className="bg-t-bg border border-t-line rounded-xl shadow-2xl w-[560px] max-w-[95vw] flex flex-col overflow-hidden">
 
         <div className="shrink-0 px-4 py-2.5 border-b border-t-line bg-t-panel flex items-center gap-2">
-          <Zap className="w-3.5 h-3.5 text-blue-500" />
+          <Zap className="w-3.5 h-3.5 text-accent" />
           <span className="text-[13px] font-semibold text-t-ink">Quick-connect from URL</span>
-          <button onClick={onClose} className="ml-auto p-1 rounded hover:bg-t-hover text-t-ink4 hover:text-t-ink">
+          <button onClick={onClose} className="ml-auto p-1 rounded-md hover:bg-t-hover text-t-ink4 hover:text-t-ink">
             <X className="w-3.5 h-3.5" />
           </button>
         </div>
 
         <div className="px-4 py-3 space-y-3 text-[13px]">
-          <p className="text-t-ink5 text-[11px] leading-relaxed">
+          <p className="text-t-ink5 text-[11.5px] leading-relaxed">
             Paste a connection URL — fields below preview the parsed result.{" "}
             <b>Apply</b> fills the Connection form; nothing's saved until you click{" "}
             <b>Save as…</b> or <b>Save</b> on the main form.
@@ -1355,16 +1355,16 @@ function QuickConnectModal({ onApply, onLog, onClose }: {
             placeholder={"amqp://user:pass@host:5672/orders\nor amqps://user:pass@broker.example.com:5671/queue\nor wss://host:port/path"}
             spellCheck={false}
             rows={5}
-            className={`w-full bg-t-field border rounded-md px-2.5 py-2 text-[12px] font-mono text-t-ink outline-none focus:ring-1 transition-all placeholder:text-t-ink5 leading-relaxed resize-y min-h-[88px] ${
+            className={`w-full bg-t-field border rounded-lg px-2.5 py-2 text-[12.5px] font-mono text-t-ink outline-none focus:ring-1 transition-all placeholder:text-t-ink5 leading-relaxed resize-y min-h-[88px] ${
               previewErr
-                ? "border-red-500/50 focus:border-red-500 focus:ring-red-500/30"
-                : "border-t-line2 focus:border-blue-500 focus:ring-blue-500/30"
+                ? "border-negative/50 focus:border-negative focus:ring-negative/30"
+                : "border-t-line2 focus:border-accent focus:ring-accent/30"
             }`}
           />
-          {previewErr && <p className="text-[11px] text-red-500">{previewErr}</p>}
+          {previewErr && <p className="text-[11.5px] text-negative">{previewErr}</p>}
           {preview && (
-            <div className="rounded border border-t-line bg-t-card/40 p-2.5 space-y-1 text-[11px] font-mono">
-              <div className="text-[10px] uppercase tracking-wider text-t-ink4 font-semibold mb-1">Preview</div>
+            <div className="rounded-md border border-t-line bg-t-card/40 p-2.5 space-y-1 text-[11.5px] font-mono">
+              <div className="text-[10.5px] uppercase tracking-wider text-t-ink4 font-semibold mb-1">Preview</div>
               <PreviewRow label="Host">{preview.host}</PreviewRow>
               <PreviewRow label="Port">{preview.port}</PreviewRow>
               {preview.username && <PreviewRow label="User">{preview.username}</PreviewRow>}
@@ -1374,7 +1374,7 @@ function QuickConnectModal({ onApply, onLog, onClose }: {
               {preview.useWs && <PreviewRow label="WebSocket">{preview.wsPath ? `path: ${preview.wsPath}` : "yes (root path)"}</PreviewRow>}
             </div>
           )}
-          <p className="text-[10px] text-t-ink5 leading-relaxed">
+          <p className="text-[10.5px] text-t-ink5 leading-relaxed">
             Schemes: <Code>amqp://</Code> = plain TCP, <Code>amqps://</Code> = TLS,{" "}
             <Code>ws://</Code> / <Code>wss://</Code> = WebSocket transport. Port defaults: 5672
             (plain) / 5671 (TLS). The first non-slash path segment becomes the default queue.
@@ -1383,11 +1383,11 @@ function QuickConnectModal({ onApply, onLog, onClose }: {
 
         <div className="shrink-0 px-3 py-2 border-t border-t-line bg-t-panel flex items-center justify-end gap-2">
           <button onClick={onClose}
-            className="px-3 py-1 rounded-md text-[11px] font-medium text-t-ink4 hover:text-t-ink hover:bg-t-hover transition-colors">
+            className="px-3 py-1 rounded-lg text-[11.5px] font-medium text-t-ink4 hover:text-t-ink hover:bg-t-hover transition-colors">
             Cancel
           </button>
           <button onClick={apply} disabled={!preview}
-            className="flex items-center gap-1.5 px-3 py-1 rounded-md bg-blue-500 hover:bg-blue-600 text-white text-[11px] font-semibold transition-colors disabled:opacity-40">
+            className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-accent hover:bg-accent-strong text-white text-[11.5px] font-semibold transition-colors disabled:opacity-40">
             <Zap className="w-3 h-3" /> Apply to form
           </button>
         </div>
@@ -1407,5 +1407,5 @@ function PreviewRow({ label, children }: { label: string; children: React.ReactN
 
 // Tiny local <code> primitive for the QuickConnect modal.
 function Code({ children }: { children: React.ReactNode }) {
-  return <code className="text-[10.5px] font-mono px-1 py-0.5 rounded bg-t-card/60 text-t-ink2">{children}</code>;
+  return <code className="text-[10.5px] font-mono px-1 py-0.5 rounded-md bg-t-card/60 text-t-ink2">{children}</code>;
 }

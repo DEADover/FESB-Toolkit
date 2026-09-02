@@ -394,13 +394,13 @@ export default function BrowserView({ connected, visible, onLog, onPublishTo, on
             : `${filtered.length} / ${queues.length}`
         ) : null}
         status={connected && autoOn && pollErr ? (
-          <span className="flex items-center gap-1 text-[10px] text-amber-500 font-mono" title={`Polling error: ${pollErr}`}>
-            <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+          <span className="flex items-center gap-1 text-[10.5px] text-caution font-mono" title={`Polling error: ${pollErr}`}>
+            <span className="w-1.5 h-1.5 rounded-full bg-caution" />
             poll error
           </span>
         ) : connected && autoOn && loaded ? (
-          <span className="flex items-center gap-1 text-[10px] text-t-ink5 font-mono" title={`Auto-refresh every ${QUEUE_POLL_INTERVAL_MS / 1000}s`}>
-            <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+          <span className="flex items-center gap-1 text-[10.5px] text-t-ink5 font-mono" title={`Auto-refresh every ${QUEUE_POLL_INTERVAL_MS / 1000}s`}>
+            <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
             live
           </span>
         ) : null}
@@ -408,8 +408,8 @@ export default function BrowserView({ connected, visible, onLog, onPublishTo, on
         <button
           onClick={() => setAutoOn(a => !a)}
           aria-pressed={autoOn}
-          className={`text-[11px] transition-colors px-1.5 py-0.5 rounded ${
-            autoOn ? "text-blue-500 bg-blue-500/10" : "text-t-ink4 hover:text-t-ink3"
+          className={`text-[11.5px] transition-colors px-1.5 py-0.5 rounded-md ${
+            autoOn ? "text-accent bg-accent/10" : "text-t-ink4 hover:text-t-ink3"
           }`}
           title={autoOn ? "Auto-refresh on — click to pause" : "Auto-refresh paused"}
         >
@@ -418,15 +418,15 @@ export default function BrowserView({ connected, visible, onLog, onPublishTo, on
         <button
           onClick={() => setHideEmpty(h => !h)}
           aria-pressed={hideEmpty}
-          className={`text-[11px] transition-colors px-1.5 py-0.5 rounded ${
-            hideEmpty ? "text-blue-500 bg-blue-500/10" : "text-t-ink4 hover:text-t-ink3"
+          className={`text-[11.5px] transition-colors px-1.5 py-0.5 rounded-md ${
+            hideEmpty ? "text-accent bg-accent/10" : "text-t-ink4 hover:text-t-ink3"
           }`}
           title="Hide queues with zero messages"
         >
           Hide empty
         </button>
         <button onClick={() => refreshQueues(false)} disabled={!connected || loading}
-          className="px-2 py-1 rounded text-[11px] font-medium text-t-ink4 hover:text-blue-500 hover:bg-blue-500/10 transition-colors flex items-center gap-1 disabled:opacity-40">
+          className="px-2 py-1 rounded-md text-[11.5px] font-medium text-t-ink4 hover:text-accent hover:bg-accent/10 transition-colors flex items-center gap-1 disabled:opacity-40">
           <RotateCcw className={`w-3 h-3 ${loading ? "animate-spin" : ""}`} /> Refresh
         </button>
       </ViewTopBar>
@@ -461,11 +461,11 @@ export default function BrowserView({ connected, visible, onLog, onPublishTo, on
               title="Discovery failed"
               subtitle={<>
                 {err}
-                <p className="text-[10px] mt-3 text-t-ink5">Requires Artemis or ActiveMQ Classic with AMQP management enabled</p>
+                <p className="text-[10.5px] mt-3 text-t-ink5">Requires Artemis or ActiveMQ Classic with AMQP management enabled</p>
               </>}
               action={
                 <button onClick={() => refreshQueues(false)}
-                  className="px-2.5 py-1 rounded-md text-[11px] font-medium bg-t-card border border-t-line text-t-ink2 hover:bg-t-hover transition-colors">
+                  className="px-2.5 py-1 rounded-lg text-[11.5px] font-medium bg-t-card border border-t-line text-t-ink2 hover:bg-t-hover transition-colors">
                   Retry
                 </button>
               }
@@ -474,9 +474,9 @@ export default function BrowserView({ connected, visible, onLog, onPublishTo, on
             <EmptyState icon={<Radar className="w-8 h-8" />} title={search || hideEmpty ? "No queues match" : "No queues on broker"} />
           ) : (
             <div className="flex-1 overflow-auto min-h-0">
-              <table className="w-full text-[12px] font-mono table-fixed">
+              <table className="w-full text-[12.5px] font-mono table-fixed">
                 <thead className="sticky top-0 z-10 bg-t-panel border-b border-t-line">
-                  <tr className="text-[10px] uppercase tracking-wider text-t-ink4 select-none">
+                  <tr className="text-[10.5px] uppercase tracking-wider text-t-ink4 select-none">
                     <SortableHeader label="Name"  sortKey="name"      current={sortKey} dir={sortDir} onClick={toggleSort} className="text-left  pl-3" />
                     <SortableHeader label="Type"  sortKey="type"      current={sortKey} dir={sortDir} onClick={toggleSort} className="text-left  w-24" />
                     <SortableHeader label="Msgs"  sortKey="messages"  current={sortKey} dir={sortDir} onClick={toggleSort} className="text-right w-14" />
@@ -492,31 +492,31 @@ export default function BrowserView({ connected, visible, onLog, onPublishTo, on
                       <tr key={bq.name}
                         onClick={() => { if (skipIfSelecting()) return; peekQueue(bq.address); }}
                         className={`group cursor-pointer border-b border-t-line/40 transition-colors ${
-                          isSel ? "bg-blue-500/10" : "hover:bg-t-hover/50"
+                          isSel ? "bg-accent/10" : "hover:bg-t-hover/50"
                         }`}>
                         <td className="py-1.5 px-3 truncate">
                           <span className="text-t-ink">{bq.name}</span>
                         </td>
                         <td className="py-1.5 px-2">
-                          <span className={`text-[10px] px-1 rounded font-medium ${
-                            bq.routing_type === "ANYCAST" ? "bg-blue-500/15 text-blue-500" : "bg-violet-500/15 text-violet-500"
+                          <span className={`text-[10.5px] px-1 rounded-md font-medium ${
+                            bq.routing_type === "ANYCAST" ? "bg-accent/15 text-accent" : "bg-accent-content/15 text-accent-content"
                           }`}>{bq.routing_type === "ANYCAST" ? "ANY" : "MULTI"}</span>
                         </td>
                         <td className={`py-1.5 px-2 text-right ${bq.message_count > 0 ? "text-t-ink font-medium" : "text-t-ink5"}`}>
                           {bq.message_count}
                         </td>
-                        <td className={`py-1.5 px-2 text-right ${bq.consumer_count > 0 ? "text-green-500" : "text-t-ink5"}`}>
+                        <td className={`py-1.5 px-2 text-right ${bq.consumer_count > 0 ? "text-positive" : "text-t-ink5"}`}>
                           {bq.consumer_count}
                         </td>
                         {!selectedQueue && (
-                          <td className="py-1.5 px-2 truncate text-t-ink4 text-[11px]">{bq.address}</td>
+                          <td className="py-1.5 px-2 truncate text-t-ink4 text-[11.5px]">{bq.address}</td>
                         )}
                         <td className="py-1.5 pr-2">
                           <div className="flex items-center justify-end gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <IconBtn title="Publish to" onClick={(e) => { e.stopPropagation(); onPublishTo(bq.address); }} colorClass="hover:text-blue-500 hover:bg-blue-500/10">
+                            <IconBtn title="Publish to" onClick={(e) => { e.stopPropagation(); onPublishTo(bq.address); }} colorClass="hover:text-accent hover:bg-accent/10">
                               <Send className="w-3 h-3" />
                             </IconBtn>
-                            <IconBtn title="Subscribe" onClick={(e) => { e.stopPropagation(); onSubscribeTo(bq.address); }} colorClass="hover:text-green-500 hover:bg-green-500/10">
+                            <IconBtn title="Subscribe" onClick={(e) => { e.stopPropagation(); onSubscribeTo(bq.address); }} colorClass="hover:text-positive hover:bg-positive/10">
                               <Inbox className="w-3 h-3" />
                             </IconBtn>
                           </div>
@@ -536,9 +536,9 @@ export default function BrowserView({ connected, visible, onLog, onPublishTo, on
             {/* Peek pane header — matches SubscriberView preview header style */}
             <div className="shrink-0 px-3 py-1.5 border-b border-t-line bg-t-panel flex items-center gap-2">
               <Eye className="w-3.5 h-3.5 text-t-ink4 shrink-0" />
-              <span className="text-[12px] text-t-ink font-mono truncate" title={selectedQueue}>{selectedQueue}</span>
+              <span className="text-[12.5px] text-t-ink font-mono truncate" title={selectedQueue}>{selectedQueue}</span>
               {!peekLoading && !peekErr && (
-                <span className="text-[11px] text-t-ink5 font-mono">{messages.length} peeked</span>
+                <span className="text-[11.5px] text-t-ink5 font-mono">{messages.length} peeked</span>
               )}
 
               <div className="ml-auto flex items-center gap-1">
@@ -555,7 +555,7 @@ export default function BrowserView({ connected, visible, onLog, onPublishTo, on
                       peekQueue(selectedQueue, next);
                     }
                   }}
-                  className="bg-t-field border border-t-line2 rounded px-1.5 py-0.5 text-[11px] text-t-ink2 outline-none"
+                  className="bg-t-field border border-t-line2 rounded-md px-1.5 py-0.5 text-[11.5px] text-t-ink2 outline-none"
                   title="Max messages to peek (All resolves to the queue's broker-reported message_count)">
                   {PEEK_PRESETS.map(n => (
                     <option key={n} value={n}>{n === 0 ? "All" : n}</option>
@@ -563,7 +563,7 @@ export default function BrowserView({ connected, visible, onLog, onPublishTo, on
                 </select>
                 <button onClick={() => peekQueue(selectedQueue)}
                   title="Refresh"
-                  className="flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium text-t-ink4 hover:text-blue-500 hover:bg-blue-500/10 transition-colors">
+                  className="flex items-center gap-1 px-2 py-1 rounded-md text-[11.5px] font-medium text-t-ink4 hover:text-accent hover:bg-accent/10 transition-colors">
                   <RotateCcw className={`w-3 h-3 ${peekLoading ? "animate-spin" : ""}`} /> Refresh
                 </button>
                 <button
@@ -574,7 +574,7 @@ export default function BrowserView({ connected, visible, onLog, onPublishTo, on
                     : messages.length === 0
                       ? "Queue is empty — nothing to shovel"
                       : "Copy peeked messages to a queue on another broker"}
-                  className="flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium text-t-ink4 hover:text-blue-500 hover:bg-blue-500/10 transition-colors disabled:opacity-40 disabled:hover:bg-transparent"
+                  className="flex items-center gap-1 px-2 py-1 rounded-md text-[11.5px] font-medium text-t-ink4 hover:text-accent hover:bg-accent/10 transition-colors disabled:opacity-40 disabled:hover:bg-transparent"
                 >
                   <ArrowRightLeft className="w-3 h-3" /> Shovel…
                 </button>
@@ -592,7 +592,7 @@ export default function BrowserView({ connected, visible, onLog, onPublishTo, on
                         ? "Queue is empty — nothing to requeue"
                         : `Republish all ${messages.length} peeked message${messages.length !== 1 ? "s" : ""} to their original destinations`
                     }
-                    className="flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium text-blue-500 bg-blue-500/10 hover:bg-blue-500/20 transition-colors disabled:opacity-40 disabled:hover:bg-blue-500/10"
+                    className="flex items-center gap-1 px-2 py-1 rounded-md text-[11.5px] font-medium text-accent bg-accent/10 hover:bg-accent/20 transition-colors disabled:opacity-40 disabled:hover:bg-accent/10"
                   >
                     {requeueProgress
                       ? <><Loader2 className="w-3 h-3 animate-spin" /> Requeue {requeueProgress.done}/{requeueProgress.total}</>
@@ -605,13 +605,13 @@ export default function BrowserView({ connected, visible, onLog, onPublishTo, on
                   title={messages.length === 0
                     ? "Queue is empty — nothing to purge"
                     : "Permanently delete all messages from this queue"}
-                  className="flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium text-t-ink4 hover:text-red-500 hover:bg-red-500/10 transition-colors disabled:opacity-40 disabled:hover:text-t-ink4 disabled:hover:bg-transparent"
+                  className="flex items-center gap-1 px-2 py-1 rounded-md text-[11.5px] font-medium text-t-ink4 hover:text-negative hover:bg-negative/10 transition-colors disabled:opacity-40 disabled:hover:text-t-ink4 disabled:hover:bg-transparent"
                 >
                   <Trash2 className="w-3 h-3" /> Purge
                 </button>
                 <button onClick={closePeek}
                   title="Close peek"
-                  className="p-1 rounded text-t-ink4 hover:text-t-ink hover:bg-t-hover transition-colors">
+                  className="p-1 rounded-md text-t-ink4 hover:text-t-ink hover:bg-t-hover transition-colors">
                   <X className="w-3 h-3" />
                 </button>
               </div>
@@ -621,13 +621,13 @@ export default function BrowserView({ connected, visible, onLog, onPublishTo, on
                 patterns. Surfaces the requeue feature without forcing the user
                 to dig through Help. */}
             {isDlqQueueName(selectedQueue) && (
-              <div className="shrink-0 px-3 py-2 border-b border-t-line bg-amber-500/5 flex items-start gap-2 text-[11px]">
-                <ShieldAlert className="w-3.5 h-3.5 text-amber-500 shrink-0 mt-0.5" />
+              <div className="shrink-0 px-3 py-2 border-b border-t-line bg-caution/5 flex items-start gap-2 text-[11.5px]">
+                <ShieldAlert className="w-3.5 h-3.5 text-caution shrink-0 mt-0.5" />
                 <div className="text-t-ink2 leading-relaxed">
-                  <span className="text-amber-500 font-medium">Dead-letter queue.</span>{" "}
+                  <span className="text-caution font-medium">Dead-letter queue.</span>{" "}
                   Messages here usually carry an original-destination property
-                  (<span className="font-mono text-[10px]">_AMQ_ORIG_ADDRESS</span>{" "}
-                  on Artemis, <span className="font-mono text-[10px]">originalDestination</span>{" "}
+                  (<span className="font-mono text-[10.5px]">_AMQ_ORIG_ADDRESS</span>{" "}
+                  on Artemis, <span className="font-mono text-[10.5px]">originalDestination</span>{" "}
                   on Classic). <b>Requeue all</b> republishes each message to
                   its origin so consumers get another delivery attempt.
                 </div>
@@ -650,14 +650,14 @@ export default function BrowserView({ connected, visible, onLog, onPublishTo, on
                   const withId = picked.filter(m => m.message_id && m.message_id.trim()).length;
                   const isDlq = isDlqQueueName(selectedQueue);
                   return (
-                    <div className="shrink-0 px-3 py-1.5 border-b border-t-line bg-blue-500/5 flex items-center gap-2 flex-wrap">
-                      <span className="text-[11px] text-blue-500 font-medium">
+                    <div className="shrink-0 px-3 py-1.5 border-b border-t-line bg-accent/5 flex items-center gap-2 flex-wrap">
+                      <span className="text-[11.5px] text-accent font-medium">
                         {selectedIdxs.size} selected
                       </span>
                       <button
                         type="button"
                         onClick={() => setSelectedIdxs(new Set())}
-                        className="text-[11px] text-t-ink4 hover:text-t-ink2 transition-colors"
+                        className="text-[11.5px] text-t-ink4 hover:text-t-ink2 transition-colors"
                       >
                         Clear
                       </button>
@@ -665,7 +665,7 @@ export default function BrowserView({ connected, visible, onLog, onPublishTo, on
                         type="button"
                         onClick={() => setSelectedIdxs(new Set(messages.map((_, i) => i)))}
                         disabled={selectedIdxs.size === messages.length}
-                        className="text-[11px] text-t-ink4 hover:text-t-ink2 transition-colors disabled:opacity-40"
+                        className="text-[11.5px] text-t-ink4 hover:text-t-ink2 transition-colors disabled:opacity-40"
                       >
                         Select all
                       </button>
@@ -679,7 +679,7 @@ export default function BrowserView({ connected, visible, onLog, onPublishTo, on
                               onClick={() => setEditRequeueMsgs(picked)}
                               disabled={!!requeueProgress}
                               title="Walk through selected messages, edit body / target per-message, resubmit"
-                              className="flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium text-blue-500 bg-blue-500/10 hover:bg-blue-500/20 transition-colors disabled:opacity-40"
+                              className="flex items-center gap-1 px-2 py-1 rounded-md text-[11.5px] font-medium text-accent bg-accent/10 hover:bg-accent/20 transition-colors disabled:opacity-40"
                             >
                               <Edit3 className="w-3 h-3" /> Edit & Requeue…
                             </button>
@@ -688,7 +688,7 @@ export default function BrowserView({ connected, visible, onLog, onPublishTo, on
                               onClick={() => requeueMessages(picked)}
                               disabled={!!requeueProgress}
                               title="Republish selected messages to their original destinations without editing"
-                              className="flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium text-t-ink2 hover:text-t-ink hover:bg-t-hover transition-colors disabled:opacity-40"
+                              className="flex items-center gap-1 px-2 py-1 rounded-md text-[11.5px] font-medium text-t-ink2 hover:text-t-ink hover:bg-t-hover transition-colors disabled:opacity-40"
                             >
                               <CornerUpLeft className="w-3 h-3" /> Requeue selected
                             </button>
@@ -702,7 +702,7 @@ export default function BrowserView({ connected, visible, onLog, onPublishTo, on
                           title={profiles.length < 2
                             ? "Need at least two saved profiles to shovel between brokers"
                             : "Copy selected messages to a queue on another broker"}
-                          className="flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium text-t-ink2 hover:text-blue-500 hover:bg-blue-500/10 transition-colors disabled:opacity-40 disabled:hover:bg-transparent"
+                          className="flex items-center gap-1 px-2 py-1 rounded-md text-[11.5px] font-medium text-t-ink2 hover:text-accent hover:bg-accent/10 transition-colors disabled:opacity-40 disabled:hover:bg-transparent"
                         >
                           <ArrowRightLeft className="w-3 h-3" /> Shovel selected…
                         </button>
@@ -720,7 +720,7 @@ export default function BrowserView({ connected, visible, onLog, onPublishTo, on
                           title={withId === picked.length
                             ? `Permanently delete the ${picked.length} selected message${picked.length === 1 ? "" : "s"} from the broker`
                             : `${picked.length - withId} of the selected messages have no message-id — selective delete needs message-ids (Artemis removeMessages selector uses them)`}
-                          className="flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium text-t-ink4 hover:text-red-500 hover:bg-red-500/10 transition-colors disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-t-ink4"
+                          className="flex items-center gap-1 px-2 py-1 rounded-md text-[11.5px] font-medium text-t-ink4 hover:text-negative hover:bg-negative/10 transition-colors disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-t-ink4"
                         >
                           <Trash2 className="w-3 h-3" /> Purge selected
                         </button>
@@ -736,7 +736,7 @@ export default function BrowserView({ connected, visible, onLog, onPublishTo, on
                 <div className="flex-1 overflow-auto min-h-0 border-b border-t-line">
                   {/* Column header — sticky on scroll. Second-row chips are
                       heterogeneous so no label is useful there. */}
-                  <div className="sticky top-0 z-10 flex items-center gap-2 px-3 py-1 bg-t-panel/95 backdrop-blur-sm border-b border-t-line text-[10px] uppercase tracking-wider text-t-ink4 select-none">
+                  <div className="sticky top-0 z-10 flex items-center gap-2 px-3 py-1 bg-t-panel/95 backdrop-blur-sm border-b border-t-line text-[10.5px] uppercase tracking-wider text-t-ink4 select-none">
                     <span className="w-3.5 shrink-0" /> {/* checkbox column */}
                     <span className="w-3 shrink-0" />   {/* message-icon column */}
                     <span className="w-6 shrink-0 font-semibold">#</span>
@@ -766,7 +766,7 @@ export default function BrowserView({ connected, visible, onLog, onPublishTo, on
                       <div
                         key={origIdx}
                         className={`group flex items-start border-b border-t-line/40 transition-colors border-l-2 border-l-transparent ${
-                          isOpen ? "bg-blue-500/10" : "hover:bg-t-hover/50"
+                          isOpen ? "bg-accent/10" : "hover:bg-t-hover/50"
                         }`}
                       >
                         {/* Selection checkbox column — shown on every queue
@@ -784,11 +784,11 @@ export default function BrowserView({ connected, visible, onLog, onPublishTo, on
                               return next;
                             });
                           }}
-                          className="shrink-0 pl-3 pr-1 pt-[10px] flex items-start text-t-ink5 hover:text-blue-500 transition-colors"
+                          className="shrink-0 pl-3 pr-1 pt-[10px] flex items-start text-t-ink5 hover:text-accent transition-colors"
                           aria-label={isSel ? `Unselect #${origIdx + 1}` : `Select #${origIdx + 1}`}
                         >
                           {isSel
-                            ? <CheckSquare className="w-3.5 h-3.5 text-blue-500" />
+                            ? <CheckSquare className="w-3.5 h-3.5 text-accent" />
                             : <Square className="w-3.5 h-3.5" />}
                         </button>
                         <button
@@ -796,14 +796,14 @@ export default function BrowserView({ connected, visible, onLog, onPublishTo, on
                           onClick={() => { if (skipIfSelecting()) return; setOpenMessageIdx(isOpen ? null : origIdx); }}
                           className="flex-1 min-w-0 text-left flex flex-col gap-0.5 pl-1 pr-3 py-2"
                         >
-                          <div className="flex items-center gap-2 text-[11px]">
+                          <div className="flex items-center gap-2 text-[11.5px]">
                             <MessageSquare className="w-3 h-3 text-t-ink5 shrink-0" />
                             <span className="text-t-ink5 font-mono shrink-0 w-6">#{origIdx + 1}</span>
                             <span className="text-t-ink2 font-mono truncate flex-1" title={msg.message_id ?? ""}>{idShort}</span>
                             <span className="text-t-ink5 font-mono shrink-0">{timeText}</span>
                           </div>
-                          <div className="flex items-center gap-2 text-[10px] pl-5">
-                            <span className="px-1 rounded bg-t-hover text-t-ink3 font-mono">{ct}</span>
+                          <div className="flex items-center gap-2 text-[10.5px] pl-5">
+                            <span className="px-1 rounded-md bg-t-hover text-t-ink3 font-mono">{ct}</span>
                             <span className="text-t-ink5 font-mono">{fmtBytes(msg.body_size)}</span>
                             {msg.priority !== null && msg.priority !== 4 && (
                               <span className="text-t-ink4 font-mono">P{msg.priority}</span>
@@ -915,12 +915,12 @@ function PurgeConfirmModal({ queue, messageCount, purging, onConfirm, onCancel }
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={onCancel}>
       <div onClick={e => e.stopPropagation()}
-        className="bg-t-bg border border-t-line rounded-lg shadow-2xl w-[460px] max-w-[90vw] flex flex-col overflow-hidden">
+        className="bg-t-bg border border-t-line rounded-xl shadow-2xl w-[460px] max-w-[90vw] flex flex-col overflow-hidden">
 
         <div className="shrink-0 px-4 py-2.5 border-b border-t-line bg-t-panel flex items-center gap-2">
-          <AlertTriangle className="w-3.5 h-3.5 text-red-500" />
+          <AlertTriangle className="w-3.5 h-3.5 text-negative" />
           <span className="text-[13px] font-semibold text-t-ink">Purge queue</span>
-          <button onClick={onCancel} className="ml-auto p-1 rounded hover:bg-t-hover text-t-ink4 hover:text-t-ink">
+          <button onClick={onCancel} className="ml-auto p-1 rounded-md hover:bg-t-hover text-t-ink4 hover:text-t-ink">
             <X className="w-3.5 h-3.5" />
           </button>
         </div>
@@ -929,9 +929,9 @@ function PurgeConfirmModal({ queue, messageCount, purging, onConfirm, onCancel }
           <p>
             Permanently delete <span className="font-mono font-bold text-t-ink">{messageCount.toLocaleString()}</span>{" "}
             message{messageCount !== 1 ? "s" : ""} from queue{" "}
-            <span className="font-mono text-blue-500">{queue}</span>?
+            <span className="font-mono text-accent">{queue}</span>?
           </p>
-          <p className="text-[11px] text-t-ink5">
+          <p className="text-[11.5px] text-t-ink5">
             This calls Artemis's <code className="text-t-ink4">removeAllMessages</code> management
             operation. The action cannot be undone — drained messages do <em>not</em> go to the DLQ.
           </p>
@@ -941,14 +941,14 @@ function PurgeConfirmModal({ queue, messageCount, purging, onConfirm, onCancel }
           <button
             onClick={onCancel}
             disabled={purging}
-            className="px-3 py-1 rounded-md text-[11px] font-medium text-t-ink4 hover:text-t-ink hover:bg-t-hover transition-colors disabled:opacity-40"
+            className="px-3 py-1 rounded-lg text-[11.5px] font-medium text-t-ink4 hover:text-t-ink hover:bg-t-hover transition-colors disabled:opacity-40"
           >
             Cancel
           </button>
           <button
             onClick={onConfirm}
             disabled={purging}
-            className="flex items-center gap-1.5 px-3 py-1 rounded-md bg-red-500 hover:bg-red-600 text-white text-[11px] font-semibold transition-colors disabled:opacity-40"
+            className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-negative hover:bg-negative text-white text-[11.5px] font-semibold transition-colors disabled:opacity-40"
           >
             {purging ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
             {purging ? "Purging…" : `Delete ${messageCount.toLocaleString()} message${messageCount !== 1 ? "s" : ""}`}
@@ -979,11 +979,11 @@ function SelectivePurgeModal({ queue, ids, total, purging, onConfirm, onCancel }
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={onCancel}>
       <div onClick={e => e.stopPropagation()}
-        className="bg-t-bg border border-t-line rounded-lg shadow-2xl w-[460px] max-w-[90vw] flex flex-col overflow-hidden">
+        className="bg-t-bg border border-t-line rounded-xl shadow-2xl w-[460px] max-w-[90vw] flex flex-col overflow-hidden">
         <div className="shrink-0 px-4 py-2.5 border-b border-t-line bg-t-panel flex items-center gap-2">
-          <AlertTriangle className="w-3.5 h-3.5 text-red-500" />
+          <AlertTriangle className="w-3.5 h-3.5 text-negative" />
           <span className="text-[13px] font-semibold text-t-ink">Delete selected messages</span>
-          <button onClick={onCancel} className="ml-auto p-1 rounded hover:bg-t-hover text-t-ink4 hover:text-t-ink">
+          <button onClick={onCancel} className="ml-auto p-1 rounded-md hover:bg-t-hover text-t-ink4 hover:text-t-ink">
             <X className="w-3.5 h-3.5" />
           </button>
         </div>
@@ -991,15 +991,15 @@ function SelectivePurgeModal({ queue, ids, total, purging, onConfirm, onCancel }
           <p>
             Permanently delete <span className="font-mono font-bold text-t-ink">{ids.length.toLocaleString()}</span>{" "}
             message{ids.length === 1 ? "" : "s"} from queue{" "}
-            <span className="font-mono text-blue-500">{queue}</span>?
+            <span className="font-mono text-accent">{queue}</span>?
           </p>
           {ids.length !== total && (
-            <p className="text-[11px] text-amber-500">
+            <p className="text-[11.5px] text-caution">
               {total - ids.length} of {total} selected message{total === 1 ? " has" : "s have"} no message-id
               and will be left in place — selective delete needs message-ids.
             </p>
           )}
-          <p className="text-[11px] text-t-ink5">
+          <p className="text-[11.5px] text-t-ink5">
             Calls Artemis's <code className="text-t-ink4">queue.removeMessages</code> with a JMS selector
             matching the message-ids of the selected rows. Cannot be undone — deleted messages do{" "}
             <em>not</em> go to the DLQ.
@@ -1009,14 +1009,14 @@ function SelectivePurgeModal({ queue, ids, total, purging, onConfirm, onCancel }
           <button
             onClick={onCancel}
             disabled={purging}
-            className="px-3 py-1 rounded-md text-[11px] font-medium text-t-ink4 hover:text-t-ink hover:bg-t-hover transition-colors disabled:opacity-40"
+            className="px-3 py-1 rounded-lg text-[11.5px] font-medium text-t-ink4 hover:text-t-ink hover:bg-t-hover transition-colors disabled:opacity-40"
           >
             Cancel
           </button>
           <button
             onClick={onConfirm}
             disabled={purging || ids.length === 0}
-            className="flex items-center gap-1.5 px-3 py-1 rounded-md bg-red-500 hover:bg-red-600 text-white text-[11px] font-semibold transition-colors disabled:opacity-40"
+            className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-negative hover:bg-negative text-white text-[11.5px] font-semibold transition-colors disabled:opacity-40"
           >
             {purging ? <Spinner className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
             {purging ? "Deleting…" : `Delete ${ids.length.toLocaleString()} message${ids.length === 1 ? "" : "s"}`}
@@ -1047,7 +1047,7 @@ function IconBtn({ title, onClick, colorClass, children }: {
 }) {
   return (
     <button onClick={onClick} title={title}
-      className={`p-1 rounded text-t-ink4 transition-colors ${colorClass}`}>
+      className={`p-1 rounded-md text-t-ink4 transition-colors ${colorClass}`}>
       {children}
     </button>
   );
@@ -1140,23 +1140,23 @@ function MessageDetails({ msg, idx, queue, onLog, onRequeue, onEditRequeue, requ
   return (
     <div className="space-y-3">
       {/* Header chips — match Subscriber/History */}
-      <div className="flex items-center gap-2 text-[11px] flex-wrap">
+      <div className="flex items-center gap-2 text-[11.5px] flex-wrap">
         <span className="text-t-ink5 font-mono">#{idx + 1}</span>
-        <span className="text-[10px] px-1.5 py-0.5 rounded bg-t-hover text-t-ink3 font-medium uppercase">{msg.body_kind}</span>
+        <span className="text-[10.5px] px-1.5 py-0.5 rounded-md bg-t-hover text-t-ink3 font-medium uppercase">{msg.body_kind}</span>
         <span className="text-t-ink5 font-mono">{fmtBytes(msg.body_size)}</span>
         {msg.delivery_count > 0 && (
           <span className="text-t-ink4" title="Delivery count">↻ {msg.delivery_count}</span>
         )}
         {msg.priority !== null && msg.priority !== 4 && <span className="text-t-ink4">P{msg.priority}</span>}
-        {msg.durable && <span className="text-blue-500">durable</span>}
+        {msg.durable && <span className="text-accent">durable</span>}
         <button
           type="button"
           onClick={toggleHolders}
           title="Show consumers currently attached to this queue (Artemis doesn't expose a per-message lock owner — the practical answer is which clients have credit outstanding)"
-          className={`ml-auto flex items-center gap-1 text-[11px] transition-colors px-1.5 py-0.5 rounded ${
+          className={`ml-auto flex items-center gap-1 text-[11.5px] transition-colors px-1.5 py-0.5 rounded-md ${
             holderOpen
-              ? "text-blue-500 bg-blue-500/10"
-              : "text-t-ink4 hover:text-blue-500 hover:bg-blue-500/10"
+              ? "text-accent bg-accent/10"
+              : "text-t-ink4 hover:text-accent hover:bg-accent/10"
           }`}
         >
           <Users className="w-3 h-3" /> Who holds it?
@@ -1170,7 +1170,7 @@ function MessageDetails({ msg, idx, queue, onLog, onRequeue, onEditRequeue, requ
             onClick={onEditRequeue}
             disabled={requeueDisabled}
             title="Open the message in an editor — tweak body / target, then resubmit"
-            className="flex items-center gap-1 text-[11px] font-medium text-t-ink3 hover:text-blue-500 disabled:opacity-40 transition-colors"
+            className="flex items-center gap-1 text-[11.5px] font-medium text-t-ink3 hover:text-accent disabled:opacity-40 transition-colors"
           >
             <Edit3 className="w-3 h-3" /> Edit & Requeue…
           </button>
@@ -1188,7 +1188,7 @@ function MessageDetails({ msg, idx, queue, onLog, onRequeue, onEditRequeue, requ
               onClick={onRequeue}
               disabled={requeueDisabled}
               title={`Republish this message to ${origin} without editing`}
-              className="flex items-center gap-1 text-[11px] font-medium text-blue-500 hover:text-blue-400 disabled:opacity-40 transition-colors"
+              className="flex items-center gap-1 text-[11.5px] font-medium text-accent hover:text-accent-content disabled:opacity-40 transition-colors"
             >
               <CornerUpLeft className="w-3 h-3" /> Requeue → <span className="font-mono">{origin}</span>
             </button>
@@ -1198,8 +1198,8 @@ function MessageDetails({ msg, idx, queue, onLog, onRequeue, onEditRequeue, requ
 
       {/* "Who holds this message?" panel — lazy-loaded consumer drill-down */}
       {holderOpen && (
-        <div className="rounded border border-t-line bg-t-card/40 p-2">
-          <div className="flex items-center gap-2 mb-2 text-[11px]">
+        <div className="rounded-md border border-t-line bg-t-card/40 p-2">
+          <div className="flex items-center gap-2 mb-2 text-[11.5px]">
             <Users className="w-3 h-3 text-t-ink4" />
             <span className="text-t-ink2 font-medium">Consumers on this queue</span>
             <span className="text-t-ink5 font-mono">{holderCons.length}</span>
@@ -1208,25 +1208,25 @@ function MessageDetails({ msg, idx, queue, onLog, onRequeue, onEditRequeue, requ
               onClick={loadHolders}
               disabled={holderLoading}
               title="Refresh"
-              className="ml-auto flex items-center gap-1 text-[10px] text-t-ink4 hover:text-t-ink2 transition-colors px-1 py-0.5 rounded hover:bg-t-hover disabled:opacity-40"
+              className="ml-auto flex items-center gap-1 text-[10.5px] text-t-ink4 hover:text-t-ink2 transition-colors px-1 py-0.5 rounded-md hover:bg-t-hover disabled:opacity-40"
             >
               <RotateCcw className={`w-3 h-3 ${holderLoading ? "animate-spin" : ""}`} />
             </button>
           </div>
           {holderLoading && holderCons.length === 0 ? (
-            <div className="text-[11px] text-t-ink5 italic">Loading consumers…</div>
+            <div className="text-[11.5px] text-t-ink5 italic">Loading consumers…</div>
           ) : holderErr ? (
-            <div className="text-[11px] text-red-500">Failed: {holderErr}</div>
+            <div className="text-[11.5px] text-negative">Failed: {holderErr}</div>
           ) : holderCons.length === 0 ? (
-            <div className="text-[11px] text-t-ink5">
+            <div className="text-[11.5px] text-t-ink5">
               No consumers are currently attached to this queue.{" "}
               {msg.delivery_count > 0
                 ? <>Message has been redelivered <b>{msg.delivery_count}×</b>, so a previous consumer may have given up.</>
                 : <>Messages will sit here until a consumer subscribes.</>}
             </div>
           ) : (
-            <table className="w-full text-[11px] font-mono">
-              <thead className="text-[10px] uppercase tracking-wider text-t-ink5">
+            <table className="w-full text-[11.5px] font-mono">
+              <thead className="text-[10.5px] uppercase tracking-wider text-t-ink5">
                 <tr className="border-b border-t-line/60">
                   <th className="text-left pb-1 font-semibold">Client</th>
                   <th className="text-left pb-1 font-semibold w-24">User</th>
@@ -1242,12 +1242,12 @@ function MessageDetails({ msg, idx, queue, onLog, onRequeue, onEditRequeue, requ
                     ? `${fmtDuration(Math.max(0, Date.now() - k.last_delivered_time))} ago`
                     : "—";
                   return (
-                    <tr key={k.id} className={isHolding ? "bg-blue-500/5" : ""}>
+                    <tr key={k.id} className={isHolding ? "bg-accent/5" : ""}>
                       <td className="py-1 text-t-ink2 truncate" title={conn?.client_address ?? k.connection_id}>
                         {conn?.client_address || k.connection_id || "—"}
                       </td>
                       <td className="py-1 text-t-ink3 truncate" title={conn?.users ?? ""}>{conn?.users || "—"}</td>
-                      <td className={`py-1 text-right ${isHolding ? "text-blue-500 font-medium" : "text-t-ink5"}`}>
+                      <td className={`py-1 text-right ${isHolding ? "text-accent font-medium" : "text-t-ink5"}`}>
                         {k.messages_in_transit}
                       </td>
                       <td className="py-1 text-right text-t-ink5">{lastRx}</td>
@@ -1258,7 +1258,7 @@ function MessageDetails({ msg, idx, queue, onLog, onRequeue, onEditRequeue, requ
             </table>
           )}
           {holderCons.some(k => k.messages_in_transit > 0) && (
-            <div className="mt-2 text-[10px] text-t-ink5 leading-relaxed">
+            <div className="mt-2 text-[10.5px] text-t-ink5 leading-relaxed">
               Rows highlighted in blue have unacked credit. They're the most likely
               candidates for holding this message — but Artemis doesn't expose a per-message
               lock owner via management, so this is an inference, not a guarantee.
@@ -1302,13 +1302,13 @@ function MessageDetails({ msg, idx, queue, onLog, onRequeue, onEditRequeue, requ
         onToggle={() => setBodyOpen(o => !o)}
         action={
           <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center bg-t-card border border-t-line rounded overflow-hidden">
+            <div className="flex items-center bg-t-card border border-t-line rounded-md overflow-hidden">
               {(["auto", "raw", "hex"] as const).map(m => (
                 <button
                   key={m}
                   onClick={(e) => { e.stopPropagation(); setBodyMode(m); }}
-                  className={`px-1.5 py-0.5 text-[10px] font-mono transition-colors ${
-                    bodyMode === m ? "bg-blue-500/15 text-blue-500" : "text-t-ink4 hover:text-t-ink2 hover:bg-t-hover"
+                  className={`px-1.5 py-0.5 text-[10.5px] font-mono transition-colors ${
+                    bodyMode === m ? "bg-accent/15 text-accent" : "text-t-ink4 hover:text-t-ink2 hover:bg-t-hover"
                   }`}
                   title={
                     m === "auto" ? `Auto (${detected})` :
@@ -1324,13 +1324,13 @@ function MessageDetails({ msg, idx, queue, onLog, onRequeue, onEditRequeue, requ
                 value={msg.body_text}
                 onCopied={() => onLog("info", "Body copied")}
                 label="Copy"
-                className="flex items-center gap-1 text-[10px] text-t-ink4 hover:text-t-ink2 transition-colors px-1.5 py-0.5 rounded hover:bg-t-hover"
+                className="flex items-center gap-1 text-[10.5px] text-t-ink4 hover:text-t-ink2 transition-colors px-1.5 py-0.5 rounded-md hover:bg-t-hover"
               />
             )}
           </div>
         }
       >
-        <pre className="text-[11px] text-t-ink2 font-mono bg-t-field border border-t-line rounded-md p-2.5 overflow-x-auto whitespace-pre break-all max-h-64 overflow-y-auto select-text">
+        <pre className="text-[11.5px] text-t-ink2 font-mono bg-t-field border border-t-line rounded-lg p-2.5 overflow-x-auto whitespace-pre break-all max-h-64 overflow-y-auto select-text">
           {bodyContent ?? <em className="text-t-ink5">no body</em>}
         </pre>
       </CollapsibleSection>
@@ -1434,20 +1434,20 @@ function EditRequeueModal({ messages, onResubmit, onLog, onClose }: {
     >
       <div
         onClick={e => e.stopPropagation()}
-        className="bg-t-bg border border-t-line rounded-lg shadow-2xl w-[720px] max-w-[95vw] max-h-[88vh] flex flex-col overflow-hidden"
+        className="bg-t-bg border border-t-line rounded-xl shadow-2xl w-[720px] max-w-[95vw] max-h-[88vh] flex flex-col overflow-hidden"
       >
         {/* Header */}
         <div className="shrink-0 px-4 py-2.5 border-b border-t-line bg-t-panel flex items-center gap-2">
-          <Edit3 className="w-3.5 h-3.5 text-blue-500" />
+          <Edit3 className="w-3.5 h-3.5 text-accent" />
           <span className="text-[13px] font-semibold text-t-ink">
             {messages.length === 1 ? "Edit & Requeue" : "Edit & Requeue — bulk"}
           </span>
           {!finished && (
-            <span className="text-[11px] text-t-ink5 font-mono">
+            <span className="text-[11.5px] text-t-ink5 font-mono">
               {step + 1} / {messages.length}
             </span>
           )}
-          <button onClick={onClose} className="ml-auto p-1 rounded hover:bg-t-hover text-t-ink4 hover:text-t-ink">
+          <button onClick={onClose} className="ml-auto p-1 rounded-md hover:bg-t-hover text-t-ink4 hover:text-t-ink">
             <X className="w-3.5 h-3.5" />
           </button>
         </div>
@@ -1457,14 +1457,14 @@ function EditRequeueModal({ messages, onResubmit, onLog, onClose }: {
           // ── Summary screen ───────────────────────────────────────────────
           <div className="flex-1 overflow-auto px-4 py-4 space-y-2 text-[13px] text-t-ink2">
             <p className="text-t-ink font-semibold">All done.</p>
-            <ul className="text-[12px] space-y-0.5">
-              <li>✓ Resubmitted: <span className="font-mono text-green-500">{sentCount}</span></li>
+            <ul className="text-[12.5px] space-y-0.5">
+              <li>✓ Resubmitted: <span className="font-mono text-positive">{sentCount}</span></li>
               <li>○ Skipped: <span className="font-mono text-t-ink4">{skippedCount}</span></li>
               {failedCount > 0 && (
-                <li>✗ Failed: <span className="font-mono text-red-500">{failedCount}</span></li>
+                <li>✗ Failed: <span className="font-mono text-negative">{failedCount}</span></li>
               )}
             </ul>
-            <p className="text-[11px] text-t-ink5 leading-relaxed">
+            <p className="text-[11.5px] text-t-ink5 leading-relaxed">
               Source messages stay on the DLQ — this is a peek-and-republish flow.
               Use <b>Purge</b> on the DLQ to drop the originals after you're satisfied
               with the resubmit.
@@ -1473,8 +1473,8 @@ function EditRequeueModal({ messages, onResubmit, onLog, onClose }: {
         ) : msg && draft ? (
           <div className="flex-1 overflow-auto px-4 py-3 space-y-3 min-h-0">
             {/* Metadata strip */}
-            <div className="flex items-center gap-2 text-[11px] text-t-ink4 flex-wrap">
-              <span className="px-1.5 py-0.5 rounded bg-t-hover text-t-ink3 font-mono">
+            <div className="flex items-center gap-2 text-[11.5px] text-t-ink4 flex-wrap">
+              <span className="px-1.5 py-0.5 rounded-md bg-t-hover text-t-ink3 font-mono">
                 {msg.message_id ?? "no message-id"}
               </span>
               {msg.content_type && (
@@ -1488,7 +1488,7 @@ function EditRequeueModal({ messages, onResubmit, onLog, onClose }: {
 
             {/* Target address */}
             <div>
-              <label className="block text-[10px] font-semibold text-t-ink4 uppercase tracking-wider mb-1">
+              <label className="block text-[10.5px] font-semibold text-t-ink4 uppercase tracking-wider mb-1">
                 Resubmit to
               </label>
               <div className="flex items-center gap-1">
@@ -1497,7 +1497,7 @@ function EditRequeueModal({ messages, onResubmit, onLog, onClose }: {
                   onChange={e => updateDraft({ target: e.target.value })}
                   placeholder="queue.or.address"
                   spellCheck={false}
-                  className="flex-1 bg-t-field border border-t-line2 rounded-md px-2.5 py-1.5 text-[12px] font-mono text-t-ink outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30 transition-all placeholder:text-t-ink5"
+                  className="flex-1 bg-t-field border border-t-line2 rounded-lg px-2.5 py-1.5 text-[12.5px] font-mono text-t-ink outline-none focus:border-accent focus:ring-1 focus:ring-accent/30 transition-all placeholder:text-t-ink5"
                 />
                 {(() => {
                   const origin = originalDestination(msg.application_properties);
@@ -1507,14 +1507,14 @@ function EditRequeueModal({ messages, onResubmit, onLog, onClose }: {
                       type="button"
                       onClick={() => updateDraft({ target: origin })}
                       title={`Reset to original destination: ${origin}`}
-                      className="shrink-0 px-2 py-1 rounded text-[10px] font-medium text-t-ink4 hover:text-blue-500 hover:bg-blue-500/10 transition-colors"
+                      className="shrink-0 px-2 py-1 rounded-md text-[10.5px] font-medium text-t-ink4 hover:text-accent hover:bg-accent/10 transition-colors"
                     >
                       Reset to origin
                     </button>
                   );
                 })()}
               </div>
-              <p className="text-[10px] text-t-ink5 mt-1">
+              <p className="text-[10.5px] text-t-ink5 mt-1">
                 Default is the message's original destination from <span className="font-mono">_AMQ_ORIG_ADDRESS</span> /
                 <span className="font-mono"> originalDestination</span>. Type any address to redirect.
               </p>
@@ -1522,7 +1522,7 @@ function EditRequeueModal({ messages, onResubmit, onLog, onClose }: {
 
             {/* Body editor */}
             <div>
-              <label className="block text-[10px] font-semibold text-t-ink4 uppercase tracking-wider mb-1">
+              <label className="block text-[10.5px] font-semibold text-t-ink4 uppercase tracking-wider mb-1">
                 Body
               </label>
               <CodeEditor
@@ -1530,9 +1530,9 @@ function EditRequeueModal({ messages, onResubmit, onLog, onClose }: {
                 onChange={(v) => updateDraft({ body: v })}
                 language={detectedLang(draft.body)}
                 minHeight="220px"
-                className="bg-t-field border border-t-line2 rounded-md overflow-hidden"
+                className="bg-t-field border border-t-line2 rounded-lg overflow-hidden"
               />
-              <p className="text-[10px] text-t-ink5 mt-1">
+              <p className="text-[10.5px] text-t-ink5 mt-1">
                 Application properties are preserved automatically (minus DLQ-internal markers
                 like <span className="font-mono">_AMQ_ORIG_*</span>). Only the body is editable here.
               </p>
@@ -1540,10 +1540,10 @@ function EditRequeueModal({ messages, onResubmit, onLog, onClose }: {
 
             {/* Per-step result indicator (if user came back to a completed step) */}
             {results[step] && (
-              <div className="text-[11px] flex items-center gap-1">
-                {results[step] === "sent" && <span className="text-green-500">✓ Already resubmitted this step</span>}
+              <div className="text-[11.5px] flex items-center gap-1">
+                {results[step] === "sent" && <span className="text-positive">✓ Already resubmitted this step</span>}
                 {results[step] === "skipped" && <span className="text-t-ink4">○ Previously skipped</span>}
-                {results[step] === "failed" && <span className="text-red-500">✗ Previous attempt failed — try again</span>}
+                {results[step] === "failed" && <span className="text-negative">✗ Previous attempt failed — try again</span>}
               </div>
             )}
           </div>
@@ -1558,7 +1558,7 @@ function EditRequeueModal({ messages, onResubmit, onLog, onClose }: {
                 onClick={() => setStep(s => Math.max(0, s - 1))}
                 disabled={step === 0 || sending}
                 title="Previous message"
-                className="p-1 rounded text-t-ink4 hover:text-t-ink hover:bg-t-hover transition-colors disabled:opacity-40"
+                className="p-1 rounded-md text-t-ink4 hover:text-t-ink hover:bg-t-hover transition-colors disabled:opacity-40"
               >
                 <ChevronLeft className="w-4 h-4" />
               </button>
@@ -1567,11 +1567,11 @@ function EditRequeueModal({ messages, onResubmit, onLog, onClose }: {
                 onClick={() => setStep(s => Math.min(messages.length, s + 1))}
                 disabled={step >= messages.length - 1 || sending}
                 title="Next message (without resubmitting)"
-                className="p-1 rounded text-t-ink4 hover:text-t-ink hover:bg-t-hover transition-colors disabled:opacity-40"
+                className="p-1 rounded-md text-t-ink4 hover:text-t-ink hover:bg-t-hover transition-colors disabled:opacity-40"
               >
                 <ChevronRight className="w-4 h-4" />
               </button>
-              <span className="text-[11px] text-t-ink5 font-mono">
+              <span className="text-[11.5px] text-t-ink5 font-mono">
                 ✓ {sentCount} · ○ {skippedCount}{failedCount > 0 ? ` · ✗ ${failedCount}` : ""}
               </span>
             </>
@@ -1581,7 +1581,7 @@ function EditRequeueModal({ messages, onResubmit, onLog, onClose }: {
               type="button"
               onClick={onClose}
               disabled={sending}
-              className="px-3 py-1 rounded-md text-[11px] font-medium text-t-ink4 hover:text-t-ink hover:bg-t-hover transition-colors disabled:opacity-40"
+              className="px-3 py-1 rounded-lg text-[11.5px] font-medium text-t-ink4 hover:text-t-ink hover:bg-t-hover transition-colors disabled:opacity-40"
             >
               {finished ? "Close" : "Cancel"}
             </button>
@@ -1592,7 +1592,7 @@ function EditRequeueModal({ messages, onResubmit, onLog, onClose }: {
                   onClick={doSkip}
                   disabled={sending}
                   title="Skip without sending; message stays on DLQ"
-                  className="flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium text-t-ink4 hover:text-t-ink hover:bg-t-hover transition-colors disabled:opacity-40"
+                  className="flex items-center gap-1 px-2 py-1 rounded-md text-[11.5px] font-medium text-t-ink4 hover:text-t-ink hover:bg-t-hover transition-colors disabled:opacity-40"
                 >
                   <SkipForward className="w-3 h-3" /> Skip
                 </button>
@@ -1600,7 +1600,7 @@ function EditRequeueModal({ messages, onResubmit, onLog, onClose }: {
                   type="button"
                   onClick={doResubmit}
                   disabled={sending || !draft || !draft.target.trim()}
-                  className="flex items-center gap-1.5 px-3 py-1 rounded-md bg-blue-500 hover:bg-blue-600 text-white text-[11px] font-semibold transition-colors disabled:opacity-40"
+                  className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-accent hover:bg-accent-strong text-white text-[11.5px] font-semibold transition-colors disabled:opacity-40"
                 >
                   {sending
                     ? <Loader2 className="w-3 h-3 animate-spin" />
@@ -1764,42 +1764,42 @@ function ShovelModal({ messages, sourceQueue, profiles, activeProfile, onLog, on
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={close}>
       <div onClick={e => e.stopPropagation()}
-        className="bg-t-bg border border-t-line rounded-lg shadow-2xl w-[640px] max-w-[95vw] max-h-[88vh] flex flex-col overflow-hidden">
+        className="bg-t-bg border border-t-line rounded-xl shadow-2xl w-[640px] max-w-[95vw] max-h-[88vh] flex flex-col overflow-hidden">
 
         <div className="shrink-0 px-4 py-2.5 border-b border-t-line bg-t-panel flex items-center gap-2">
-          <ArrowRightLeft className="w-3.5 h-3.5 text-blue-500" />
+          <ArrowRightLeft className="w-3.5 h-3.5 text-accent" />
           <span className="text-[13px] font-semibold text-t-ink">Cross-broker shovel</span>
-          <span className="text-[11px] text-t-ink5 font-mono">{messages.length} peeked</span>
-          <button onClick={close} className="ml-auto p-1 rounded hover:bg-t-hover text-t-ink4 hover:text-t-ink">
+          <span className="text-[11.5px] text-t-ink5 font-mono">{messages.length} peeked</span>
+          <button onClick={close} className="ml-auto p-1 rounded-md hover:bg-t-hover text-t-ink4 hover:text-t-ink">
             <X className="w-3.5 h-3.5" />
           </button>
         </div>
 
         <div className="flex-1 overflow-auto px-4 py-3 space-y-3">
           {/* Source — fixed, just informational */}
-          <div className="rounded border border-t-line bg-t-card/40 p-2.5">
-            <div className="text-[10px] font-semibold text-t-ink4 uppercase tracking-wider mb-1">Source</div>
-            <div className="text-[12px] text-t-ink font-mono">
+          <div className="rounded-md border border-t-line bg-t-card/40 p-2.5">
+            <div className="text-[10.5px] font-semibold text-t-ink4 uppercase tracking-wider mb-1">Source</div>
+            <div className="text-[12.5px] text-t-ink font-mono">
               <span className="text-t-ink3">{activeProfile || "(no profile)"}</span>
               <span className="mx-1 text-t-ink5">/</span>
               <span>{sourceQueue}</span>
             </div>
-            <div className="text-[10px] text-t-ink5 mt-0.5">
+            <div className="text-[10.5px] text-t-ink5 mt-0.5">
               {messages.length} message{messages.length === 1 ? "" : "s"} from the current peek snapshot
             </div>
           </div>
 
           {/* Target — profile + queue */}
-          <div className="rounded border border-t-line bg-t-card/40 p-2.5">
-            <div className="text-[10px] font-semibold text-t-ink4 uppercase tracking-wider mb-1">Target</div>
+          <div className="rounded-md border border-t-line bg-t-card/40 p-2.5">
+            <div className="text-[10.5px] font-semibold text-t-ink4 uppercase tracking-wider mb-1">Target</div>
             {otherProfiles.length === 0 ? (
-              <div className="text-[11px] text-amber-500">
+              <div className="text-[11.5px] text-caution">
                 Only the active profile is saved — add another profile to shovel between brokers.
               </div>
             ) : (
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="block text-[10px] text-t-ink5 mb-1">Profile</label>
+                  <label className="block text-[10.5px] text-t-ink5 mb-1">Profile</label>
                   {/* `appearance-none` + explicit `h-8` + `box-border` defeat
                       WebKit's default <select> sizing so it matches the
                       adjacent <input> pixel-for-pixel. The chevron is
@@ -1810,7 +1810,7 @@ function ShovelModal({ messages, sourceQueue, profiles, activeProfile, onLog, on
                       value={targetProfile}
                       onChange={e => setTargetProfile(e.target.value)}
                       disabled={running}
-                      className="w-full bg-t-field border border-t-line2 rounded-md px-2 pr-7 py-1 text-[12px] font-mono text-t-ink outline-none focus:border-blue-500 disabled:opacity-50 h-8 box-border appearance-none"
+                      className="w-full bg-t-field border border-t-line2 rounded-lg px-2 pr-7 py-1 text-[12.5px] font-mono text-t-ink outline-none focus:border-accent disabled:opacity-50 h-8 box-border appearance-none"
                     >
                       {otherProfiles.map(p => (
                         <option key={p.name} value={p.name}>{p.name}  ({p.host}:{p.port})</option>
@@ -1820,14 +1820,14 @@ function ShovelModal({ messages, sourceQueue, profiles, activeProfile, onLog, on
                   </div>
                 </div>
                 <div>
-                  <label className="block text-[10px] text-t-ink5 mb-1">Queue / address</label>
+                  <label className="block text-[10.5px] text-t-ink5 mb-1">Queue / address</label>
                   <input
                     value={targetQueue}
                     onChange={e => setTargetQueue(e.target.value)}
                     disabled={running}
                     placeholder="target queue"
                     spellCheck={false}
-                    className="w-full bg-t-field border border-t-line2 rounded-md px-2 py-1 text-[12px] font-mono text-t-ink outline-none focus:border-blue-500 disabled:opacity-50 h-8 box-border appearance-none"
+                    className="w-full bg-t-field border border-t-line2 rounded-lg px-2 py-1 text-[12.5px] font-mono text-t-ink outline-none focus:border-accent disabled:opacity-50 h-8 box-border appearance-none"
                   />
                 </div>
               </div>
@@ -1835,17 +1835,17 @@ function ShovelModal({ messages, sourceQueue, profiles, activeProfile, onLog, on
           </div>
 
           {/* Optional transform */}
-          <div className="rounded border border-t-line bg-t-card/40 p-2.5">
+          <div className="rounded-md border border-t-line bg-t-card/40 p-2.5">
             <label className="flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
                 checked={transformOn}
                 onChange={e => setTransformOn(e.target.checked)}
                 disabled={running}
-                className="w-3.5 h-3.5 accent-blue-600 cursor-pointer"
+                className="w-3.5 h-3.5 accent-accent-strong cursor-pointer"
               />
-              <span className="text-[12px] text-t-ink2 font-medium">Transform body / properties (JS)</span>
-              <span className="text-[10px] text-t-ink5">— optional, async</span>
+              <span className="text-[12.5px] text-t-ink2 font-medium">Transform body / properties (JS)</span>
+              <span className="text-[10.5px] text-t-ink5">— optional, async</span>
             </label>
             {transformOn && (
               <textarea
@@ -1854,10 +1854,10 @@ function ShovelModal({ messages, sourceQueue, profiles, activeProfile, onLog, on
                 disabled={running}
                 spellCheck={false}
                 rows={6}
-                className="mt-2 w-full bg-t-field border border-t-line2 rounded px-2 py-1.5 text-[11px] font-mono text-t-ink outline-none focus:border-blue-500 disabled:opacity-50"
+                className="mt-2 w-full bg-t-field border border-t-line2 rounded-md px-2 py-1.5 text-[11.5px] font-mono text-t-ink outline-none focus:border-accent disabled:opacity-50"
               />
             )}
-            <p className="text-[10px] text-t-ink5 leading-relaxed mt-1.5">
+            <p className="text-[10.5px] text-t-ink5 leading-relaxed mt-1.5">
               Runs in the WebView; one call per source message before send. Mutate{" "}
               <span className="font-mono">ctx.body</span> and{" "}
               <span className="font-mono">ctx.properties</span> in place, or{" "}
@@ -1868,14 +1868,14 @@ function ShovelModal({ messages, sourceQueue, profiles, activeProfile, onLog, on
           {/* Progress */}
           {progress && (
             <div>
-              <div className="flex items-center gap-2 text-[11px] font-mono text-t-ink4 mb-1">
+              <div className="flex items-center gap-2 text-[11.5px] font-mono text-t-ink4 mb-1">
                 <span>{progress.step} / {progress.total}</span>
-                <span className="text-green-500">✓ {progress.ok}</span>
+                <span className="text-positive">✓ {progress.ok}</span>
                 {progress.skipped > 0 && <span className="text-t-ink4">○ {progress.skipped}</span>}
-                {progress.failed > 0 && <span className="text-red-500">✗ {progress.failed}</span>}
+                {progress.failed > 0 && <span className="text-negative">✗ {progress.failed}</span>}
               </div>
-              <div className="h-1 bg-t-card rounded overflow-hidden">
-                <div className="h-full bg-blue-500 transition-all"
+              <div className="h-1 bg-t-card rounded-md overflow-hidden">
+                <div className="h-full bg-accent transition-all"
                   style={{ width: progress.total > 0 ? `${(progress.step / progress.total) * 100}%` : "0%" }} />
               </div>
             </div>
@@ -1883,20 +1883,20 @@ function ShovelModal({ messages, sourceQueue, profiles, activeProfile, onLog, on
         </div>
 
         <div className="shrink-0 px-3 py-2 border-t border-t-line bg-t-panel flex items-center gap-2">
-          <span className="text-[10px] text-t-ink5">
+          <span className="text-[10.5px] text-t-ink5">
             Source messages are <b className="text-t-ink4">not</b> deleted — this is a copy.
           </span>
           <div className="ml-auto flex items-center gap-2">
             <button
               onClick={close}
-              className="px-3 py-1 rounded-md text-[11px] font-medium text-t-ink4 hover:text-t-ink hover:bg-t-hover transition-colors"
+              className="px-3 py-1 rounded-lg text-[11.5px] font-medium text-t-ink4 hover:text-t-ink hover:bg-t-hover transition-colors"
             >
               {running ? "Cancel" : "Close"}
             </button>
             <button
               onClick={run}
               disabled={running || otherProfiles.length === 0 || messages.length === 0 || !targetProfile || !targetQueue.trim()}
-              className="flex items-center gap-1.5 px-3 py-1 rounded-md bg-blue-500 hover:bg-blue-600 text-white text-[11px] font-semibold transition-colors disabled:opacity-40"
+              className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-accent hover:bg-accent-strong text-white text-[11.5px] font-semibold transition-colors disabled:opacity-40"
             >
               {running
                 ? <><Spinner className="w-3 h-3 animate-spin" /> Shovelling…</>

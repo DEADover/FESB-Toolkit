@@ -76,14 +76,14 @@ function dateInRange(tsMs: number, preset: DatePreset, now: number): boolean {
 }
 
 const LEVEL_ICONS = {
-  ok:   <CheckCircle className="w-3 h-3 text-green-500 shrink-0" />,
-  err:  <XCircle     className="w-3 h-3 text-red-500   shrink-0" />,
+  ok:   <CheckCircle className="w-3 h-3 text-positive shrink-0" />,
+  err:  <XCircle     className="w-3 h-3 text-negative   shrink-0" />,
   info: <Info        className="w-3 h-3 text-t-ink4    shrink-0" />,
 };
 
 const LEVEL_TEXT_COLOR = {
-  ok:   "text-green-500",
-  err:  "text-red-500",
+  ok:   "text-positive",
+  err:  "text-negative",
   info: "text-t-ink3",
 };
 
@@ -224,20 +224,20 @@ export default function ConsoleView({ logs, onClear }: Props) {
             : `${filtered.length} / ${sourceLogs.length}`
         }
         status={paused
-          ? <span className="flex items-center gap-1 text-[10px] text-amber-500 font-mono">
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-500" /> {t("console.paused")}
+          ? <span className="flex items-center gap-1 text-[10.5px] text-caution font-mono">
+              <span className="w-1.5 h-1.5 rounded-full bg-caution" /> {t("console.paused")}
             </span>
-          : <span className="flex items-center gap-1 text-[10px] text-t-ink5 font-mono">
-              <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" /> {t("console.live")}
+          : <span className="flex items-center gap-1 text-[10.5px] text-t-ink5 font-mono">
+              <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" /> {t("console.live")}
             </span>}
       >
         <button
           onClick={togglePause}
           aria-pressed={paused}
           title={paused ? t("console.resume.hint") : t("console.pause.hint")}
-          className={`flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium transition-colors ${
+          className={`flex items-center gap-1 px-2 py-1 rounded-md text-[11.5px] font-medium transition-colors ${
             paused
-              ? "text-amber-500 bg-amber-500/10 hover:bg-amber-500/20"
+              ? "text-caution bg-caution/10 hover:bg-caution/20"
               : "text-t-ink4 hover:text-t-ink hover:bg-t-hover"
           }`}
         >
@@ -256,7 +256,7 @@ export default function ConsoleView({ logs, onClear }: Props) {
               aria-expanded={open}
               disabled={filtered.length === 0}
               title={t("console.export")}
-              className="flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium text-t-ink4 hover:text-blue-500 hover:bg-blue-500/10 transition-colors disabled:opacity-40"
+              className="flex items-center gap-1 px-2 py-1 rounded-md text-[11.5px] font-medium text-t-ink4 hover:text-accent hover:bg-accent/10 transition-colors disabled:opacity-40"
             >
               <Download className="w-3 h-3" /> {t("console.export.short")}
               <ChevronDown className="w-3 h-3" />
@@ -271,7 +271,7 @@ export default function ConsoleView({ logs, onClear }: Props) {
         <button
           onClick={() => setConfirmClear(true)}
           disabled={logs.length === 0}
-          className="flex items-center gap-1.5 px-2 py-1 rounded text-[11px] font-medium text-t-ink4 hover:text-red-500 hover:bg-red-500/10 transition-colors disabled:opacity-40 disabled:hover:text-t-ink4 disabled:hover:bg-transparent"
+          className="flex items-center gap-1.5 px-2 py-1 rounded-md text-[11.5px] font-medium text-t-ink4 hover:text-negative hover:bg-negative/10 transition-colors disabled:opacity-40 disabled:hover:text-t-ink4 disabled:hover:bg-transparent"
         >
           <Trash2 className="w-3 h-3" /> {t("console.clear.short")}
         </button>
@@ -324,8 +324,8 @@ export default function ConsoleView({ logs, onClear }: Props) {
               onClick={toggle}
               aria-expanded={open}
               title={t("console.date.filter")}
-              className={`flex items-center gap-1 text-[11px] transition-colors px-1.5 py-0.5 rounded shrink-0 ${
-                datePreset !== "all" ? "text-blue-500 bg-blue-500/10" : "text-t-ink4 hover:text-t-ink3"
+              className={`flex items-center gap-1 text-[11.5px] transition-colors px-1.5 py-0.5 rounded-md shrink-0 ${
+                datePreset !== "all" ? "text-accent bg-accent/10" : "text-t-ink4 hover:text-t-ink3"
               }`}
             >
               <Calendar className="w-3 h-3" /> {presetLabel}
@@ -351,8 +351,8 @@ export default function ConsoleView({ logs, onClear }: Props) {
         <button
           onClick={() => setAutoScroll(a => !a)}
           aria-pressed={autoScroll}
-          className={`flex items-center gap-1 text-[11px] transition-colors px-1.5 py-0.5 rounded shrink-0 ${
-            autoScroll ? "text-blue-500 bg-blue-500/10" : "text-t-ink4 hover:text-t-ink3"
+          className={`flex items-center gap-1 text-[11.5px] transition-colors px-1.5 py-0.5 rounded-md shrink-0 ${
+            autoScroll ? "text-accent bg-accent/10" : "text-t-ink4 hover:text-t-ink3"
           }`}
           title={autoScroll ? t("console.follow.on") : t("console.follow.off")}
         >
@@ -384,7 +384,7 @@ export default function ConsoleView({ logs, onClear }: Props) {
             title={t("console.nothing")}
             action={filtersActive && (
               <button onClick={resetFilters}
-                className="text-[11px] text-blue-500 hover:text-blue-400 transition-colors">
+                className="text-[11.5px] text-accent hover:text-accent-content transition-colors">
                 Reset filters
               </button>
             )}
@@ -394,7 +394,7 @@ export default function ConsoleView({ logs, onClear }: Props) {
             {filtered.map(entry => (
               <div
                 key={entry.id}
-                className={`${COLS} px-3 py-1 border-b border-t-line/40 hover:bg-t-hover/50 text-[11px]`}
+                className={`${COLS} px-3 py-1 border-b border-t-line/40 hover:bg-t-hover/50 text-[11.5px]`}
               >
                 <span
                   className="text-t-ink5 truncate"

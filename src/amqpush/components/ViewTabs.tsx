@@ -31,9 +31,11 @@ export default function ViewTabs({ active, onChange }: Props) {
   const t = useAmqpText();
 
   return (
+    // Дорожка с пилюлями — тот же переключатель, что у отборов на других
+    // экранах: рамка, подложка и выделение акцентом.
     <nav
       aria-label="AMQP"
-      className="shrink-0 flex items-center gap-1 overflow-x-auto border-b border-t-line bg-t-panel px-2 py-1.5"
+      className="flex shrink-0 items-center gap-0.5 overflow-x-auto rounded-xl border border-line-strong bg-surface-2 p-1"
     >
       {ITEMS.map((item) => {
         const isActive = active === item.id;
@@ -45,7 +47,7 @@ export default function ViewTabs({ active, onChange }: Props) {
             onClick={() => onChange(item.id)}
             title={`${label}  ${item.kbd}`}
             aria-current={isActive ? "page" : undefined}
-            className={`flex h-7 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md px-2.5 text-[12px] transition-colors ${
+            className={`flex h-7 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg px-2.5 text-[12.5px] transition-colors ${
               isActive
                 ? "bg-accent text-white"
                 : "text-t-ink3 hover:bg-t-hover hover:text-t-ink"

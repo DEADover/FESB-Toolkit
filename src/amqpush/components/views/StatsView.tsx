@@ -305,7 +305,7 @@ export default function StatsView({ statsByProfile, activeProfile }: Props) {
           <select
             value={viewProfile}
             onChange={e => setViewProfile(e.target.value)}
-            className="bg-t-field border border-t-line2 rounded px-1.5 py-0.5 text-[11px] text-t-ink2 outline-none focus:border-blue-500 mr-1"
+            className="bg-t-field border border-t-line2 rounded-md px-1.5 py-0.5 text-[11.5px] text-t-ink2 outline-none focus:border-accent mr-1"
             title={t("stats.profile.hint")}
           >
             <option value="__all__">{t("stats.profile.all", { count: profileBuckets.length })}</option>
@@ -314,9 +314,9 @@ export default function StatsView({ statsByProfile, activeProfile }: Props) {
             ))}
           </select>
         )}
-        <span className="text-[11px] text-t-ink5 font-mono">
+        <span className="text-[11.5px] text-t-ink5 font-mono">
           ↑{stats.sentCount.toLocaleString()} ↓{stats.receivedCount.toLocaleString()}
-          {stats.sendErrorCount > 0 && <span className="text-red-500 ml-2">⚠ {stats.sendErrorCount}</span>}
+          {stats.sendErrorCount > 0 && <span className="text-negative ml-2">⚠ {stats.sendErrorCount}</span>}
         </span>
       </ViewTopBar>
 
@@ -325,16 +325,16 @@ export default function StatsView({ statsByProfile, activeProfile }: Props) {
 
         {/* OVERVIEW — 6 stat cards */}
         <div className="grid grid-cols-2 lg:grid-cols-6 gap-2">
-          <Card icon={<Send  className="w-4 h-4 text-blue-500" />} label={t("stats.sent")}
+          <Card icon={<Send  className="w-4 h-4 text-accent" />} label={t("stats.sent")}
             value={stats.sentCount.toLocaleString()} sub={fmt(stats.sentBytes)}
             footer={stats.lastSentAt ? t("stats.last", { ago: timeAgo(stats.lastSentAt) }) : undefined} />
-          <Card icon={<Inbox className="w-4 h-4 text-green-500" />} label={t("stats.received")}
+          <Card icon={<Inbox className="w-4 h-4 text-positive" />} label={t("stats.received")}
             value={stats.receivedCount.toLocaleString()} sub={fmt(stats.receivedBytes)}
             footer={stats.lastReceivedAt ? t("stats.last", { ago: timeAgo(stats.lastReceivedAt) }) : undefined} />
-          <Card icon={<Zap className="w-4 h-4 text-amber-500" />} label={t("stats.throughput")}
+          <Card icon={<Zap className="w-4 h-4 text-caution" />} label={t("stats.throughput")}
             value={`${rateLabel(sendRate)} ↑`} sub={`${rateLabel(recvRate)} ↓`}
             footer={t("stats.peak", { up: stats.peakSendRate.toFixed(1), down: stats.peakRecvRate.toFixed(1) })} />
-          <Card icon={<FileText className="w-4 h-4 text-violet-500" />} label={t("stats.avgSize")}
+          <Card icon={<FileText className="w-4 h-4 text-accent-content" />} label={t("stats.avgSize")}
             value={sentSizeStats ? fmt(sentSizeStats.avg) : "—"}
             sub={t("stats.avgSize.range", {
               min: sentSizeStats ? fmt(sentSizeStats.min) : "—",
@@ -358,9 +358,9 @@ export default function StatsView({ statsByProfile, activeProfile }: Props) {
               : "—";
             const valueColor =
               successPct === null            ? "text-t-ink" :
-              successPct >= 99.5             ? "text-green-500" :
-              successPct >= 95               ? "text-amber-500" :
-                                               "text-red-500";
+              successPct >= 99.5             ? "text-positive" :
+              successPct >= 95               ? "text-caution" :
+                                               "text-negative";
             const subText = totalAttempts === 0
               ? t("stats.noSends")
               : t("stats.okErr", { ok: stats.sentCount, err: stats.sendErrorCount });
@@ -371,7 +371,7 @@ export default function StatsView({ statsByProfile, activeProfile }: Props) {
                 : t("stats.noIssues");
             return (
               <Card
-                icon={<ShieldCheck className={`w-4 h-4 ${hasIssues ? "text-amber-500" : "text-green-500"}`} />}
+                icon={<ShieldCheck className={`w-4 h-4 ${hasIssues ? "text-caution" : "text-positive"}`} />}
                 label={t("stats.reliability")}
                 value={<span className={valueColor}>{valueText}</span>}
                 sub={subText}
@@ -384,8 +384,8 @@ export default function StatsView({ statsByProfile, activeProfile }: Props) {
         {/* THROUGHPUT — sparkline charts */}
         <Section title={t("stats.throughput.section")} icon={<TrendingUp className="w-3.5 h-3.5" />}>
           <div className="grid grid-cols-2 gap-3">
-            <Sparkline buckets={sentBuckets}  label={t("stats.sent")}     color="bg-blue-500"  rate={sendRate} count={stats.sentCount} t={t} />
-            <Sparkline buckets={recvBuckets} label={t("stats.received")} color="bg-green-500" rate={recvRate} count={stats.receivedCount} t={t} />
+            <Sparkline buckets={sentBuckets}  label={t("stats.sent")}     color="bg-accent"  rate={sendRate} count={stats.sentCount} t={t} />
+            <Sparkline buckets={recvBuckets} label={t("stats.received")} color="bg-positive" rate={recvRate} count={stats.receivedCount} t={t} />
           </div>
         </Section>
 
@@ -400,16 +400,16 @@ export default function StatsView({ statsByProfile, activeProfile }: Props) {
         {/* SIZE DISTRIBUTION + CONTENT KIND */}
         <Section title={t("stats.distribution")} icon={<Activity className="w-3.5 h-3.5" />}>
           <div className="grid grid-cols-2 gap-3">
-            <div className="bg-t-card border border-t-line rounded-lg p-3">
+            <div className="bg-t-card border border-t-line rounded-xl p-3">
               <SectionLabel className="block mb-2">{t("stats.size.sent")}</SectionLabel>
               <SizeBar stats={sentSizeStats} t={t} />
             </div>
-            <div className="bg-t-card border border-t-line rounded-lg p-3">
+            <div className="bg-t-card border border-t-line rounded-xl p-3">
               <SectionLabel className="block mb-2">{t("stats.size.received")}</SectionLabel>
               <SizeBar stats={recvSizeStats} t={t} />
             </div>
             {kindEntries.length > 0 && (
-              <div className="col-span-2 bg-t-card border border-t-line rounded-lg p-3">
+              <div className="col-span-2 bg-t-card border border-t-line rounded-xl p-3">
                 <SectionLabel className="block mb-2">{t("stats.byKind")}</SectionLabel>
                 <KindBar entries={kindEntries} total={stats.sentCount} />
               </div>
@@ -419,15 +419,15 @@ export default function StatsView({ statsByProfile, activeProfile }: Props) {
 
         {/* ERRORS */}
         {(stats.sendErrorCount > 0 || stats.reconnectCount > 0) && (
-          <Section title={t("stats.issues")} icon={<AlertTriangle className="w-3.5 h-3.5 text-amber-500" />}>
-            <div className="bg-t-card border border-t-line rounded-lg p-3 grid grid-cols-2 gap-3 text-[12px]">
+          <Section title={t("stats.issues")} icon={<AlertTriangle className="w-3.5 h-3.5 text-caution" />}>
+            <div className="bg-t-card border border-t-line rounded-xl p-3 grid grid-cols-2 gap-3 text-[12.5px]">
               <div>
                 <SectionLabel className="block mb-1">{t("stats.sendErrors")}</SectionLabel>
-                <p className="text-xl font-bold font-mono text-red-500">{stats.sendErrorCount}</p>
+                <p className="text-xl font-bold font-mono text-negative">{stats.sendErrorCount}</p>
               </div>
               <div>
                 <SectionLabel className="block mb-1">{t("stats.reconnectCount")}</SectionLabel>
-                <p className="text-xl font-bold font-mono text-amber-500">{stats.reconnectCount}</p>
+                <p className="text-xl font-bold font-mono text-caution">{stats.reconnectCount}</p>
               </div>
             </div>
           </Section>
@@ -449,14 +449,14 @@ export default function StatsView({ statsByProfile, activeProfile }: Props) {
 
 function Card({ icon, label, value, sub, footer }: { icon: React.ReactNode; label: string; value: React.ReactNode; sub?: string; footer?: string }) {
   return (
-    <div className="bg-t-card border border-t-line rounded-lg p-3 flex flex-col gap-1.5">
+    <div className="bg-t-card border border-t-line rounded-xl p-3 flex flex-col gap-1.5">
       <div className="flex items-center gap-2">
         {icon}
         <SectionLabel className="truncate">{label}</SectionLabel>
       </div>
       <p className="text-2xl font-bold text-t-ink font-mono leading-none mt-1">{value}</p>
-      {sub && <p className="text-[11px] text-t-ink4 mt-1 truncate">{sub}</p>}
-      {footer && <p className="text-[10px] text-t-ink5 mt-auto pt-1 truncate">{footer}</p>}
+      {sub && <p className="text-[11.5px] text-t-ink4 mt-1 truncate">{sub}</p>}
+      {footer && <p className="text-[10.5px] text-t-ink5 mt-auto pt-1 truncate">{footer}</p>}
     </div>
   );
 }
@@ -473,10 +473,10 @@ function Section({ title, icon, children }: { title: string; icon: React.ReactNo
 function Sparkline({ buckets, label, color, rate, count, t }: { buckets: number[]; label: string; color: string; rate: number; count: number; t: AmqpTranslate }) {
   const max = Math.max(1, ...buckets);
   return (
-    <div className="bg-t-card border border-t-line rounded-lg p-3">
+    <div className="bg-t-card border border-t-line rounded-xl p-3">
       <div className="flex items-baseline justify-between mb-2">
         <SectionLabel>{label}</SectionLabel>
-        <span className="text-[11px] font-mono text-t-ink2">
+        <span className="text-[11.5px] font-mono text-t-ink2">
           <span className="text-[14px] font-bold text-t-ink">{rateLabel(rate)}</span>
           <span className="text-t-ink5 ml-1">· {count.toLocaleString()} total</span>
         </span>
@@ -484,7 +484,7 @@ function Sparkline({ buckets, label, color, rate, count, t }: { buckets: number[
       <div className="flex items-end gap-px h-12">
         {buckets.map((b, i) => (
           <div key={i}
-            className={`flex-1 ${color} rounded-sm transition-all min-h-[1px] ${b === 0 ? "opacity-20" : ""}`}
+            className={`flex-1 ${color} rounded-md transition-all min-h-[1px] ${b === 0 ? "opacity-20" : ""}`}
             style={{ height: `${Math.max(2, (b / max) * 100)}%` }}
             title={t("stats.bucket", { count: b, ago: 60 - i })}
           />
@@ -502,19 +502,19 @@ function Sparkline({ buckets, label, color, rate, count, t }: { buckets: number[
 function QueueLeaderboard({ title, entries, totalCount, accent, t }: {
   title: string; entries: Array<[string, QueueStat]>; totalCount: number; accent: "blue" | "green"; t: AmqpTranslate;
 }) {
-  const accentBg = accent === "blue" ? "bg-blue-500" : "bg-green-500";
+  const accentBg = accent === "blue" ? "bg-accent" : "bg-positive";
   return (
-    <div className="bg-t-card border border-t-line rounded-lg p-3">
+    <div className="bg-t-card border border-t-line rounded-xl p-3">
       <SectionLabel className="block mb-2">{title}</SectionLabel>
       {entries.length === 0 ? (
-        <p className="text-[11px] text-t-ink5 py-2">{t("stats.noData")}</p>
+        <p className="text-[11.5px] text-t-ink5 py-2">{t("stats.noData")}</p>
       ) : (
         <div className="space-y-1.5">
           {entries.map(([name, st]) => {
             const pct = totalCount > 0 ? (st.count / totalCount) * 100 : 0;
             return (
               <div key={name}>
-                <div className="flex items-center justify-between text-[11px] mb-0.5 gap-2">
+                <div className="flex items-center justify-between text-[11.5px] mb-0.5 gap-2">
                   <span className="font-mono text-t-ink2 truncate" title={name}>{name}</span>
                   <span className="text-t-ink4 font-mono shrink-0 text-right">
                     {st.count} <span className="text-t-ink5">· {fmt(st.bytes)}</span>
@@ -534,12 +534,12 @@ function QueueLeaderboard({ title, entries, totalCount, accent, t }: {
 }
 
 function SizeBar({ stats, t }: { stats: { min: number; max: number; avg: number } | null; t: AmqpTranslate }) {
-  if (!stats) return <p className="text-[11px] text-t-ink5 py-2">{t("stats.noData")}</p>;
+  if (!stats) return <p className="text-[11.5px] text-t-ink5 py-2">{t("stats.noData")}</p>;
   const range = stats.max - stats.min;
   const avgPct = range > 0 ? ((stats.avg - stats.min) / range) * 100 : 50;
   return (
     <div>
-      <div className="flex items-center justify-between text-[11px] font-mono mb-2">
+      <div className="flex items-center justify-between text-[11.5px] font-mono mb-2">
         <div>
           <span className="text-t-ink5 mr-1">{t("stats.min")}</span>
           <span className="text-t-ink2">{fmt(stats.min)}</span>
@@ -554,18 +554,18 @@ function SizeBar({ stats, t }: { stats: { min: number; max: number; avg: number 
         </div>
       </div>
       <div className="relative h-2 bg-t-hover rounded-full overflow-hidden">
-        <div className="absolute h-full bg-blue-500/30 rounded-full" style={{ width: "100%" }} />
-        <div className="absolute top-0 bottom-0 w-0.5 bg-blue-600 rounded-full" style={{ left: `${avgPct}%` }} />
+        <div className="absolute h-full bg-accent/30 rounded-full" style={{ width: "100%" }} />
+        <div className="absolute top-0 bottom-0 w-0.5 bg-accent-strong rounded-full" style={{ left: `${avgPct}%` }} />
       </div>
     </div>
   );
 }
 
 const KIND_COLORS: Record<string, string> = {
-  json:   "bg-blue-500",
-  xml:    "bg-violet-500",
-  text:   "bg-amber-500",
-  binary: "bg-pink-500",
+  json:   "bg-accent",
+  xml:    "bg-accent-content",
+  text:   "bg-caution",
+  binary: "bg-negative",
   none:   "bg-t-ink5",
 };
 
@@ -584,7 +584,7 @@ function KindBar({ entries, total }: { entries: Array<[string, number]>; total: 
           );
         })}
       </div>
-      <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2 text-[11px]">
+      <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2 text-[11.5px]">
         {entries.map(([kind, count]) => (
           <div key={kind} className="flex items-center gap-1">
             <span className={`w-2 h-2 rounded-full ${KIND_COLORS[kind] ?? "bg-t-ink4"}`} />

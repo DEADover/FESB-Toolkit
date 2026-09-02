@@ -75,11 +75,11 @@ export default function CopyButton({
         // `key` makes React remount the icon each time `copied` flips to true,
         // which restarts the CSS pulse animation — back-to-back clicks each
         // get their own bounce instead of the animation only firing once.
-        <Check key={Date.now()} className={`${iconClassName} text-green-500 animate-copy-pulse`} />
+        <Check key={Date.now()} className={`${iconClassName} text-positive animate-copy-pulse`} />
       ) : (
         <Copy className={iconClassName} />
       )}
-      {label && <span className={copied ? "text-green-500" : ""}>{copied ? "Copied" : label}</span>}
+      {label && <span className={copied ? "text-positive" : ""}>{copied ? "Copied" : label}</span>}
     </button>
   );
 }

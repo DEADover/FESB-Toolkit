@@ -59,7 +59,7 @@ export default function Dropdown({
       {trigger({ open, toggle, close })}
       {open && (
         <DropdownCtx.Provider value={{ close }}>
-          <div className={`absolute ${align === "right" ? "right-0" : "left-0"} top-full mt-1 z-50 ${width} bg-t-card border border-t-line rounded-md shadow-lg overflow-hidden ${panelClassName}`}>
+          <div className={`absolute ${align === "right" ? "right-0" : "left-0"} top-full mt-1 z-50 ${width} bg-t-card border border-t-line rounded-lg shadow-lg overflow-hidden ${panelClassName}`}>
             {children}
           </div>
         </DropdownCtx.Provider>
@@ -82,7 +82,7 @@ export function DropdownSection({
   return (
     <>
       {title && (
-        <div className="px-3 py-1.5 text-[10px] uppercase tracking-wider text-t-ink4 font-semibold border-b border-t-line">
+        <div className="px-3 py-1.5 text-[10.5px] uppercase tracking-wider text-t-ink4 font-semibold border-b border-t-line">
           {title}
         </div>
       )}
@@ -105,7 +105,7 @@ export function DropdownFooter({ children }: { children: ReactNode }) {
 
 /**
  * A single selectable row inside a Dropdown. When `active` is true the row is
- * tinted with `bg-blue-500/10` (canonical selected-state) and a Check is
+ * tinted with `bg-accent/10` (canonical selected-state) and a Check is
  * rendered in the leading slot — otherwise an invisible spacer keeps text
  * alignment consistent across rows.
  */
@@ -141,15 +141,15 @@ export function DropdownItem({
       onClick={handleClick}
       onKeyDown={handleKey}
       disabled={disabled}
-      className={`w-full flex items-center gap-2 px-3 py-1.5 text-left transition-colors text-[12px] ${
-        active ? "bg-blue-500/10" : "hover:bg-t-hover"
+      className={`w-full flex items-center gap-2 px-3 py-1.5 text-left transition-colors text-[12.5px] ${
+        active ? "bg-accent/10" : "hover:bg-t-hover"
       } ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}
     >
       {active
-        ? <Check className="w-3 h-3 text-blue-500 shrink-0" />
+        ? <Check className="w-3 h-3 text-accent shrink-0" />
         : <span className="w-3 shrink-0" />}
       <span className="flex-1 text-t-ink truncate">{children}</span>
-      {trailing && <span className="ml-auto text-[10px] text-t-ink5 font-mono shrink-0">{trailing}</span>}
+      {trailing && <span className="ml-auto text-[10.5px] text-t-ink5 font-mono shrink-0">{trailing}</span>}
     </button>
   );
 }

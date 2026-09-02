@@ -30,6 +30,40 @@
   --font-mono: "Geist Mono Variable", ui-monospace, monospace;
 }
 
+/*
+ * Мост к разделу AMQP: его токены поверх палитры приложения.
+ *
+ * Раздел размечен именами `t-bg`, `t-ink`, `t-line` — так он приехал из
+ * отдельного приложения, и переписывать шестнадцать тысяч строк разметки
+ * ради других имён незачем. Но объявлять их нужно здесь, в том же файле,
+ * где `@import "tailwindcss"`: утилиты вроде `bg-t-card` рождаются только
+ * из той темы, которую видит точка входа. Объявление в отдельном файле
+ * раздела давало переменные без единой утилиты — раздел рисовался вообще
+ * без своих цветов, на одном лишь наследовании от body.
+ *
+ * Пар меньше, чем имён: у раздела было пять оттенков текста и шесть
+ * поверхностей, у приложения — по три. Лишние сведены к ближайшим.
+ */
+@theme {
+  --color-t-bg: var(--color-canvas);
+  --color-t-panel: var(--color-surface);
+  --color-t-card: var(--color-surface-2);
+  --color-t-field: var(--color-surface);
+  --color-t-hover: var(--color-surface-2);
+  --color-t-active: var(--color-surface-3);
+
+  --color-t-line: var(--color-line);
+  --color-t-line2: var(--color-line-strong);
+
+  --color-t-ink: var(--color-content);
+  --color-t-ink2: var(--color-content-muted);
+  --color-t-ink3: var(--color-content-muted);
+  --color-t-ink4: var(--color-content-subtle);
+  --color-t-ink5: var(--color-line-strong);
+
+  --color-t-selection: var(--color-accent);
+}
+
 :root[data-theme="light"] {
   --color-canvas: #eef1f6;
   --color-surface: #ffffff;

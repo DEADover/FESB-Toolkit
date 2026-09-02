@@ -118,12 +118,12 @@ const COLOR_BORDER: Record<HighlightColor, string> = {
   pink:   "border-l-pink-500",
 };
 const COLOR_DOT: Record<HighlightColor, string> = {
-  red:    "bg-red-500",
-  amber:  "bg-amber-500",
-  green:  "bg-green-500",
-  blue:   "bg-blue-500",
-  purple: "bg-purple-500",
-  pink:   "bg-pink-500",
+  red:    "bg-negative",
+  amber:  "bg-caution",
+  green:  "bg-positive",
+  blue:   "bg-accent",
+  purple: "bg-accent-content",
+  pink:   "bg-negative",
 };
 
 // ── helpers ──────────────────────────────────────────────────────────────────
@@ -666,9 +666,9 @@ export default function SubscriberView({ connected, defaultAddress, activeProfil
         {listening && (
           <button
             onClick={togglePause}
-            className={`shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[12px] font-medium transition-colors border ${
+            className={`shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12.5px] font-medium transition-colors border ${
               paused
-                ? "bg-amber-500/10 border-amber-500/30 text-amber-500 hover:bg-amber-500/20"
+                ? "bg-caution/10 border-caution/30 text-caution hover:bg-caution/20"
                 : "border-t-line text-t-ink3 hover:text-t-ink hover:bg-t-hover"
             }`}
             title={paused ? "Resume" : "Pause — drop incoming messages"}
@@ -680,7 +680,7 @@ export default function SubscriberView({ connected, defaultAddress, activeProfil
         <button
           onClick={addSubscription}
           disabled={!connected}
-          className="shrink-0 flex items-center gap-1.5 px-3.5 py-1.5 rounded-md text-[12px] font-semibold bg-green-600 hover:bg-green-500 text-white transition-all whitespace-nowrap disabled:opacity-40 disabled:cursor-not-allowed shadow-sm"
+          className="shrink-0 flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-[12.5px] font-semibold bg-positive hover:bg-positive text-white transition-all whitespace-nowrap disabled:opacity-40 disabled:cursor-not-allowed shadow-sm"
           title={listening ? "Add another queue to listen to" : "Start listening on this queue"}
         >
           {listening ? <><Plus className="w-3.5 h-3.5" /> Add</> : <><Play className="w-3.5 h-3.5" /> Start</>}
@@ -689,7 +689,7 @@ export default function SubscriberView({ connected, defaultAddress, activeProfil
         <button
           onClick={() => setReplayOpen(true)}
           disabled={!connected}
-          className="shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[12px] font-medium border border-t-line text-t-ink2 hover:text-t-ink hover:bg-t-hover transition-colors disabled:opacity-40"
+          className="shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12.5px] font-medium border border-t-line text-t-ink2 hover:text-t-ink hover:bg-t-hover transition-colors disabled:opacity-40"
           title={connected ? "Pick a saved recording and replay it to a queue" : "Connect to broker first"}
         >
           <Play className="w-3 h-3" /> Replay…
@@ -697,7 +697,7 @@ export default function SubscriberView({ connected, defaultAddress, activeProfil
         {listening && (
           <button
             onClick={stopAll}
-            className="shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[12px] font-medium bg-red-500/10 border border-red-500/30 text-red-500 hover:bg-red-500/20 transition-colors"
+            className="shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12.5px] font-medium bg-negative/10 border border-negative/30 text-negative hover:bg-negative/20 transition-colors"
             title="Stop all subscribers"
           >
             <Square className="w-3 h-3" /> Stop all
@@ -712,9 +712,9 @@ export default function SubscriberView({ connected, defaultAddress, activeProfil
         <button
           type="button"
           onClick={() => setShowSelector(s => !s)}
-          className={`shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[11px] font-medium border transition-colors ${
+          className={`shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11.5px] font-medium border transition-colors ${
             selector.trim()
-              ? "border-blue-500/40 text-blue-500 bg-blue-500/10 hover:bg-blue-500/20"
+              ? "border-accent/40 text-accent bg-accent/10 hover:bg-accent/20"
               : showSelector
                 ? "border-t-line2 text-t-ink bg-t-card"
                 : "border-t-line text-t-ink4 hover:text-t-ink hover:bg-t-hover"
@@ -723,14 +723,14 @@ export default function SubscriberView({ connected, defaultAddress, activeProfil
         >
           <Filter className="w-3 h-3" />
           Selector
-          {selector.trim() && <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />}
+          {selector.trim() && <span className="w-1.5 h-1.5 rounded-full bg-accent" />}
         </button>
         <button
           type="button"
           onClick={() => setShowTopicPattern(s => !s)}
-          className={`shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[11px] font-medium border transition-colors ${
+          className={`shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11.5px] font-medium border transition-colors ${
             topicPattern.trim()
-              ? "border-violet-500/40 text-violet-500 bg-violet-500/10 hover:bg-violet-500/20"
+              ? "border-accent-content/40 text-accent-content bg-accent-content/10 hover:bg-accent-content/20"
               : showTopicPattern
                 ? "border-t-line2 text-t-ink bg-t-card"
                 : "border-t-line text-t-ink4 hover:text-t-ink hover:bg-t-hover"
@@ -739,7 +739,7 @@ export default function SubscriberView({ connected, defaultAddress, activeProfil
         >
           <Hash className="w-3 h-3" />
           Pattern
-          {topicPattern.trim() && <span className="w-1.5 h-1.5 rounded-full bg-violet-500" />}
+          {topicPattern.trim() && <span className="w-1.5 h-1.5 rounded-full bg-accent-content" />}
         </button>
       </div>
 
@@ -753,9 +753,9 @@ export default function SubscriberView({ connected, defaultAddress, activeProfil
               onChange={e => setSelector(e.target.value)}
               placeholder="priority > 5 AND application_property:type = 'order'"
               spellCheck={false}
-              className="w-full font-mono text-[12px] bg-t-field border border-t-line2 rounded-md px-2.5 py-1.5 text-t-ink outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30 transition-all placeholder:text-t-ink5"
+              className="w-full font-mono text-[12.5px] bg-t-field border border-t-line2 rounded-lg px-2.5 py-1.5 text-t-ink outline-none focus:border-accent focus:ring-1 focus:ring-accent/30 transition-all placeholder:text-t-ink5"
             />
-            <p className="text-[10px] text-t-ink5 mt-1">
+            <p className="text-[10.5px] text-t-ink5 mt-1">
               JMS-style selector applied broker-side via <span className="font-mono">apache.org:selector-filter:string</span>.
               Supported on Artemis / ActiveMQ / Qpid. Empty = receive everything.
             </p>
@@ -768,22 +768,22 @@ export default function SubscriberView({ connected, defaultAddress, activeProfil
               onClick={() => { setSavedSelectorsOpen(o => !o); setSaveSelectorPrompt(null); }}
               title="Saved selectors"
               aria-label="Saved selectors"
-              className={`p-1.5 rounded transition-colors ${
+              className={`p-1.5 rounded-md transition-colors ${
                 savedSelectorsOpen
-                  ? "text-blue-500 bg-blue-500/10"
+                  ? "text-accent bg-accent/10"
                   : "text-t-ink4 hover:text-t-ink2 hover:bg-t-hover"
               }`}
             >
               <BookMarked className="w-3.5 h-3.5" />
             </button>
             {savedSelectorsOpen && (
-              <div className="absolute right-0 top-full mt-1 z-50 bg-t-card border border-t-line rounded-md shadow-lg overflow-hidden w-72">
-                <div className="px-3 py-1.5 border-b border-t-line bg-t-panel text-[10px] uppercase tracking-wider text-t-ink4 font-semibold">
+              <div className="absolute right-0 top-full mt-1 z-50 bg-t-card border border-t-line rounded-lg shadow-lg overflow-hidden w-72">
+                <div className="px-3 py-1.5 border-b border-t-line bg-t-panel text-[10.5px] uppercase tracking-wider text-t-ink4 font-semibold">
                   Saved selectors
                 </div>
                 <div className="max-h-56 overflow-y-auto">
                   {savedSelectors.length === 0 ? (
-                    <p className="px-3 py-3 text-[11px] text-t-ink5 text-center">
+                    <p className="px-3 py-3 text-[11.5px] text-t-ink5 text-center">
                       No saved selectors yet. Type a selector and click "Save current as…".
                     </p>
                   ) : savedSelectors.map(s => (
@@ -794,8 +794,8 @@ export default function SubscriberView({ connected, defaultAddress, activeProfil
                         className="flex-1 min-w-0 text-left"
                         title={s.selector}
                       >
-                        <div className="text-[12px] text-t-ink truncate">{s.name}</div>
-                        <div className="text-[10px] text-t-ink5 font-mono truncate">{s.selector}</div>
+                        <div className="text-[12.5px] text-t-ink truncate">{s.name}</div>
+                        <div className="text-[10.5px] text-t-ink5 font-mono truncate">{s.selector}</div>
                       </button>
                       <button
                         type="button"
@@ -804,7 +804,7 @@ export default function SubscriberView({ connected, defaultAddress, activeProfil
                           setSavedSelectors(prev => prev.filter(x => x.id !== s.id));
                         }}
                         title={`Forget '${s.name}'`}
-                        className="opacity-0 group-hover:opacity-100 p-1 rounded text-t-ink5 hover:text-red-500 transition-all"
+                        className="opacity-0 group-hover:opacity-100 p-1 rounded-md text-t-ink5 hover:text-negative transition-all"
                       >
                         <X className="w-3 h-3" />
                       </button>
@@ -817,7 +817,7 @@ export default function SubscriberView({ connected, defaultAddress, activeProfil
                       type="button"
                       onClick={() => { if (selector.trim()) setSaveSelectorPrompt(""); }}
                       disabled={!selector.trim()}
-                      className="w-full flex items-center gap-2 px-3 py-1.5 text-left text-blue-500 hover:bg-t-hover transition-colors text-[12px] font-medium disabled:opacity-40 disabled:hover:bg-transparent"
+                      className="w-full flex items-center gap-2 px-3 py-1.5 text-left text-accent hover:bg-t-hover transition-colors text-[12.5px] font-medium disabled:opacity-40 disabled:hover:bg-transparent"
                       title={selector.trim() ? "Save current selector under a name" : "Type a selector first"}
                     >
                       <Save className="w-3 h-3 shrink-0" /> Save current as…
@@ -843,13 +843,13 @@ export default function SubscriberView({ connected, defaultAddress, activeProfil
                           if (e.key === "Escape") setSaveSelectorPrompt(null);
                         }}
                         placeholder="Name (e.g. VIP priority)"
-                        className="flex-1 min-w-0 bg-t-field border border-t-line2 rounded px-2 py-0.5 text-[11px] text-t-ink outline-none focus:border-blue-500"
+                        className="flex-1 min-w-0 bg-t-field border border-t-line2 rounded-md px-2 py-0.5 text-[11.5px] text-t-ink outline-none focus:border-accent"
                       />
                       <button
                         type="button"
                         onClick={() => setSaveSelectorPrompt(null)}
                         title="Cancel"
-                        className="p-1 rounded text-t-ink5 hover:text-t-ink2"
+                        className="p-1 rounded-md text-t-ink5 hover:text-t-ink2"
                       >
                         <X className="w-3 h-3" />
                       </button>
@@ -863,7 +863,7 @@ export default function SubscriberView({ connected, defaultAddress, activeProfil
             <button
               type="button"
               onClick={() => setSelector("")}
-              className="shrink-0 mt-1 p-1 rounded text-t-ink4 hover:text-red-500 hover:bg-t-hover transition-colors"
+              className="shrink-0 mt-1 p-1 rounded-md text-t-ink4 hover:text-negative hover:bg-t-hover transition-colors"
               title="Clear selector"
             >
               <X className="w-3 h-3" />
@@ -882,9 +882,9 @@ export default function SubscriberView({ connected, defaultAddress, activeProfil
               onChange={e => setTopicPattern(e.target.value)}
               placeholder="orders.*  or  events.>  or  notifications.#"
               spellCheck={false}
-              className="w-full font-mono text-[12px] bg-t-field border border-t-line2 rounded-md px-2.5 py-1.5 text-t-ink outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500/30 transition-all placeholder:text-t-ink5"
+              className="w-full font-mono text-[12.5px] bg-t-field border border-t-line2 rounded-lg px-2.5 py-1.5 text-t-ink outline-none focus:border-accent-content focus:ring-1 focus:ring-accent-content/30 transition-all placeholder:text-t-ink5"
             />
-            <p className="text-[10px] text-t-ink5 mt-1">
+            <p className="text-[10.5px] text-t-ink5 mt-1">
               Wildcard pattern applied via <span className="font-mono">apache.org:legacy-amqp-topic-binding:string</span>.
               Wildcard syntax is broker-specific — Artemis multicast: <span className="font-mono">*</span> (one word) / <span className="font-mono">#</span> (zero+ words).
               Solace: <span className="font-mono">*</span> / <span className="font-mono">&gt;</span>. Works alongside Selector if both are set.
@@ -894,7 +894,7 @@ export default function SubscriberView({ connected, defaultAddress, activeProfil
             <button
               type="button"
               onClick={() => setTopicPattern("")}
-              className="shrink-0 mt-1 p-1 rounded text-t-ink4 hover:text-red-500 hover:bg-t-hover transition-colors"
+              className="shrink-0 mt-1 p-1 rounded-md text-t-ink4 hover:text-negative hover:bg-t-hover transition-colors"
               title="Clear pattern"
             >
               <X className="w-3 h-3" />
@@ -907,19 +907,19 @@ export default function SubscriberView({ connected, defaultAddress, activeProfil
       {listening && (
         <div className={`shrink-0 px-3 py-1.5 border-b flex items-center gap-2 flex-wrap ${
           paused
-            ? "bg-amber-500/5 border-amber-500/20"
+            ? "bg-caution/5 border-caution/20"
             : anyReconnecting
-              ? "bg-amber-500/5 border-amber-500/20"
-              : "bg-green-500/5 border-green-500/15"
+              ? "bg-caution/5 border-caution/20"
+              : "bg-positive/5 border-positive/15"
         }`}>
           {paused && (
-            <span className="flex items-center gap-1 text-[11px] text-amber-500">
+            <span className="flex items-center gap-1 text-[11.5px] text-caution">
               <Pause className="w-3 h-3" /> Paused
-              {droppedCount > 0 && <span className="text-amber-500/70">· {droppedCount} dropped</span>}
+              {droppedCount > 0 && <span className="text-caution/70">· {droppedCount} dropped</span>}
             </span>
           )}
           {!paused && (
-            <span className="text-[11px] text-t-ink4 uppercase tracking-wider font-semibold mr-1">
+            <span className="text-[11.5px] text-t-ink4 uppercase tracking-wider font-semibold mr-1">
               Listening
             </span>
           )}
@@ -929,9 +929,9 @@ export default function SubscriberView({ connected, defaultAddress, activeProfil
               // Three visual states: live (green), reconnecting (amber),
               // permanently failed (red — auth refused / address gone / etc).
               const failedClass = q.unrecoverable
-                ? "bg-red-500/10 border-red-500/40 text-red-500"
+                ? "bg-negative/10 border-negative/40 text-negative"
                 : q.reconnecting
-                  ? "bg-amber-500/10 border-amber-500/30 text-amber-500"
+                  ? "bg-caution/10 border-caution/30 text-caution"
                   : "bg-t-card border-t-line text-t-ink2";
               const titleText =
                 (q.unrecoverable
@@ -952,24 +952,24 @@ export default function SubscriberView({ connected, defaultAddress, activeProfil
               };
               return (
                 <span key={q.queue}
-                  className={`group flex items-center gap-1.5 px-2 py-0.5 rounded-md border font-mono text-[11px] ${failedClass}`}
+                  className={`group flex items-center gap-1.5 px-2 py-0.5 rounded-lg border font-mono text-[11.5px] ${failedClass}`}
                   title={titleText}
                 >
                   {q.unrecoverable
-                    ? <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                    ? <span className="w-1.5 h-1.5 rounded-full bg-negative" />
                     : q.reconnecting
                       ? <Loader2 className="w-2.5 h-2.5 animate-spin" />
-                      : <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />}
+                      : <span className="w-1.5 h-1.5 rounded-full bg-positive animate-pulse" />}
                   {q.queue}
                   {q.selector && (
-                    <Filter className="w-2.5 h-2.5 text-blue-500" />
+                    <Filter className="w-2.5 h-2.5 text-accent" />
                   )}
                   {q.topicPattern && (
-                    <Hash className="w-2.5 h-2.5 text-violet-500" />
+                    <Hash className="w-2.5 h-2.5 text-accent-content" />
                   )}
                   <button
                     onClick={dismiss}
-                    className={`${q.unrecoverable ? "" : "opacity-50 group-hover:opacity-100"} hover:text-red-500 transition-opacity`}
+                    className={`${q.unrecoverable ? "" : "opacity-50 group-hover:opacity-100"} hover:text-negative transition-opacity`}
                     title={q.unrecoverable ? `Dismiss '${q.queue}'` : `Stop '${q.queue}'`}
                   >
                     <X className="w-3 h-3" />
@@ -985,9 +985,9 @@ export default function SubscriberView({ connected, defaultAddress, activeProfil
               recording is paused so you can review counts before saving. */}
           <button
             onClick={toggleRecording}
-            className={`shrink-0 flex items-center gap-1 px-2 py-0.5 rounded-md border text-[11px] font-medium transition-colors ${
+            className={`shrink-0 flex items-center gap-1 px-2 py-0.5 rounded-lg border text-[11.5px] font-medium transition-colors ${
               recording
-                ? "bg-red-500/10 border-red-500/40 text-red-500"
+                ? "bg-negative/10 border-negative/40 text-negative"
                 : "border-t-line text-t-ink4 hover:text-t-ink hover:bg-t-hover"
             }`}
             title={recording
@@ -996,7 +996,7 @@ export default function SubscriberView({ connected, defaultAddress, activeProfil
                 ? `Resume recording (${recordCount} buffered)`
                 : "Start recording incoming messages for later replay"}
           >
-            <Circle className={`w-2.5 h-2.5 ${recording ? "fill-red-500 text-red-500 animate-pulse" : ""}`} />
+            <Circle className={`w-2.5 h-2.5 ${recording ? "fill-negative text-negative animate-pulse" : ""}`} />
             REC{recordCount > 0 && <span className="font-mono opacity-80">{recordCount}</span>}
           </button>
           {/* Save is always rendered next to REC so the user never has to
@@ -1012,13 +1012,13 @@ export default function SubscriberView({ connected, defaultAddress, activeProfil
               : recording
                 ? `Snapshot the ${recordCount} buffered messages (recording continues with a fresh buffer)`
                 : `Save the ${recordCount} buffered messages as a recording for later replay`}
-            className="shrink-0 flex items-center gap-1 px-2 py-0.5 rounded-md border border-blue-500/30 text-blue-500 text-[11px] font-medium hover:bg-blue-500/10 transition-colors disabled:opacity-40 disabled:hover:bg-transparent disabled:border-t-line disabled:text-t-ink5"
+            className="shrink-0 flex items-center gap-1 px-2 py-0.5 rounded-lg border border-accent/30 text-accent text-[11.5px] font-medium hover:bg-accent/10 transition-colors disabled:opacity-40 disabled:hover:bg-transparent disabled:border-t-line disabled:text-t-ink5"
           >
             <Save className="w-3 h-3" /> Save…{recordCount > 0 && <span className="font-mono opacity-80">{recordCount}</span>}
           </button>
 
           {/* Session stats */}
-          <div className="ml-auto flex items-center gap-3 text-[11px] font-mono text-t-ink4 shrink-0">
+          <div className="ml-auto flex items-center gap-3 text-[11.5px] font-mono text-t-ink4 shrink-0">
             <span title="Total received this session"><span className="text-t-ink3">{messages.length}</span> msg</span>
             {sessionBytes > 0 && (
               <span title="Total bytes received"><span className="text-t-ink3">{fmtBytes(sessionBytes)}</span></span>
@@ -1039,23 +1039,23 @@ export default function SubscriberView({ connected, defaultAddress, activeProfil
       {/* ─── FILTER BAR ─── */}
       {messages.length > 0 && (
         <div className="shrink-0 px-3 py-1 border-b border-t-line bg-t-panel flex items-center gap-2">
-          <Search className={`w-3.5 h-3.5 shrink-0 ${filterErr ? "text-red-500" : "text-t-ink5"}`} />
+          <Search className={`w-3.5 h-3.5 shrink-0 ${filterErr ? "text-negative" : "text-t-ink5"}`} />
           <input
             value={filter}
             onChange={e => setFilter(e.target.value)}
             placeholder="Filter by body, queue, id, content-type, app-property…"
-            className={`flex-1 bg-transparent text-xs text-t-ink outline-none placeholder:text-t-ink5 ${filterErr ? "text-red-500" : ""}`}
+            className={`flex-1 bg-transparent text-xs text-t-ink outline-none placeholder:text-t-ink5 ${filterErr ? "text-negative" : ""}`}
           />
           {filter && (
             <button onClick={() => setFilter("")} className="text-t-ink5 hover:text-t-ink3 transition-colors">
               <X className="w-3 h-3" />
             </button>
           )}
-          {isFiltering && <span className="text-[11px] text-t-ink4 shrink-0">{filtered.length} / {messages.length}</span>}
-          {filterErr && <span className="text-[11px] text-red-500 shrink-0">invalid regex</span>}
+          {isFiltering && <span className="text-[11.5px] text-t-ink4 shrink-0">{filtered.length} / {messages.length}</span>}
+          {filterErr && <span className="text-[11.5px] text-negative shrink-0">invalid regex</span>}
           <button
             onClick={() => setAutoScroll(a => !a)}
-            className={`text-[11px] transition-colors px-1.5 py-0.5 rounded shrink-0 ${autoScroll ? "text-blue-500 bg-blue-500/10" : "text-t-ink5 hover:text-t-ink3"}`}
+            className={`text-[11.5px] transition-colors px-1.5 py-0.5 rounded-md shrink-0 ${autoScroll ? "text-accent bg-accent/10" : "text-t-ink5 hover:text-t-ink3"}`}
             title="Auto-scroll to newest"
           >
             {autoScroll ? "● Auto" : "○ Auto"}
@@ -1063,8 +1063,8 @@ export default function SubscriberView({ connected, defaultAddress, activeProfil
 
           <button
             onClick={togglePersist}
-            className={`flex items-center gap-1 text-[11px] transition-colors px-1.5 py-0.5 rounded shrink-0 ${
-              persistEnabled ? "text-blue-500 bg-blue-500/10" : "text-t-ink4 hover:text-t-ink3"
+            className={`flex items-center gap-1 text-[11.5px] transition-colors px-1.5 py-0.5 rounded-md shrink-0 ${
+              persistEnabled ? "text-accent bg-accent/10" : "text-t-ink4 hover:text-t-ink3"
             }`}
             title={persistEnabled
               ? `Persistence on — last ${PERSIST_MAX_ENTRIES} messages saved across restarts`
@@ -1076,8 +1076,8 @@ export default function SubscriberView({ connected, defaultAddress, activeProfil
 
           <button
             onClick={() => setRulesOpen(true)}
-            className={`flex items-center gap-1 text-[11px] transition-colors px-1.5 py-0.5 rounded shrink-0 ${
-              rulesActiveCount > 0 ? "text-blue-500 bg-blue-500/10" : "text-t-ink4 hover:text-t-ink3"
+            className={`flex items-center gap-1 text-[11.5px] transition-colors px-1.5 py-0.5 rounded-md shrink-0 ${
+              rulesActiveCount > 0 ? "text-accent bg-accent/10" : "text-t-ink4 hover:text-t-ink3"
             }`}
             title={`Highlight rules ${rulesActiveCount > 0 ? `(${rulesActiveCount} active)` : ""}`}
           >
@@ -1086,19 +1086,19 @@ export default function SubscriberView({ connected, defaultAddress, activeProfil
 
           <div ref={exportMenuRef} className="relative shrink-0">
             <button onClick={() => setExportOpen(o => !o)}
-              className="flex items-center gap-1 text-[11px] text-t-ink4 hover:text-blue-500 transition-colors px-1.5 py-0.5"
+              className="flex items-center gap-1 text-[11.5px] text-t-ink4 hover:text-accent transition-colors px-1.5 py-0.5"
               title="Export received messages">
               <Download className="w-3 h-3" /> Export
               <ChevronDown className="w-3 h-3" />
             </button>
             {exportOpen && (
-              <div className="absolute right-0 top-full mt-1 z-50 w-32 bg-t-card border border-t-line rounded-md shadow-lg overflow-hidden">
+              <div className="absolute right-0 top-full mt-1 z-50 w-32 bg-t-card border border-t-line rounded-lg shadow-lg overflow-hidden">
                 <button onClick={exportJson}
-                  className="w-full text-left px-3 py-1.5 text-[12px] text-t-ink2 hover:bg-t-hover transition-colors">
+                  className="w-full text-left px-3 py-1.5 text-[12.5px] text-t-ink2 hover:bg-t-hover transition-colors">
                   JSON
                 </button>
                 <button onClick={exportCsv}
-                  className="w-full text-left px-3 py-1.5 text-[12px] text-t-ink2 hover:bg-t-hover transition-colors border-t border-t-line">
+                  className="w-full text-left px-3 py-1.5 text-[12.5px] text-t-ink2 hover:bg-t-hover transition-colors border-t border-t-line">
                   CSV
                 </button>
               </div>
@@ -1107,7 +1107,7 @@ export default function SubscriberView({ connected, defaultAddress, activeProfil
 
           <button onClick={() => setConfirmClearMsgs(true)}
             disabled={messages.length === 0}
-            className="flex items-center gap-1 text-[11px] text-t-ink4 hover:text-red-500 transition-colors shrink-0 disabled:opacity-40 disabled:hover:text-t-ink4">
+            className="flex items-center gap-1 text-[11.5px] text-t-ink4 hover:text-negative transition-colors shrink-0 disabled:opacity-40 disabled:hover:text-t-ink4">
             <Trash2 className="w-3 h-3" /> Clear
           </button>
         </div>
@@ -1132,8 +1132,8 @@ export default function SubscriberView({ connected, defaultAddress, activeProfil
 
       {/* ─── REFERENCE / DIFF BAR ─── */}
       {refMsg && (
-        <div className="shrink-0 px-3 py-1 border-b border-t-line bg-blue-500/5 flex items-center gap-2 text-[11px]">
-          <GitCompare className="w-3 h-3 text-blue-500" />
+        <div className="shrink-0 px-3 py-1 border-b border-t-line bg-accent/5 flex items-center gap-2 text-[11.5px]">
+          <GitCompare className="w-3 h-3 text-accent" />
           <span className="text-t-ink4">Reference for diff:</span>
           <span className="font-mono text-t-ink2 truncate max-w-[300px]" title={refMsg.meta.message_id ?? ""}>
             {refMsg.meta.message_id ?? "(no message-id)"}
@@ -1142,14 +1142,14 @@ export default function SubscriberView({ connected, defaultAddress, activeProfil
           {selected && selected.id !== refMsg.id && (
             <button
               onClick={() => setDiffOpen(true)}
-              className="ml-auto flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-600 hover:bg-blue-500 text-white text-[11px] font-medium transition-colors"
+              className="ml-auto flex items-center gap-1 px-2 py-0.5 rounded-lg bg-accent-strong hover:bg-accent text-white text-[11.5px] font-medium transition-colors"
             >
               <GitCompare className="w-3 h-3" /> Compare with selected
             </button>
           )}
           <button
             onClick={() => setRefId(null)}
-            className={`${selected && selected.id !== refMsg.id ? "" : "ml-auto"} text-t-ink4 hover:text-red-500 transition-colors`}
+            className={`${selected && selected.id !== refMsg.id ? "" : "ml-auto"} text-t-ink4 hover:text-negative transition-colors`}
             title="Clear reference"
           >
             <X className="w-3 h-3" />
@@ -1172,7 +1172,7 @@ export default function SubscriberView({ connected, defaultAddress, activeProfil
             <EmptyState
               icon={<Search className="w-8 h-8" />}
               title="No messages match filter"
-              action={<button onClick={() => setFilter("")} className="text-[11px] text-blue-500 hover:text-blue-400 transition-colors">Clear filter</button>}
+              action={<button onClick={() => setFilter("")} className="text-[11.5px] text-accent hover:text-accent-content transition-colors">Clear filter</button>}
             />
           ) : (
             <div className="flex-1 overflow-y-auto min-h-0">
@@ -1180,7 +1180,7 @@ export default function SubscriberView({ connected, defaultAddress, activeProfil
                   card so the user sees what each column means. Stays pinned
                   on scroll. Second line is heterogeneous chips (queue / type /
                   size / priority / reply-to) so no labels are useful there. */}
-              <div className="sticky top-0 z-10 flex items-center gap-2 px-3 py-1 bg-t-panel/95 backdrop-blur-sm border-b border-t-line text-[10px] uppercase tracking-wider text-t-ink4 select-none">
+              <div className="sticky top-0 z-10 flex items-center gap-2 px-3 py-1 bg-t-panel/95 backdrop-blur-sm border-b border-t-line text-[10.5px] uppercase tracking-wider text-t-ink4 select-none">
                 <span className="w-3 shrink-0" />
                 <span className="font-semibold flex-1">Message ID</span>
                 <span className="font-semibold shrink-0">Date-Time</span>
@@ -1201,26 +1201,26 @@ export default function SubscriberView({ connected, defaultAddress, activeProfil
                     key={msg.id}
                     onClick={() => setSelectedId(msg.id)}
                     className={`w-full text-left flex flex-col gap-0.5 px-3 py-2 border-b border-t-line/40 transition-colors ${borderClass} ${
-                      isSel ? "bg-blue-500/10" : isRef ? "bg-blue-500/5" : "hover:bg-t-hover/50"
+                      isSel ? "bg-accent/10" : isRef ? "bg-accent/5" : "hover:bg-t-hover/50"
                     }`}
                   >
-                    <div className="flex items-center gap-2 text-[11px]">
+                    <div className="flex items-center gap-2 text-[11.5px]">
                       {rule
                         ? <span className={`w-2 h-2 rounded-full shrink-0 ${COLOR_DOT[rule.color]}`} title={`Rule: ${rule.name}`} />
                         : <MessageSquare className="w-3 h-3 text-t-ink5 shrink-0" />
                       }
                       <span className="text-t-ink2 font-mono truncate flex-1">{idShort}</span>
-                      {isRef && <span className="text-[9px] uppercase tracking-wider text-blue-500 font-bold shrink-0">REF</span>}
+                      {isRef && <span className="text-[9px] uppercase tracking-wider text-accent font-bold shrink-0">REF</span>}
                       <span className="text-t-ink5 font-mono shrink-0">{fmtTimestamp(msg.timestamp)}</span>
                     </div>
-                    <div className="flex items-center gap-2 text-[10px] pl-5">
+                    <div className="flex items-center gap-2 text-[10.5px] pl-5">
                       {/* Queue chip — only show when multiple queues are subscribed */}
                       {queues.length > 1 && (
-                        <span className="px-1 rounded bg-blue-500/15 text-blue-500 font-mono font-medium" title={`From queue: ${msg.queue}`}>
+                        <span className="px-1 rounded-md bg-accent/15 text-accent font-mono font-medium" title={`From queue: ${msg.queue}`}>
                           {msg.queue}
                         </span>
                       )}
-                      <span className="px-1 rounded bg-t-hover text-t-ink3 font-mono">{ct}</span>
+                      <span className="px-1 rounded-md bg-t-hover text-t-ink3 font-mono">{ct}</span>
                       <span className="text-t-ink5 font-mono">{fmtBytes(msg.meta.body_size)}</span>
                       {msg.meta.priority !== null && msg.meta.priority !== 4 && (
                         <span className="text-t-ink4 font-mono">P{msg.meta.priority}</span>
@@ -1231,7 +1231,7 @@ export default function SubscriberView({ connected, defaultAddress, activeProfil
                         </span>
                       )}
                       {rule && (
-                        <span className="ml-auto text-[10px] font-medium uppercase tracking-wider text-t-ink3"
+                        <span className="ml-auto text-[10.5px] font-medium uppercase tracking-wider text-t-ink3"
                           title={`Rule: ${rule.name} — pattern /${rule.pattern}/`}>
                           {rule.name}
                         </span>
@@ -1250,11 +1250,11 @@ export default function SubscriberView({ connected, defaultAddress, activeProfil
           <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
             <div className="shrink-0 px-3 py-1.5 border-b border-t-line bg-t-panel flex items-center gap-2">
               <MessageSquare className="w-3.5 h-3.5 text-t-ink4 shrink-0" />
-              <span className="text-[12px] text-t-ink font-mono truncate" title={selected.meta.message_id ?? ""}>
+              <span className="text-[12.5px] text-t-ink font-mono truncate" title={selected.meta.message_id ?? ""}>
                 {selected.meta.message_id ?? "(no message-id)"}
               </span>
-              <span className="text-[11px] text-t-ink5 font-mono shrink-0">{fmtTimestamp(selected.timestamp)}</span>
-              <span className="text-[10px] px-1 py-0.5 rounded bg-blue-500/15 text-blue-500 font-mono shrink-0" title={`Queue: ${selected.queue}`}>
+              <span className="text-[11.5px] text-t-ink5 font-mono shrink-0">{fmtTimestamp(selected.timestamp)}</span>
+              <span className="text-[10.5px] px-1 py-0.5 rounded-md bg-accent/15 text-accent font-mono shrink-0" title={`Queue: ${selected.queue}`}>
                 {selected.queue}
               </span>
 
@@ -1264,7 +1264,7 @@ export default function SubscriberView({ connected, defaultAddress, activeProfil
                   <button
                     onClick={() => setDiffOpen(true)}
                     title={`Compare to '${refMsg.meta.message_id ?? "ref"}'`}
-                    className="flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium text-blue-500 hover:bg-blue-500/10 transition-colors"
+                    className="flex items-center gap-1 px-2 py-1 rounded-md text-[11.5px] font-medium text-accent hover:bg-accent/10 transition-colors"
                   >
                     <GitCompare className="w-3 h-3" /> Diff
                   </button>
@@ -1272,8 +1272,8 @@ export default function SubscriberView({ connected, defaultAddress, activeProfil
                   <button
                     onClick={() => setRefId(refId === selected.id ? null : selected.id)}
                     title={refId === selected.id ? "Clear reference" : "Mark as comparison reference"}
-                    className={`flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium transition-colors ${
-                      refId === selected.id ? "text-blue-500 bg-blue-500/10" : "text-t-ink4 hover:text-t-ink hover:bg-t-hover"
+                    className={`flex items-center gap-1 px-2 py-1 rounded-md text-[11.5px] font-medium transition-colors ${
+                      refId === selected.id ? "text-accent bg-accent/10" : "text-t-ink4 hover:text-t-ink hover:bg-t-hover"
                     }`}
                   >
                     <GitCompare className="w-3 h-3" /> {refId === selected.id ? "Ref ✓" : "Ref"}
@@ -1284,7 +1284,7 @@ export default function SubscriberView({ connected, defaultAddress, activeProfil
                   <button
                     onClick={() => handleReply(selected)}
                     title={`Send a reply to '${selected.meta.reply_to}'${selected.meta.correlation_id ? ` (correlation-id: ${selected.meta.correlation_id})` : ""}`}
-                    className="flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium text-blue-500 hover:bg-blue-500/10 transition-colors"
+                    className="flex items-center gap-1 px-2 py-1 rounded-md text-[11.5px] font-medium text-accent hover:bg-accent/10 transition-colors"
                   >
                     <CornerUpLeft className="w-3 h-3" /> Reply
                   </button>
@@ -1295,7 +1295,7 @@ export default function SubscriberView({ connected, defaultAddress, activeProfil
                 <button
                   onClick={() => setSelectedId(null)}
                   title="Close preview"
-                  className="p-1 rounded text-t-ink4 hover:text-t-ink hover:bg-t-hover transition-colors"
+                  className="p-1 rounded-md text-t-ink4 hover:text-t-ink hover:bg-t-hover transition-colors"
                 >
                   <X className="w-3 h-3" />
                 </button>
@@ -1342,12 +1342,12 @@ export default function SubscriberView({ connected, defaultAddress, activeProfil
           onClick={() => setRecordSaveOpen(false)}
         >
           <div onClick={e => e.stopPropagation()}
-            className="bg-t-bg border border-t-line rounded-lg shadow-2xl w-[440px] max-w-[90vw] flex flex-col overflow-hidden">
+            className="bg-t-bg border border-t-line rounded-xl shadow-2xl w-[440px] max-w-[90vw] flex flex-col overflow-hidden">
             <div className="shrink-0 px-4 py-2.5 border-b border-t-line bg-t-panel flex items-center gap-2">
-              <Save className="w-3.5 h-3.5 text-blue-500" />
+              <Save className="w-3.5 h-3.5 text-accent" />
               <span className="text-[13px] font-semibold text-t-ink">Save recording</span>
               <button onClick={() => setRecordSaveOpen(false)}
-                className="ml-auto p-1 rounded hover:bg-t-hover text-t-ink4 hover:text-t-ink">
+                className="ml-auto p-1 rounded-md hover:bg-t-hover text-t-ink4 hover:text-t-ink">
                 <X className="w-3.5 h-3.5" />
               </button>
             </div>
@@ -1365,22 +1365,22 @@ export default function SubscriberView({ connected, defaultAddress, activeProfil
                   if (e.key === "Escape") setRecordSaveOpen(false);
                 }}
                 placeholder="recording name"
-                className="w-full bg-t-field border border-t-line2 rounded-md px-2.5 py-1.5 text-[12px] text-t-ink outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30 transition-all"
+                className="w-full bg-t-field border border-t-line2 rounded-lg px-2.5 py-1.5 text-[12.5px] text-t-ink outline-none focus:border-accent focus:ring-1 focus:ring-accent/30 transition-all"
               />
-              <p className="text-[10px] text-t-ink5">
+              <p className="text-[10.5px] text-t-ink5">
                 Stored as <span className="font-mono">~/.amqpush/recordings/{recordSaveName.trim() || "<name>"}.json</span>.
                 Existing files with the same name are overwritten.
               </p>
             </div>
             <div className="shrink-0 px-3 py-2 border-t border-t-line bg-t-panel flex items-center justify-end gap-2">
               <button onClick={() => setRecordSaveOpen(false)}
-                className="px-3 py-1 rounded-md text-[11px] font-medium text-t-ink4 hover:text-t-ink hover:bg-t-hover transition-colors">
+                className="px-3 py-1 rounded-lg text-[11.5px] font-medium text-t-ink4 hover:text-t-ink hover:bg-t-hover transition-colors">
                 Cancel
               </button>
               <button
                 onClick={() => saveRecording(recordSaveName)}
                 disabled={!recordSaveName.trim()}
-                className="flex items-center gap-1.5 px-3 py-1 rounded-md bg-blue-500 hover:bg-blue-600 text-white text-[11px] font-semibold transition-colors disabled:opacity-40"
+                className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-accent hover:bg-accent-strong text-white text-[11.5px] font-semibold transition-colors disabled:opacity-40"
               >
                 <Save className="w-3 h-3" /> Save
               </button>
@@ -1424,8 +1424,8 @@ function PreviewDetails({ msg, bodyMode, setBodyMode, onLog }: {
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center gap-2 text-[11px] flex-wrap">
-        <span className="text-[10px] px-1.5 py-0.5 rounded bg-t-hover text-t-ink3 font-medium uppercase">{meta.body_kind}</span>
+      <div className="flex items-center gap-2 text-[11.5px] flex-wrap">
+        <span className="text-[10.5px] px-1.5 py-0.5 rounded-md bg-t-hover text-t-ink3 font-medium uppercase">{meta.body_kind}</span>
         <span className="text-t-ink5 font-mono">{fmtBytes(meta.body_size)}</span>
         {meta.delivery_count > 0 && (
           <span className="text-t-ink4" title="Delivery count">↻ {meta.delivery_count}</span>
@@ -1433,7 +1433,7 @@ function PreviewDetails({ msg, bodyMode, setBodyMode, onLog }: {
         {meta.priority !== null && meta.priority !== 4 && (
           <span className="text-t-ink4">P{meta.priority}</span>
         )}
-        {meta.durable && <span className="text-blue-500">durable</span>}
+        {meta.durable && <span className="text-accent">durable</span>}
       </div>
 
       <CollapsibleSection
@@ -1481,13 +1481,13 @@ function PreviewDetails({ msg, bodyMode, setBodyMode, onLog }: {
         onToggle={() => setBodyOpen(o => !o)}
         action={
           <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center bg-t-card border border-t-line rounded overflow-hidden">
+            <div className="flex items-center bg-t-card border border-t-line rounded-md overflow-hidden">
               {(["auto", "raw", "hex"] as const).map(m => (
                 <button
                   key={m}
                   onClick={(e) => { e.stopPropagation(); setBodyMode(m); }}
-                  className={`px-1.5 py-0.5 text-[10px] font-mono transition-colors ${
-                    bodyMode === m ? "bg-blue-500/15 text-blue-500" : "text-t-ink4 hover:text-t-ink2 hover:bg-t-hover"
+                  className={`px-1.5 py-0.5 text-[10.5px] font-mono transition-colors ${
+                    bodyMode === m ? "bg-accent/15 text-accent" : "text-t-ink4 hover:text-t-ink2 hover:bg-t-hover"
                   }`}
                   title={
                     m === "auto" ? `Auto (${detected})` :
@@ -1503,17 +1503,17 @@ function PreviewDetails({ msg, bodyMode, setBodyMode, onLog }: {
                 value={meta.body_text}
                 onCopied={() => onLog("info", "Body copied")}
                 label="Copy"
-                className="flex items-center gap-1 text-[10px] text-t-ink4 hover:text-t-ink2 transition-colors px-1.5 py-0.5 rounded hover:bg-t-hover"
+                className="flex items-center gap-1 text-[10.5px] text-t-ink4 hover:text-t-ink2 transition-colors px-1.5 py-0.5 rounded-md hover:bg-t-hover"
               />
             )}
           </div>
         }
       >
-        <pre className="text-[11px] text-t-ink2 font-mono bg-t-field border border-t-line rounded-md p-2.5 overflow-x-auto whitespace-pre break-all max-h-80 overflow-y-auto select-text">
+        <pre className="text-[11.5px] text-t-ink2 font-mono bg-t-field border border-t-line rounded-lg p-2.5 overflow-x-auto whitespace-pre break-all max-h-80 overflow-y-auto select-text">
           {bodyContent ?? <em className="text-t-ink5">no body</em>}
         </pre>
         {msg.is_truncated && (
-          <p className="text-[10px] text-amber-500 mt-1">⚠ Truncated for list display.</p>
+          <p className="text-[10.5px] text-caution mt-1">⚠ Truncated for list display.</p>
         )}
       </CollapsibleSection>
     </div>
@@ -1541,13 +1541,13 @@ function RulesModal({ rules, onChange, onClose }: {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={onClose}>
       <div onClick={e => e.stopPropagation()}
-        className="bg-t-bg border border-t-line rounded-lg shadow-2xl w-[560px] max-w-[90vw] max-h-[80vh] flex flex-col overflow-hidden">
+        className="bg-t-bg border border-t-line rounded-xl shadow-2xl w-[560px] max-w-[90vw] max-h-[80vh] flex flex-col overflow-hidden">
 
         <div className="shrink-0 px-4 py-2.5 border-b border-t-line bg-t-panel flex items-center gap-2">
           <Palette className="w-3.5 h-3.5 text-t-ink4" />
           <span className="text-[13px] font-semibold text-t-ink">Highlight rules</span>
-          <span className="text-[11px] text-t-ink5">— colour-tag matching messages in the list</span>
-          <button onClick={onClose} className="ml-auto p-1 rounded hover:bg-t-hover text-t-ink4 hover:text-t-ink">
+          <span className="text-[11.5px] text-t-ink5">— colour-tag matching messages in the list</span>
+          <button onClick={onClose} className="ml-auto p-1 rounded-md hover:bg-t-hover text-t-ink4 hover:text-t-ink">
             <X className="w-3.5 h-3.5" />
           </button>
         </div>
@@ -1557,9 +1557,9 @@ function RulesModal({ rules, onChange, onClose }: {
             <div className="flex flex-col items-center justify-center text-t-ink5 py-8">
               <Edit3 className="w-7 h-7 opacity-40 mb-3" />
               <p className="text-[13px]">No rules defined</p>
-              <p className="text-[11px] mt-1">Each rule paints matching messages with its colour</p>
+              <p className="text-[11.5px] mt-1">Each rule paints matching messages with its colour</p>
               <button onClick={add}
-                className="mt-3 flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-blue-600 hover:bg-blue-500 text-white text-[11px] font-medium">
+                className="mt-3 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent-strong hover:bg-accent text-white text-[11.5px] font-medium">
                 <Plus className="w-3 h-3" /> Add first rule
               </button>
             </div>
@@ -1570,21 +1570,21 @@ function RulesModal({ rules, onChange, onClose }: {
                 try { new RegExp(r.pattern); } catch (e) { regexErr = String(e).replace(/^SyntaxError:\s*/, ""); }
               }
               return (
-                <div key={r.id} className={`border rounded-md p-2 bg-t-card/40 transition-colors ${
-                  regexErr ? "border-red-500/40" : "border-t-line"
+                <div key={r.id} className={`border rounded-lg p-2 bg-t-card/40 transition-colors ${
+                  regexErr ? "border-negative/40" : "border-t-line"
                 }`}>
                   <div className="flex items-center gap-2">
                     <input
                       type="checkbox"
                       checked={r.enabled}
                       onChange={e => update(r.id, { enabled: e.target.checked })}
-                      className="w-3.5 h-3.5 accent-blue-600 cursor-pointer"
+                      className="w-3.5 h-3.5 accent-accent-strong cursor-pointer"
                     />
                     <input
                       value={r.name}
                       onChange={e => update(r.id, { name: e.target.value })}
                       placeholder="Rule name"
-                      className="bg-transparent text-[12px] text-t-ink outline-none placeholder:text-t-ink5 px-1.5 py-1 rounded hover:bg-t-card focus:bg-t-field focus:ring-1 focus:ring-blue-500/30 flex-1 font-medium"
+                      className="bg-transparent text-[12.5px] text-t-ink outline-none placeholder:text-t-ink5 px-1.5 py-1 rounded-md hover:bg-t-card focus:bg-t-field focus:ring-1 focus:ring-accent/30 flex-1 font-medium"
                     />
                     <div className="flex items-center gap-0.5 shrink-0">
                       {HIGHLIGHT_COLORS.map(c => (
@@ -1592,12 +1592,12 @@ function RulesModal({ rules, onChange, onClose }: {
                           onClick={() => update(r.id, { color: c })}
                           title={c}
                           className={`w-4 h-4 rounded-full transition-all ${COLOR_DOT[c]} ${
-                            r.color === c ? "ring-2 ring-offset-1 ring-offset-t-bg ring-blue-500 scale-110" : "opacity-60 hover:opacity-100"
+                            r.color === c ? "ring-2 ring-offset-1 ring-offset-t-bg ring-accent scale-110" : "opacity-60 hover:opacity-100"
                           }`} />
                       ))}
                     </div>
                     <button onClick={() => remove(r.id)}
-                      className="p-1 text-t-ink5 hover:text-red-500 transition-colors rounded">
+                      className="p-1 text-t-ink5 hover:text-negative transition-colors rounded-md">
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
@@ -1606,9 +1606,9 @@ function RulesModal({ rules, onChange, onClose }: {
                       value={r.pattern}
                       onChange={e => update(r.id, { pattern: e.target.value })}
                       placeholder="Regex pattern (case-insensitive) — matches body / queue / id / content-type / app-property values"
-                      className="w-full bg-t-field border border-t-line2 rounded-md px-2 py-1 text-[11px] text-t-ink font-mono outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30"
+                      className="w-full bg-t-field border border-t-line2 rounded-lg px-2 py-1 text-[11.5px] text-t-ink font-mono outline-none focus:border-accent focus:ring-1 focus:ring-accent/30"
                     />
-                    {regexErr && <p className="text-[10px] text-red-500 mt-1 font-mono">⚠ {regexErr}</p>}
+                    {regexErr && <p className="text-[10.5px] text-negative mt-1 font-mono">⚠ {regexErr}</p>}
                   </div>
                 </div>
               );
@@ -1619,13 +1619,13 @@ function RulesModal({ rules, onChange, onClose }: {
         <div className="shrink-0 px-3 py-2 border-t border-t-line bg-t-panel flex items-center gap-2">
           {rules.length > 0 && (
             <button onClick={add}
-              className="flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium text-t-ink3 hover:text-t-ink hover:bg-t-hover transition-colors">
+              className="flex items-center gap-1 px-2 py-1 rounded-md text-[11.5px] font-medium text-t-ink3 hover:text-t-ink hover:bg-t-hover transition-colors">
               <Plus className="w-3 h-3" /> Add rule
             </button>
           )}
-          <span className="ml-auto text-[10px] text-t-ink5">Saved automatically</span>
+          <span className="ml-auto text-[10.5px] text-t-ink5">Saved automatically</span>
           <button onClick={onClose}
-            className="px-3 py-1 rounded-md bg-blue-600 hover:bg-blue-500 text-white text-[11px] font-medium">
+            className="px-3 py-1 rounded-lg bg-accent-strong hover:bg-accent text-white text-[11.5px] font-medium">
             Done
           </button>
         </div>
@@ -1705,13 +1705,13 @@ function DiffModal({ left, right, onClose }: { left: ReceivedMessage; right: Rec
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={onClose}>
       <div onClick={e => e.stopPropagation()}
-        className="bg-t-bg border border-t-line rounded-lg shadow-2xl w-[1040px] max-w-[95vw] max-h-[90vh] flex flex-col overflow-hidden">
+        className="bg-t-bg border border-t-line rounded-xl shadow-2xl w-[1040px] max-w-[95vw] max-h-[90vh] flex flex-col overflow-hidden">
 
         <div className="shrink-0 px-4 py-2.5 border-b border-t-line bg-t-panel flex items-center gap-2">
           <GitCompare className="w-3.5 h-3.5 text-t-ink4" />
           <span className="text-[13px] font-semibold text-t-ink">Compare messages</span>
-          <span className="text-[11px] text-t-ink5">— {propDiffCount} property difference{propDiffCount !== 1 ? "s" : ""}, {bodyDiffCount} body line{bodyDiffCount !== 1 ? "s" : ""} differ</span>
-          <button onClick={onClose} className="ml-auto p-1 rounded hover:bg-t-hover text-t-ink4 hover:text-t-ink">
+          <span className="text-[11.5px] text-t-ink5">— {propDiffCount} property difference{propDiffCount !== 1 ? "s" : ""}, {bodyDiffCount} body line{bodyDiffCount !== 1 ? "s" : ""} differ</span>
+          <button onClick={onClose} className="ml-auto p-1 rounded-md hover:bg-t-hover text-t-ink4 hover:text-t-ink">
             <X className="w-3.5 h-3.5" />
           </button>
         </div>
@@ -1720,10 +1720,10 @@ function DiffModal({ left, right, onClose }: { left: ReceivedMessage; right: Rec
         <div className="shrink-0 grid grid-cols-2 gap-px bg-t-line border-b border-t-line">
           <div className="bg-t-panel px-3 py-1.5">
             <div className="flex items-center gap-2">
-              <span className="text-[10px] uppercase tracking-wider text-blue-500 font-bold">Reference</span>
-              <span className="text-[11px] font-mono text-t-ink2 truncate">{left.meta.message_id ?? "(no id)"}</span>
+              <span className="text-[10.5px] uppercase tracking-wider text-accent font-bold">Reference</span>
+              <span className="text-[11.5px] font-mono text-t-ink2 truncate">{left.meta.message_id ?? "(no id)"}</span>
             </div>
-            <div className="flex items-center gap-2 mt-0.5 text-[10px] text-t-ink5 font-mono">
+            <div className="flex items-center gap-2 mt-0.5 text-[10.5px] text-t-ink5 font-mono">
               <span>{left.queue}</span>
               <span>{fmtTimestamp(left.timestamp)}</span>
               <span>{fmtBytes(left.meta.body_size)}</span>
@@ -1731,10 +1731,10 @@ function DiffModal({ left, right, onClose }: { left: ReceivedMessage; right: Rec
           </div>
           <div className="bg-t-panel px-3 py-1.5">
             <div className="flex items-center gap-2">
-              <span className="text-[10px] uppercase tracking-wider text-amber-500 font-bold">Selected</span>
-              <span className="text-[11px] font-mono text-t-ink2 truncate">{right.meta.message_id ?? "(no id)"}</span>
+              <span className="text-[10.5px] uppercase tracking-wider text-caution font-bold">Selected</span>
+              <span className="text-[11.5px] font-mono text-t-ink2 truncate">{right.meta.message_id ?? "(no id)"}</span>
             </div>
-            <div className="flex items-center gap-2 mt-0.5 text-[10px] text-t-ink5 font-mono">
+            <div className="flex items-center gap-2 mt-0.5 text-[10.5px] text-t-ink5 font-mono">
               <span>{right.queue}</span>
               <span>{fmtTimestamp(right.timestamp)}</span>
               <span>{fmtBytes(right.meta.body_size)}</span>
@@ -1747,37 +1747,37 @@ function DiffModal({ left, right, onClose }: { left: ReceivedMessage; right: Rec
 
           {/* Properties diff */}
           <div className="px-3 py-2">
-            <p className="text-[10px] uppercase tracking-wider text-t-ink4 font-semibold mb-1.5">Properties</p>
-            <div className="font-mono text-[11px] space-y-px">
+            <p className="text-[10.5px] uppercase tracking-wider text-t-ink4 font-semibold mb-1.5">Properties</p>
+            <div className="font-mono text-[11.5px] space-y-px">
               {allKeys.std.map(k => {
                 const lv = stdProp(left, k);
                 const rv = stdProp(right, k);
                 if (!lv && !rv) return null;
                 const same = lv === rv;
                 return (
-                  <div key={k} className={`grid grid-cols-[120px_1fr_1fr] gap-2 py-0.5 px-1 rounded ${
-                    same ? "" : "bg-amber-500/5"
+                  <div key={k} className={`grid grid-cols-[120px_1fr_1fr] gap-2 py-0.5 px-1 rounded-md ${
+                    same ? "" : "bg-caution/5"
                   }`}>
                     <span className="text-t-ink4">{k}</span>
-                    <span className={`break-all ${same ? "text-t-ink3" : "text-blue-500"}`}>{lv || <em className="text-t-ink5">—</em>}</span>
-                    <span className={`break-all ${same ? "text-t-ink3" : "text-amber-500"}`}>{rv || <em className="text-t-ink5">—</em>}</span>
+                    <span className={`break-all ${same ? "text-t-ink3" : "text-accent"}`}>{lv || <em className="text-t-ink5">—</em>}</span>
+                    <span className={`break-all ${same ? "text-t-ink3" : "text-caution"}`}>{rv || <em className="text-t-ink5">—</em>}</span>
                   </div>
                 );
               })}
               {allKeys.app.length > 0 && (
-                <p className="text-[10px] uppercase tracking-wider text-t-ink4 font-semibold mt-3 mb-1.5">Application properties</p>
+                <p className="text-[10.5px] uppercase tracking-wider text-t-ink4 font-semibold mt-3 mb-1.5">Application properties</p>
               )}
               {allKeys.app.map(k => {
                 const lv = left.meta.application_properties[k]  ?? "";
                 const rv = right.meta.application_properties[k] ?? "";
                 const same = lv === rv;
                 return (
-                  <div key={k} className={`grid grid-cols-[120px_1fr_1fr] gap-2 py-0.5 px-1 rounded ${
-                    same ? "" : "bg-amber-500/5"
+                  <div key={k} className={`grid grid-cols-[120px_1fr_1fr] gap-2 py-0.5 px-1 rounded-md ${
+                    same ? "" : "bg-caution/5"
                   }`}>
                     <span className="text-t-ink4 truncate">{k}</span>
-                    <span className={`break-all ${same ? "text-t-ink3" : "text-blue-500"}`}>{lv || <em className="text-t-ink5">—</em>}</span>
-                    <span className={`break-all ${same ? "text-t-ink3" : "text-amber-500"}`}>{rv || <em className="text-t-ink5">—</em>}</span>
+                    <span className={`break-all ${same ? "text-t-ink3" : "text-accent"}`}>{lv || <em className="text-t-ink5">—</em>}</span>
+                    <span className={`break-all ${same ? "text-t-ink3" : "text-caution"}`}>{rv || <em className="text-t-ink5">—</em>}</span>
                   </div>
                 );
               })}
@@ -1786,16 +1786,16 @@ function DiffModal({ left, right, onClose }: { left: ReceivedMessage; right: Rec
 
           {/* Body diff */}
           <div className="px-3 pb-3">
-            <p className="text-[10px] uppercase tracking-wider text-t-ink4 font-semibold mb-1.5">Body (line diff, formatted)</p>
-            <div className="font-mono text-[11px] bg-t-field border border-t-line rounded-md overflow-x-auto select-text">
+            <p className="text-[10.5px] uppercase tracking-wider text-t-ink4 font-semibold mb-1.5">Body (line diff, formatted)</p>
+            <div className="font-mono text-[11.5px] bg-t-field border border-t-line rounded-lg overflow-x-auto select-text">
               {ops.length === 0 ? (
                 <p className="p-3 text-t-ink5 italic">Both bodies are empty</p>
               ) : (
                 ops.map((o, i) => {
                   const cls =
                     o.kind === "eq"  ? "text-t-ink3" :
-                    o.kind === "del" ? "bg-blue-500/15  text-blue-400 border-l-2 border-blue-500" :
-                                       "bg-amber-500/15 text-amber-400 border-l-2 border-amber-500";
+                    o.kind === "del" ? "bg-accent/15  text-accent-content border-l-2 border-accent" :
+                                       "bg-caution/15 text-caution border-l-2 border-caution";
                   const prefix = o.kind === "eq" ? "  " : o.kind === "del" ? "− " : "+ ";
                   const text = o.kind === "del" ? o.left : o.kind === "add" ? o.right : o.left;
                   return (
@@ -1811,7 +1811,7 @@ function DiffModal({ left, right, onClose }: { left: ReceivedMessage; right: Rec
 
         <div className="shrink-0 px-3 py-2 border-t border-t-line bg-t-panel flex items-center justify-end gap-2">
           <button onClick={onClose}
-            className="px-3 py-1 rounded-md bg-blue-600 hover:bg-blue-500 text-white text-[11px] font-medium">
+            className="px-3 py-1 rounded-lg bg-accent-strong hover:bg-accent text-white text-[11.5px] font-medium">
             Close
           </button>
         </div>
@@ -1915,13 +1915,13 @@ function ReplayModal({ connected, activeProfile, onLog, onClose }: {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={onClose}>
       <div onClick={e => e.stopPropagation()}
-        className="bg-t-bg border border-t-line rounded-lg shadow-2xl w-[760px] max-w-[95vw] h-[480px] flex flex-col overflow-hidden">
+        className="bg-t-bg border border-t-line rounded-xl shadow-2xl w-[760px] max-w-[95vw] h-[480px] flex flex-col overflow-hidden">
 
         <div className="shrink-0 px-4 py-2.5 border-b border-t-line bg-t-panel flex items-center gap-2">
-          <Play className="w-3.5 h-3.5 text-blue-500" />
+          <Play className="w-3.5 h-3.5 text-accent" />
           <span className="text-[13px] font-semibold text-t-ink">Replay recording</span>
-          <span className="text-[11px] text-t-ink5 font-mono">{items.length}</span>
-          <button onClick={onClose} className="ml-auto p-1 rounded hover:bg-t-hover text-t-ink4 hover:text-t-ink">
+          <span className="text-[11.5px] text-t-ink5 font-mono">{items.length}</span>
+          <button onClick={onClose} className="ml-auto p-1 rounded-md hover:bg-t-hover text-t-ink4 hover:text-t-ink">
             <X className="w-3.5 h-3.5" />
           </button>
         </div>
@@ -1939,10 +1939,10 @@ function ReplayModal({ connected, activeProfile, onLog, onClose }: {
               return (
                 <button key={r.name} onClick={() => setSelected(r.name)}
                   className={`w-full text-left px-3 py-2 border-b border-t-line/40 transition-colors ${
-                    isSel ? "bg-blue-500/10" : "hover:bg-t-hover/50"
+                    isSel ? "bg-accent/10" : "hover:bg-t-hover/50"
                   }`}>
-                  <div className="text-[12px] font-medium text-t-ink truncate">{r.name}</div>
-                  <div className="flex items-center gap-2 text-[10px] text-t-ink5 font-mono mt-0.5">
+                  <div className="text-[12.5px] font-medium text-t-ink truncate">{r.name}</div>
+                  <div className="flex items-center gap-2 text-[10.5px] text-t-ink5 font-mono mt-0.5">
                     <span>{r.message_count} msg</span>
                     <span>·</span>
                     <span>{fmtBytes(r.bytes)}</span>
@@ -1957,21 +1957,21 @@ function ReplayModal({ connected, activeProfile, onLog, onClose }: {
             {sel ? (
               <div className="flex-1 overflow-auto px-4 py-3 space-y-3">
                 <div>
-                  <div className="text-[10px] font-semibold text-t-ink4 uppercase tracking-wider mb-1">Recording</div>
+                  <div className="text-[10.5px] font-semibold text-t-ink4 uppercase tracking-wider mb-1">Recording</div>
                   <div className="text-[13px] text-t-ink font-mono truncate">{sel.name}</div>
-                  <div className="text-[11px] text-t-ink5 mt-0.5">
+                  <div className="text-[11.5px] text-t-ink5 mt-0.5">
                     {sel.message_count} message{sel.message_count === 1 ? "" : "s"} · {fmtBytes(sel.bytes)}
                     {sel.source_queue && <> · captured from <span className="font-mono text-t-ink4">{sel.source_queue}</span></>}
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-[10px] font-semibold text-t-ink4 uppercase tracking-wider mb-1">Target queue</label>
+                  <label className="block text-[10.5px] font-semibold text-t-ink4 uppercase tracking-wider mb-1">Target queue</label>
                   <QueuePicker value={target} onChange={setTarget} connected={connected} profileName={activeProfile} />
                 </div>
 
                 <div>
-                  <label className="block text-[10px] font-semibold text-t-ink4 uppercase tracking-wider mb-1">
+                  <label className="block text-[10.5px] font-semibold text-t-ink4 uppercase tracking-wider mb-1">
                     Speed
                     <span className="text-t-ink5 normal-case font-normal"> — 1 = real-time, 0 = max speed (no delays)</span>
                   </label>
@@ -1979,25 +1979,25 @@ function ReplayModal({ connected, activeProfile, onLog, onClose }: {
                     {["0.5", "1", "2", "5", "0"].map(s => (
                       <button key={s} type="button"
                         onClick={() => setSpeed(s)}
-                        className={`px-2 py-1 rounded text-[11px] font-mono transition-colors ${
-                          speed === s ? "bg-blue-500/15 text-blue-500" : "text-t-ink4 hover:text-t-ink2 hover:bg-t-hover"
+                        className={`px-2 py-1 rounded-md text-[11.5px] font-mono transition-colors ${
+                          speed === s ? "bg-accent/15 text-accent" : "text-t-ink4 hover:text-t-ink2 hover:bg-t-hover"
                         }`}>
                         {s === "0" ? "max" : `${s}×`}
                       </button>
                     ))}
                     <input type="number" min="0" step="0.1" value={speed}
                       onChange={e => setSpeed(e.target.value)}
-                      className="w-20 bg-t-field border border-t-line2 rounded px-2 py-0.5 text-[11px] text-t-ink outline-none focus:border-blue-500 ml-auto" />
+                      className="w-20 bg-t-field border border-t-line2 rounded-md px-2 py-0.5 text-[11.5px] text-t-ink outline-none focus:border-accent ml-auto" />
                   </div>
                 </div>
 
                 {progress && (
                   <div>
-                    <div className="text-[10px] text-t-ink5 font-mono mb-1">
+                    <div className="text-[10.5px] text-t-ink5 font-mono mb-1">
                       {progress.step} / {progress.total}
                     </div>
-                    <div className="h-1 bg-t-card rounded overflow-hidden">
-                      <div className="h-full bg-blue-500 transition-all"
+                    <div className="h-1 bg-t-card rounded-md overflow-hidden">
+                      <div className="h-full bg-accent transition-all"
                         style={{ width: progress.total > 0 ? `${(progress.step / progress.total) * 100}%` : "0%" }} />
                     </div>
                   </div>
@@ -2006,7 +2006,7 @@ function ReplayModal({ connected, activeProfile, onLog, onClose }: {
             ) : (
               // Default panel — short explainer of how Replay works so a
               // first-time user understands what they're configuring.
-              <div className="flex-1 flex flex-col items-center justify-center px-6 text-[12px] text-t-ink4 space-y-2 max-w-md mx-auto text-center">
+              <div className="flex-1 flex flex-col items-center justify-center px-6 text-[12.5px] text-t-ink4 space-y-2 max-w-md mx-auto text-center">
                 <Play className="w-7 h-7 text-t-ink5 mb-1" />
                 <p className="text-t-ink2 font-medium">How Replay works</p>
                 <p>
@@ -2034,17 +2034,17 @@ function ReplayModal({ connected, activeProfile, onLog, onClose }: {
               {sel && (
                 <button onClick={deleteSelected} disabled={playing}
                   title="Delete this recording from disk"
-                  className="flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium text-t-ink4 hover:text-red-500 hover:bg-red-500/10 transition-colors disabled:opacity-40">
+                  className="flex items-center gap-1 px-2 py-1 rounded-md text-[11.5px] font-medium text-t-ink4 hover:text-negative hover:bg-negative/10 transition-colors disabled:opacity-40">
                   <Trash2 className="w-3 h-3" /> Delete
                 </button>
               )}
               <button onClick={onClose} disabled={playing}
-                className="ml-auto px-3 py-1 rounded-md text-[11px] font-medium text-t-ink4 hover:text-t-ink hover:bg-t-hover transition-colors disabled:opacity-40">
+                className="ml-auto px-3 py-1 rounded-lg text-[11.5px] font-medium text-t-ink4 hover:text-t-ink hover:bg-t-hover transition-colors disabled:opacity-40">
                 Close
               </button>
               <button onClick={play}
                 disabled={!sel || playing || !target.trim() || !connected}
-                className="flex items-center gap-1.5 px-3 py-1 rounded-md bg-blue-500 hover:bg-blue-600 text-white text-[11px] font-semibold transition-colors disabled:opacity-40">
+                className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-accent hover:bg-accent-strong text-white text-[11.5px] font-semibold transition-colors disabled:opacity-40">
                 {playing ? <Loader2 className="w-3 h-3 animate-spin" /> : <Play className="w-3 h-3" />}
                 {playing ? "Replaying…" : "Play"}
               </button>

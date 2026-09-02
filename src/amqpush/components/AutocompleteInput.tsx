@@ -109,9 +109,9 @@ export default function AutocompleteInput({
         className={className}
       />
       {open && (filtered.length > 0 || (emptyHint && suggestions.length === 0)) && (
-        <div className="absolute left-0 right-0 top-full mt-1 z-50 bg-t-card border border-t-line rounded-md shadow-lg overflow-hidden max-h-64 overflow-y-auto">
+        <div className="absolute left-0 right-0 top-full mt-1 z-50 bg-t-card border border-t-line rounded-lg shadow-lg overflow-hidden max-h-64 overflow-y-auto">
           {filtered.length === 0 && emptyHint ? (
-            <div className="px-3 py-2 text-[11px] text-t-ink5">{emptyHint}</div>
+            <div className="px-3 py-2 text-[11.5px] text-t-ink5">{emptyHint}</div>
           ) : (
             filtered.map((s, i) => (
               <button
@@ -120,9 +120,9 @@ export default function AutocompleteInput({
                 onMouseDown={e => e.preventDefault()} // keep focus on the input so Tab/Esc still work after click
                 onClick={() => apply(s)}
                 onMouseEnter={() => setActive(i)}
-                className={`w-full text-left px-3 py-1 text-[12px] font-mono truncate transition-colors ${
+                className={`w-full text-left px-3 py-1 text-[12.5px] font-mono truncate transition-colors ${
                   i === active
-                    ? "bg-blue-500/10 text-blue-500"
+                    ? "bg-accent/10 text-accent"
                     : "text-t-ink2 hover:bg-t-hover hover:text-t-ink"
                 }`}
                 title={s}

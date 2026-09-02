@@ -450,16 +450,21 @@ export function AmqpushScreen() {
   // Recent log indicator (last entry kind for header dot)
   const lastLog = logs[logs.length - 1];
   const logDotColor = !lastLog ? "" :
-    lastLog.kind === "err" ? "bg-red-500" :
-    lastLog.kind === "ok"  ? "bg-green-500" :
+    lastLog.kind === "err" ? "bg-negative" :
+    lastLog.kind === "ok"  ? "bg-positive" :
     "bg-t-ink4";
 
   return (
     // Раздел занимает то, что осталось от окна, а не всё окно: над ним
     // шапка приложения с переключателем стенда и ходом работы.
-    <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-t-bg select-none">
-      {/* Toolbar — system title bar above shows window title; here we only put controls */}
-      <header className="h-10 shrink-0 flex items-center justify-between px-3 bg-t-panel border-b border-t-line">
+    <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden px-6 pb-4 select-none">
+      {/*
+        Полоса раздела — карточкой, как полоса показателей на остальных
+        экранах: профиль и состояние подключения слева, журнал и справка
+        справа. Прежде она шла сплошной шапкой во всю ширину и читалась
+        второй шапкой приложения.
+      */}
+      <header className="flex shrink-0 flex-wrap items-center justify-between gap-2 rounded-xl border border-line bg-surface px-5 py-2.5">
 
         {/* ─── LEFT: Profile + Connection state ─── */}
         <div className="flex items-center gap-2">
@@ -473,7 +478,7 @@ export function AmqpushScreen() {
                 onClick={toggle}
                 aria-expanded={open}
                 aria-label={t("shell.profile.switch")}
-                className="flex items-center gap-1.5 px-2 py-1 rounded-md text-t-ink3 hover:text-t-ink hover:bg-t-hover transition-colors text-[12px] border border-t-line"
+                className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-t-ink3 hover:text-t-ink hover:bg-t-hover transition-colors text-[12.5px] border border-t-line"
                 title={t("shell.profile.switch")}
               >
                 <User className="w-3 h-3 text-t-ink4" />
@@ -484,7 +489,7 @@ export function AmqpushScreen() {
           >
             {profiles.length === 0 ? (
               <DropdownSection title={t("shell.profile.section")}>
-                <p className="text-[11px] text-t-ink5 text-center py-3">{t("shell.profile.empty")}</p>
+                <p className="text-[11.5px] text-t-ink5 text-center py-3">{t("shell.profile.empty")}</p>
               </DropdownSection>
             ) : (
               // Group profiles by workspace. Stable workspace order: alphabetical,
@@ -520,7 +525,7 @@ export function AmqpushScreen() {
             <DropdownFooter>
               <button
                 onClick={() => changeView("connection")}
-                className="w-full flex items-center gap-2 px-3 py-1.5 text-left hover:bg-t-hover transition-colors text-[12px] text-blue-500 hover:text-blue-400"
+                className="w-full flex items-center gap-2 px-3 py-1.5 text-left hover:bg-t-hover transition-colors text-[12.5px] text-accent hover:text-accent-content"
               >
                 <Plug className="w-3 h-3" />
                 Manage profiles…
@@ -533,16 +538,16 @@ export function AmqpushScreen() {
               cheapest possible management RPC. Visible degradation in network
               or broker health surfaces immediately, before sends/recvs stall. */}
           <div className="flex items-center gap-1.5 px-2">
-            <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${connected ? "bg-green-500" : "bg-t-ink5"}`} />
-            <span className={`text-[11px] font-medium hidden sm:inline ${connected ? "text-green-500" : "text-t-ink4"}`}>
+            <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${connected ? "bg-positive" : "bg-t-ink5"}`} />
+            <span className={`text-[11.5px] font-medium hidden sm:inline ${connected ? "text-positive" : "text-t-ink4"}`}>
               {connected ? t("shell.connected") : t("shell.disconnected")}
             </span>
             {connected && brokerLatencyMs !== null && (
               <span
-                className={`text-[11px] font-mono ${
+                className={`text-[11.5px] font-mono ${
                   brokerLatencyMs < 100 ? "text-t-ink4"
-                  : brokerLatencyMs < 500 ? "text-amber-500"
-                  : "text-red-500"
+                  : brokerLatencyMs < 500 ? "text-caution"
+                  : "text-negative"
                 }`}
                 title={t("shell.latency.hint")}
               >
@@ -555,7 +560,7 @@ export function AmqpushScreen() {
         {/* ─── RIGHT: stats + console + theme ─── */}
         <div className="flex items-center gap-2">
           {(stats.sentCount > 0 || stats.receivedCount > 0) && (
-            <span className="text-[11px] text-t-ink5 font-mono">
+            <span className="text-[11.5px] text-t-ink5 font-mono">
               ↑{stats.sentCount} ↓{stats.receivedCount}
             </span>
           )}
@@ -564,9 +569,9 @@ export function AmqpushScreen() {
             <button
               onClick={() => changeView("console")}
               title={`${t("shell.logs")} — ${t("shell.logs.count", { count: logs.length })}  ⌘L`}
-              className={`flex items-center gap-1.5 px-2 py-1 rounded-md transition-colors text-[11px] border ${
+              className={`flex items-center gap-1.5 px-2 py-1 rounded-lg transition-colors text-[11.5px] border ${
                 lastLog?.kind === "err"
-                  ? "border-red-500/30 text-red-500 hover:bg-red-500/10"
+                  ? "border-negative/30 text-negative hover:bg-negative/10"
                   : "border-t-line text-t-ink4 hover:text-t-ink hover:bg-t-hover"
               }`}
             >
@@ -587,7 +592,7 @@ export function AmqpushScreen() {
             onClick={() => setShowHelp(true)}
             title={t("shell.help.hint")}
             aria-label={t("shell.help")}
-            className="flex items-center gap-1.5 px-2 py-1 rounded-md text-t-ink4 hover:text-t-ink hover:bg-t-hover transition-colors text-[12px]"
+            className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-t-ink4 hover:text-t-ink hover:bg-t-hover transition-colors text-[12.5px]"
           >
             <HelpCircle className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">{t("shell.help")}</span>
@@ -599,7 +604,7 @@ export function AmqpushScreen() {
       <ViewTabs active={view} onChange={changeView} />
 
       {/* Body */}
-      <div className="flex flex-1 min-h-0">
+      <div className="isolate flex flex-1 min-h-0 overflow-hidden rounded-xl border border-line bg-surface">
         <div className="flex flex-col flex-1 min-w-0 min-h-0">
           {/*
             All views stay mounted — visibility toggled via CSS so state is preserved

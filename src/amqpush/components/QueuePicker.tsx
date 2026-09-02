@@ -128,7 +128,7 @@ export default function QueuePicker({
           onFocus={() => setOpen(true)}
           placeholder={placeholder}
           disabled={disabled}
-          className="w-full bg-t-field border border-t-line2 rounded-md pl-2.5 pr-12 py-1.5 text-[12px] text-t-ink font-mono outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30 transition-all placeholder:text-t-ink5 disabled:opacity-50"
+          className="w-full bg-t-field border border-t-line2 rounded-lg pl-2.5 pr-12 py-1.5 text-[12.5px] text-t-ink font-mono outline-none focus:border-accent focus:ring-1 focus:ring-accent/30 transition-all placeholder:text-t-ink5 disabled:opacity-50"
         />
         {!disabled && value && (
           <button
@@ -155,7 +155,7 @@ export default function QueuePicker({
 
       {/* DROPDOWN */}
       {open && !disabled && (
-        <div className="absolute top-full left-0 right-0 mt-1 z-50 bg-t-card border border-t-line rounded-md shadow-lg overflow-hidden">
+        <div className="absolute top-full left-0 right-0 mt-1 z-50 bg-t-card border border-t-line rounded-lg shadow-lg overflow-hidden">
 
           {/* Top bar — status + refresh */}
           <div className="flex items-center gap-2 px-3 py-1.5 border-b border-t-line bg-t-panel">
@@ -163,13 +163,13 @@ export default function QueuePicker({
               {connected ? t("picker.broker") : t("picker.notConnected")}
             </SectionLabel>
             {showLiveBadge && (
-              <span className="text-[10px] text-t-ink5 font-mono">{brokerQueues.length}</span>
+              <span className="text-[10.5px] text-t-ink5 font-mono">{brokerQueues.length}</span>
             )}
             <button
               type="button"
               onClick={() => loadBroker()}
               disabled={!connected || brokerLoading}
-              className="ml-auto p-1 text-t-ink4 hover:text-blue-500 transition-colors disabled:opacity-40"
+              className="ml-auto p-1 text-t-ink4 hover:text-accent transition-colors disabled:opacity-40"
               title={connected ? t("picker.refresh") : t("picker.refresh.blocked")}
               aria-label={t("picker.refresh")}
             >
@@ -179,7 +179,7 @@ export default function QueuePicker({
 
           {/* Broker error */}
           {brokerErr && (
-            <div className="px-3 py-2 text-[11px] text-amber-500 bg-amber-500/5 border-b border-amber-500/20 flex items-start gap-2">
+            <div className="px-3 py-2 text-[11.5px] text-caution bg-caution/5 border-b border-caution/20 flex items-start gap-2">
               <AlertCircle className="w-3 h-3 mt-0.5 shrink-0" />
               <span className="break-all">{brokerErr}</span>
             </div>
@@ -193,7 +193,7 @@ export default function QueuePicker({
             <>
               <div className="flex items-center gap-2 px-3 py-1 border-b border-t-line bg-t-panel/60">
                 <SectionLabel icon={<Clock className="w-3 h-3" />}>{t("picker.recent")}</SectionLabel>
-                <span className="text-[10px] text-t-ink5 font-mono">{filteredRecent.length}</span>
+                <span className="text-[10.5px] text-t-ink5 font-mono">{filteredRecent.length}</span>
               </div>
               <div className="max-h-40 overflow-y-auto border-b border-t-line">
                 {filteredRecent.map(e => {
@@ -201,14 +201,14 @@ export default function QueuePicker({
                   return (
                     <div key={e.address}
                       className={`group flex items-center gap-2 px-3 py-1.5 transition-colors ${
-                        isCurrent ? "bg-blue-500/10" : "hover:bg-t-hover/50"
+                        isCurrent ? "bg-accent/10" : "hover:bg-t-hover/50"
                       }`}
                     >
                       <button
                         type="button"
                         onClick={() => { onChange(e.address); setOpen(false); }}
-                        className={`flex-1 min-w-0 text-left text-[12px] font-mono truncate ${
-                          isCurrent ? "text-blue-500" : "text-t-ink2 group-hover:text-t-ink"
+                        className={`flex-1 min-w-0 text-left text-[12.5px] font-mono truncate ${
+                          isCurrent ? "text-accent" : "text-t-ink2 group-hover:text-t-ink"
                         }`}
                         title={e.address}
                       >
@@ -219,11 +219,11 @@ export default function QueuePicker({
                         onClick={(ev) => { ev.stopPropagation(); forget(e.address); }}
                         title={t("picker.forget")}
                         aria-label={`Forget ${e.address}`}
-                        className="shrink-0 opacity-0 group-hover:opacity-100 text-t-ink5 hover:text-red-500 transition-all p-0.5"
+                        className="shrink-0 opacity-0 group-hover:opacity-100 text-t-ink5 hover:text-negative transition-all p-0.5"
                       >
                         <X className="w-3 h-3" />
                       </button>
-                      {isCurrent && <Check className="w-3 h-3 text-blue-500 shrink-0" />}
+                      {isCurrent && <Check className="w-3 h-3 text-accent shrink-0" />}
                     </div>
                   );
                 })}
@@ -245,7 +245,7 @@ export default function QueuePicker({
           {/* List */}
           <div className="max-h-72 overflow-y-auto">
             {filtered.length === 0 ? (
-              <p className="px-3 py-3 text-[11px] text-t-ink5 text-center">
+              <p className="px-3 py-3 text-[11.5px] text-t-ink5 text-center">
                 {q ? t("picker.nothing") : connected ? t("picker.none") : t("picker.none.hint")}
               </p>
             ) : (
@@ -256,30 +256,30 @@ export default function QueuePicker({
                   <button key={it.address}
                     type="button"
                     onClick={() => { onChange(it.address); setOpen(false); }}
-                    className={`w-full text-left grid grid-cols-[1fr_50px_50px_50px_18px] items-center gap-2 px-3 py-1.5 border-b border-t-line/40 transition-colors outline-none focus-visible:ring-1 focus-visible:ring-blue-500/40 focus-visible:ring-inset ${
-                      isCurrent ? "bg-blue-500/10" : "hover:bg-t-hover/50"
+                    className={`w-full text-left grid grid-cols-[1fr_50px_50px_50px_18px] items-center gap-2 px-3 py-1.5 border-b border-t-line/40 transition-colors outline-none focus-visible:ring-1 focus-visible:ring-accent/40 focus-visible:ring-inset ${
+                      isCurrent ? "bg-accent/10" : "hover:bg-t-hover/50"
                     }`}
                   >
                     {/* Name */}
-                    <span className="text-[12px] font-mono text-t-ink truncate" title={it.address}>
+                    <span className="text-[12.5px] font-mono text-t-ink truncate" title={it.address}>
                       {it.address}
                     </span>
 
                     {/* Type */}
-                    <span className="text-[10px] flex justify-center">
-                      <span className={`px-1 py-0 rounded font-medium ${
+                    <span className="text-[10.5px] flex justify-center">
+                      <span className={`px-1 py-0 rounded-md font-medium ${
                         isAddress
                           ? "bg-t-hover text-t-ink4"
                           : it.routing_type === "ANYCAST"
-                            ? "bg-blue-500/15 text-blue-500"
-                            : "bg-violet-500/15 text-violet-500"
+                            ? "bg-accent/15 text-accent"
+                            : "bg-accent-content/15 text-accent-content"
                       }`}>
                         {isAddress ? "ADDR" : it.routing_type === "ANYCAST" ? "ANY" : "MULTI"}
                       </span>
                     </span>
 
                     {/* Messages */}
-                    <span className={`text-[11px] font-mono text-right tabular-nums ${
+                    <span className={`text-[11.5px] font-mono text-right tabular-nums ${
                       isAddress ? "text-t-ink5" :
                       it.message_count > 0 ? "text-t-ink2" : "text-t-ink5"
                     }`}>
@@ -287,16 +287,16 @@ export default function QueuePicker({
                     </span>
 
                     {/* Consumers */}
-                    <span className={`text-[11px] font-mono text-right tabular-nums ${
+                    <span className={`text-[11.5px] font-mono text-right tabular-nums ${
                       isAddress ? "text-t-ink5" :
-                      it.consumer_count > 0 ? "text-green-500" : "text-t-ink5"
+                      it.consumer_count > 0 ? "text-positive" : "text-t-ink5"
                     }`}>
                       {isAddress ? "—" : it.consumer_count}
                     </span>
 
                     {/* Selected check */}
                     <span className="flex justify-center">
-                      {isCurrent && <Check className="w-3 h-3 text-blue-500" />}
+                      {isCurrent && <Check className="w-3 h-3 text-accent" />}
                     </span>
                   </button>
                 );
@@ -306,8 +306,8 @@ export default function QueuePicker({
 
           {/* Footer hint for custom address */}
           {value.trim() && !brokerQueues.some(it => it.address === value.trim()) && (
-            <div className="px-3 py-1.5 border-t border-t-line text-[10px] text-t-ink5 bg-t-panel">
-              {t("picker.press")} <kbd className="px-1 bg-t-card border border-t-line rounded text-[9px]">Enter</kbd> {t("picker.use")} <span className="font-mono text-t-ink3">{value.trim()}</span> {t("picker.custom")}
+            <div className="px-3 py-1.5 border-t border-t-line text-[10.5px] text-t-ink5 bg-t-panel">
+              {t("picker.press")} <kbd className="px-1 bg-t-card border border-t-line rounded-md text-[9px]">Enter</kbd> {t("picker.use")} <span className="font-mono text-t-ink3">{value.trim()}</span> {t("picker.custom")}
             </div>
           )}
         </div>

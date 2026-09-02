@@ -279,8 +279,8 @@ export default function InspectorView({ connected, visible, onLog }: Props) {
           : undefined}
         status={
           connected && autoOn && loaded ? (
-            <span className="flex items-center gap-1 text-[10px] text-t-ink5 font-mono" title={t("clients.auto.hint", { sec: POLL_INTERVAL_MS / 1000 })}>
-              <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+            <span className="flex items-center gap-1 text-[10.5px] text-t-ink5 font-mono" title={t("clients.auto.hint", { sec: POLL_INTERVAL_MS / 1000 })}>
+              <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
               {t("clients.live")}
             </span>
           ) : null
@@ -289,8 +289,8 @@ export default function InspectorView({ connected, visible, onLog }: Props) {
         <button
           onClick={() => setAutoOn(a => !a)}
           aria-pressed={autoOn}
-          className={`text-[11px] transition-colors px-1.5 py-0.5 rounded ${
-            autoOn ? "text-blue-500 bg-blue-500/10" : "text-t-ink4 hover:text-t-ink3"
+          className={`text-[11.5px] transition-colors px-1.5 py-0.5 rounded-md ${
+            autoOn ? "text-accent bg-accent/10" : "text-t-ink4 hover:text-t-ink3"
           }`}
           title={autoOn ? t("clients.auto.on") : t("clients.auto.off")}
         >
@@ -300,8 +300,8 @@ export default function InspectorView({ connected, visible, onLog }: Props) {
           onClick={() => setShowInternal(s => !s)}
           aria-pressed={showInternal}
           disabled={!connected}
-          className={`text-[11px] transition-colors px-1.5 py-0.5 rounded ${
-            showInternal ? "text-amber-500 bg-amber-500/10" : "text-t-ink4 hover:text-t-ink3"
+          className={`text-[11.5px] transition-colors px-1.5 py-0.5 rounded-md ${
+            showInternal ? "text-caution bg-caution/10" : "text-t-ink4 hover:text-t-ink3"
           } disabled:opacity-40`}
           title={t("clients.internal.hint")}
         >
@@ -311,8 +311,8 @@ export default function InspectorView({ connected, visible, onLog }: Props) {
           onClick={toggleRaw}
           aria-pressed={showRaw}
           disabled={!connected}
-          className={`text-[11px] transition-colors px-1.5 py-0.5 rounded flex items-center gap-1 ${
-            showRaw ? "text-blue-500 bg-blue-500/10" : "text-t-ink4 hover:text-t-ink3"
+          className={`text-[11.5px] transition-colors px-1.5 py-0.5 rounded-md flex items-center gap-1 ${
+            showRaw ? "text-accent bg-accent/10" : "text-t-ink4 hover:text-t-ink3"
           } disabled:opacity-40`}
           title={t("clients.raw.hint")}
         >
@@ -321,7 +321,7 @@ export default function InspectorView({ connected, visible, onLog }: Props) {
         <button
           onClick={() => refresh(false)}
           disabled={!connected || loading}
-          className="px-2 py-1 rounded text-[11px] font-medium text-t-ink4 hover:text-blue-500 hover:bg-blue-500/10 transition-colors flex items-center gap-1 disabled:opacity-40"
+          className="px-2 py-1 rounded-md text-[11.5px] font-medium text-t-ink4 hover:text-accent hover:bg-accent/10 transition-colors flex items-center gap-1 disabled:opacity-40"
         >
           <RotateCcw className={`w-3 h-3 ${loading ? "animate-spin" : ""}`} /> {t("clients.refresh")}
         </button>
@@ -329,8 +329,8 @@ export default function InspectorView({ connected, visible, onLog }: Props) {
 
       {/* ─── INTRO HINT — shown until the user selects a connection ─── */}
       {connected && loaded && !selected && conns.length > 0 && (
-        <div className="shrink-0 px-3 py-2 border-b border-t-line bg-blue-500/5 flex items-start gap-2 text-[11px]">
-          <Info className="w-3.5 h-3.5 text-blue-500 shrink-0 mt-0.5" />
+        <div className="shrink-0 px-3 py-2 border-b border-t-line bg-accent/5 flex items-start gap-2 text-[11.5px]">
+          <Info className="w-3.5 h-3.5 text-accent shrink-0 mt-0.5" />
           <div className="text-t-ink2 leading-relaxed">{t("clients.intro")}</div>
         </div>
       )}
@@ -356,39 +356,39 @@ export default function InspectorView({ connected, visible, onLog }: Props) {
       {/* ─── RAW DEBUG OVERLAY ─── */}
       {showRaw && (
         <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
-          <div className="shrink-0 px-3 py-2 border-b border-t-line bg-amber-500/5 flex items-start gap-2 text-[11px]">
-            <Info className="w-3.5 h-3.5 text-amber-500 shrink-0 mt-0.5" />
+          <div className="shrink-0 px-3 py-2 border-b border-t-line bg-caution/5 flex items-start gap-2 text-[11.5px]">
+            <Info className="w-3.5 h-3.5 text-caution shrink-0 mt-0.5" />
             <div className="text-t-ink2 leading-relaxed flex-1">
-              <span className="text-amber-500 font-medium">{t("clients.debug")}</span>{" "}
+              <span className="text-caution font-medium">{t("clients.debug")}</span>{" "}
               {t("clients.debug.note")}
             </div>
             <button
               onClick={loadRaw}
               disabled={rawLoading}
-              className="text-[11px] flex items-center gap-1 text-t-ink4 hover:text-blue-500 transition-colors px-1.5 py-0.5 rounded hover:bg-blue-500/10 disabled:opacity-40"
+              className="text-[11.5px] flex items-center gap-1 text-t-ink4 hover:text-accent transition-colors px-1.5 py-0.5 rounded-md hover:bg-accent/10 disabled:opacity-40"
             >
               <RotateCcw className={`w-3 h-3 ${rawLoading ? "animate-spin" : ""}`} /> Refresh
             </button>
           </div>
           {rawErr && (
-            <div className="shrink-0 px-3 py-2 text-[11px] text-red-500 border-b border-t-line bg-red-500/5">
+            <div className="shrink-0 px-3 py-2 text-[11.5px] text-negative border-b border-t-line bg-negative/5">
               {rawErr}
             </div>
           )}
           <div className="flex-1 grid grid-cols-2 gap-px bg-t-line overflow-hidden min-h-0">
             <div className="flex flex-col bg-t-bg min-h-0 overflow-hidden">
-              <div className="shrink-0 px-3 py-1.5 text-[10px] uppercase tracking-wider text-t-ink4 bg-t-panel border-b border-t-line font-semibold">
+              <div className="shrink-0 px-3 py-1.5 text-[10.5px] uppercase tracking-wider text-t-ink4 bg-t-panel border-b border-t-line font-semibold">
                 listConnectionsAsJSON
               </div>
-              <pre className="flex-1 overflow-auto p-3 text-[11px] font-mono text-t-ink2 whitespace-pre">
+              <pre className="flex-1 overflow-auto p-3 text-[11.5px] font-mono text-t-ink2 whitespace-pre">
                 {rawLoading && !rawConns ? "Loading…" : rawConns || "(empty)"}
               </pre>
             </div>
             <div className="flex flex-col bg-t-bg min-h-0 overflow-hidden">
-              <div className="shrink-0 px-3 py-1.5 text-[10px] uppercase tracking-wider text-t-ink4 bg-t-panel border-b border-t-line font-semibold">
+              <div className="shrink-0 px-3 py-1.5 text-[10.5px] uppercase tracking-wider text-t-ink4 bg-t-panel border-b border-t-line font-semibold">
                 listAllConsumersAsJSON
               </div>
-              <pre className="flex-1 overflow-auto p-3 text-[11px] font-mono text-t-ink2 whitespace-pre">
+              <pre className="flex-1 overflow-auto p-3 text-[11.5px] font-mono text-t-ink2 whitespace-pre">
                 {rawLoading && !rawCons ? "Loading…" : rawCons || "(empty)"}
               </pre>
             </div>
@@ -411,11 +411,11 @@ export default function InspectorView({ connected, visible, onLog }: Props) {
               title={t("clients.failed")}
               subtitle={<>
                 {err}
-                <p className="text-[10px] mt-3 text-t-ink5">{t("clients.failed.hint")}</p>
+                <p className="text-[10.5px] mt-3 text-t-ink5">{t("clients.failed.hint")}</p>
               </>}
               action={
                 <button onClick={() => refresh(false)}
-                  className="px-2.5 py-1 rounded-md text-[11px] font-medium bg-t-card border border-t-line text-t-ink2 hover:bg-t-hover transition-colors">
+                  className="px-2.5 py-1 rounded-lg text-[11.5px] font-medium bg-t-card border border-t-line text-t-ink2 hover:bg-t-hover transition-colors">
                   {t("clients.retry")}
                 </button>
               }
@@ -424,13 +424,13 @@ export default function InspectorView({ connected, visible, onLog }: Props) {
             <EmptyState icon={<Network className="w-8 h-8" />} title={search ? t("clients.nothing") : t("clients.none")} />
           ) : (
             <div className="flex-1 overflow-auto min-h-0">
-              <table className="w-full text-[12px] font-mono table-fixed">
+              <table className="w-full text-[12.5px] font-mono table-fixed">
                 <thead className="sticky top-0 z-10 bg-t-panel border-b border-t-line">
                   {/* Percentage widths sum to 100% so the table fills its
                       container without a trailing spacer, while keeping the
                       relative column sizes the user picked (Client narrow,
                       Age wider). With `table-fixed` these are honored exactly. */}
-                  <tr className="text-[10px] uppercase tracking-wider text-t-ink4 select-none">
+                  <tr className="text-[10.5px] uppercase tracking-wider text-t-ink4 select-none">
                     <th className="text-left pl-3 py-1.5 font-semibold w-[24%]">{t("clients.column.client")}</th>
                     <th className="text-left px-2 py-1.5 font-semibold w-[28%]">{t("clients.column.user")}</th>
                     <th className="text-left px-2 py-1.5 font-semibold w-[12%]">{t("clients.column.proto")}</th>
@@ -451,13 +451,13 @@ export default function InspectorView({ connected, visible, onLog }: Props) {
                           key={c.connection_id}
                           onClick={() => setSelected(isSel ? null : c.connection_id)}
                           className={`cursor-pointer border-b border-t-line/40 transition-colors ${
-                            isSel ? "bg-blue-500/10" : "hover:bg-t-hover/50"
+                            isSel ? "bg-accent/10" : "hover:bg-t-hover/50"
                           }`}
                         >
                           <td className="py-1.5 pl-3 truncate text-t-ink" title={c.client_address}>{c.client_address || c.connection_id}</td>
                           <td className="py-1.5 px-2 truncate text-t-ink2" title={c.users}>{c.users || "—"}</td>
                           <td className="py-1.5 px-2 truncate text-t-ink3">{c.protocol || "—"}</td>
-                          <td className={`py-1.5 px-2 text-left ${consCount > 0 ? "text-green-500" : "text-t-ink5"}`}>{consCount}</td>
+                          <td className={`py-1.5 px-2 text-left ${consCount > 0 ? "text-positive" : "text-t-ink5"}`}>{consCount}</td>
                           <td className="py-1.5 px-2 text-left text-t-ink4">{c.session_count}</td>
                           <td className="py-1.5 pr-3 px-2 text-left text-t-ink5 whitespace-nowrap">{fmtAgo(c.creation_time, now)}</td>
                         </tr>
@@ -490,12 +490,12 @@ export default function InspectorView({ connected, visible, onLog }: Props) {
                               ? <ChevronRight className="w-3 h-3 text-t-ink4 shrink-0" />
                               : <ChevronDown className="w-3 h-3 text-t-ink4 shrink-0" />}
                             <span title={host}>{host}</span>
-                            <span className="text-[10px] text-t-ink5 font-mono ml-1">({group.length})</span>
+                            <span className="text-[10.5px] text-t-ink5 font-mono ml-1">({group.length})</span>
                           </span>
                         </td>
                         <td className="py-1.5 px-2 truncate text-t-ink3" title={groupUser}>{groupUser}</td>
                         <td className="py-1.5 px-2 truncate text-t-ink3">{groupProto}</td>
-                        <td className={`py-1.5 px-2 text-left ${totalCons > 0 ? "text-green-500" : "text-t-ink5"}`}>{totalCons}</td>
+                        <td className={`py-1.5 px-2 text-left ${totalCons > 0 ? "text-positive" : "text-t-ink5"}`}>{totalCons}</td>
                         <td className="py-1.5 px-2 text-left text-t-ink4">{totalSess}</td>
                         <td className="py-1.5 pr-3 px-2 text-left text-t-ink5 whitespace-nowrap">{fmtAgo(oldest, now)}</td>
                       </tr>
@@ -513,7 +513,7 @@ export default function InspectorView({ connected, visible, onLog }: Props) {
                             key={c.connection_id}
                             onClick={() => setSelected(isSel ? null : c.connection_id)}
                             className={`cursor-pointer border-b border-t-line/40 transition-colors ${
-                              isSel ? "bg-blue-500/10" : "hover:bg-t-hover/50"
+                              isSel ? "bg-accent/10" : "hover:bg-t-hover/50"
                             }`}
                           >
                             <td className="py-1.5 pl-3 truncate text-t-ink2" title={c.client_address}>
@@ -526,7 +526,7 @@ export default function InspectorView({ connected, visible, onLog }: Props) {
                             </td>
                             <td className="py-1.5 px-2 truncate text-t-ink2" title={c.users}>{c.users || "—"}</td>
                             <td className="py-1.5 px-2 truncate text-t-ink3">{c.protocol || "—"}</td>
-                            <td className={`py-1.5 px-2 text-left ${consCount > 0 ? "text-green-500" : "text-t-ink5"}`}>{consCount}</td>
+                            <td className={`py-1.5 px-2 text-left ${consCount > 0 ? "text-positive" : "text-t-ink5"}`}>{consCount}</td>
                             <td className="py-1.5 px-2 text-left text-t-ink4">{c.session_count}</td>
                             <td className="py-1.5 pr-3 px-2 text-left text-t-ink5 whitespace-nowrap">{fmtAgo(c.creation_time, now)}</td>
                           </tr>
@@ -546,10 +546,10 @@ export default function InspectorView({ connected, visible, onLog }: Props) {
           <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
             <div className="shrink-0 px-3 py-1.5 border-b border-t-line bg-t-panel flex items-center gap-2">
               <Users className="w-3.5 h-3.5 text-t-ink4 shrink-0" />
-              <span className="text-[12px] text-t-ink font-mono truncate">
+              <span className="text-[12.5px] text-t-ink font-mono truncate">
                 {conns.find(c => c.connection_id === selected)?.client_address || selected}
               </span>
-              <span className="text-[11px] text-t-ink5 font-mono">
+              <span className="text-[11.5px] text-t-ink5 font-mono">
                 {t("clients.consumers", { count: selectedConsumers.length })}
               </span>
               <button
@@ -565,9 +565,9 @@ export default function InspectorView({ connected, visible, onLog }: Props) {
               {selectedConsumers.length === 0 ? (
                 <EmptyState icon={<Inbox className="w-8 h-8" />} title={t("clients.noConsumers")} subtitle={t("clients.noConsumers.hint")} />
               ) : (
-                <table className="w-full text-[12px] font-mono table-fixed">
+                <table className="w-full text-[12.5px] font-mono table-fixed">
                   <thead className="sticky top-0 z-10 bg-t-panel border-b border-t-line">
-                    <tr className="text-[10px] uppercase tracking-wider text-t-ink4 select-none">
+                    <tr className="text-[10.5px] uppercase tracking-wider text-t-ink4 select-none">
                       <th className="text-left pl-3 py-1.5 font-semibold w-[30%]">{t("clients.column.queue")}</th>
                       <th className="text-left px-2 py-1.5 font-semibold w-[30%]">{t("clients.column.address")}</th>
                       <th className="text-left px-2 py-1.5 font-semibold w-[10%]" title={t("clients.column.credit.hint")}>{t("clients.column.credit")}</th>
@@ -581,11 +581,11 @@ export default function InspectorView({ connected, visible, onLog }: Props) {
                         <td className="py-1.5 pl-3 truncate text-t-ink" title={k.queue}>
                           {k.queue}
                           {k.browse_only && (
-                            <span className="ml-1.5 text-[10px] px-1 rounded font-medium bg-amber-500/15 text-amber-500" title={t("clients.browse.hint")}>{t("clients.browse")}</span>
+                            <span className="ml-1.5 text-[10.5px] px-1 rounded-md font-medium bg-caution/15 text-caution" title={t("clients.browse.hint")}>{t("clients.browse")}</span>
                           )}
                         </td>
                         <td className="py-1.5 px-2 truncate text-t-ink3" title={cleanAddress(k.address)}>{cleanAddress(k.address)}</td>
-                        <td className={`py-1.5 px-2 text-left ${k.messages_in_transit > 0 ? "text-blue-500 font-medium" : "text-t-ink5"}`}>
+                        <td className={`py-1.5 px-2 text-left ${k.messages_in_transit > 0 ? "text-accent font-medium" : "text-t-ink5"}`}>
                           {k.messages_in_transit}
                         </td>
                         <td className="py-1.5 px-2 text-left text-t-ink4 whitespace-nowrap">{fmtAgo(k.last_delivered_time, now)}</td>

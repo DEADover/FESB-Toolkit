@@ -1,12 +1,14 @@
 import { ReactNode } from "react";
 
 /**
+ * Заголовок панели экрана — общий для всех экранов раздела.
+ *
  * Standard top bar for split-pane / list views (Connection, Receive, Browser,
  * History, Stats, Logs, Send). Locks the canonical token set:
  *   `h-10 px-3 border-b border-t-line bg-t-panel`
  *   icon `w-3.5 h-3.5 text-t-ink4`
  *   title `text-[13px] font-semibold text-t-ink`
- *   count `text-[11px] text-t-ink5 font-mono`
+ *   count `text-[11.5px] text-t-ink5 font-mono`
  *
  * **Fixed height (`h-10` = 40px)** is critical here. Without it, the row's
  * height grows to fit its tallest child — which means a Connection title
@@ -30,11 +32,13 @@ export default function ViewTopBar({
   children?: ReactNode;
 }) {
   return (
-    <div className="shrink-0 h-10 px-3 border-b border-t-line bg-t-panel flex items-center gap-2">
-      {icon && <span className="text-t-ink4 shrink-0">{icon}</span>}
-      <span className="text-[13px] font-semibold text-t-ink shrink-0">{title}</span>
+    // Заголовок панели — как у таблиц приложения: подложка на тон светлее
+    // содержимого, тонкая черта снизу, подпись мелким шрифтом рядом с именем.
+    <div className="shrink-0 h-10 px-4 border-b border-line bg-surface-2 flex items-center gap-2">
+      {icon && <span className="text-content-subtle shrink-0">{icon}</span>}
+      <span className="text-[12.5px] font-semibold text-content shrink-0">{title}</span>
       {count !== undefined && count !== null && (
-        <span className="text-[11px] text-t-ink5 font-mono">{count}</span>
+        <span className="text-[11.5px] text-content-subtle tabular-nums">{count}</span>
       )}
       {status}
       {children && <div className="ml-auto flex items-center gap-1">{children}</div>}

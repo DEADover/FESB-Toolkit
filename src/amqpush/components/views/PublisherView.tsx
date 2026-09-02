@@ -54,7 +54,7 @@ interface Props {
   onTabChange?: (tab: string) => void;
 }
 
-const INPUT = "bg-t-field border border-t-line2 rounded-md px-2.5 py-1.5 text-[12px] text-t-ink outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30 transition-all placeholder:text-t-ink5";
+const INPUT = "bg-t-field border border-t-line2 rounded-lg px-2.5 py-1.5 text-[12.5px] text-t-ink outline-none focus:border-accent focus:ring-1 focus:ring-accent/30 transition-all placeholder:text-t-ink5";
 
 type BodyMode = "none" | "raw" | "binary";
 type RawType  = "text" | "json" | "xml";
@@ -1085,7 +1085,7 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
         <button
           onClick={doSend}
           disabled={sendDisabled}
-          className="shrink-0 flex items-center gap-1.5 px-3.5 py-1.5 rounded-md text-[12px] font-semibold bg-blue-600 hover:bg-blue-500 text-white transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-sm"
+          className="shrink-0 flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-[12.5px] font-semibold bg-accent-strong hover:bg-accent text-white transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-sm"
         >
           <Send className="w-3.5 h-3.5" />
           {sending ? "Sending…" : "Send"}
@@ -1132,7 +1132,7 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
                       type="button"
                       onClick={toggle}
                       aria-expanded={open}
-                      className="flex items-center gap-1 text-[12px] text-blue-500 hover:text-blue-400 font-medium transition-colors"
+                      className="flex items-center gap-1 text-[12.5px] text-accent hover:text-accent-content font-medium transition-colors"
                     >
                       {RAW_TYPE_LABEL[rawType]}
                       <ChevronDown className="w-3 h-3" />
@@ -1154,21 +1154,21 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
               {/* Right side: validation + vars + Beautify */}
               <div className="ml-auto flex items-center gap-3">
                 {mode === "raw" && rawType === "json" && text.trim() && (
-                  <span className={`flex items-center gap-1 text-[11px] font-medium ${jsonValid ? "text-green-500" : "text-red-500"}`}>
+                  <span className={`flex items-center gap-1 text-[11.5px] font-medium ${jsonValid ? "text-positive" : "text-negative"}`}>
                     {jsonValid
                       ? <><CheckCircle className="w-3 h-3" /> valid</>
                       : <><XCircle className="w-3 h-3" /> invalid</>}
                   </span>
                 )}
                 {mode === "raw" && rawType === "xml" && text.trim() && (
-                  <span className={`flex items-center gap-1 text-[11px] font-medium ${xmlValid ? "text-green-500" : "text-red-500"}`}>
+                  <span className={`flex items-center gap-1 text-[11.5px] font-medium ${xmlValid ? "text-positive" : "text-negative"}`}>
                     {xmlValid
                       ? <><CheckCircle className="w-3 h-3" /> valid</>
                       : <><XCircle className="w-3 h-3" /> invalid</>}
                   </span>
                 )}
                 {hasVars && (
-                  <span className="flex items-center gap-1 text-[11px] text-blue-500 font-medium">
+                  <span className="flex items-center gap-1 text-[11.5px] text-accent font-medium">
                     <Braces className="w-3 h-3" /> vars
                   </span>
                 )}
@@ -1179,14 +1179,14 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
                   <button
                     type="button"
                     onClick={() => setSchemaModalOpen(true)}
-                    className={`flex items-center gap-1 text-[11px] font-medium transition-colors ${
+                    className={`flex items-center gap-1 text-[11.5px] font-medium transition-colors ${
                       activeSchemaResult
                         ? activeSchemaResult.ok
-                          ? "text-green-500 hover:text-green-400"
-                          : "text-red-500 hover:text-red-400"
+                          ? "text-positive hover:text-positive"
+                          : "text-negative hover:text-negative"
                         : activeSchema.trim()
-                          ? "text-blue-500 hover:text-blue-400"
-                          : "text-t-ink4 hover:text-blue-500"
+                          ? "text-accent hover:text-accent-content"
+                          : "text-t-ink4 hover:text-accent"
                     }`}
                     title={
                       xsdValidating
@@ -1213,7 +1213,7 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
                 )}
                 {mode === "raw" && rawType !== "text" && (
                   <button onClick={handleFormat}
-                    className="flex items-center gap-1 text-[11px] text-t-ink4 hover:text-blue-500 transition-colors font-medium">
+                    className="flex items-center gap-1 text-[11.5px] text-t-ink4 hover:text-accent transition-colors font-medium">
                     <Wand2 className="w-3 h-3" /> Beautify
                   </button>
                 )}
@@ -1240,7 +1240,7 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
                   language={rawType === "json" ? "json" : rawType === "xml" ? "xml" : "text"}
                   placeholder={`Type your ${RAW_TYPE_LABEL[rawType]} message…`}
                   minHeight="120px"
-                  className={`flex-1 ${text && !textOk ? "ring-1 ring-red-500/30" : ""}`}
+                  className={`flex-1 ${text && !textOk ? "ring-1 ring-negative/30" : ""}`}
                   variables={variableSuggestions}
                 />
               </div>
@@ -1263,25 +1263,25 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
                   }}
                   className={`h-full flex flex-col items-center justify-center gap-3 border-2 border-dashed rounded-xl cursor-pointer transition-all ${
                     dragOver
-                      ? "border-blue-500 bg-blue-500/5"
-                      : "border-t-line2 hover:border-blue-500/50 hover:bg-t-hover"
+                      ? "border-accent bg-accent/5"
+                      : "border-t-line2 hover:border-accent/50 hover:bg-t-hover"
                   }`}
                 >
-                  <FileUp className={`w-8 h-8 transition-colors ${dragOver ? "text-blue-500" : "text-t-ink5"}`} />
+                  <FileUp className={`w-8 h-8 transition-colors ${dragOver ? "text-accent" : "text-t-ink5"}`} />
                   {file ? (
                     <div className="text-center">
                       <p className="text-[13px] text-t-ink font-medium">{file.name}</p>
-                      <p className="text-[11px] text-t-ink4 mt-1">{(file.size / 1024).toFixed(1)} KB</p>
+                      <p className="text-[11.5px] text-t-ink4 mt-1">{(file.size / 1024).toFixed(1)} KB</p>
                       <button onClick={(e) => { e.stopPropagation(); setFile(null); if (fileRef.current) fileRef.current.value = ""; }}
-                        className="mt-2 text-[11px] text-t-ink5 hover:text-red-500 transition-colors">Clear</button>
+                        className="mt-2 text-[11.5px] text-t-ink5 hover:text-negative transition-colors">Clear</button>
                     </div>
                   ) : (
                     <div className="text-center">
-                      <p className={`text-[13px] transition-colors ${dragOver ? "text-blue-500 font-medium" : "text-t-ink5"}`}>
+                      <p className={`text-[13px] transition-colors ${dragOver ? "text-accent font-medium" : "text-t-ink5"}`}>
                         {dragOver ? "Drop the file here" : "Click to choose a file"}
                       </p>
                       {!dragOver && (
-                        <p className="text-[11px] text-t-ink5 mt-1">or drag and drop here</p>
+                        <p className="text-[11.5px] text-t-ink5 mt-1">or drag and drop here</p>
                       )}
                     </div>
                   )}
@@ -1298,11 +1298,11 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
 
             {/* Sub-toolbar */}
             <div className="shrink-0 h-9 px-3 flex items-center gap-2 border-b border-t-line bg-t-panel">
-              <span className="text-[11px] text-t-ink4">
-                Custom application-properties — values support <code className="text-blue-500 font-mono">{`{{token}}`}</code> substitution.
+              <span className="text-[11.5px] text-t-ink4">
+                Custom application-properties — values support <code className="text-accent font-mono">{`{{token}}`}</code> substitution.
               </span>
               <button onClick={addProp}
-                className="ml-auto px-2 py-1 rounded text-[11px] font-medium text-t-ink4 hover:text-t-ink hover:bg-t-hover transition-colors flex items-center gap-1">
+                className="ml-auto px-2 py-1 rounded-md text-[11.5px] font-medium text-t-ink4 hover:text-t-ink hover:bg-t-hover transition-colors flex items-center gap-1">
                 <Plus className="w-3 h-3" /> Add
               </button>
             </div>
@@ -1328,7 +1328,7 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
                   title="No properties added"
                   action={
                     <button onClick={addProp}
-                      className="text-[11px] text-blue-500 hover:text-blue-400 transition-colors">
+                      className="text-[11.5px] text-accent hover:text-accent-content transition-colors">
                       + Add your first property
                     </button>
                   }
@@ -1340,7 +1340,7 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
                     <label className="flex items-center justify-center cursor-pointer">
                       <input type="checkbox" checked={row.enabled !== false}
                         onChange={e => updateProp(row.id, "enabled", e.target.checked)}
-                        className="w-3.5 h-3.5 accent-blue-600 cursor-pointer" />
+                        className="w-3.5 h-3.5 accent-accent-strong cursor-pointer" />
                     </label>
                     {/* Key — autocomplete from previously-sent property names
                         in History. Particularly useful for the long Artemis
@@ -1350,7 +1350,7 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
                       onChange={v => updateProp(row.id, "key", v)}
                       suggestions={historyProps.keys}
                       placeholder="key"
-                      className="bg-transparent text-[12px] leading-4 h-7 w-full box-border appearance-none text-t-ink outline-none placeholder:text-t-ink5 font-mono py-1.5 px-1.5 rounded hover:bg-t-card focus:bg-t-field focus:ring-1 focus:ring-blue-500/30"
+                      className="bg-transparent text-[12.5px] leading-4 h-7 w-full box-border appearance-none text-t-ink outline-none placeholder:text-t-ink5 font-mono py-1.5 px-1.5 rounded-md hover:bg-t-card focus:bg-t-field focus:ring-1 focus:ring-accent/30"
                     />
                     {/* Value — keeps TokenInput for the `{{var}}` flow; on
                         focus we additionally show a small history-picker
@@ -1365,9 +1365,9 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
                     />
                     <input value={row.description ?? ""} onChange={e => updateProp(row.id, "description", e.target.value)}
                       placeholder="description"
-                      className="bg-transparent text-[12px] leading-4 h-7 box-border appearance-none text-t-ink3 outline-none placeholder:text-t-ink5 font-mono py-1.5 px-1.5 rounded hover:bg-t-card focus:bg-t-field focus:ring-1 focus:ring-blue-500/30" />
+                      className="bg-transparent text-[12.5px] leading-4 h-7 box-border appearance-none text-t-ink3 outline-none placeholder:text-t-ink5 font-mono py-1.5 px-1.5 rounded-md hover:bg-t-card focus:bg-t-field focus:ring-1 focus:ring-accent/30" />
                     <button onClick={() => removeProp(row.id)}
-                      className="opacity-0 group-hover:opacity-100 p-1 text-t-ink5 hover:text-red-500 transition-all rounded">
+                      className="opacity-0 group-hover:opacity-100 p-1 text-t-ink5 hover:text-negative transition-all rounded-md">
                       <X className="w-3.5 h-3.5" />
                     </button>
                   </div>
@@ -1383,8 +1383,8 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
 
             {/* Sub-toolbar: caption + Presets dropdown + Add */}
             <div className="shrink-0 h-9 px-3 border-b border-t-line bg-t-panel flex items-center gap-2">
-              <span className="text-[11px] text-t-ink4">
-                Use <code className="text-blue-500 font-mono">{`{{key}}`}</code> in body — replaced on each send.
+              <span className="text-[11.5px] text-t-ink4">
+                Use <code className="text-accent font-mono">{`{{key}}`}</code> in body — replaced on each send.
               </span>
 
               {/* Presets dropdown — click-to-open via shared Dropdown */}
@@ -1397,7 +1397,7 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
                       type="button"
                       onClick={toggle}
                       aria-expanded={open}
-                      className="px-2 py-1 rounded text-[11px] font-medium text-t-ink4 hover:text-t-ink hover:bg-t-hover transition-colors flex items-center gap-1 border border-t-line"
+                      className="px-2 py-1 rounded-md text-[11.5px] font-medium text-t-ink4 hover:text-t-ink hover:bg-t-hover transition-colors flex items-center gap-1 border border-t-line"
                     >
                       <Braces className="w-3 h-3" /> Built-in presets
                       <ChevronDown className="w-3 h-3" />
@@ -1411,8 +1411,8 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
                     {VARIABLE_HINTS.map(v => (
                       <button key={v.token} onClick={() => insertPresetVar(v.token, v.description)}
                         className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-t-hover transition-colors text-left">
-                        <code className="text-[11px] text-blue-500 font-mono shrink-0">{v.token}</code>
-                        <span className="text-[10px] text-t-ink4 truncate">{v.description}</span>
+                        <code className="text-[11.5px] text-accent font-mono shrink-0">{v.token}</code>
+                        <span className="text-[10.5px] text-t-ink4 truncate">{v.description}</span>
                       </button>
                     ))}
                   </div>
@@ -1420,7 +1420,7 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
               </div>
 
               <button onClick={addUserVar}
-                className="px-2 py-1 rounded text-[11px] font-medium text-t-ink4 hover:text-t-ink hover:bg-t-hover transition-colors flex items-center gap-1">
+                className="px-2 py-1 rounded-md text-[11.5px] font-medium text-t-ink4 hover:text-t-ink hover:bg-t-hover transition-colors flex items-center gap-1">
                 <Plus className="w-3 h-3" /> Add
               </button>
             </div>
@@ -1447,7 +1447,7 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
                   subtitle="Or pick a built-in preset from the dropdown above"
                   action={
                     <button onClick={addUserVar}
-                      className="text-[11px] text-blue-500 hover:text-blue-400 transition-colors">
+                      className="text-[11.5px] text-accent hover:text-accent-content transition-colors">
                       + Add your first variable
                     </button>
                   }
@@ -1460,19 +1460,19 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
                     <label className="flex items-center justify-center cursor-pointer">
                       <input type="checkbox" checked={v.enabled}
                         onChange={e => updateUserVar(v.id, "enabled", e.target.checked)}
-                        className="w-3.5 h-3.5 accent-blue-600 cursor-pointer" />
+                        className="w-3.5 h-3.5 accent-accent-strong cursor-pointer" />
                     </label>
                     <input value={v.key} onChange={e => updateUserVar(v.id, "key", e.target.value)}
                       placeholder="key"
-                      className="bg-transparent text-[12px] leading-4 h-7 box-border appearance-none text-t-ink outline-none placeholder:text-t-ink5 font-mono py-1.5 px-1.5 rounded hover:bg-t-card focus:bg-t-field focus:ring-1 focus:ring-blue-500/30" />
+                      className="bg-transparent text-[12.5px] leading-4 h-7 box-border appearance-none text-t-ink outline-none placeholder:text-t-ink5 font-mono py-1.5 px-1.5 rounded-md hover:bg-t-card focus:bg-t-field focus:ring-1 focus:ring-accent/30" />
                     <input value={v.value} onChange={e => updateUserVar(v.id, "value", e.target.value)}
                       placeholder="value"
-                      className="bg-transparent text-[12px] leading-4 h-7 box-border appearance-none text-t-ink outline-none placeholder:text-t-ink5 font-mono py-1.5 px-1.5 rounded hover:bg-t-card focus:bg-t-field focus:ring-1 focus:ring-blue-500/30" />
+                      className="bg-transparent text-[12.5px] leading-4 h-7 box-border appearance-none text-t-ink outline-none placeholder:text-t-ink5 font-mono py-1.5 px-1.5 rounded-md hover:bg-t-card focus:bg-t-field focus:ring-1 focus:ring-accent/30" />
                     <input value={v.description} onChange={e => updateUserVar(v.id, "description", e.target.value)}
                       placeholder="description"
-                      className="bg-transparent text-[12px] leading-4 h-7 box-border appearance-none text-t-ink3 outline-none placeholder:text-t-ink5 font-mono py-1.5 px-1.5 rounded hover:bg-t-card focus:bg-t-field focus:ring-1 focus:ring-blue-500/30" />
+                      className="bg-transparent text-[12.5px] leading-4 h-7 box-border appearance-none text-t-ink3 outline-none placeholder:text-t-ink5 font-mono py-1.5 px-1.5 rounded-md hover:bg-t-card focus:bg-t-field focus:ring-1 focus:ring-accent/30" />
                     <button onClick={() => removeUserVar(v.id)}
-                      className="opacity-0 group-hover:opacity-100 p-1 text-t-ink5 hover:text-red-500 transition-all rounded">
+                      className="opacity-0 group-hover:opacity-100 p-1 text-t-ink5 hover:text-negative transition-all rounded-md">
                       <X className="w-3.5 h-3.5" />
                     </button>
                   </div>
@@ -1486,10 +1486,10 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
         {tab === "prescript" && (
           <div className="flex-1 min-h-0 flex flex-col">
             <div className="shrink-0 h-9 px-3 flex items-center border-b border-t-line bg-t-panel">
-              <span className="text-[11px] text-t-ink4">
+              <span className="text-[11.5px] text-t-ink4">
                 JavaScript that runs before each send. Set variables via{" "}
-                <code className="text-blue-500 font-mono">ctx.set(name, value)</code>{" "}
-                — they become available as <code className="text-blue-500 font-mono">{`{{name}}`}</code>{" "}
+                <code className="text-accent font-mono">ctx.set(name, value)</code>{" "}
+                — they become available as <code className="text-accent font-mono">{`{{name}}`}</code>{" "}
                 in the body.
               </span>
             </div>
@@ -1506,7 +1506,7 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
             </div>
 
             <div className="shrink-0 px-3 py-1.5 border-t border-t-line bg-t-panel flex items-center gap-2">
-              <span className="text-[10px] text-t-ink5">
+              <span className="text-[10.5px] text-t-ink5">
                 Runs once per send (so once per batch iteration too — useful for unique IDs and timestamps).
               </span>
               <button
@@ -1520,7 +1520,7 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
                   }
                 }}
                 disabled={!preScript.trim()}
-                className="ml-auto px-2 py-1 rounded text-[11px] font-medium text-t-ink4 hover:text-blue-500 hover:bg-blue-500/10 transition-colors flex items-center gap-1 disabled:opacity-40"
+                className="ml-auto px-2 py-1 rounded-md text-[11.5px] font-medium text-t-ink4 hover:text-accent hover:bg-accent/10 transition-colors flex items-center gap-1 disabled:opacity-40"
                 title="Run the script once and log the results — useful for testing without sending a message"
               >
                 <Code2 className="w-3 h-3" /> Test run
@@ -1533,15 +1533,15 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
         {tab === "batch" && (
           <div className="flex-1 min-h-0 flex flex-col">
             <div className="shrink-0 h-9 px-3 flex items-center border-b border-t-line bg-t-panel">
-              <span className="text-[11px] text-t-ink4">Send the same message multiple times with optional delay.</span>
+              <span className="text-[11.5px] text-t-ink4">Send the same message multiple times with optional delay.</span>
             </div>
             <div className="flex-1 min-h-0 overflow-y-auto p-3 space-y-3">
 
               {/* Enable toggle — same toggle-card pattern as Reply / Connection's TLS. */}
-              <div className="flex items-center justify-between p-2.5 rounded-lg bg-t-card border border-t-line">
+              <div className="flex items-center justify-between p-2.5 rounded-xl bg-t-card border border-t-line">
                 <div className="flex flex-col">
                   <span className="text-[13px] text-t-ink2">Batch send</span>
-                  <span className="text-[10px] text-t-ink5">Repeat the message N times with an optional delay between each send</span>
+                  <span className="text-[10.5px] text-t-ink5">Repeat the message N times with an optional delay between each send</span>
                 </div>
                 <Toggle checked={batchEnabled} onChange={setBatchEnabled} ariaLabel="Enable batch send" />
               </div>
@@ -1549,9 +1549,9 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
               {/* Batch parameters — disabled when the toggle is off (visual + form-level). */}
               <div>
                 <SectionLabel className="block mb-2">Batch parameters</SectionLabel>
-                <div className={`bg-t-card border border-t-line rounded-lg p-3 space-y-3 ${batchEnabled ? "" : "opacity-50"}`}>
+                <div className={`bg-t-card border border-t-line rounded-xl p-3 space-y-3 ${batchEnabled ? "" : "opacity-50"}`}>
                   <div>
-                    <label className="block text-[10px] font-semibold text-t-ink4 uppercase tracking-wider mb-1.5">
+                    <label className="block text-[10.5px] font-semibold text-t-ink4 uppercase tracking-wider mb-1.5">
                       Repeat count
                       <span className="text-t-ink5 normal-case font-normal"> — total messages to send</span>
                     </label>
@@ -1559,7 +1559,7 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
                       className={`${INPUT} w-32`} />
                   </div>
                   <div>
-                    <label className="block text-[10px] font-semibold text-t-ink4 uppercase tracking-wider mb-1.5">
+                    <label className="block text-[10.5px] font-semibold text-t-ink4 uppercase tracking-wider mb-1.5">
                       Delay between messages
                       <span className="text-t-ink5 normal-case font-normal"> — milliseconds, 0 = no delay</span>
                     </label>
@@ -1577,10 +1577,10 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
               )}
 
               {/* ── Schedule (delayed start) ───────────────────────────────────── */}
-              <div className="flex items-center justify-between p-2.5 rounded-lg bg-t-card border border-t-line">
+              <div className="flex items-center justify-between p-2.5 rounded-xl bg-t-card border border-t-line">
                 <div className="flex flex-col">
                   <span className="text-[13px] text-t-ink2">Schedule send</span>
-                  <span className="text-[10px] text-t-ink5">
+                  <span className="text-[10.5px] text-t-ink5">
                     Wait N seconds before sending {batchEnabled ? "the first message" : "the message"}.
                     Useful for testing scheduled jobs and event triggers.
                   </span>
@@ -1590,9 +1590,9 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
 
               <div>
                 <SectionLabel className="block mb-2">Schedule parameters</SectionLabel>
-                <div className={`bg-t-card border border-t-line rounded-lg p-3 space-y-3 ${scheduleEnabled ? "" : "opacity-50"}`}>
+                <div className={`bg-t-card border border-t-line rounded-xl p-3 space-y-3 ${scheduleEnabled ? "" : "opacity-50"}`}>
                   <div>
-                    <label className="block text-[10px] font-semibold text-t-ink4 uppercase tracking-wider mb-1.5">
+                    <label className="block text-[10.5px] font-semibold text-t-ink4 uppercase tracking-wider mb-1.5">
                       Delay before first send
                       <span className="text-t-ink5 normal-case font-normal"> — seconds; you can cancel during the countdown</span>
                     </label>
@@ -1619,7 +1619,7 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
         {tab === "csv" && (
           <div className="flex-1 min-h-0 flex flex-col">
             <div className="shrink-0 h-9 px-3 flex items-center border-b border-t-line bg-t-panel">
-              <span className="text-[11px] text-t-ink4">
+              <span className="text-[11.5px] text-t-ink4">
                 Load a CSV — each row becomes one message. Column headers turn into <span className="font-mono">{"{{column_name}}"}</span> variables.
               </span>
             </div>
@@ -1637,15 +1637,15 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
                     if (f) loadCsvFile(f);
                   }}
                   onClick={() => csvFileInputRef.current?.click()}
-                  className={`flex flex-col items-center justify-center gap-2 px-4 py-10 rounded-lg border-2 border-dashed cursor-pointer transition-all ${
+                  className={`flex flex-col items-center justify-center gap-2 px-4 py-10 rounded-xl border-2 border-dashed cursor-pointer transition-all ${
                     csvDragOver
-                      ? "border-blue-500 bg-blue-500/10"
-                      : "border-t-line2 bg-t-card hover:border-blue-500/40 hover:bg-t-hover"
+                      ? "border-accent bg-accent/10"
+                      : "border-t-line2 bg-t-card hover:border-accent/40 hover:bg-t-hover"
                   }`}
                 >
                   <FileSpreadsheet className="w-8 h-8 text-t-ink4" />
                   <div className="text-[13px] text-t-ink2">Click to choose a CSV file</div>
-                  <div className="text-[11px] text-t-ink5">or drag and drop here</div>
+                  <div className="text-[11.5px] text-t-ink5">or drag and drop here</div>
                   <input
                     ref={csvFileInputRef}
                     type="file"
@@ -1657,18 +1657,18 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
               ) : (
                 <>
                   {/* Loaded-file summary card */}
-                  <div className="flex items-center gap-2 p-2.5 rounded-lg bg-t-card border border-t-line">
-                    <FileSpreadsheet className="w-4 h-4 text-blue-500 shrink-0" />
+                  <div className="flex items-center gap-2 p-2.5 rounded-xl bg-t-card border border-t-line">
+                    <FileSpreadsheet className="w-4 h-4 text-accent shrink-0" />
                     <div className="flex-1 min-w-0">
                       <div className="text-[13px] text-t-ink truncate">{csvFileName}</div>
-                      <div className="text-[10px] text-t-ink5">
+                      <div className="text-[10.5px] text-t-ink5">
                         {csvRows.length.toLocaleString()} rows · {csvHeaders.length} columns
                       </div>
                     </div>
                     <button
                       type="button"
                       onClick={() => csvFileInputRef.current?.click()}
-                      className="text-[11px] text-t-ink4 hover:text-blue-500 px-2 py-1 rounded hover:bg-t-hover transition-colors"
+                      className="text-[11.5px] text-t-ink4 hover:text-accent px-2 py-1 rounded-md hover:bg-t-hover transition-colors"
                       title="Replace with another CSV"
                     >
                       Replace
@@ -1676,7 +1676,7 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
                     <button
                       type="button"
                       onClick={() => setConfirmClearCsv(true)}
-                      className="p-1 rounded text-t-ink4 hover:text-red-500 hover:bg-t-hover transition-colors"
+                      className="p-1 rounded-md text-t-ink4 hover:text-negative hover:bg-t-hover transition-colors"
                       title="Clear CSV"
                     >
                       <X className="w-3.5 h-3.5" />
@@ -1713,7 +1713,7 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
                                 () => onLog("info", `Copied {{${h}}} to clipboard`),
                                 () => {/* clipboard might be denied — silently ignore */}
                               )}
-                              className="font-mono text-[11px] px-2 py-0.5 rounded border border-t-line2 bg-t-card hover:border-blue-500/40 hover:text-blue-500 hover:bg-blue-500/5 text-t-ink2 transition-colors"
+                              className="font-mono text-[11.5px] px-2 py-0.5 rounded-md border border-t-line2 bg-t-card hover:border-accent/40 hover:text-accent hover:bg-accent/5 text-t-ink2 transition-colors"
                               title={`Click to copy {{${h}}} to clipboard`}
                             >
                               {`{{${h}}}`}
@@ -1725,8 +1725,8 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
                       {/* Preview table — first 5 rows so the user can verify what columns look like. */}
                       <div>
                         <SectionLabel className="block mb-2">Preview <span className="text-t-ink5 normal-case font-normal">— first {Math.min(5, csvRows.length)} of {csvRows.length} rows</span></SectionLabel>
-                        <div className="bg-t-card border border-t-line rounded-md overflow-auto max-h-48">
-                          <table className="w-full text-[11px] font-mono">
+                        <div className="bg-t-card border border-t-line rounded-lg overflow-auto max-h-48">
+                          <table className="w-full text-[11.5px] font-mono">
                             <thead className="sticky top-0 bg-t-panel">
                               <tr>
                                 <th className="text-left px-2 py-1 text-t-ink5 font-semibold">#</th>
@@ -1740,7 +1740,7 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
                                 <tr key={i}
                                   onClick={() => setCsvDryRunIdx(i)}
                                   className={`cursor-pointer border-t border-t-line/40 ${
-                                    csvDryRunIdx === i ? "bg-blue-500/10" : "hover:bg-t-hover/50"
+                                    csvDryRunIdx === i ? "bg-accent/10" : "hover:bg-t-hover/50"
                                   }`}
                                 >
                                   <td className="px-2 py-1 text-t-ink5">{i + 1}</td>
@@ -1763,7 +1763,7 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
                             Dry-run preview
                             <span className="text-t-ink5 normal-case font-normal"> — body for row {csvDryRunIdx + 1} after substitution</span>
                           </SectionLabel>
-                          <pre className="bg-t-card border border-t-line rounded-md p-2.5 text-[11px] font-mono text-t-ink2 max-h-40 overflow-auto whitespace-pre-wrap">
+                          <pre className="bg-t-card border border-t-line rounded-lg p-2.5 text-[11.5px] font-mono text-t-ink2 max-h-40 overflow-auto whitespace-pre-wrap">
                             {resolveBodyForCsvRow(csvDryRunIdx) || "(empty)"}
                           </pre>
                         </div>
@@ -1772,8 +1772,8 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
                       {/* Per-row delay control */}
                       <div>
                         <SectionLabel className="block mb-2">Send parameters</SectionLabel>
-                        <div className="bg-t-card border border-t-line rounded-lg p-3">
-                          <label className="block text-[10px] font-semibold text-t-ink4 uppercase tracking-wider mb-1.5">
+                        <div className="bg-t-card border border-t-line rounded-xl p-3">
+                          <label className="block text-[10.5px] font-semibold text-t-ink4 uppercase tracking-wider mb-1.5">
                             Delay between rows
                             <span className="text-t-ink5 normal-case font-normal"> — milliseconds, 0 = as fast as possible</span>
                           </label>
@@ -1789,7 +1789,7 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
                             type="button"
                             onClick={sendCsvBatch}
                             disabled={!connected || !text.trim() || mode !== "raw" || !address.trim()}
-                            className="flex items-center gap-1.5 px-4 py-1.5 rounded-md text-[13px] font-semibold bg-blue-600 hover:bg-blue-500 text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                            className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-[13px] font-semibold bg-accent-strong hover:bg-accent text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                           >
                             <Send className="w-3.5 h-3.5" />
                             Send {csvRows.length.toLocaleString()} message{csvRows.length !== 1 ? "s" : ""}
@@ -1797,15 +1797,15 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
                         ) : (
                           <>
                             <div className="flex-1 flex items-center gap-2">
-                              <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-500 shrink-0" />
+                              <Loader2 className="w-3.5 h-3.5 animate-spin text-accent shrink-0" />
                               <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2 text-[12px]">
+                                <div className="flex items-center gap-2 text-[12.5px]">
                                   <span className="text-t-ink2 font-mono">
                                     {csvProgress.done}/{csvProgress.total}
                                   </span>
-                                  <span className="text-green-500 text-[11px] font-mono">{csvProgress.ok} ok</span>
+                                  <span className="text-positive text-[11.5px] font-mono">{csvProgress.ok} ok</span>
                                   {csvProgress.failed > 0 && (
-                                    <span className="text-red-500 text-[11px] font-mono">{csvProgress.failed} fail</span>
+                                    <span className="text-negative text-[11.5px] font-mono">{csvProgress.failed} fail</span>
                                   )}
                                   {sendRateHistory.length > 0 && (
                                     <>
@@ -1818,7 +1818,7 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
                                         title="Sends per second (last 60s)"
                                         className="ml-auto"
                                       />
-                                      <span className="text-[10px] text-t-ink5 font-mono shrink-0">
+                                      <span className="text-[10.5px] text-t-ink5 font-mono shrink-0">
                                         {sendRateHistory[sendRateHistory.length - 1]}/s
                                       </span>
                                     </>
@@ -1826,7 +1826,7 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
                                 </div>
                                 <div className="mt-1 h-1.5 rounded-full bg-t-line overflow-hidden">
                                   <div
-                                    className="h-full bg-blue-500 transition-all"
+                                    className="h-full bg-accent transition-all"
                                     style={{ width: `${(csvProgress.done / Math.max(1, csvProgress.total)) * 100}%` }}
                                   />
                                 </div>
@@ -1835,7 +1835,7 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
                             <button
                               type="button"
                               onClick={cancelCsvBatch}
-                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[12px] font-medium bg-red-500/10 border border-red-500/30 text-red-500 hover:bg-red-500/20 transition-colors"
+                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12.5px] font-medium bg-negative/10 border border-negative/30 text-negative hover:bg-negative/20 transition-colors"
                             >
                               <Square className="w-3 h-3" /> Cancel
                             </button>
@@ -1859,15 +1859,15 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
         {tab === "reply" && (
           <div className="flex-1 min-h-0 flex flex-col">
             <div className="shrink-0 h-9 px-3 flex items-center border-b border-t-line bg-t-panel">
-              <span className="text-[11px] text-t-ink4">Wait for a reply on a separate queue after sending.</span>
+              <span className="text-[11.5px] text-t-ink4">Wait for a reply on a separate queue after sending.</span>
             </div>
             <div className="flex-1 min-h-0 overflow-y-auto p-3 space-y-3">
 
               {/* Enable toggle — same toggle-card pattern as Connection's TLS / SASL ANONYMOUS. */}
-              <div className="flex items-center justify-between p-2.5 rounded-lg bg-t-card border border-t-line">
+              <div className="flex items-center justify-between p-2.5 rounded-xl bg-t-card border border-t-line">
                 <div className="flex flex-col">
                   <span className="text-[13px] text-t-ink2">Wait for reply</span>
-                  <span className="text-[10px] text-t-ink5">Listen on a separate queue after this message is sent</span>
+                  <span className="text-[10.5px] text-t-ink5">Listen on a separate queue after this message is sent</span>
                 </div>
                 <Toggle checked={rrEnabled} onChange={setRrEnabled} ariaLabel="Enable request-reply" />
               </div>
@@ -1875,9 +1875,9 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
               {/* Reply-target settings card — fields are disabled when the toggle is off. */}
               <div>
                 <SectionLabel className="block mb-2">Reply target</SectionLabel>
-                <div className={`bg-t-card border border-t-line rounded-lg p-3 space-y-3 ${rrEnabled ? "" : "opacity-50"}`}>
+                <div className={`bg-t-card border border-t-line rounded-xl p-3 space-y-3 ${rrEnabled ? "" : "opacity-50"}`}>
                   <div>
-                    <label className="block text-[10px] font-semibold text-t-ink4 uppercase tracking-wider mb-1.5">
+                    <label className="block text-[10.5px] font-semibold text-t-ink4 uppercase tracking-wider mb-1.5">
                       Reply-to address
                       <span className="text-t-ink5 normal-case font-normal"> — queue we'll listen on</span>
                     </label>
@@ -1891,7 +1891,7 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
                     />
                   </div>
                   <div>
-                    <label className="block text-[10px] font-semibold text-t-ink4 uppercase tracking-wider mb-1.5">
+                    <label className="block text-[10.5px] font-semibold text-t-ink4 uppercase tracking-wider mb-1.5">
                       Timeout
                       <span className="text-t-ink5 normal-case font-normal"> — milliseconds before giving up</span>
                     </label>
@@ -1925,7 +1925,7 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
                       onCopied={() => onLog("info", "Reply body copied")}
                       label="Copy"
                       title="Copy reply body"
-                      className="flex items-center gap-1 text-[10px] text-t-ink4 hover:text-t-ink2 transition-colors px-1.5 py-0.5 rounded hover:bg-t-hover"
+                      className="flex items-center gap-1 text-[10.5px] text-t-ink4 hover:text-t-ink2 transition-colors px-1.5 py-0.5 rounded-md hover:bg-t-hover"
                     />
                   }
                 >
@@ -1942,19 +1942,19 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
         {tab === "templates" && (
           <div className="flex-1 min-h-0 flex flex-col">
             <div className="shrink-0 h-9 px-3 border-b border-t-line bg-t-panel flex items-center gap-2">
-              <span className="text-[11px] text-t-ink4">Saved message templates</span>
+              <span className="text-[11.5px] text-t-ink4">Saved message templates</span>
               <div className="ml-auto">
                 {savingTpl ? (
                   <div className="flex gap-1.5">
                     <input autoFocus value={newTplName} onChange={e => setNewTplName(e.target.value)}
                       onKeyDown={e => { if (e.key === "Enter") saveAsTemplate(); if (e.key === "Escape") setSavingTpl(false); }}
                       placeholder="Template name…" className={`${INPUT} text-xs py-1 w-40`} />
-                    <button onClick={saveAsTemplate} className="px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-500">Save</button>
-                    <button onClick={() => setSavingTpl(false)} className="px-2 py-1 text-t-ink4 text-xs hover:text-t-ink rounded hover:bg-t-hover">✕</button>
+                    <button onClick={saveAsTemplate} className="px-2 py-1 bg-accent-strong text-white text-xs rounded-md hover:bg-accent">Save</button>
+                    <button onClick={() => setSavingTpl(false)} className="px-2 py-1 text-t-ink4 text-xs hover:text-t-ink rounded-md hover:bg-t-hover">✕</button>
                   </div>
                 ) : (
                   <button onClick={() => setSavingTpl(true)}
-                    className="flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium text-t-ink3 hover:text-t-ink hover:bg-t-hover transition-colors">
+                    className="flex items-center gap-1 px-2 py-1 rounded-md text-[11.5px] font-medium text-t-ink3 hover:text-t-ink hover:bg-t-hover transition-colors">
                     <Save className="w-3 h-3" /> Save current
                   </button>
                 )}
@@ -1976,7 +1976,7 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
                 // height per row, monospace alignment for the numeric
                 // columns, vertical-center on every cell so chips and
                 // counts line up regardless of row content.
-                <table className="w-full text-[12px] table-fixed">
+                <table className="w-full text-[12.5px] table-fixed">
                   <colgroup>
                     <col className="w-[24%]" />{/* Name */}
                     <col className="w-[24%]" />{/* Address */}
@@ -1986,7 +1986,7 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
                     <col className="w-[64px]" />{/* Actions */}
                   </colgroup>
                   <thead className="sticky top-0 bg-t-panel border-b border-t-line z-10">
-                    <tr className="text-[10px] uppercase tracking-wider text-t-ink4 font-semibold">
+                    <tr className="text-[10.5px] uppercase tracking-wider text-t-ink4 font-semibold">
                       <th className="px-3 py-2 text-left font-semibold">Name</th>
                       <th className="px-2 py-2 text-left font-semibold">Address</th>
                       <th className="px-2 py-2 text-left font-semibold">Kind</th>
@@ -2025,8 +2025,8 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
                       // subtype is still scannable; text falls back to
                       // the default ink colour.
                       const kindColor =
-                        kind === "json" ? "text-blue-500" :
-                        kind === "xml"  ? "text-violet-500" :
+                        kind === "json" ? "text-accent" :
+                        kind === "xml"  ? "text-accent-content" :
                                           "text-t-ink3";
 
                       // Renaming mode — render a single full-width row that
@@ -2034,7 +2034,7 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
                       // so the table layout doesn't reflow under the user.
                       if (isRenaming) {
                         return (
-                          <tr key={tpl.name} className="border-b border-t-line/40 bg-blue-500/5">
+                          <tr key={tpl.name} className="border-b border-t-line/40 bg-accent/5">
                             <td colSpan={6} className="px-3 py-1.5">
                               <div className="flex items-center gap-2">
                                 <input
@@ -2052,13 +2052,13 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
                                 />
                                 <button
                                   onClick={() => { renameTemplate(tpl.name, renamingDraft); setRenamingTpl(null); }}
-                                  className="px-2 py-1 bg-blue-600 text-white text-[11px] font-semibold rounded hover:bg-blue-500"
+                                  className="px-2 py-1 bg-accent-strong text-white text-[11.5px] font-semibold rounded-md hover:bg-accent"
                                 >
                                   Save
                                 </button>
                                 <button
                                   onClick={() => setRenamingTpl(null)}
-                                  className="px-2 py-1 text-t-ink4 text-[11px] hover:text-t-ink hover:bg-t-hover rounded"
+                                  className="px-2 py-1 text-t-ink4 text-[11.5px] hover:text-t-ink hover:bg-t-hover rounded-md"
                                 >
                                   Cancel
                                 </button>
@@ -2084,7 +2084,7 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
                             </span>
                           </td>
                           <td className="px-2 align-middle">
-                            <span className={`text-[11px] font-mono font-medium uppercase ${kindColor}`}>
+                            <span className={`text-[11.5px] font-mono font-medium uppercase ${kindColor}`}>
                               {kind}
                             </span>
                           </td>
@@ -2099,7 +2099,7 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
                               <FeatureFlag
                                 on={schemaOn}
                                 icon={<ShieldCheck className="w-3.5 h-3.5" />}
-                                color="text-cyan-500"
+                                color="text-accent-content"
                                 title={schemaOn ? "Body validation schema configured (JSON Schema or XSD)" : "No body schema"}
                               />
                               <FeatureFlag
@@ -2112,32 +2112,32 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
                               <FeatureFlag
                                 on={userVarsCount > 0}
                                 icon={<Braces className="w-3.5 h-3.5" />}
-                                color="text-blue-500"
+                                color="text-accent"
                                 title={userVarsCount > 0 ? `${userVarsCount} user-defined variable${userVarsCount === 1 ? "" : "s"} on the Variables tab` : "No user variables"}
                                 badge={userVarsCount > 0 ? userVarsCount : undefined}
                               />
                               <FeatureFlag
                                 on={preScriptOn}
                                 icon={<Code2 className="w-3.5 h-3.5" />}
-                                color="text-emerald-500"
+                                color="text-positive"
                                 title={preScriptOn ? "Has Pre-script — runs before each send" : "No pre-script"}
                               />
                               <FeatureFlag
                                 on={batchOn}
                                 icon={<Repeat2 className="w-3.5 h-3.5" />}
-                                color="text-amber-500"
+                                color="text-caution"
                                 title={batchOn ? `Batch send: ${tpl.repeat ?? 1}×${tpl.delay_ms ? ` every ${tpl.delay_ms}ms` : ""}` : "No batch send"}
                               />
                               <FeatureFlag
                                 on={scheduleOn}
                                 icon={<Clock className="w-3.5 h-3.5" />}
-                                color="text-amber-500"
+                                color="text-caution"
                                 title={scheduleOn ? `Schedule: ${tpl.schedule_delay_secs ?? 0}s delay before first send` : "No schedule"}
                               />
                               <FeatureFlag
                                 on={replyOn}
                                 icon={<CornerUpLeft className="w-3.5 h-3.5" />}
-                                color="text-violet-500"
+                                color="text-accent-content"
                                 title={replyOn ? `Request-reply${tpl.reply_to ? ` on '${tpl.reply_to}'` : " (dynamic source)"}` : "No request-reply"}
                               />
                             </div>
@@ -2146,14 +2146,14 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
                             <button
                               onClick={(e) => { e.stopPropagation(); setRenamingTpl(tpl.name); setRenamingDraft(tpl.name); }}
                               title="Rename template"
-                              className="opacity-0 group-hover:opacity-100 p-1 text-t-ink5 hover:text-blue-500 transition-all rounded"
+                              className="opacity-0 group-hover:opacity-100 p-1 text-t-ink5 hover:text-accent transition-all rounded-md"
                             >
                               <Pencil className="w-3.5 h-3.5" />
                             </button>
                             <button
                               onClick={(e) => { e.stopPropagation(); deleteTemplate(tpl.name); }}
                               title="Delete template"
-                              className="opacity-0 group-hover:opacity-100 p-1 text-t-ink5 hover:text-red-500 transition-all rounded"
+                              className="opacity-0 group-hover:opacity-100 p-1 text-t-ink5 hover:text-negative transition-all rounded-md"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
@@ -2171,46 +2171,46 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
         {/* CHAOS TAB — poison-pill helpers for testing consumer error paths. */}
         {tab === "chaos" && (
           <div className="flex-1 min-h-0 overflow-y-auto p-3 space-y-3">
-            <div className="text-[11px] text-t-ink5 leading-relaxed">
+            <div className="text-[11.5px] text-t-ink5 leading-relaxed">
               Apply opt-in mutations to the message <i>just before send</i>, so you can poke at how
               your consumer handles malformed input without hand-crafting bad payloads. Each toggle
               is independent; combine them to stress multiple paths at once.
-              <span className="block mt-1 text-amber-500">
+              <span className="block mt-1 text-caution">
                 ⚠ These break the contract on purpose — don't leave them on for normal sends.
               </span>
             </div>
 
             {/* 1) Oversized body — pad to N MB */}
-            <div className="bg-t-card border border-t-line rounded-lg p-3 space-y-2">
+            <div className="bg-t-card border border-t-line rounded-xl p-3 space-y-2">
               <label className="flex items-center gap-2 cursor-pointer">
                 <input type="checkbox" checked={chaosPadBody} onChange={e => setChaosPadBody(e.target.checked)}
-                  className="w-3.5 h-3.5 accent-blue-600 cursor-pointer" />
+                  className="w-3.5 h-3.5 accent-accent-strong cursor-pointer" />
                 <span className="text-[13px] text-t-ink2 font-medium">Send oversized body</span>
               </label>
-              <div className={`pl-5 space-y-1 text-[11px] ${chaosPadBody ? "" : "opacity-50"}`}>
+              <div className={`pl-5 space-y-1 text-[11.5px] ${chaosPadBody ? "" : "opacity-50"}`}>
                 <p className="text-t-ink5">
                   Pad the body with random ASCII to the size below. Useful for triggering broker
                   max-message-size limits or testing how the consumer streams large frames.
                 </p>
                 <div className="flex items-center gap-2">
-                  <label className="text-[10px] text-t-ink4 uppercase tracking-wider">Target size</label>
+                  <label className="text-[10.5px] text-t-ink4 uppercase tracking-wider">Target size</label>
                   <input type="number" min="0.1" step="0.5" value={chaosPadSizeMb}
                     disabled={!chaosPadBody}
                     onChange={e => setChaosPadSizeMb(e.target.value)}
-                    className="bg-t-field border border-t-line2 rounded px-1.5 py-0.5 text-[12px] text-t-ink w-20 outline-none focus:border-blue-500 disabled:opacity-50" />
+                    className="bg-t-field border border-t-line2 rounded-md px-1.5 py-0.5 text-[12.5px] text-t-ink w-20 outline-none focus:border-accent disabled:opacity-50" />
                   <span className="text-t-ink5">MB</span>
                 </div>
               </div>
             </div>
 
             {/* 2) Wrong content-type */}
-            <div className="bg-t-card border border-t-line rounded-lg p-3 space-y-2">
+            <div className="bg-t-card border border-t-line rounded-xl p-3 space-y-2">
               <label className="flex items-center gap-2 cursor-pointer">
                 <input type="checkbox" checked={chaosWrongCt} onChange={e => setChaosWrongCt(e.target.checked)}
-                  className="w-3.5 h-3.5 accent-blue-600 cursor-pointer" />
+                  className="w-3.5 h-3.5 accent-accent-strong cursor-pointer" />
                 <span className="text-[13px] text-t-ink2 font-medium">Override content-type</span>
               </label>
-              <div className={`pl-5 space-y-1 text-[11px] ${chaosWrongCt ? "" : "opacity-50"}`}>
+              <div className={`pl-5 space-y-1 text-[11.5px] ${chaosWrongCt ? "" : "opacity-50"}`}>
                 <p className="text-t-ink5">
                   Force <span className="font-mono">content-type</span> regardless of what the
                   body subtype dictates — surfaces consumers that trust the header instead of
@@ -2220,18 +2220,18 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
                   disabled={!chaosWrongCt}
                   onChange={e => setChaosWrongCtValue(e.target.value)}
                   placeholder="application/octet-stream"
-                  className="w-full bg-t-field border border-t-line2 rounded px-2 py-1 text-[12px] font-mono text-t-ink outline-none focus:border-blue-500 disabled:opacity-50" />
+                  className="w-full bg-t-field border border-t-line2 rounded-md px-2 py-1 text-[12.5px] font-mono text-t-ink outline-none focus:border-accent disabled:opacity-50" />
               </div>
             </div>
 
             {/* 3) Corrupt JSON */}
-            <div className="bg-t-card border border-t-line rounded-lg p-3 space-y-2">
+            <div className="bg-t-card border border-t-line rounded-xl p-3 space-y-2">
               <label className="flex items-center gap-2 cursor-pointer">
                 <input type="checkbox" checked={chaosCorruptJson} onChange={e => setChaosCorruptJson(e.target.checked)}
-                  className="w-3.5 h-3.5 accent-blue-600 cursor-pointer" />
+                  className="w-3.5 h-3.5 accent-accent-strong cursor-pointer" />
                 <span className="text-[13px] text-t-ink2 font-medium">Send malformed JSON</span>
               </label>
-              <p className={`pl-5 text-[11px] text-t-ink5 ${chaosCorruptJson ? "" : "opacity-50"}`}>
+              <p className={`pl-5 text-[11.5px] text-t-ink5 ${chaosCorruptJson ? "" : "opacity-50"}`}>
                 Drop the closing <span className="font-mono">{"}"}</span> or <span className="font-mono">]</span>{" "}
                 of the body so consumers using a strict JSON parser blow up. Only takes effect when
                 the body looks like JSON (starts with <span className="font-mono">{"{"}</span> or{" "}
@@ -2240,13 +2240,13 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
             </div>
 
             {/* 4) Drop a property */}
-            <div className="bg-t-card border border-t-line rounded-lg p-3 space-y-2">
+            <div className="bg-t-card border border-t-line rounded-xl p-3 space-y-2">
               <label className="flex items-center gap-2 cursor-pointer">
                 <input type="checkbox" checked={chaosDropProp} onChange={e => setChaosDropProp(e.target.checked)}
-                  className="w-3.5 h-3.5 accent-blue-600 cursor-pointer" />
+                  className="w-3.5 h-3.5 accent-accent-strong cursor-pointer" />
                 <span className="text-[13px] text-t-ink2 font-medium">Strip application property</span>
               </label>
-              <div className={`pl-5 space-y-1 text-[11px] ${chaosDropProp ? "" : "opacity-50"}`}>
+              <div className={`pl-5 space-y-1 text-[11.5px] ${chaosDropProp ? "" : "opacity-50"}`}>
                 <p className="text-t-ink5">
                   Removes the named property from the outgoing message — useful for testing
                   consumers that expect a required header (e.g.{" "}
@@ -2257,12 +2257,12 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
                   disabled={!chaosDropProp}
                   onChange={e => setChaosDropPropKey(e.target.value)}
                   placeholder="property key to drop (e.g. tenant_id)"
-                  className="w-full bg-t-field border border-t-line2 rounded px-2 py-1 text-[12px] font-mono text-t-ink outline-none focus:border-blue-500 disabled:opacity-50" />
+                  className="w-full bg-t-field border border-t-line2 rounded-md px-2 py-1 text-[12.5px] font-mono text-t-ink outline-none focus:border-accent disabled:opacity-50" />
               </div>
             </div>
 
             {chaosActive && (
-              <div className="rounded border border-amber-500/30 bg-amber-500/5 p-2 text-[11px] text-amber-500 flex items-start gap-2">
+              <div className="rounded-md border border-caution/30 bg-caution/5 p-2 text-[11.5px] text-caution flex items-start gap-2">
                 <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
                 <span>
                   Chaos helpers are <b>active</b> — the Send tab marker is dotted. Untick everything
@@ -2275,36 +2275,36 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
       </div>
 
       {/* ─── STATUS BAR ─────────────────────────────────────────────────── */}
-      <div className="shrink-0 px-3 py-1.5 border-t border-t-line bg-t-panel flex items-center gap-2 text-[11px] font-mono">
+      <div className="shrink-0 px-3 py-1.5 border-t border-t-line bg-t-panel flex items-center gap-2 text-[11.5px] font-mono">
         {scheduleRemaining !== null ? (
           // Schedule countdown — sending is delayed but the user can bail.
           <>
-            <Clock className="w-3 h-3 text-amber-500 shrink-0" />
-            <span className="text-amber-500">
+            <Clock className="w-3 h-3 text-caution shrink-0" />
+            <span className="text-caution">
               Sending in <span className="font-mono font-bold">{scheduleRemaining}s</span>…
             </span>
             <button
               onClick={cancelSend}
-              className="ml-2 px-2 py-0.5 rounded text-[10px] font-medium text-red-500 hover:bg-red-500/10 transition-colors"
+              className="ml-2 px-2 py-0.5 rounded-md text-[10.5px] font-medium text-negative hover:bg-negative/10 transition-colors"
             >
               Cancel
             </button>
           </>
         ) : sending && progress ? (
           <>
-            <Loader2 className="w-3 h-3 animate-spin text-blue-500 shrink-0" />
-            <span className="text-blue-500">
+            <Loader2 className="w-3 h-3 animate-spin text-accent shrink-0" />
+            <span className="text-accent">
               Sending {progress.current} / {progress.total}
               {progress.total > 1 && (
-                <span className="text-blue-500/60 ml-1">
+                <span className="text-accent/60 ml-1">
                   ({Math.round((progress.current / progress.total) * 100)}%)
                 </span>
               )}
             </span>
             {progress.total > 1 && (
-              <div className="ml-2 flex-1 max-w-[200px] h-1 bg-blue-500/10 rounded-full overflow-hidden">
+              <div className="ml-2 flex-1 max-w-[200px] h-1 bg-accent/10 rounded-full overflow-hidden">
                 <div
-                  className="h-full bg-blue-500 transition-all"
+                  className="h-full bg-accent transition-all"
                   style={{ width: `${(progress.current / progress.total) * 100}%` }}
                 />
               </div>
@@ -2319,7 +2319,7 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
                   fillColor="rgb(var(--t-ink4) / 0.18)"
                   title="Sends per second (last 60s)"
                 />
-                <span className="text-[10px] text-t-ink5 font-mono">
+                <span className="text-[10.5px] text-t-ink5 font-mono">
                   {sendRateHistory[sendRateHistory.length - 1]}/s
                 </span>
               </>
@@ -2327,7 +2327,7 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
             {progress.total > 1 && (
               <button
                 onClick={cancelSend}
-                className="ml-1 px-2 py-0.5 rounded text-[10px] font-medium text-red-500 hover:bg-red-500/10 transition-colors"
+                className="ml-1 px-2 py-0.5 rounded-md text-[10.5px] font-medium text-negative hover:bg-negative/10 transition-colors"
               >
                 Cancel
               </button>
@@ -2335,25 +2335,25 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
           </>
         ) : rrWaiting ? (
           <>
-            <Loader2 className="w-3 h-3 animate-spin text-amber-500 shrink-0" />
-            <span className="text-amber-500">Waiting for reply on <span className="text-amber-400">{rrAddress}</span> …</span>
+            <Loader2 className="w-3 h-3 animate-spin text-caution shrink-0" />
+            <span className="text-caution">Waiting for reply on <span className="text-caution">{rrAddress}</span> …</span>
           </>
         ) : rrReply !== null ? (
           <>
-            <CheckCircle className="w-3 h-3 text-green-500 shrink-0" />
-            <span className="text-green-500">Reply received</span>
+            <CheckCircle className="w-3 h-3 text-positive shrink-0" />
+            <span className="text-positive">Reply received</span>
             <span className="text-t-ink5">·</span>
             <span className="text-t-ink4">{new TextEncoder().encode(rrReply).length} B</span>
           </>
         ) : rrTimedOut ? (
           <>
-            <Clock className="w-3 h-3 text-amber-500 shrink-0" />
-            <span className="text-amber-500">Reply timed out after {rrTimeout}ms</span>
+            <Clock className="w-3 h-3 text-caution shrink-0" />
+            <span className="text-caution">Reply timed out after {rrTimeout}ms</span>
           </>
         ) : lastSend?.ok ? (
           <>
-            <CheckCircle className="w-3 h-3 text-green-500 shrink-0" />
-            <span className="text-green-500">
+            <CheckCircle className="w-3 h-3 text-positive shrink-0" />
+            <span className="text-positive">
               Sent {lastSend.count} message{(lastSend.count ?? 0) > 1 ? "s" : ""}
             </span>
             {(lastSend.bytes ?? 0) > 0 && (
@@ -2372,15 +2372,15 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
           </>
         ) : lastSend && !lastSend.ok ? (
           <>
-            <XCircle className="w-3 h-3 text-red-500 shrink-0" />
-            <span className="text-red-500 truncate" title={lastSend.error}>
+            <XCircle className="w-3 h-3 text-negative shrink-0" />
+            <span className="text-negative truncate" title={lastSend.error}>
               {lastSend.error}
             </span>
             <span className="text-t-ink5 shrink-0">at {lastSend.ts}</span>
           </>
         ) : (
           <>
-            <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${connected ? "bg-t-ink4" : "bg-amber-500"}`} />
+            <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${connected ? "bg-t-ink4" : "bg-caution"}`} />
             <span className="text-t-ink4">
               {connected ? "Ready to send" : "Not connected — Configure connection first"}
             </span>
@@ -2395,7 +2395,7 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
               <span className="text-t-ink3 truncate max-w-[200px]" title={address}>{address}</span>
             </>
           )}
-          <span className={`w-1.5 h-1.5 rounded-full ${connected ? "bg-green-500" : "bg-t-ink5"}`} />
+          <span className={`w-1.5 h-1.5 rounded-full ${connected ? "bg-positive" : "bg-t-ink5"}`} />
         </div>
       </div>
 
@@ -2469,7 +2469,7 @@ function FeatureFlag({
   return (
     <span
       title={title}
-      className={`inline-flex items-center gap-0.5 font-mono text-[10px] transition-colors ${
+      className={`inline-flex items-center gap-0.5 font-mono text-[10.5px] transition-colors ${
         on ? color : "text-t-line2/60"
       }`}
     >
@@ -2529,45 +2529,45 @@ function SchemaModal({
   let statusBanner: ReactNode = null;
   if (!value.trim()) {
     statusBanner = (
-      <div className="flex items-center gap-2 px-3 py-2 rounded-md bg-t-card border border-t-line text-[12px] text-t-ink4">
+      <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-t-card border border-t-line text-[12.5px] text-t-ink4">
         <ShieldCheck className="w-3.5 h-3.5 shrink-0" />
         <span>No schema configured. Paste or upload a {isJson ? "JSON Schema" : "XSD"} to enable validation.</span>
       </div>
     );
   } else if (validating) {
     statusBanner = (
-      <div className="flex items-center gap-2 px-3 py-2 rounded-md bg-t-card border border-t-line text-[12px] text-t-ink3">
+      <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-t-card border border-t-line text-[12.5px] text-t-ink3">
         <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" />
         <span>Validating…</span>
       </div>
     );
   } else if (bodyEmpty) {
     statusBanner = (
-      <div className="flex items-center gap-2 px-3 py-2 rounded-md bg-t-card border border-t-line text-[12px] text-t-ink4">
+      <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-t-card border border-t-line text-[12.5px] text-t-ink4">
         <ShieldCheck className="w-3.5 h-3.5 shrink-0" />
         <span>Body is empty — nothing to validate yet.</span>
       </div>
     );
   } else if (result?.schemaError) {
     statusBanner = (
-      <div className="flex items-start gap-2 px-3 py-2 rounded-md bg-red-500/10 border border-red-500/30 text-[12px] text-red-500">
+      <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-negative/10 border border-negative/30 text-[12.5px] text-negative">
         <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
         <div>
           <div className="font-medium">Schema is invalid</div>
-          <div className="text-red-400 mt-0.5">{result.schemaError}</div>
+          <div className="text-negative mt-0.5">{result.schemaError}</div>
         </div>
       </div>
     );
   } else if (result?.ok) {
     statusBanner = (
-      <div className="flex items-center gap-2 px-3 py-2 rounded-md bg-green-500/10 border border-green-500/30 text-[12px] text-green-500">
+      <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-positive/10 border border-positive/30 text-[12.5px] text-positive">
         <CheckCircle className="w-3.5 h-3.5 shrink-0" />
         <span>Body matches the {isJson ? "JSON Schema" : "XSD"}.</span>
       </div>
     );
   } else if (result && !result.ok) {
     statusBanner = (
-      <div className="flex flex-col gap-1.5 px-3 py-2 rounded-md bg-red-500/10 border border-red-500/30 text-[12px] text-red-500">
+      <div className="flex flex-col gap-1.5 px-3 py-2 rounded-lg bg-negative/10 border border-negative/30 text-[12.5px] text-negative">
         <div className="flex items-center gap-2">
           <XCircle className="w-3.5 h-3.5 shrink-0" />
           <span className="font-medium">
@@ -2576,14 +2576,14 @@ function SchemaModal({
         </div>
         <ul className="ml-5 list-disc space-y-0.5 max-h-[160px] overflow-y-auto">
           {result.errors.slice(0, 50).map((err, i) => (
-            <li key={i} className="text-red-400 break-words">
+            <li key={i} className="text-negative break-words">
               {err.instancePath && <span className="font-mono mr-1">{err.instancePath}:</span>}
               {err.line !== undefined && <span className="font-mono mr-1">line {err.line}:</span>}
               <span>{err.message}</span>
             </li>
           ))}
           {result.errors.length > 50 && (
-            <li className="text-red-400">…and {result.errors.length - 50} more</li>
+            <li className="text-negative">…and {result.errors.length - 50} more</li>
           )}
         </ul>
       </div>
@@ -2597,21 +2597,21 @@ function SchemaModal({
     >
       <div
         onClick={e => e.stopPropagation()}
-        className="bg-t-bg border border-t-line rounded-lg shadow-2xl w-[760px] max-w-[92vw] max-h-[85vh] flex flex-col overflow-hidden"
+        className="bg-t-bg border border-t-line rounded-xl shadow-2xl w-[760px] max-w-[92vw] max-h-[85vh] flex flex-col overflow-hidden"
       >
         {/* Header */}
         <div className="shrink-0 flex items-center gap-2 px-3 py-2 border-b border-t-line bg-t-panel">
-          <ShieldCheck className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+          <ShieldCheck className="w-3.5 h-3.5 text-accent shrink-0" />
           <div className="flex-1 min-w-0">
             <div className="text-[13px] text-t-ink font-medium">{title}</div>
-            <div className="text-[10px] text-t-ink5">
+            <div className="text-[10.5px] text-t-ink5">
               Validates the Body against this schema before sending.
             </div>
           </div>
           <button
             type="button"
             onClick={pickFile}
-            className="flex items-center gap-1 text-[11px] text-t-ink3 hover:text-blue-500 px-2 py-1 rounded transition-colors border border-t-line2 hover:border-blue-500/50"
+            className="flex items-center gap-1 text-[11.5px] text-t-ink3 hover:text-accent px-2 py-1 rounded-md transition-colors border border-t-line2 hover:border-accent/50"
             title={`Upload ${isJson ? "JSON Schema" : "XSD"} file from disk`}
           >
             <FileUp className="w-3 h-3" /> Upload…
@@ -2620,7 +2620,7 @@ function SchemaModal({
             <button
               type="button"
               onClick={() => setConfirmClear(true)}
-              className="flex items-center gap-1 text-[11px] text-t-ink4 hover:text-red-500 px-2 py-1 rounded transition-colors"
+              className="flex items-center gap-1 text-[11.5px] text-t-ink4 hover:text-negative px-2 py-1 rounded-md transition-colors"
               title="Clear schema"
             >
               <Trash2 className="w-3 h-3" /> Clear
@@ -2629,7 +2629,7 @@ function SchemaModal({
           <button
             type="button"
             onClick={onClose}
-            className="p-1 rounded text-t-ink4 hover:text-t-ink hover:bg-t-hover"
+            className="p-1 rounded-md text-t-ink4 hover:text-t-ink hover:bg-t-hover"
             aria-label="Close"
           >
             <X className="w-3.5 h-3.5" />
@@ -2645,7 +2645,7 @@ function SchemaModal({
 
         {/* Editor */}
         <div className="flex-1 min-h-0 flex flex-col p-3 gap-2 overflow-hidden">
-          <div className="flex-1 min-h-[240px] overflow-hidden border border-t-line2 rounded-md">
+          <div className="flex-1 min-h-[240px] overflow-hidden border border-t-line2 rounded-lg">
             <CodeEditor
               value={value}
               onChange={onChange}
@@ -2659,14 +2659,14 @@ function SchemaModal({
         </div>
 
         {/* Footer */}
-        <div className="shrink-0 px-3 py-2 border-t border-t-line bg-t-panel flex items-center gap-3 text-[10px] text-t-ink5">
+        <div className="shrink-0 px-3 py-2 border-t border-t-line bg-t-panel flex items-center gap-3 text-[10.5px] text-t-ink5">
           <span>
             {isJson
               ? "Pass a JSON Schema (Draft-07 or 2020-12)."
               : "Pass an XSD document; xmllint validates the body against it."}
           </span>
           <span className="ml-auto flex items-center gap-1">
-            <kbd className="font-mono px-1 py-0.5 border border-t-line rounded">Esc</kbd> close
+            <kbd className="font-mono px-1 py-0.5 border border-t-line rounded-md">Esc</kbd> close
           </span>
         </div>
       </div>
@@ -2724,7 +2724,7 @@ function ValueWithHistoryPick({ row, historyValues, variableSuggestions, onChang
         onChange={onChange}
         suggestions={variableSuggestions}
         placeholder="value (support vars)"
-        className="flex-1 min-w-0 text-[12px] leading-4 h-7 box-border py-1.5 px-1.5 rounded hover:bg-t-card focus-within:bg-t-field focus-within:ring-1 focus-within:ring-blue-500/30"
+        className="flex-1 min-w-0 text-[12.5px] leading-4 h-7 box-border py-1.5 px-1.5 rounded-md hover:bg-t-card focus-within:bg-t-field focus-within:ring-1 focus-within:ring-accent/30"
       />
       {hasValues && (
         <button
@@ -2732,16 +2732,16 @@ function ValueWithHistoryPick({ row, historyValues, variableSuggestions, onChang
           onClick={() => setOpen(o => !o)}
           title={`${historyValues.length} previously-used value${historyValues.length === 1 ? "" : "s"} for '${row.key}'`}
           aria-label="Pick from history"
-          className={`shrink-0 p-1 rounded transition-colors ${
-            open ? "text-blue-500 bg-blue-500/10" : "text-t-ink5 hover:text-t-ink2 hover:bg-t-hover"
+          className={`shrink-0 p-1 rounded-md transition-colors ${
+            open ? "text-accent bg-accent/10" : "text-t-ink5 hover:text-t-ink2 hover:bg-t-hover"
           }`}
         >
           <ChevronDown className="w-3 h-3" />
         </button>
       )}
       {open && hasValues && (
-        <div className="absolute right-0 top-full mt-1 z-50 bg-t-card border border-t-line rounded-md shadow-lg overflow-hidden w-72 max-h-64 overflow-y-auto">
-          <div className="px-3 py-1 border-b border-t-line bg-t-panel text-[10px] uppercase tracking-wider text-t-ink4 font-semibold">
+        <div className="absolute right-0 top-full mt-1 z-50 bg-t-card border border-t-line rounded-lg shadow-lg overflow-hidden w-72 max-h-64 overflow-y-auto">
+          <div className="px-3 py-1 border-b border-t-line bg-t-panel text-[10.5px] uppercase tracking-wider text-t-ink4 font-semibold">
             History values for <span className="font-mono normal-case text-t-ink3">{row.key || "(empty key)"}</span>
           </div>
           {historyValues.map(v => (
@@ -2750,9 +2750,9 @@ function ValueWithHistoryPick({ row, historyValues, variableSuggestions, onChang
               type="button"
               onMouseDown={e => e.preventDefault()}
               onClick={() => { onChange(v); setOpen(false); }}
-              className={`w-full text-left px-3 py-1 text-[12px] font-mono truncate transition-colors ${
+              className={`w-full text-left px-3 py-1 text-[12.5px] font-mono truncate transition-colors ${
                 v === row.value
-                  ? "bg-blue-500/10 text-blue-500"
+                  ? "bg-accent/10 text-accent"
                   : "text-t-ink2 hover:bg-t-hover hover:text-t-ink"
               }`}
               title={v}

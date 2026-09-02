@@ -2,7 +2,7 @@ import { ReactNode } from "react";
 
 /**
  * Canonical section-label typography used across the app — small uppercase
- * `text-[10px] tracking-wider text-t-ink4 font-semibold`. Use this anywhere
+ * `text-[10.5px] tracking-wider text-t-ink4 font-semibold`. Use this anywhere
  * a screen needs an "uppercase mini-heading" so the spelling stays consistent
  * (`tracking-wider` not `widest`, `font-semibold` not `font-bold`).
  *
@@ -20,7 +20,7 @@ export default function SectionLabel({
   className?: string;
 }) {
   return (
-    <span className={`inline-flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-t-ink4 font-semibold ${className}`}>
+    <span className={`inline-flex items-center gap-1.5 text-[10.5px] uppercase tracking-wider text-t-ink4 font-semibold ${className}`}>
       {icon}
       {children}
       {trailing && (

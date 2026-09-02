@@ -3,16 +3,16 @@ import { ReactNode } from "react";
 export type CalloutVariant = "info" | "success" | "warn" | "error";
 
 const VARIANT_CLASSES: Record<CalloutVariant, { wrap: string; text: string }> = {
-  info:    { wrap: "bg-blue-500/5 border-blue-500/20",   text: "text-blue-400" },
-  success: { wrap: "bg-green-500/5 border-green-500/20", text: "text-green-500" },
-  warn:    { wrap: "bg-amber-500/5 border-amber-500/20", text: "text-amber-500" },
-  error:   { wrap: "bg-red-500/5 border-red-500/20",     text: "text-red-500" },
+  info:    { wrap: "bg-accent/5 border-accent/20",   text: "text-accent-content" },
+  success: { wrap: "bg-positive/5 border-positive/20", text: "text-positive" },
+  warn:    { wrap: "bg-caution/5 border-caution/20", text: "text-caution" },
+  error:   { wrap: "bg-negative/5 border-negative/20",     text: "text-negative" },
 };
 
 /**
  * Compact tinted alert box used for inline status / hints / confirms across
  * the app. Replaces ~8 hand-rolled instances that all followed the pattern
- *   `p-2.5 bg-{color}-500/5 border border-{color}-500/20 rounded-md`
+ *   `p-2.5 bg-{color}-500/5 border border-{color}-500/20 rounded-lg`
  * but with subtle drift (some `p-2.5`, some `p-3`, mixed border widths,
  * mixed text shades).
  *
@@ -34,7 +34,7 @@ export default function Callout({
   const v = VARIANT_CLASSES[variant];
   const hasHeader = !!(icon || title || action);
   return (
-    <div className={`rounded-md border ${v.wrap} ${className}`}>
+    <div className={`rounded-lg border ${v.wrap} ${className}`}>
       {hasHeader && (
         <div className={`flex items-center gap-2 px-2.5 py-1.5 ${children ? "border-b border-current/10" : ""}`}>
           {icon && <span className={`shrink-0 ${v.text}`}>{icon}</span>}

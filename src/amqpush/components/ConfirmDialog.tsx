@@ -61,8 +61,8 @@ export default function ConfirmDialog({
   if (!open) return null;
 
   const confirmClass = destructive
-    ? "bg-red-500 hover:bg-red-600 text-white"
-    : "bg-blue-600 hover:bg-blue-500 text-white";
+    ? "bg-negative hover:bg-negative text-white"
+    : "bg-accent-strong hover:bg-accent text-white";
 
   return (
     <div
@@ -71,17 +71,17 @@ export default function ConfirmDialog({
     >
       <div
         onClick={e => e.stopPropagation()}
-        className="bg-t-bg border border-t-line rounded-lg shadow-2xl w-[460px] max-w-[90vw] flex flex-col overflow-hidden"
+        className="bg-t-bg border border-t-line rounded-xl shadow-2xl w-[460px] max-w-[90vw] flex flex-col overflow-hidden"
       >
         {/* Header */}
         <div className="shrink-0 px-4 py-2.5 border-b border-t-line bg-t-panel flex items-center gap-2">
-          <AlertTriangle className={`w-3.5 h-3.5 ${destructive ? "text-red-500" : "text-blue-500"}`} />
+          <AlertTriangle className={`w-3.5 h-3.5 ${destructive ? "text-negative" : "text-accent"}`} />
           <span className="text-[13px] font-semibold text-t-ink">{title}</span>
           <button
             onClick={onCancel}
             disabled={busy}
             aria-label={t("dialog.close")}
-            className="ml-auto p-1 rounded hover:bg-t-hover text-t-ink4 hover:text-t-ink disabled:opacity-40"
+            className="ml-auto p-1 rounded-md hover:bg-t-hover text-t-ink4 hover:text-t-ink disabled:opacity-40"
           >
             <X className="w-3.5 h-3.5" />
           </button>
@@ -97,7 +97,7 @@ export default function ConfirmDialog({
           <button
             onClick={onCancel}
             disabled={busy}
-            className="px-3 py-1 rounded-md text-[11px] font-medium text-t-ink4 hover:text-t-ink hover:bg-t-hover transition-colors disabled:opacity-40"
+            className="px-3 py-1 rounded-lg text-[11.5px] font-medium text-t-ink4 hover:text-t-ink hover:bg-t-hover transition-colors disabled:opacity-40"
           >
             {cancelLabel}
           </button>
@@ -105,7 +105,7 @@ export default function ConfirmDialog({
             autoFocus
             onClick={onConfirm}
             disabled={busy}
-            className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-[11px] font-semibold transition-colors disabled:opacity-40 ${confirmClass}`}
+            className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-[11.5px] font-semibold transition-colors disabled:opacity-40 ${confirmClass}`}
           >
             {busy
               ? <><Loader2 className="w-3 h-3 animate-spin" /> {busyLabel ?? "Working…"}</>

@@ -156,7 +156,7 @@ export default function CodeEditor({
 
   return (
     <div
-      className={`code-editor-wrap overflow-hidden transition-all bg-t-field focus-within:ring-1 focus-within:ring-blue-500/30 ${className ?? ""}`}
+      className={`code-editor-wrap overflow-hidden transition-all bg-t-field focus-within:ring-1 focus-within:ring-accent/30 ${className ?? ""}`}
       style={{ minHeight }}
     >
       <CodeMirror

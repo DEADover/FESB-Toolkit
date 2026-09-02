@@ -26,8 +26,8 @@ export default function Toggle({
       aria-label={ariaLabel}
       disabled={disabled}
       onClick={() => onChange(!checked)}
-      className={`relative inline-flex w-8 h-4 rounded-full shrink-0 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40 ${
-        checked ? "bg-blue-600" : "bg-t-active"
+      className={`relative inline-flex w-8 h-4 rounded-full shrink-0 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-accent/40 ${
+        checked ? "bg-accent-strong" : "bg-t-active"
       } ${disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
     >
       <span

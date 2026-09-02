@@ -20,12 +20,12 @@ export default function EmptyState({
   variant?: "default" | "error";
 }) {
   const isErr = variant === "error";
-  const finalIcon = icon ?? (isErr ? <XCircle className="w-8 h-8 text-red-500/60" /> : null);
+  const finalIcon = icon ?? (isErr ? <XCircle className="w-8 h-8 text-negative/60" /> : null);
   return (
     <div className="flex flex-col items-center justify-center h-full text-t-ink5 text-center max-w-md mx-auto px-4">
       {finalIcon && <div className={`mb-3 ${isErr ? "" : "opacity-40"}`}>{finalIcon}</div>}
-      <p className={`text-[13px] ${isErr ? "text-red-500" : ""}`}>{title}</p>
-      {subtitle && <div className="text-[11px] mt-1 break-all">{subtitle}</div>}
+      <p className={`text-[13px] ${isErr ? "text-negative" : ""}`}>{title}</p>
+      {subtitle && <div className="text-[11.5px] mt-1 break-all">{subtitle}</div>}
       {action && <div className="mt-3">{action}</div>}
     </div>
   );

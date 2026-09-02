@@ -27,7 +27,7 @@ export default function Tabs({ tabs, active, onChange, className }: Props) {
             role="tab"
             aria-selected={isActive}
             onClick={() => onChange(tab.id)}
-            className={`relative flex items-center gap-1.5 px-3 py-1.5 text-[12px] transition-colors whitespace-nowrap outline-none focus-visible:bg-t-hover/50 ${
+            className={`relative flex items-center gap-1.5 px-3 py-1.5 text-[12.5px] transition-colors whitespace-nowrap outline-none focus-visible:bg-t-hover/50 ${
               isActive
                 ? "text-t-ink font-medium"
                 : "text-t-ink3 hover:text-t-ink2 hover:bg-t-hover/50"
@@ -36,17 +36,17 @@ export default function Tabs({ tabs, active, onChange, className }: Props) {
             {tab.icon}
             <span>{tab.label}</span>
             {tab.badge !== undefined && tab.badge !== 0 && tab.badge !== "" && (
-              <span className={`text-[10px] px-1 py-0 rounded font-medium leading-4 ${
-                isActive ? "bg-blue-500/15 text-blue-500" : "text-t-ink4"
+              <span className={`text-[10.5px] px-1 py-0 rounded-md font-medium leading-4 ${
+                isActive ? "bg-accent/15 text-accent" : "text-t-ink4"
               }`}>
                 {tab.badge}
               </span>
             )}
             {tab.dot && !isActive && (
-              <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+              <span className="w-1.5 h-1.5 rounded-full bg-accent" />
             )}
             {isActive && (
-              <span className="absolute -bottom-px left-2 right-2 h-0.5 bg-blue-600 rounded-full" />
+              <span className="absolute -bottom-px left-2 right-2 h-0.5 bg-accent-strong rounded-full" />
             )}
           </button>
         );

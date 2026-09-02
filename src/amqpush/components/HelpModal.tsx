@@ -39,7 +39,7 @@ function P({ children }: { children: ReactNode }) {
 }
 function Note({ children }: { children: ReactNode }) {
   return (
-    <div className="flex items-start gap-2 p-2.5 rounded-md bg-blue-500/10 border border-blue-500/30 text-[12px] text-blue-500 mb-3">
+    <div className="flex items-start gap-2 p-2.5 rounded-lg bg-accent/10 border border-accent/30 text-[12.5px] text-accent mb-3">
       <Lightbulb className="w-3.5 h-3.5 shrink-0 mt-0.5" />
       <div className="text-t-ink2 leading-relaxed">{children}</div>
     </div>
@@ -47,22 +47,22 @@ function Note({ children }: { children: ReactNode }) {
 }
 function Warn({ children }: { children: ReactNode }) {
   return (
-    <div className="flex items-start gap-2 p-2.5 rounded-md bg-amber-500/10 border border-amber-500/30 text-[12px] mb-3">
-      <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5 text-amber-500" />
+    <div className="flex items-start gap-2 p-2.5 rounded-lg bg-caution/10 border border-caution/30 text-[12.5px] mb-3">
+      <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5 text-caution" />
       <div className="text-t-ink2 leading-relaxed">{children}</div>
     </div>
   );
 }
 function Kbd({ children }: { children: ReactNode }) {
   return (
-    <kbd className="font-mono text-[11px] px-1.5 py-0.5 mx-0.5 border border-t-line rounded bg-t-card text-t-ink2 align-middle">
+    <kbd className="font-mono text-[11.5px] px-1.5 py-0.5 mx-0.5 border border-t-line rounded-md bg-t-card text-t-ink2 align-middle">
       {children}
     </kbd>
   );
 }
 function Code({ children }: { children: ReactNode }) {
   return (
-    <code className="font-mono text-[12px] px-1 py-0.5 rounded bg-t-card text-t-ink border border-t-line">
+    <code className="font-mono text-[12.5px] px-1 py-0.5 rounded-md bg-t-card text-t-ink border border-t-line">
       {children}
     </code>
   );
@@ -76,8 +76,8 @@ function Li({ children }: { children: ReactNode }) {
 function Row({ label, children }: { label: ReactNode; children: ReactNode }) {
   return (
     <div className="grid grid-cols-[200px_1fr] gap-4 py-1.5 border-b border-t-line/60 last:border-0">
-      <div className="text-[12px] text-t-ink4 break-all min-w-0">{label}</div>
-      <div className="text-[12px] text-t-ink2 min-w-0">{children}</div>
+      <div className="text-[12.5px] text-t-ink4 break-all min-w-0">{label}</div>
+      <div className="text-[12.5px] text-t-ink2 min-w-0">{children}</div>
     </div>
   );
 }
@@ -95,7 +95,7 @@ const SECTIONS: HelpSection[] = [
     searchText: "getting started overview connect first message profile broker amqp 1.0 artemis",
     content: (
       <>
-        <H><BookOpen className="w-4 h-4 text-blue-500" />Getting started</H>
+        <H><BookOpen className="w-4 h-4 text-accent" />Getting started</H>
         <P>
           AMQPush is a desktop client for AMQP&nbsp;1.0 brokers (ActiveMQ Artemis, Azure Service Bus,
           Solace, RabbitMQ with the AMQP&nbsp;1.0 plugin, etc.). Use it to publish messages, subscribe
@@ -132,7 +132,7 @@ const SECTIONS: HelpSection[] = [
     searchText: "connection profile host port username password tls ssl amqps heartbeat container id sasl anonymous certificate skip verify advanced workspace group dev staging prod default queue reconnect backoff multiplier latency activity log save duplicate delete profile mtls client certificate pem pkcs12 p12 pfx websocket ws wss firewall transport",
     content: (
       <>
-        <H><Plug className="w-4 h-4 text-blue-500" />Connection &amp; profiles</H>
+        <H><Plug className="w-4 h-4 text-accent" />Connection &amp; profiles</H>
         <P>
           A <b>profile</b> is a saved set of broker credentials and options. The dropdown at the
           top of the header switches the active profile globally; the same profile is auto-loaded
@@ -226,7 +226,7 @@ const SECTIONS: HelpSection[] = [
     searchText: "send publish publisher message body json xml text binary file properties application properties tabs subtype raw beautify format codemirror autocomplete history key value chaos poison pill malformed oversized content-type drop header retry",
     content: (
       <>
-        <H><Send className="w-4 h-4 text-blue-500" />Send (publisher)</H>
+        <H><Send className="w-4 h-4 text-accent" />Send (publisher)</H>
         <P>
           The Send view is organized as tabs. Body and Properties are the essentials; everything
           else (Variables, Pre-script, Batch, CSV, Reply, Templates) is opt-in.
@@ -301,7 +301,7 @@ const SECTIONS: HelpSection[] = [
     searchText: "variables substitution placeholders user variables built-in uuid timestamp now date prebuilt template tokens curly braces faker email name address credit card iban lorem ipsum phone username password",
     content: (
       <>
-        <H><Braces className="w-4 h-4 text-blue-500" />Variables</H>
+        <H><Braces className="w-4 h-4 text-accent" />Variables</H>
         <P>
           Anywhere in the Body and Properties you can reference variables with double-brace tokens:
           <Code>{"{{name}}"}</Code>. The autocompletion in the editor surfaces both your user
@@ -360,7 +360,7 @@ const SECTIONS: HelpSection[] = [
     searchText: "pre-script javascript sandbox dynamic variables ctx.set ctx.get ctx.log ctx.uuid ctx.now runtime per-send counter sequence base64 hash timestamp routing key examples",
     content: (
       <>
-        <H><Code2 className="w-4 h-4 text-blue-500" />Pre-script</H>
+        <H><Code2 className="w-4 h-4 text-accent" />Pre-script</H>
         <P>
           Pre-script is a small JavaScript snippet that runs <i>once before every send</i>. It
           lets you compute dynamic variable values that simple <Code>{"{{token}}"}</Code>{" "}
@@ -418,7 +418,7 @@ const SECTIONS: HelpSection[] = [
 
         <H3>Sequence counter that persists across batch</H3>
         <P>Increment a saved counter, derive a partition key from it:</P>
-        <pre className="text-[12px] font-mono bg-t-card border border-t-line rounded-md p-2.5 overflow-x-auto mb-3">{`const n = (ctx.get("seq") | 0) + 1;
+        <pre className="text-[12.5px] font-mono bg-t-card border border-t-line rounded-lg p-2.5 overflow-x-auto mb-3">{`const n = (ctx.get("seq") | 0) + 1;
 ctx.set("seq", n);
 ctx.set("partition", "us-east." + (n % 4));
 ctx.set("ordinal", n.toString().padStart(6, "0"));`}</pre>
@@ -428,7 +428,7 @@ ctx.set("ordinal", n.toString().padStart(6, "0"));`}</pre>
 
         <H3>Conditional routing key by environment</H3>
         <P>Pick a different routing target depending on a user var:</P>
-        <pre className="text-[12px] font-mono bg-t-card border border-t-line rounded-md p-2.5 overflow-x-auto mb-3">{`const env = ctx.get("env") ?? "dev";
+        <pre className="text-[12.5px] font-mono bg-t-card border border-t-line rounded-lg p-2.5 overflow-x-auto mb-3">{`const env = ctx.get("env") ?? "dev";
 const target = {
   dev:     "queue.dev.orders",
   staging: "queue.stg.orders",
@@ -439,7 +439,7 @@ ctx.log("routing to", target);`}</pre>
 
         <H3>Weighted random pick</H3>
         <P>70% A, 20% B, 10% C — handy for synthetic load tests:</P>
-        <pre className="text-[12px] font-mono bg-t-card border border-t-line rounded-md p-2.5 overflow-x-auto mb-3">{`const r = Math.random();
+        <pre className="text-[12.5px] font-mono bg-t-card border border-t-line rounded-lg p-2.5 overflow-x-auto mb-3">{`const r = Math.random();
 ctx.set("variant",
   r < 0.7 ? "A"
   : r < 0.9 ? "B"
@@ -450,7 +450,7 @@ ctx.set("variant",
           Built-in <Code>{"{{date}}"}</Code> is ISO 8601. If the consumer wants RFC 3339 with
           a millisecond stamp or a custom layout, compute it:
         </P>
-        <pre className="text-[12px] font-mono bg-t-card border border-t-line rounded-md p-2.5 overflow-x-auto mb-3">{`const d = new Date(ctx.now);
+        <pre className="text-[12.5px] font-mono bg-t-card border border-t-line rounded-lg p-2.5 overflow-x-auto mb-3">{`const d = new Date(ctx.now);
 const pad = (n, w = 2) => String(n).padStart(w, "0");
 ctx.set("ts_local",
   d.getFullYear() + "-" +
@@ -463,7 +463,7 @@ ctx.set("ts_local",
 
         <H3>SHA-256 over a payload field for tamper-detection</H3>
         <P>Web Crypto API works directly:</P>
-        <pre className="text-[12px] font-mono bg-t-card border border-t-line rounded-md p-2.5 overflow-x-auto mb-3">{`const payload = ctx.get("order_id") + "|" + ctx.now;
+        <pre className="text-[12.5px] font-mono bg-t-card border border-t-line rounded-lg p-2.5 overflow-x-auto mb-3">{`const payload = ctx.get("order_id") + "|" + ctx.now;
 const buf  = new TextEncoder().encode(payload);
 const hash = await crypto.subtle.digest("SHA-256", buf);
 const hex  = [...new Uint8Array(hash)]
@@ -477,7 +477,7 @@ ctx.set("signature", hex);`}</pre>
         </Note>
 
         <H3>Base64-encode a property</H3>
-        <pre className="text-[12px] font-mono bg-t-card border border-t-line rounded-md p-2.5 overflow-x-auto mb-3">{`const json = JSON.stringify({
+        <pre className="text-[12.5px] font-mono bg-t-card border border-t-line rounded-lg p-2.5 overflow-x-auto mb-3">{`const json = JSON.stringify({
   user:  ctx.get("username"),
   tier:  ctx.get("tier"),
   iat:   Math.floor(ctx.now / 1000),
@@ -490,7 +490,7 @@ ctx.set("auth_b64", btoa(json));`}</pre>
           <Code>ctx.get("col_name")</Code>. Use the script to derive computed fields
           before substitution:
         </P>
-        <pre className="text-[12px] font-mono bg-t-card border border-t-line rounded-md p-2.5 overflow-x-auto mb-3">{`// CSV columns: customer_email, amount_usd
+        <pre className="text-[12.5px] font-mono bg-t-card border border-t-line rounded-lg p-2.5 overflow-x-auto mb-3">{`// CSV columns: customer_email, amount_usd
 const email = ctx.get("customer_email") ?? "";
 ctx.set("email_domain", email.split("@")[1] ?? "unknown");
 
@@ -536,7 +536,7 @@ ctx.set("amount_cents", String(Math.round(usd * 100)));`}</pre>
     searchText: "batch repeat delay schedule delayed first send loop count throughput cancel abort",
     content: (
       <>
-        <H><Repeat2 className="w-4 h-4 text-blue-500" />Batch &amp; Schedule</H>
+        <H><Repeat2 className="w-4 h-4 text-accent" />Batch &amp; Schedule</H>
         <H3>Batch</H3>
         <P>
           Sends the same message <b>N times</b> with a configurable delay between sends. Variables
@@ -569,7 +569,7 @@ ctx.set("amount_cents", String(Math.round(usd * 100)));`}</pre>
     searchText: "csv bulk import spreadsheet excel rows columns headers tokens substitution per-row papaparse load drop preview dry run progress cancel",
     content: (
       <>
-        <H><FileSpreadsheet className="w-4 h-4 text-blue-500" />CSV bulk send</H>
+        <H><FileSpreadsheet className="w-4 h-4 text-accent" />CSV bulk send</H>
         <P>
           Open the <b>CSV</b> tab in the Send view. Drop a CSV file (or click to browse); the
           first row is treated as the header. Each subsequent row turns into one outgoing message,
@@ -586,13 +586,13 @@ ctx.set("amount_cents", String(Math.round(usd * 100)));`}</pre>
 
         <H3>Example</H3>
         <P>Save the following as <Code>orders.csv</Code> and load it from the CSV tab:</P>
-        <pre className="text-[12px] font-mono bg-t-card border border-t-line rounded-md p-2.5 overflow-x-auto mb-3">{`order_id,customer,amount,currency,country
+        <pre className="text-[12.5px] font-mono bg-t-card border border-t-line rounded-lg p-2.5 overflow-x-auto mb-3">{`order_id,customer,amount,currency,country
 1001,Alice Smith,49.99,USD,US
 1002,Bob Müller,150.00,EUR,DE
 1003,Charlie Park,2750,KRW,KR
 1004,Dana Patel,89.50,INR,IN`}</pre>
         <P>Compose the Body on the Body tab as JSON with column tokens:</P>
-        <pre className="text-[12px] font-mono bg-t-card border border-t-line rounded-md p-2.5 overflow-x-auto mb-3">{`{
+        <pre className="text-[12.5px] font-mono bg-t-card border border-t-line rounded-lg p-2.5 overflow-x-auto mb-3">{`{
   "id": "ORD-{{order_id}}",
   "customer": "{{customer}}",
   "total": {{amount}},
@@ -647,7 +647,7 @@ ctx.set("amount_cents", String(Math.round(usd * 100)));`}</pre>
     searchText: "request reply correlation id reply-to dynamic source temporary queue rpc round trip",
     content: (
       <>
-        <H><CornerDownLeft className="w-4 h-4 text-blue-500" />Request-Reply</H>
+        <H><CornerDownLeft className="w-4 h-4 text-accent" />Request-Reply</H>
         <P>
           Toggle <b>Reply</b> in the Send tabs to wait for a response after publishing. AMQPush
           sets <Code>reply-to</Code> on the outgoing message and opens a temporary receiver to
@@ -672,7 +672,7 @@ ctx.set("amount_cents", String(Math.round(usd * 100)));`}</pre>
     searchText: "templates save load rename delete preset reuse json file",
     content: (
       <>
-        <H><BookMarked className="w-4 h-4 text-blue-500" />Templates</H>
+        <H><BookMarked className="w-4 h-4 text-accent" />Templates</H>
         <P>
           Save the entire Send setup — destination, body + subtype, properties, variables,
           pre-script, batch / schedule / reply settings, and the validation schema — under a name.
@@ -701,7 +701,7 @@ ctx.set("amount_cents", String(Math.round(usd * 100)));`}</pre>
     searchText: "schema validation json schema ajv xsd xml validation xmllint draft 2020 upload paste error file",
     content: (
       <>
-        <H><ShieldCheck className="w-4 h-4 text-blue-500" />Body validation (JSON Schema / XSD)</H>
+        <H><ShieldCheck className="w-4 h-4 text-accent" />Body validation (JSON Schema / XSD)</H>
         <P>
           The <b>schema pill</b> in the Body sub-toolbar opens a modal where you can paste or
           upload a schema. The active schema is automatically picked based on the Raw subtype:
@@ -743,7 +743,7 @@ ctx.set("amount_cents", String(Math.round(usd * 100)));`}</pre>
     searchText: "receive subscriber subscribe live messages filter consume credit reconnect drainer notifications dla selector jms broker filter expression where priority topic pattern wildcard multicast solace artemis hierarchy hash dot star record recording replay capture save buffer speed multiplier playback timing rules highlight regex color border pattern json xml header property body keyword",
     content: (
       <>
-        <H><Inbox className="w-4 h-4 text-blue-500" />Receive (subscriber)</H>
+        <H><Inbox className="w-4 h-4 text-accent" />Receive (subscriber)</H>
         <P>
           Subscribes to a queue and shows messages as they arrive — live, with auto-reconnect on
           network blips. Each row expands to show the full AMQP frame: standard properties,
@@ -854,7 +854,7 @@ ctx.set("amount_cents", String(Math.round(usd * 100)));`}</pre>
           {" "}<Code>apache.org:selector-filter:string</Code>, which is the de-facto standard
           accepted by Artemis, ActiveMQ Classic, Qpid Broker-J, and most JMS-compatible
           brokers. Active subscriptions with a selector get a small{" "}
-          <Filter className="w-3 h-3 inline-block align-middle text-blue-500" /> badge on
+          <Filter className="w-3 h-3 inline-block align-middle text-accent" /> badge on
           their chip, and the tooltip shows the selector text.
         </P>
         <Note>
@@ -888,7 +888,7 @@ ctx.set("amount_cents", String(Math.round(usd * 100)));`}</pre>
         <P>
           The pattern is attached as the AMQP 1.0 source filter under descriptor{" "}
           <Code>apache.org:legacy-amqp-topic-binding:string</Code>. Active subscriptions with a
-          pattern show a small <Hash className="w-3 h-3 inline-block align-middle text-violet-500" /> badge.
+          pattern show a small <Hash className="w-3 h-3 inline-block align-middle text-accent-content" /> badge.
           <b>Pattern</b> and <b>Selector</b> stack — set both and both filters apply.
         </P>
         <Note>
@@ -947,7 +947,7 @@ ctx.set("amount_cents", String(Math.round(usd * 100)));`}</pre>
     searchText: "browser queue browser peek messages purge delete management rpc artemis remove all messages refresh dlq dead letter requeue redeliver original destination who holds message consumer credit unacked edit body repair bulk select inline modal walkthrough resubmit target shovel cross broker copy promote prod dev transform js select all max checkbox selective amquserid filter",
     content: (
       <>
-        <H><ListTree className="w-4 h-4 text-blue-500" />Queue browser</H>
+        <H><ListTree className="w-4 h-4 text-accent" />Queue browser</H>
         <P>
           Lists every queue on the broker with live counters (size, consumers, messages added /
           delivered). Auto-refreshes every 2.5 seconds. Click a queue to <b>peek</b> at the first
@@ -1076,7 +1076,7 @@ ctx.set("amount_cents", String(Math.round(usd * 100)));`}</pre>
     searchText: "inspector clients broker connections consumers who holds message credit unacked broker management listConnectionsAsJSON listAllConsumersAsJSON session protocol",
     content: (
       <>
-        <H><Network className="w-4 h-4 text-blue-500" />Broker Clients inspector</H>
+        <H><Network className="w-4 h-4 text-accent" />Broker Clients inspector</H>
         <P>
           Shows everyone connected to the broker right now — both AMQPush itself and any
           other clients (other AMQP libraries, Core / OpenWire / STOMP, the broker's own
@@ -1126,7 +1126,7 @@ ctx.set("amount_cents", String(Math.round(usd * 100)));`}</pre>
     searchText: "history sent log archive resend export json csv 200 entries persistent",
     content: (
       <>
-        <H><HistoryIcon className="w-4 h-4 text-blue-500" />History</H>
+        <H><HistoryIcon className="w-4 h-4 text-accent" />History</H>
         <P>
           The last <b>200 sends</b> (per profile) are persisted to <Code>~/.amqpush/history.json</Code>
           with full payload — text bodies always, file bodies up to 2&nbsp;MB (base64). Resend works
@@ -1155,7 +1155,7 @@ ctx.set("amount_cents", String(Math.round(usd * 100)));`}</pre>
     searchText: "stats statistics throughput sparkline cards reliability per-queue rate sent received error per-profile profile compare dev prod aggregate all",
     content: (
       <>
-        <H><BarChart3 className="w-4 h-4 text-blue-500" />Stats</H>
+        <H><BarChart3 className="w-4 h-4 text-accent" />Stats</H>
         <P>
           Six top-level cards — sent / received / errors / avg payload / throughput / reliability —
           with rolling sparklines, plus a per-queue breakdown. Stats are session-only (cleared on
@@ -1185,7 +1185,7 @@ ctx.set("amount_cents", String(Math.round(usd * 100)));`}</pre>
     searchText: "logs console activity events table sort filter date export json csv pause follow auto-scroll snapshot freeze",
     content: (
       <>
-        <H><Terminal className="w-4 h-4 text-blue-500" />Logs</H>
+        <H><Terminal className="w-4 h-4 text-accent" />Logs</H>
         <P>
           Sortable table of every event — connect / send / receive / error — with date and time
           columns, level filter, search, and date presets (Today / 1h / 24h / 7d / All). Persists
@@ -1213,7 +1213,7 @@ ctx.set("amount_cents", String(Math.round(usd * 100)));`}</pre>
     searchText: "keyboard shortcuts hotkeys cmd k command palette enter send escape close",
     content: (
       <>
-        <H><Keyboard className="w-4 h-4 text-blue-500" />Keyboard shortcuts</H>
+        <H><Keyboard className="w-4 h-4 text-accent" />Keyboard shortcuts</H>
         <H3>Global</H3>
         <Row label={<><Kbd>⌘</Kbd><Kbd>K</Kbd></>}>Open command palette.</Row>
         <Row label={<><Kbd>⌘</Kbd><Kbd>1</Kbd>…<Kbd>8</Kbd></>}>Switch view (Connection / Send / Receive / Browser / Broker Clients / History / Stats / Logs).</Row>
@@ -1239,7 +1239,7 @@ ctx.set("amount_cents", String(Math.round(usd * 100)));`}</pre>
     searchText: "tips tricks pro power user advanced workflows performance debug",
     content: (
       <>
-        <H><Sparkles className="w-4 h-4 text-blue-500" />Tips &amp; Tricks</H>
+        <H><Sparkles className="w-4 h-4 text-accent" />Tips &amp; Tricks</H>
         <UL>
           <Li><b>Pre-fill from history</b>: when something fails in production, find the same payload in History → Resend → tweak → try again.</Li>
           <Li><b>Diagnose stuck queues</b>: Browser → click queue → Peek. Counters show prefetch / consumer status; peek shows what's actually waiting. Purge if needed.</Li>
@@ -1260,7 +1260,7 @@ ctx.set("amount_cents", String(Math.round(usd * 100)));`}</pre>
     searchText: "files storage paths config home directory amqpush profiles templates queues history localstorage",
     content: (
       <>
-        <H><Database className="w-4 h-4 text-blue-500" />Files &amp; Storage</H>
+        <H><Database className="w-4 h-4 text-accent" />Files &amp; Storage</H>
         <H3>~/.amqpush/</H3>
         <Row label="profiles.json">Saved broker profiles.</Row>
         <Row label="templates.json">Saved Send templates.</Row>
@@ -1362,17 +1362,17 @@ export default function HelpModal({
         // code span, and table row inside Help becomes selectable so users
         // can copy snippets (paths, token names, broker URLs, etc.) directly
         // out of the docs.
-        className="bg-t-bg border border-t-line rounded-lg shadow-2xl w-[920px] max-w-[95vw] h-[78vh] flex flex-col overflow-hidden select-text"
+        className="bg-t-bg border border-t-line rounded-xl shadow-2xl w-[920px] max-w-[95vw] h-[78vh] flex flex-col overflow-hidden select-text"
       >
         {/* Header */}
         <div className="shrink-0 flex items-center gap-2 px-3 py-2 border-b border-t-line bg-t-panel">
-          <BookOpen className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+          <BookOpen className="w-3.5 h-3.5 text-accent shrink-0" />
           <div className="text-[13px] text-t-ink font-medium">Help</div>
-          <span className="text-[11px] text-t-ink5">— in-app guide</span>
+          <span className="text-[11.5px] text-t-ink5">— in-app guide</span>
           <button
             type="button"
             onClick={onClose}
-            className="ml-auto p-1 rounded text-t-ink4 hover:text-t-ink hover:bg-t-hover"
+            className="ml-auto p-1 rounded-md text-t-ink4 hover:text-t-ink hover:bg-t-hover"
             aria-label="Close help"
           >
             <X className="w-3.5 h-3.5" />
@@ -1384,20 +1384,20 @@ export default function HelpModal({
           {/* Sidebar */}
           <div className="shrink-0 w-[220px] border-r border-t-line bg-t-panel/40 flex flex-col">
             <div className="shrink-0 px-2.5 py-2 border-b border-t-line">
-              <div className="flex items-center gap-2 bg-t-field border border-t-line2 rounded-md px-2 py-1.5">
+              <div className="flex items-center gap-2 bg-t-field border border-t-line2 rounded-lg px-2 py-1.5">
                 <Search className="w-3 h-3 text-t-ink5 shrink-0" />
                 <input
                   autoFocus
                   value={query}
                   onChange={e => setQuery(e.target.value)}
                   placeholder="Search help…"
-                  className="flex-1 bg-transparent text-[12px] text-t-ink outline-none placeholder:text-t-ink5 min-w-0"
+                  className="flex-1 bg-transparent text-[12.5px] text-t-ink outline-none placeholder:text-t-ink5 min-w-0"
                 />
               </div>
             </div>
             <div className="flex-1 overflow-y-auto py-1">
               {filteredSections.length === 0 ? (
-                <div className="px-3 py-2 text-[12px] text-t-ink5">No matches</div>
+                <div className="px-3 py-2 text-[12.5px] text-t-ink5">No matches</div>
               ) : filteredSections.map(s => {
                 const isChild = !!s.parentId;
                 const childList = childrenByParent.get(s.id) ?? [];
@@ -1428,9 +1428,9 @@ export default function HelpModal({
                     <button
                       type="button"
                       onClick={() => setActiveId(s.id)}
-                      className={`flex-1 flex items-center gap-2 ${isChild ? "pl-3 pr-3" : "pl-3 pr-2"} py-1.5 text-left text-[12px] transition-colors ${
+                      className={`flex-1 flex items-center gap-2 ${isChild ? "pl-3 pr-3" : "pl-3 pr-2"} py-1.5 text-left text-[12.5px] transition-colors ${
                         s.id === active.id
-                          ? "bg-blue-500/15 text-blue-500"
+                          ? "bg-accent/15 text-accent"
                           : isChild
                             ? "text-t-ink3 hover:bg-t-hover/50 hover:text-t-ink"
                             : "text-t-ink2 hover:bg-t-hover/50 hover:text-t-ink"
@@ -1450,7 +1450,7 @@ export default function HelpModal({
                         title={expanded ? "Collapse" : "Expand"}
                         className={`shrink-0 px-2 transition-colors ${
                           s.id === active.id
-                            ? "text-blue-500 hover:bg-blue-500/20"
+                            ? "text-accent hover:bg-accent/20"
                             : "text-t-ink5 hover:text-t-ink hover:bg-t-hover/50"
                         }`}
                       >
@@ -1472,7 +1472,7 @@ export default function HelpModal({
         </div>
 
         {/* Footer */}
-        <div className="shrink-0 px-3 py-1.5 border-t border-t-line bg-t-panel flex items-center gap-3 text-[10px] text-t-ink5">
+        <div className="shrink-0 px-3 py-1.5 border-t border-t-line bg-t-panel flex items-center gap-3 text-[10.5px] text-t-ink5">
           <span className="flex items-center gap-1">
             <Kbd>Esc</Kbd> close
           </span>

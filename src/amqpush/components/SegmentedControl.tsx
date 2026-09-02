@@ -9,8 +9,8 @@ export interface SegmentOption<T extends string> {
 }
 
 /**
- * Canonical segmented pill control — `bg-t-card border border-t-line rounded`
- * group with `bg-blue-500/15 text-blue-500` for the selected segment. This is
+ * Canonical segmented pill control — `bg-t-card border border-t-line rounded-md`
+ * group with `bg-accent/15 text-accent` for the selected segment. This is
  * the same visual pattern already used by Subscriber/Browser/History for the
  * AUTO|RAW|HEX body-view toggle, lifted into a shared component so other
  * views (Send body-mode, Console level filter, etc.) can adopt it.
@@ -28,15 +28,15 @@ export default function SegmentedControl<T extends string>({
   options: SegmentOption<T>[];
   /** Whether segment labels are uppercase (default) or kept as-given. */
   casing?: "uppercase" | "normal";
-  /** `sm` = `px-1.5 py-0.5 text-[10px]`, `md` = `px-2 py-0.5 text-[11px]`. */
+  /** `sm` = `px-1.5 py-0.5 text-[10.5px]`, `md` = `px-2 py-0.5 text-[11.5px]`. */
   size?: "sm" | "md";
   className?: string;
 }) {
   const sizeClasses =
-    size === "sm" ? "px-1.5 py-0.5 text-[10px]" : "px-2 py-0.5 text-[11px]";
+    size === "sm" ? "px-1.5 py-0.5 text-[10.5px]" : "px-2 py-0.5 text-[11.5px]";
   const casingClass = casing === "uppercase" ? "uppercase tracking-wider" : "";
   return (
-    <div className={`inline-flex items-center bg-t-card border border-t-line rounded overflow-hidden ${className}`}>
+    <div className={`inline-flex items-center bg-t-card border border-t-line rounded-md overflow-hidden ${className}`}>
       {options.map((opt, i) => {
         const isActive = opt.value === value;
         return (
@@ -45,9 +45,9 @@ export default function SegmentedControl<T extends string>({
             type="button"
             onClick={(e) => { e.stopPropagation(); onChange(opt.value); }}
             title={opt.title}
-            className={`${sizeClasses} ${casingClass} font-mono font-medium transition-colors outline-none focus-visible:ring-1 focus-visible:ring-blue-500/40 ${
+            className={`${sizeClasses} ${casingClass} font-mono font-medium transition-colors outline-none focus-visible:ring-1 focus-visible:ring-accent/40 ${
               isActive
-                ? "bg-blue-500/15 text-blue-500"
+                ? "bg-accent/15 text-accent"
                 : "text-t-ink4 hover:text-t-ink2 hover:bg-t-hover"
             } ${i > 0 ? "border-l border-t-line" : ""}`}
           >
