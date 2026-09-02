@@ -29,6 +29,10 @@ const EXPORT_EXCLUDE: &str = "history,models";
 /// более важное: сервер собирает архив целиком до отправки, у 256 доменов
 /// первый байт приходит через две с половиной минуты. Мелкая пачка — это
 /// и движущийся счётчик, и возможность вести несколько выгрузок разом.
+/// Срок обычного запроса к шине: списки, состояния, константы.
+const REQUEST_TIMEOUT: Duration = Duration::from_secs(60);
+/// Срок выгрузки пачки доменов: шина собирает архив минутами.
+const DOWNLOAD_TIMEOUT: Duration = Duration::from_secs(600);
 const GUIDS_PER_REQUEST: usize = 10;
 /// Сколько пачек забирается одновременно: сервер спокойно обслуживает
 /// параллельные выгрузки, и на 150 доменах это 26 секунд вместо 64.
@@ -117,6 +121,10 @@ impl Connection {
         reqwest::Client::builder()
             .danger_accept_invalid_certs(self.insecure)
             .connect_timeout(Duration::from_secs(15))
+            // Общий срок на запрос: без него зависший сервер держал команду
+            // вечно, а отменить её из интерфейса нечем. Долгие выгрузки
+            // задают себе срок сами, длиннее этого.
+            .timeout(REQUEST_TIMEOUT)
             .build()
             .map_err(|err| format!("Cannot create an HTTP client: {err}"))
     }
@@ -520,6 +528,21 @@ pub struct PullResult {
     pub has_version: bool,
 }
 
+/// Убирает из рабочей папки все сессии, кроме указанной.
+///
+/// Ошибки удаления здесь не ошибки работы: чужая сессия может быть открыта
+/// вторым окном приложения, и её файлы заняты. Тогда она останется до
+/// следующего раза.
+fn prune_sessions(workspace: &Path, keep: &Path) {
+    let Ok(entries) = fs::read_dir(workspace) else { return };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path != keep && path.is_dir() {
+            let _ = fs::remove_dir_all(&path);
+        }
+    }
+}
+
 fn workspace_root() -> PathBuf {
     std::env::temp_dir().join("fesb-toolkit")
 }
@@ -549,8 +572,10 @@ pub async fn pull<F: FnMut(ApiProgress)>(
     let client = connection.client()?;
     let expected = wanted.len() as u64;
 
+    // Прежние сессии убираются после удачи, а не до начала: раньше папка
+    // сносилась целиком ещё до первой пачки, и неудавшийся повтор оставлял
+    // человека с уже отредактированными файлами, которых больше нет.
     let workspace = workspace_root();
-    let _ = fs::remove_dir_all(&workspace);
     let session = workspace.join(format!("api-{}", stamp()));
     let root = session.join(EXPORT_DIR);
     fs::create_dir_all(root.join(DOMAINS_DIR)).map_err(|err| format!("Cannot create a workspace: {err}"))?;
@@ -577,10 +602,17 @@ pub async fn pull<F: FnMut(ApiProgress)>(
             }));
         }
 
-        for handle in running {
-            let (path, bytes) = handle
-                .await
-                .map_err(|err| format!("Download interrupted: {err}"))??;
+        for (index, handle) in running.iter_mut().enumerate() {
+            let result = handle.await.map_err(|err| format!("Download interrupted: {err}"))?;
+            let (path, bytes) = match result {
+                Ok(item) => item,
+                Err(err) => {
+                    // Соседние пачки ещё качают в папку, которую сейчас
+                    // уберут: дождаться их дольше, чем остановить.
+                    for other in running.iter().skip(index + 1) { other.abort(); }
+                    return Err(err);
+                }
+            };
             downloaded += bytes;
 
             let unpacked = unpack_domains(&path, &root)?;
@@ -609,6 +641,10 @@ pub async fn pull<F: FnMut(ApiProgress)>(
     )
     .map_err(|err| format!("Cannot write the manifest: {err}"))?;
 
+    // Новая сессия записана — прежние можно убрать. Только сейчас: пока
+    // качали, старые файлы оставались рабочими на случай неудачи.
+    prune_sessions(&workspace, &session);
+
     Ok(PullResult {
         root: root.to_string_lossy().to_string(),
         domains: domains.len(),
@@ -627,6 +663,7 @@ async fn download_batch(
 ) -> Result<u64, String> {
     let mut request = connection
         .get(client, "/api/domains/export/archive")
+        .timeout(DOWNLOAD_TIMEOUT)
         .query(&[("exclude", EXPORT_EXCLUDE)]);
     for guid in guids {
         request = request.query(&[("domains", guid.as_str())]);
@@ -707,7 +744,8 @@ fn unpack_domains(archive: &Path, root: &Path) -> Result<Unpacked, String> {
         // Файл version одинаков для всех доменов — достаточно положить его в корень.
         if !has_version {
             if let Some(text) = version {
-                let _ = fs::write(root.join(VERSION_FILE), text);
+                fs::write(root.join(VERSION_FILE), text)
+                    .map_err(|err| format!("Cannot write the version file: {err}"))?;
                 has_version = true;
             }
         }
@@ -849,8 +887,14 @@ where
                 }));
             }
 
-            for handle in running {
-                let path = handle.await.map_err(|err| format!("Walk interrupted: {err}"))??;
+            for (index, handle) in running.iter_mut().enumerate() {
+                let path = match handle.await.map_err(|err| format!("Walk interrupted: {err}"))? {
+                    Ok(path) => path,
+                    Err(err) => {
+                        for other in running.iter().skip(index + 1) { other.abort(); }
+                        return Err(err);
+                    }
+                };
                 let unpacked = unpack_domains(&path, &root)?;
                 let _ = fs::remove_file(&path);
 
@@ -1032,10 +1076,14 @@ pub async fn verify<F: FnMut(ApiProgress)>(
                     download_batch(&connection, &client, &batch, &path).await.map(|_| path)
                 }));
             }
-            for handle in running {
-                let path = handle
-                    .await
-                    .map_err(|err| format!("Verification interrupted: {err}"))??;
+            for (index, handle) in running.iter_mut().enumerate() {
+                let path = match handle.await.map_err(|err| format!("Verification interrupted: {err}"))? {
+                    Ok(path) => path,
+                    Err(err) => {
+                        for other in running.iter().skip(index + 1) { other.abort(); }
+                        return Err(err);
+                    }
+                };
                 let unpacked = unpack_domains(&path, &fresh)?;
                 let _ = fs::remove_file(&path);
                 done += unpacked.domains.len() as u64;

@@ -404,7 +404,11 @@ pub fn replace_trace_values(xml: &str, targets: &[BeanTarget], update: &TraceUpd
     }
 
     // Замена идёт с конца файла, чтобы не сбивались смещения предыдущих совпадений.
+    // Одно место правится один раз: две цели на один bean (одинаковые `id`
+    // в файле) давали две правки одного диапазона, и вторая ложилась
+    // уже на сдвинутый текст, съедая кавычки и следующую строку.
     edits.sort_by(|a, b| b.0.start.cmp(&a.0.start));
+    edits.dedup_by(|a, b| a.0.start == b.0.start && a.0.end == b.0.end);
     let mut text = xml.to_string();
     for (location, new_value) in edits {
         let encoded = match location.kind {
@@ -451,6 +455,18 @@ mod tests {
 
     fn broker_only(value: &str) -> TraceUpdate {
         TraceUpdate { broker: Some(value.into()), queue: None, trace_mode: None }
+    }
+
+    /// Две цели на один и тот же bean — так бывает, когда в файле два объекта
+    /// с одинаковым `id` и обе строки выбраны. Правка одна, файл цел.
+    #[test]
+    fn two_targets_on_one_bean_edit_it_once() {
+        let targets = vec![target("TraceToQueue"), target("TraceToQueue")];
+        let outcome = replace_trace_values(SAMPLE, &targets, &broker_only("QMS"));
+        assert_eq!(outcome.text.matches(r#"<property name="broker" value="QMS"/>"#).count(), 1);
+        assert!(outcome.text.contains(r#"<property name="queue" value="Mon.Trace"/>"#), "{}", outcome.text);
+        // Файл остался разбираемым: второй объект на месте.
+        assert_eq!(parse_domain_xml(&outcome.text).traces.len(), 2);
     }
 
     fn target(bean: &str) -> BeanTarget {

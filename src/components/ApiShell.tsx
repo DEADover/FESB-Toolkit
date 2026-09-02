@@ -6,7 +6,7 @@ import { ArrowsClockwise, ArrowsLeftRight } from '@phosphor-icons/react'
 import { useI18n, useRichText } from '../i18n'
 import { errorText } from '../lib/api'
 import type { Connection } from '../types'
-import { ActionLink, Button, ButtonGlyph, cx, EmptyState, FOCUS_RING, Notice, Select, Toggle } from './ui'
+import { ActionLink, Button, ButtonGlyph, cx, EmptyState, FOCUS_RING, Notice, Select, Spinner, Toggle } from './ui'
 
 /**
  * Общая обвязка для экранов раздела API: все они читают что-то с сервера,
@@ -71,11 +71,28 @@ export function ScreenBodyRow({ children }: { children: ReactNode }) {
 }
 
 /** Пустая таблица и «идёт загрузка» выглядят одинаково на всех экранах. */
-export function TableMessage({ colSpan, children }: { colSpan: number; children: ReactNode }) {
+export function TableMessage({ colSpan, busy, children }: { colSpan: number; busy?: boolean; children: ReactNode }) {
   return (
     <tr>
-      <td colSpan={colSpan} className="px-3 py-10 text-center text-content-subtle">{children}</td>
+      <td colSpan={colSpan} className="px-3 py-10 text-center text-content-subtle">
+        <Awaiting busy={busy}>{children}</Awaiting>
+      </td>
     </tr>
+  )
+}
+
+/**
+ * Подпись состояния, которая крутится, пока данные идут.
+ *
+ * Одно слово «Читаем…» без движения не отличить от зависшего экрана.
+ * Общая для таблиц и списков: значок и зазор везде одни и те же.
+ */
+export function Awaiting({ busy, children }: { busy?: boolean; children: ReactNode }) {
+  return (
+    <span className="inline-flex items-center gap-2">
+      {busy && <Spinner className="size-3.5 text-accent-content" />}
+      {children}
+    </span>
   )
 }
 
@@ -114,8 +131,12 @@ export function useApiData<T>(
   const [data, setData] = useState<T | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // Номер последнего запроса: сменили область или домен, а ответ на прежний
+  // пришёл позже — и в таблице лежали чужие данные под новой подписью.
+  const request = useRef(0)
 
   const reload = useCallback(async () => {
+    const ticket = ++request.current
     if (!connection) {
       setData(null)
       return
@@ -123,12 +144,14 @@ export function useApiData<T>(
     setLoading(true)
     setError(null)
     try {
-      setData(await load(connection))
+      const result = await load(connection)
+      if (ticket === request.current) setData(result)
     } catch (err) {
+      if (ticket !== request.current) return
       setError(errorText(err))
       setData(null)
     } finally {
-      setLoading(false)
+      if (ticket === request.current) setLoading(false)
     }
   }, [connection, load])
 

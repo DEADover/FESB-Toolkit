@@ -63,14 +63,29 @@ fn column_name(index: usize) -> String {
     name
 }
 
+/// Что можно отдать Excel числом без потерь.
+///
+/// `parse::<f64>()` принимает больше, чем стоит писать в `<v>`: `inf` и `nan`
+/// ломают файл, `1e5` меняет вид, `00123` теряет ведущие нули, а шестнадцать
+/// и больше цифр — точность. Остаётся простая десятичная запись.
+fn looks_numeric(value: &str) -> bool {
+    let digits = value.strip_prefix('-').unwrap_or(value);
+    let (whole, fraction) = digits.split_once('.').unwrap_or((digits, ""));
+    let plain = |part: &str| !part.is_empty() && part.bytes().all(|b| b.is_ascii_digit());
+    if !plain(whole) || (!fraction.is_empty() && !plain(fraction)) || digits.ends_with('.') {
+        return false;
+    }
+    let no_leading_zero = whole == "0" || !whole.starts_with('0');
+    no_leading_zero && whole.len() + fraction.len() <= 15
+}
+
 /// Одна ячейка: числа пишутся числами, чтобы Excel их складывал.
 fn cell(column: usize, row: usize, value: &str) -> String {
     let reference = format!("{}{}", column_name(column), row);
     if value.is_empty() {
         return String::new();
     }
-    let numeric = value.parse::<f64>().is_ok() && !value.starts_with('+');
-    if numeric {
+    if looks_numeric(value) {
         format!(r#"<c r="{reference}"><v>{}</v></c>"#, escape(value))
     } else {
         format!(
@@ -354,5 +369,20 @@ mod order_tests {
         assert_eq!(sheet_title("отчёт: [2026]/итог"), "отчёт   2026  итог");
         assert_eq!(sheet_title("").as_str(), "Sheet1");
         assert_eq!(sheet_title(&"я".repeat(40)).chars().count(), 31);
+    }
+}
+
+#[cfg(test)]
+mod numeric_tests {
+    use super::looks_numeric;
+
+    #[test]
+    fn only_plain_decimals_go_as_numbers() {
+        for ok in ["0", "42", "-7", "3.5", "128400", "0.25"] {
+            assert!(looks_numeric(ok), "{ok}");
+        }
+        for text in ["inf", "nan", "1e5", "00123", "+5", "5.", ".5", "1234567890123456", "QME:EQM", ""] {
+            assert!(!looks_numeric(text), "{text}");
+        }
     }
 }

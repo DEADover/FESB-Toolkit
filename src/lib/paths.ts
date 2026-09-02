@@ -26,6 +26,7 @@ export function folderBesideExport(source: string): string {
   // Файл архива и папка конфигурации лежат на одном уровне, папка domains — на уровень глубже.
   const up = last === 'domains' ? 2 : 1
   const kept = parts.slice(0, Math.max(parts.length - up, 0))
-  const prefix = source.startsWith('/') ? '/' : ''
+  // Сетевой путь Windows начинается с двух косых: `\\\\server\\share\\…`.
+  const prefix = source.startsWith('\\\\') ? '\\\\' : source.startsWith('/') ? '/' : ''
   return kept.length > 0 ? `${prefix}${kept.join(separator)}${separator}` : prefix
 }

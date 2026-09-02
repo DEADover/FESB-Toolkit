@@ -167,10 +167,12 @@ export function ConnectionScreen({ store, onStore, server, connection, activePro
     setConfirmDelete(null)
   }, [confirmDelete, persist, store, selectedId])
 
+  // Enter в поле формы — та же кнопка «Подключиться», с теми же запретами:
+  // без них он обходил и незаполненный логин, и уже идущее подключение.
   const submit = useCallback((event: FormEvent) => {
     event.preventDefault()
-    void connect()
-  }, [connect])
+    if (draft && isReady(draft) && busy === null) void connect()
+  }, [connect, draft, busy])
 
   const set = <K extends keyof ConnectionProfile>(key: K, value: ConnectionProfile[K]) => {
     setDraft((prev) => (prev ? { ...prev, [key]: value } : prev))

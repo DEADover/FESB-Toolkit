@@ -12,8 +12,7 @@ import {
 } from './ApiShell'
 import { useToast } from './Toaster'
 import {
-  Badge, Button, ButtonGlyph, CodePill, cx, DataTable, MultiSelect, Readout, SearchInput, Select,
-  Th, THead, Toggle,
+  Badge, Button, ButtonGlyph, CodePill, cx, DataTable, MultiSelect, Readout, rowClick, SearchInput, Select, Th, THead, Toggle,
 } from './ui'
 
 interface Props {
@@ -229,7 +228,7 @@ export function TracingScreen({ connection, server, onGoToConnection, onOpenRout
             {visible.map((row) => (
               <tr
                 key={row.id}
-                onClick={() => row.domainGuid && onOpenRoutes(row.domainGuid)}
+                onClick={rowClick(() => { if (row.domainGuid) onOpenRoutes(row.domainGuid) })}
                 title={t('tracing.openDomain')}
                 className="cursor-pointer border-b border-line/60 hover:bg-surface-2"
               >
@@ -265,8 +264,7 @@ export function TracingScreen({ connection, server, onGoToConnection, onOpenRout
               </tr>
             ))}
             {visible.length === 0 && (
-              <TableMessage colSpan={COLUMNS.length}>
-                {loading ? t('empty.scanning') : t('tracing.nothing')}
+              <TableMessage colSpan={COLUMNS.length} busy={loading}>{loading ? t('empty.scanning') : t('tracing.nothing')}
               </TableMessage>
             )}
           </tbody>

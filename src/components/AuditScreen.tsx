@@ -34,7 +34,9 @@ export function AuditScreen({ connection, server, onGoToConnection }: Props) {
   const [limit, setLimit] = useState(200)
   const [filter, setFilter] = useState<Filter>('action')
   const [auto, setAuto] = useState(false)
-  const [open, setOpen] = useState<number | null>(null)
+  // Ключ записи, а не её номер: смена фильтра сдвигает номера, и раскрытой
+  // оказывалась другая запись под тем же индексом.
+  const [open, setOpen] = useState<string | null>(null)
 
   // Как и в журналах: запрос уходит на сервер, а не фильтрует уже полученное.
   const query = useDebounced(search)
@@ -133,12 +135,13 @@ export function AuditScreen({ connection, server, onGoToConnection }: Props) {
             </THead>
           <tbody>
             {visible.map((entry, index) => {
-              const shown = open === index
+              const key = `${entry.timestamp ?? ''}-${index}`
+              const shown = open === key
               const failed = isFailure(entry)
               return (
                 <Fragment key={`${entry.timestamp ?? ''}-${index}`}>
                   <tr
-                    onClick={rowClick(() => setOpen(shown ? null : index))}
+                    onClick={rowClick(() => setOpen(shown ? null : key))}
                     className={cx(
                       'cursor-pointer align-top',
                       shown ? 'bg-surface-2/60' : 'border-b border-line/60 hover:bg-surface-2',
@@ -181,7 +184,7 @@ export function AuditScreen({ connection, server, onGoToConnection }: Props) {
               )
             })}
             {visible.length === 0 && (
-              <TableMessage colSpan={5}>{loading ? t('empty.scanning') : t('audit.empty')}</TableMessage>
+              <TableMessage colSpan={5} busy={loading}>{loading ? t('empty.scanning') : t('audit.empty')}</TableMessage>
             )}
           </tbody>
         </DataTable>

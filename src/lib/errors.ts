@@ -12,7 +12,9 @@ import { translate, type MessageKey } from '../i18n'
 export function errorText(error: unknown): string {
   const raw = typeof error === 'string' ? error
     : error instanceof Error ? error.message
-    : JSON.stringify(error)
+    // `undefined` в JSON не сериализуется — `stringify` вернул бы его же,
+    // и разбор упал бы уже внутри обработчика ошибки.
+    : JSON.stringify(error) ?? String(error)
   return readable(raw)
 }
 

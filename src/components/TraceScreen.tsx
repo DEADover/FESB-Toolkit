@@ -151,6 +151,10 @@ export function TraceScreen({ scan, isMac, sourcePath, server, onRescan, onGoToC
   // Новое сканирование приходит с новыми данными — снимаем выделение.
   useEffect(() => { setSelected(new Set()) }, [scan])
 
+  // Другая выгрузка — другие связи: граф от прежней папки к ней не подходит,
+  // а без сброса он держался, и панель схемы всегда говорила «связей нет».
+  useEffect(() => { setGraph(null) }, [scan.root])
+
   // Связи нужны только при открытии схемы, поэтому считаются при первом открытии.
   useEffect(() => {
     if (!route || graph) return
@@ -353,11 +357,11 @@ export function TraceScreen({ scan, isMac, sourcePath, server, onRescan, onGoToC
   }, [])
 
   const handleSort = useCallback((key: SortKey) => {
-    setSortKey((prevKey) => {
-      setSortDir((prevDir) => (prevKey === key && prevDir === 'asc' ? 'desc' : 'asc'))
-      return key
-    })
-  }, [])
+    // Два состояния меняются вместе и снаружи апдейтеров: побочный эффект
+    // внутри чистой функции в StrictMode переключил бы направление дважды.
+    setSortDir(sortKey === key && sortDir === 'asc' ? 'desc' : 'asc')
+    setSortKey(key)
+  }, [sortKey, sortDir])
 
   const handleApply = useCallback(async () => {
     setConfirmOpen(false)

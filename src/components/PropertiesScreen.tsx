@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 
 import { useI18n } from '../i18n'
@@ -208,9 +208,8 @@ export function PropertiesScreen({ connection, server, onGoToConnection }: Props
               </tr>
             ))}
             {visible.length === 0 && (
-              <TableMessage colSpan={3}>
-                {loading
-                  ? t('empty.scanning')
+              <TableMessage colSpan={3} busy={loading}>
+                {loading ? t('empty.scanning')
                   : scopeId === 'domain' && !domainGuid
                     ? t('properties.pickDomain')
                     : t('properties.empty')}
@@ -304,12 +303,20 @@ function InlineEdit({ value, placeholder, title, mono, busy, onSave }: {
 }) {
   const [draft, setDraft] = useState(value)
   const [editing, setEditing] = useState(false)
+  // Escape снимает фокус, а снятие фокуса сохраняет. Состояние к этому
+  // моменту ещё старое, и правка уезжала на сервер вместо отмены.
+  // Флаг живёт вне состояния именно потому, что нужен в том же кадре.
+  const cancelled = useRef(false)
 
   // Пока строку не правят, она следует за данными с сервера.
   useEffect(() => { if (!editing) setDraft(value) }, [value, editing])
 
   const commit = () => {
     setEditing(false)
+    if (cancelled.current) {
+      cancelled.current = false
+      return
+    }
     if (draft !== value) onSave(draft)
   }
 
@@ -326,6 +333,7 @@ function InlineEdit({ value, placeholder, title, mono, busy, onSave }: {
         onKeyDown={(event) => {
           if (event.key === 'Enter') event.currentTarget.blur()
           if (event.key === 'Escape') {
+            cancelled.current = true
             setDraft(value)
             setEditing(false)
             event.currentTarget.blur()

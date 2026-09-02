@@ -300,15 +300,19 @@ fn reports_dir(app: &AppHandle) -> Result<PathBuf, String> {
     Ok(base.join("reports"))
 }
 
+// Команды ниже объявлены async не ради ожидания внутри — там его нет, —
+// а чтобы Tauri не выполнял их в потоке окна: запись отчёта на тысячи
+// строк и сжатие листа Excel замораживали интерфейс на всё время работы.
+
 /// История собранных отчётов: когда, по какому серверу и сколько точек.
 #[tauri::command]
-fn report_history(app: AppHandle) -> Result<Vec<report_store::ReportEntry>, String> {
+async fn report_history(app: AppHandle) -> Result<Vec<report_store::ReportEntry>, String> {
     Ok(report_store::list(&reports_dir(&app)?))
 }
 
 /// Кладёт собранный отчёт в историю.
 #[tauri::command]
-fn save_report_history(
+async fn save_report_history(
     app: AppHandle,
     server: String,
     built_at: String,
@@ -319,13 +323,13 @@ fn save_report_history(
 
 /// Открывает отчёт из истории.
 #[tauri::command]
-fn read_report_history(app: AppHandle, id: String) -> Result<report_store::StoredReport, String> {
+async fn read_report_history(app: AppHandle, id: String) -> Result<report_store::StoredReport, String> {
     report_store::read(&reports_dir(&app)?, &id)
 }
 
 /// Убирает отчёт из истории вместе с файлом.
 #[tauri::command]
-fn delete_report_history(app: AppHandle, id: String) -> Result<Vec<report_store::ReportEntry>, String> {
+async fn delete_report_history(app: AppHandle, id: String) -> Result<Vec<report_store::ReportEntry>, String> {
     report_store::remove(&reports_dir(&app)?, &id)
 }
 
@@ -334,7 +338,7 @@ fn delete_report_history(app: AppHandle, id: String) -> Result<Vec<report_store:
 /// Шапка приходит с фронтенда: там она уже переведена, и дублировать словарь
 /// в Rust ради одного файла незачем.
 #[tauri::command]
-fn save_report(path: String, sheet: String, headers: Vec<String>, rows: Vec<Vec<String>>) -> Result<(), String> {
+async fn save_report(path: String, sheet: String, headers: Vec<String>, rows: Vec<Vec<String>>) -> Result<(), String> {
     xlsx::write_sheet(std::path::Path::new(&path), &sheet, &headers, &rows)
 }
 

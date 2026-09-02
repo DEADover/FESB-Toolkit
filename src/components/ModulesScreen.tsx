@@ -8,9 +8,7 @@ import {
   apiSavePoints, errorText,
 } from '../lib/api'
 import type { Connection, ModuleAction, ModuleRow, SavePoint, ServerInfo } from '../types'
-import {
-  ErrorBar, NotConnected, Panel, RefreshButton, TableMessage, useApiData,
-} from './ApiShell'
+import { Awaiting, ErrorBar, NotConnected, Panel, RefreshButton, TableMessage, useApiData } from './ApiShell'
 import {
   Badge, Button, ButtonGlyph, cx, DataTable, IconButton, Modal, Notice, Spinner, Th, THead,
 } from './ui'
@@ -150,7 +148,7 @@ export function ModulesScreen({ connection, server, onGoToConnection }: Props) {
               </tr>
             ))}
             {modules.length === 0 && (
-              <TableMessage colSpan={5}>{loading ? t('empty.scanning') : t('table.empty')}</TableMessage>
+              <TableMessage colSpan={5} busy={loading}>{loading ? t('empty.scanning') : t('table.empty')}</TableMessage>
             )}
           </tbody>
         </DataTable>
@@ -251,7 +249,14 @@ function SavePoints({ connection }: { connection: Connection }) {
         >
           {busy === 'create' ? <><Spinner className="size-3.5" /> {t('savepoints.creating')}</> : t('savepoints.create')}
         </Button>
-        <Button size="sm" variant="ghost" onClick={() => void reload()} disabled={loading || busy !== null}>
+        <Button
+          size="sm"
+          variant="ghost"
+          aria-label={t('action.refresh')}
+          title={t('action.refresh')}
+          onClick={() => void reload()}
+          disabled={loading || busy !== null}
+        >
           <ButtonGlyph busy={loading}><ArrowsClockwise size={13} weight="bold" /></ButtonGlyph>
         </Button>
       </div>
@@ -261,7 +266,7 @@ function SavePoints({ connection }: { connection: Connection }) {
       <div className="px-5 py-3">
         {points.length === 0 ? (
           <p className="text-[11.5px] text-content-subtle">
-            {loading ? t('empty.scanning') : t('savepoints.none')}
+            <Awaiting busy={loading}>{loading ? t('empty.scanning') : t('savepoints.none')}</Awaiting>
           </p>
         ) : (
           <div className="flex flex-col gap-2">

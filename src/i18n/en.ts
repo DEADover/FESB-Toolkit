@@ -92,6 +92,8 @@ export const en = {
   'job.api.verify': 'Comparing with the server',
   'job.eta.seconds': '≈ {count} s',
   'job.eta.minutes': '≈ {count} min',
+  'scan.failed': 'Could not read the configuration',
+  'endpoints.history.failed': 'The report is on screen, but could not be saved to history',
   'empty.unpacking': 'Unpacking the archive…',
   'empty.scanning': 'Scanning…',
   'empty.progress.walk': 'Folders visited: {visited}, domains found: {found}',

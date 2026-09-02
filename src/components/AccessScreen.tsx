@@ -6,8 +6,7 @@ import { useI18n, type MessageKey } from '../i18n'
 import { apiAccess } from '../lib/api'
 import type { AccessReport, Connection, Scope, ServerInfo } from '../types'
 import {
-  ErrorBar, NotConnected, Panel, RefreshButton, ScreenBody, ScreenBodyRow, StatsBar, useApiData,
-  useDebounced,
+  Awaiting, ErrorBar, NotConnected, Panel, RefreshButton, ScreenBody, ScreenBodyRow, StatsBar, useApiData, useDebounced,
 } from './ApiShell'
 import { Badge, Button, cx, EmptyState, Readout, SearchInput } from './ui'
 
@@ -204,7 +203,7 @@ export function AccessScreen({ connection, server, onGoToConnection }: Props) {
               </div>
             ) : (
               <p className="py-10 text-center text-content-subtle">
-                {loading ? t('empty.scanning') : t('access.pickRole')}
+                <Awaiting busy={loading}>{loading ? t('empty.scanning') : t('access.pickRole')}</Awaiting>
               </p>
             )}
           </Panel>
@@ -217,12 +216,17 @@ export function AccessScreen({ connection, server, onGoToConnection }: Props) {
 /** Ограничение роли одной строкой: «Файлы журналов · просмотр → core, broker». */
 function ScopeLine({ scope }: { scope: Scope }) {
   const { t } = useI18n()
-  const subject = `scope.${scope.subject}` as MessageKey
-  const action = `scope.${scope.action}` as MessageKey
+  // Новая версия шины может завести область или право, которых словарь
+  // не знает: тогда честнее показать её имя как есть, чем сырой ключ.
+  const named = (raw: string) => {
+    const key = `scope.${raw}` as MessageKey
+    const text = t(key)
+    return text === key ? raw : text
+  }
   return (
     <div className="flex min-w-0 items-baseline gap-2 text-[11.5px]">
       <span className="shrink-0 text-content-muted">
-        {t(subject)} · {t(action)}
+        {named(scope.subject)} · {named(scope.action)}
       </span>
       <span className="min-w-0 truncate font-mono text-[11px] text-content-subtle" title={scope.values.join(', ')}>
         {scope.values.join(', ')}

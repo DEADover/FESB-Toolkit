@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ComponentProps, type ReactNode } from 'react'
+import { useEffect, useId, useMemo, useRef, useState, type ComponentProps, type ReactNode } from 'react'
 
 import { CaretDown, CaretUp, Check, MagnifyingGlass, X, type Icon } from '@phosphor-icons/react'
 
@@ -737,23 +737,54 @@ export function Modal({ open, onClose, title, children, footer, width = 'narrow'
   width?: keyof typeof MODAL_WIDTH
   closeLabel: string
 }) {
+  const panel = useRef<HTMLDivElement>(null)
+  const titleId = useId()
+
+  // Окно забирает фокус себе и возвращает его туда, откуда открылось.
+  // Tab ходит по кругу внутри окна: иначе с клавиатуры можно уйти
+  // в таблицу под затемнением и жать там кнопки вслепую.
   useEffect(() => {
     if (!open) return
-    const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose() }
+    const opener = document.activeElement as HTMLElement | null
+    const focusable = () => [...(panel.current?.querySelectorAll<HTMLElement>(
+      'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+    ) ?? [])]
+    // Первым — не крестик, а первое поле или кнопка в теле окна; если их
+    // нет, само окно, чтобы Escape и стрелки работали сразу.
+    const first = focusable().find((el) => !el.hasAttribute('data-modal-close')) ?? panel.current
+    first?.focus()
+
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') { onClose(); return }
+      if (event.key !== 'Tab') return
+      const items = focusable()
+      if (items.length === 0) return
+      const head = items[0], tail = items[items.length - 1]
+      if (event.shiftKey && document.activeElement === head) { event.preventDefault(); tail.focus() }
+      else if (!event.shiftKey && document.activeElement === tail) { event.preventDefault(); head.focus() }
+    }
     window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      opener?.focus?.()
+    }
   }, [open, onClose])
 
   if (!open) return null
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-6 backdrop-blur-sm" onMouseDown={onClose}>
       <div
-        className={cx('flex max-h-[85vh] w-full flex-col overflow-hidden rounded-2xl border border-line-strong bg-surface shadow-2xl', MODAL_WIDTH[width])}
+        ref={panel}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        tabIndex={-1}
+        className={cx('flex max-h-[85vh] w-full flex-col overflow-hidden rounded-2xl border border-line-strong bg-surface shadow-2xl outline-none', MODAL_WIDTH[width])}
         onMouseDown={(event) => event.stopPropagation()}
       >
         <div className="flex items-center justify-between border-b border-line px-5 py-4">
-          <h2 className="text-[15px] font-semibold">{title}</h2>
-          <Button variant="ghost" size="sm" onClick={onClose} aria-label={closeLabel}><X size={14} weight="bold" /></Button>
+          <h2 id={titleId} className="text-[15px] font-semibold">{title}</h2>
+          <Button variant="ghost" size="sm" onClick={onClose} aria-label={closeLabel} data-modal-close><X size={14} weight="bold" /></Button>
         </div>
         <div className="flex-1 overflow-auto px-5 py-4">{children}</div>
         {footer && <div className="flex items-center justify-end gap-2 border-t border-line bg-surface-2 px-5 py-3">{footer}</div>}

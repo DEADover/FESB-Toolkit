@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 
 import { ArrowLeft, ArrowsClockwise, Check, Copy, MagnifyingGlass } from '@phosphor-icons/react'
 
@@ -6,9 +6,7 @@ import { useI18n } from '../i18n'
 import { apiQueueManagers, apiQueueMessage, apiQueueMessages, apiQueues, apiQueueSearch, errorText, onApiProgress } from '../lib/api'
 import type { ApiProgress, Connection, QueueManager, QueueMessage, QueueRow, ServerInfo } from '../types'
 import {
-  AutoRefreshToggle, ErrorBar, NotConnected, Panel, RefreshButton, ScreenBody, ScreenBodyRow,
-  TableMessage, useApiData,
-  useAutoRefresh, useDebounced,
+  AutoRefreshToggle, Awaiting, ErrorBar, NotConnected, Panel, RefreshButton, ScreenBody, ScreenBodyRow, TableMessage, useApiData, useAutoRefresh, useDebounced,
 } from './ApiShell'
 import {
   Badge, Button, ButtonGlyph, cx, DataTable, IconButton, Notice, rowClick, SearchInput, Spinner, Th, THead, Toggle,
@@ -55,7 +53,12 @@ export function QueuesScreen({ connection, server, onGoToConnection }: Props) {
     })
   }, [managers.data])
 
+  // Номер последнего открытия: очереди медленного менеджера не должны
+  // лечь под заголовок того, что выбрали после него.
+  const opening = useRef(0)
+
   const openQueues = useCallback(async (manager: QueueManager | null) => {
+    const ticket = ++opening.current
     if (!connection || !manager) {
       setQueues(null)
       return
@@ -63,12 +66,14 @@ export function QueuesScreen({ connection, server, onGoToConnection }: Props) {
     setLoadingQueues(true)
     setQueueError(null)
     try {
-      setQueues(await apiQueues(connection, manager.kind, manager.id))
+      const rows = await apiQueues(connection, manager.kind, manager.id)
+      if (ticket === opening.current) setQueues(rows)
     } catch (err) {
+      if (ticket !== opening.current) return
       setQueueError(errorText(err))
       setQueues(null)
     } finally {
-      setLoadingQueues(false)
+      if (ticket === opening.current) setLoadingQueues(false)
     }
   }, [connection])
 
@@ -110,6 +115,8 @@ export function QueuesScreen({ connection, server, onGoToConnection }: Props) {
               size="sm"
               variant="ghost"
               className="ml-auto"
+              aria-label={t('action.refresh')}
+              title={t('action.refresh')}
               onClick={() => void managers.reload()}
               disabled={managers.loading}
             >
@@ -138,7 +145,7 @@ export function QueuesScreen({ connection, server, onGoToConnection }: Props) {
             ))}
             {list.length === 0 && (
               <p className="px-2.5 py-6 text-center text-[11.5px] text-content-subtle">
-                {managers.loading ? t('empty.scanning') : t('queues.noManagers')}
+                <Awaiting busy={managers.loading}>{managers.loading ? t('empty.scanning') : t('queues.noManagers')}</Awaiting>
               </p>
             )}
           </div>
@@ -239,8 +246,7 @@ export function QueuesScreen({ connection, server, onGoToConnection }: Props) {
                   </tr>
                 ))}
                 {visible.length === 0 && (
-                  <TableMessage colSpan={6}>
-                    {loadingQueues ? t('empty.scanning') : t('queues.empty')}
+                  <TableMessage colSpan={6} busy={loadingQueues}>{loadingQueues ? t('empty.scanning') : t('queues.empty')}
                   </TableMessage>
                 )}
               </tbody>
@@ -465,8 +471,7 @@ function Messages({ connection, manager, queue, onBack }: {
               )
             })}
             {visible.length === 0 && (
-              <TableMessage colSpan={5}>
-                {loading ? t('empty.scanning') : needle ? t('queues.noMatches') : t('queues.noMessages')}
+              <TableMessage colSpan={5} busy={loading}>{loading ? t('empty.scanning') : needle ? t('queues.noMatches') : t('queues.noMessages')}
               </TableMessage>
             )}
           </tbody>

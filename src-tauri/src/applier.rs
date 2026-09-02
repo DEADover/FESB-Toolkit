@@ -115,7 +115,12 @@ pub fn write_atomic(file: &Path, text: &str) -> std::io::Result<()> {
         .unwrap_or(0);
     let tmp = dir.join(format!(".{base}.tmp-{}-{unique}", std::process::id()));
 
-    fs::write(&tmp, text)?;
+    // Не дописали — не оставляем: обрывок иначе уезжал в архив и на сервер,
+    // потому что сборщики отсеивают только `.bak`.
+    if let Err(err) = fs::write(&tmp, text) {
+        let _ = fs::remove_file(&tmp);
+        return Err(err);
+    }
     if let Ok(meta) = fs::metadata(file) {
         let _ = fs::set_permissions(&tmp, meta.permissions());
     }

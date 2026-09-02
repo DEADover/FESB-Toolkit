@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { ArrowCounterClockwise, Play, Stop } from '@phosphor-icons/react'
 
@@ -13,8 +13,7 @@ import type {
   RouteFile, RouteState, ServerInfo,
 } from '../types'
 import {
-  AutoRefreshToggle, ErrorBar, NotConnected, Panel, RefreshButton, ScreenBody, ScreenBodyRow,
-  TableMessage, useApiData, useAutoRefresh,
+  AutoRefreshToggle, Awaiting, ErrorBar, NotConnected, Panel, RefreshButton, ScreenBody, ScreenBodyRow, TableMessage, useApiData, useAutoRefresh,
 } from './ApiShell'
 import { RouteViewer } from './RouteViewer'
 import { Badge, cx, DataTable, IconButton, SearchInput, Th, THead } from './ui'
@@ -115,7 +114,7 @@ export function RoutesScreen({ connection, server, isMac, initialGuid, onGoToCon
 
   /** Состояние читается по каждому маршруту: списком отдаются только запущенные. */
   const readStates = useCallback(async (guid: string, routes: RouteFile[]) => {
-    if (!connection) return
+    if (!connection) return null
     const entries = await Promise.all(routes.map(async (route) => {
       if (!route.id) return null
       try {
@@ -124,11 +123,17 @@ export function RoutesScreen({ connection, server, isMac, initialGuid, onGoToCon
         return null
       }
     }))
-    setStates(Object.fromEntries(entries.filter((item): item is readonly [string, RouteState] => item !== null)))
+    return Object.fromEntries(entries.filter((item): item is readonly [string, RouteState] => item !== null))
   }, [connection])
+
+  // Номер последнего открытия: ответ на прошлый щелчок, пришедший позже
+  // нового, не должен подменить собой то, что человек выбрал.
+  const opening = useRef(0)
 
   const openDomain = useCallback(async (item: DomainStat) => {
     if (!connection) return
+    const ticket = ++opening.current
+    const stillWanted = () => opening.current === ticket
     setSelected(item)
     setLoading(true)
     setError(null)
@@ -136,14 +141,16 @@ export function RoutesScreen({ connection, server, isMac, initialGuid, onGoToCon
     setDomain(null)
     try {
       const result = await apiDomainRoutes(connection, item.guid)
+      if (!stillWanted()) return
       setDomain(result)
       setGraph(null)
-      routeLinks(result.root).then(setGraph).catch(() => setGraph(null))
-      await readStates(item.guid, result.routes)
+      routeLinks(result.root).then((graph) => { if (stillWanted()) setGraph(graph) }).catch(() => setGraph(null))
+      const states = await readStates(item.guid, result.routes)
+      if (stillWanted() && states) setStates(states)
     } catch (err) {
-      setError(errorText(err))
+      if (stillWanted()) setError(errorText(err))
     } finally {
-      setLoading(false)
+      if (stillWanted()) setLoading(false)
     }
   }, [connection, readStates])
 
@@ -163,11 +170,17 @@ export function RoutesScreen({ connection, server, isMac, initialGuid, onGoToCon
   }, [connection, selected])
 
   // Первый домен со схемами открывается сам — экран не должен встречать пустотой.
-  // Если домен пришёл извне (клик на карте), открывается именно он.
+  // Если домен пришёл извне (клик на карте), открывается именно он — но один
+  // раз: раньше эффект возвращал его при каждой смене выбора, и уйти
+  // на другой домен было нельзя до перезапуска приложения.
+  const applied = useRef<string | null>(null)
   useEffect(() => {
     if (withRoutes.length === 0) return
-    const wanted = initialGuid ? withRoutes.find((item) => item.guid === initialGuid) : null
+    const wanted = initialGuid && applied.current !== initialGuid
+      ? withRoutes.find((item) => item.guid === initialGuid)
+      : null
     if (wanted) {
+      applied.current = initialGuid ?? null
       if (selected?.guid !== wanted.guid) void openDomain(wanted)
       return
     }
@@ -232,7 +245,7 @@ export function RoutesScreen({ connection, server, isMac, initialGuid, onGoToCon
             ))}
             {domains.length === 0 && (
               <p className="px-2.5 py-6 text-center text-[11.5px] text-content-subtle">
-                {stats.loading ? t('empty.scanning') : t('table.empty')}
+                <Awaiting busy={stats.loading}>{stats.loading ? t('empty.scanning') : t('table.empty')}</Awaiting>
               </p>
             )}
           </div>
@@ -333,7 +346,7 @@ export function RoutesScreen({ connection, server, isMac, initialGuid, onGoToCon
                   )
                 })}
                 {routes.length === 0 && (
-                  <TableMessage colSpan={6}>{loading ? t('empty.scanning') : t('routes.pickDomain')}</TableMessage>
+                  <TableMessage colSpan={6} busy={loading}>{loading ? t('empty.scanning') : t('routes.pickDomain')}</TableMessage>
                 )}
               </tbody>
             </DataTable>

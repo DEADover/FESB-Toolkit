@@ -6,7 +6,7 @@ import { useI18n, useRichText } from '../i18n'
 import { errorText, routeLinks } from '../lib/api'
 import type { LinkGraph, ScanResult } from '../types'
 import { RouteViewer } from './RouteViewer'
-import { RefreshButton, ScreenBody, StatsBar } from './ApiShell'
+import { RefreshButton, ScreenBody, StatsBar, TableMessage } from './ApiShell'
 import { ActionLink, Badge, cx, DataTable, EmptyState, Notice, Readout, rowClick, SearchInput, Th, THead, Toggle } from './ui'
 
 interface Props {
@@ -242,7 +242,7 @@ export function DomainLinksScreen({ scan, isMac, onOpenFolder, onGoToDomains }: 
                                 {link.toRoute}
                               </button>
                               <span className={cx(
-                                'shrink-0 rounded px-1 text-[9.5px]',
+                                'shrink-0 rounded px-1 text-[10px]',
                                 link.kind === 'call' ? 'bg-accent/15 text-accent-content' : 'bg-surface-3 text-content-subtle',
                               )}>
                                 {link.kind === 'call' ? t('links.call') : t('links.queue')}
@@ -257,11 +257,9 @@ export function DomainLinksScreen({ scan, isMac, onOpenFolder, onGoToDomains }: 
               )
             })}
             {visible.length === 0 && (
-              <tr>
-                <td colSpan={5} className="px-3 py-10 text-center text-content-subtle">
-                  {loading ? t('empty.scanning') : t('domainLinks.empty')}
-                </td>
-              </tr>
+              <TableMessage colSpan={5} busy={loading}>
+                {loading ? t('empty.scanning') : t('domainLinks.empty')}
+              </TableMessage>
             )}
           </tbody>
         </DataTable>

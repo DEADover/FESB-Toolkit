@@ -69,7 +69,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
           и перекрывать их уведомлением незачем. */}
       <div className="pointer-events-none fixed bottom-4 right-4 z-[60] flex w-[22rem] flex-col gap-2">
         {toasts.map((toast) => (
-          <ToastCard key={toast.id} toast={toast} onClose={() => dismiss(toast.id)} />
+          <ToastCard key={toast.id} toast={toast} onClose={dismiss} />
         ))}
       </div>
     </ToastContext.Provider>
@@ -82,17 +82,19 @@ const TONES: Record<Toast['tone'], { box: string; icon: Icon; mark: string }> = 
   ok: { box: 'border-positive/40 bg-positive/12 text-positive', icon: CheckCircle, mark: 'text-positive' },
 }
 
-function ToastCard({ toast, onClose }: { toast: Shown; onClose: () => void }) {
+function ToastCard({ toast, onClose }: { toast: Shown; onClose: (id: number) => void }) {
   const { t } = useI18n()
   const [held, setHeld] = useState(false)
   const tone = TONES[toast.tone]
   const Glyph = tone.icon
 
+  // Обработчик закрытия общий и постоянный: раньше он создавался заново
+  // на каждый рендер, и появление любого тоста перезапускало таймеры всех.
   useEffect(() => {
     if (held) return
-    const timer = setTimeout(onClose, LIFETIME[toast.tone])
+    const timer = setTimeout(() => onClose(toast.id), LIFETIME[toast.tone])
     return () => clearTimeout(timer)
-  }, [held, onClose, toast.tone])
+  }, [held, onClose, toast.id, toast.tone])
 
   return (
     <div
@@ -116,13 +118,13 @@ function ToastCard({ toast, onClose }: { toast: Shown; onClose: () => void }) {
         )}
         {toast.action && (
           <div className="mt-1.5">
-            <ActionLink onClick={() => { onClose(); toast.action?.onClick() }}>{toast.action.label}</ActionLink>
+            <ActionLink onClick={() => { onClose(toast.id); toast.action?.onClick() }}>{toast.action.label}</ActionLink>
           </div>
         )}
       </div>
       <button
         type="button"
-        onClick={onClose}
+        onClick={() => onClose(toast.id)}
         aria-label={t('action.close')}
         title={t('action.close')}
         className={cx('-mr-1 grid size-5 shrink-0 place-items-center rounded transition hover:bg-current/15', FOCUS_RING)}

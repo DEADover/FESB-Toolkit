@@ -3,7 +3,7 @@ name = "fesb-toolkit"
 version = "0.2.0"
 description = "Инструмент для работы с интеграционной шиной FESB"
 edition = "2021"
-rust-version = "1.77"
+rust-version = "1.82"
 
 [lib]
 name = "fesb_toolkit_lib"

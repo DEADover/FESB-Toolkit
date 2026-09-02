@@ -246,9 +246,14 @@ fn split_scope(key: &str) -> Option<(String, String)> {
     if subject.is_empty() || action.is_empty() {
         return None;
     }
-    let mut action = action.to_string();
     // Первая буква действия заглавная — в ключе словаря она не нужна.
-    action[..1].make_ascii_lowercase();
+    // Опускаем её по символам, а не по байтам: ключ приходит от сервера,
+    // и первая буква не обязана быть латинской.
+    let mut chars = action.chars();
+    let action = match chars.next() {
+        Some(first) => first.to_lowercase().chain(chars).collect(),
+        None => String::new(),
+    };
     Some((subject.to_string(), action))
 }
 

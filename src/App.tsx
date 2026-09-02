@@ -65,6 +65,10 @@ export default function App() {
   const [source, setSource] = useState<Source | null>(null)
   const [root, setRoot] = useState<string | null>(null)
   const [scan, setScan] = useState<ScanResult | null>(null)
+  // `runScan` объявлен до того, как в замыкание попадёт свежий `scan`,
+  // поэтому смотрит на него через ref: есть ли что-то открытое сейчас.
+  const scanRef = useRef<ScanResult | null>(null)
+  scanRef.current = scan
   const [scanning, setScanning] = useState(false)
   const [unpacking, setUnpacking] = useState(false)
   const [progress, setProgress] = useState<ScanProgress | null>(null)
@@ -124,7 +128,13 @@ export default function App() {
     setThemeMode(mode)
   }, [])
 
-  const runScan = useCallback(async (path: string) => {
+  /**
+   * Читает конфигурацию. Возвращает, получилось ли: вызывающие по этому
+   * решают, менять ли источник. Раньше ошибка оседала в `error`, который
+   * виден только на пустом экране, — при уже открытой папке повторное
+   * чтение падало молча, а источник успевал переключиться на новый.
+   */
+  const runScan = useCallback(async (path: string): Promise<boolean> => {
     setScanning(true)
     setError(null)
     setProgress(null)
@@ -132,13 +142,16 @@ export default function App() {
       const result = await scanDirectory(path)
       setScan(result)
       setRoot(result.root)
+      return true
     } catch (err) {
       setError(errorText(err))
+      if (scanRef.current) toast({ tone: 'danger', title: t('scan.failed'), text: errorText(err) })
+      return false
     } finally {
       setScanning(false)
       setProgress(null)
     }
-  }, [])
+  }, [toast, t])
 
   /** Открывает путь: архив сначала распаковывается во временную папку. */
   const openPath = useCallback(async (path: string) => {
@@ -148,8 +161,7 @@ export default function App() {
       setExtractProgress(null)
       try {
         const extracted = await openArchive(path)
-        setSource({ kind: 'archive', path })
-        await runScan(extracted.root)
+        if (await runScan(extracted.root)) setSource({ kind: 'archive', path })
       } catch (err) {
         setError(errorText(err))
       } finally {
@@ -158,8 +170,7 @@ export default function App() {
       }
       return
     }
-    setSource({ kind: 'folder', path })
-    await runScan(path)
+    if (await runScan(path)) setSource({ kind: 'folder', path })
   }, [runScan])
 
   const pickFolder = useCallback(async () => {
@@ -175,10 +186,16 @@ export default function App() {
   const rescan = useCallback(async () => { if (root) await runScan(root) }, [root, runScan])
 
   /** Открывает подключение по профилю; ошибку разбирает вызывающий экран. */
+  // Номер последней попытки: щёлкнули медленный стенд, потом быстрый —
+  // быстрый подключился, а потом дошёл ответ медленного и подменял сессию.
+  const connectAttempt = useRef(0)
+
   const connectProfile = useCallback(async (profile: ConnectionProfile) => {
+    const attempt = ++connectAttempt.current
     setConnecting(true)
     try {
       const server = await apiConnect(toConnection(profile))
+      if (attempt !== connectAttempt.current) return
       // Адрес мог быть введён без схемы и без /manager: подключение подобрало
       // рабочий вариант, и дальше все вызовы идут уже по нему, без перебора.
       const connection = { ...toConnection(profile), url: server.baseUrl }
@@ -189,7 +206,7 @@ export default function App() {
         return next
       })
     } finally {
-      setConnecting(false)
+      if (attempt === connectAttempt.current) setConnecting(false)
     }
   }, [])
 
@@ -253,8 +270,11 @@ export default function App() {
         if (output) await buildArchive(result.root, output, null)
         return
       }
+      // Источник меняется только после удачного чтения: иначе на экране
+      // остались бы старые файлы под подписью «с сервера», и отправка
+      // без предупреждения залила бы на стенд не то.
+      if (!(await runScan(result.root))) return
       setSource({ kind: 'server', path: session.server.baseUrl })
-      await runScan(result.root)
       setScreen('files.trace')
     } catch (err) {
       setPullError(errorText(err))
@@ -277,11 +297,13 @@ export default function App() {
     const onKey = (event: KeyboardEvent) => {
       const meta = event.metaKey || event.ctrlKey
       if (!meta) return
-      if (event.key.toLowerCase() === 'o') {
+      // Кнопки на время чтения блокируются — сочетания клавиш тоже,
+      // иначе два чтения шли параллельно и побеждало последнее.
+      if (event.key.toLowerCase() === 'o' && !busy) {
         event.preventDefault()
         void pickFolder()
       }
-      if (event.key.toLowerCase() === 'r' && root) {
+      if (event.key.toLowerCase() === 'r' && root && !busy) {
         event.preventDefault()
         void rescan()
       }
@@ -293,7 +315,7 @@ export default function App() {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [pickFolder, rescan, root])
+  }, [pickFolder, rescan, root, busy])
 
   const isApiScreen = screen.startsWith('api.')
   const isLinksScreen = screen === 'files.links'

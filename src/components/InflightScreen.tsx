@@ -10,7 +10,7 @@ import {
   useApiData, useAutoRefresh, useDebounced,
 } from './ApiShell'
 import {
-  Badge, cx, DataTable, EmptyState, Readout, SearchInput, Select, Th, THead, Toggle,
+  Badge, cx, DataTable, EmptyState, Readout, rowClick, SearchInput, Select, Th, THead, Toggle,
 } from './ui'
 
 interface Props {
@@ -193,7 +193,7 @@ export function InflightScreen({ connection, server, onGoToConnection, onOpenRou
               return (
                 <tr
                   key={row.id || `${row.routeId}-${row.thread}`}
-                  onClick={() => row.domainGuid && onOpenRoutes(row.domainGuid)}
+                  onClick={rowClick(() => { if (row.domainGuid) onOpenRoutes(row.domainGuid) })}
                   title={row.id}
                   className={cx(
                     'border-b border-line/60 align-top',
@@ -233,7 +233,7 @@ export function InflightScreen({ connection, server, onGoToConnection, onOpenRou
               )
             })}
             {visible.length === 0 && (
-              <TableMessage colSpan={7}>{loading ? t('empty.scanning') : t('inflight.nothing')}</TableMessage>
+              <TableMessage colSpan={7} busy={loading}>{loading ? t('empty.scanning') : t('inflight.nothing')}</TableMessage>
             )}
           </tbody>
         </DataTable>

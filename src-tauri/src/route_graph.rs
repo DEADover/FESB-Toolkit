@@ -261,8 +261,12 @@ fn parse_children(
             parse_children(xml, tags, index + 1, &tag.name)
         };
         // Текст элемента лежит между его открывающим и закрывающим тегами.
+        // У оборванного файла закрывающего тега нет: `after` указывает
+        // за конец списка, и «предыдущий тег» оказывается самим элементом,
+        // то есть раньше начала текста. Срез с концом раньше начала — паника,
+        // поэтому конец не опускается ниже начала: текст пустой, файл читается.
         let text_to = if after > 0 && after <= tags.len() && !tag.is_self_close {
-            tags[after - 1].start
+            tags[after - 1].start.max(text_from)
         } else {
             text_from
         };
@@ -626,5 +630,24 @@ mod component_tests {
             </route></routes>"#;
         let graph = &parse_route_graphs(xml)[0];
         assert_eq!(graph.nodes.iter().filter(|n| n.kind == "choice").count(), 2);
+    }
+}
+
+#[cfg(test)]
+mod truncated_tests {
+    use super::*;
+
+    /// Файл оборван посреди элемента: раньше падал разборщик, а с ним
+    /// и весь отчёт по точкам, если такой файл был хоть у одного домена.
+    #[test]
+    fn a_file_cut_inside_an_open_element_still_parses() {
+        for xml in [
+            r#"<routes><route id="r"><from uri="direct://a">"#,
+            r#"<routes><route id="r"><transform><groovy>abc"#,
+            r#"<route id="r"><to uri="https://x/y"><description>обрыв"#,
+        ] {
+            let graphs = parse_route_graphs(xml);
+            assert!(!graphs.is_empty(), "{xml}");
+        }
     }
 }

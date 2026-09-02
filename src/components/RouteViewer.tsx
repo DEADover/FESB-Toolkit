@@ -273,7 +273,7 @@ function Side({ label, items, onOpen, arrow }: {
               </span>
             </span>
             <span className={cx(
-              'shrink-0 rounded px-1 text-[9.5px]',
+              'shrink-0 rounded px-1 text-[10px]',
               item.kind === 'call' ? 'bg-accent/15 text-accent-content' : 'bg-surface-3 text-content-subtle',
             )}>
               {item.kind === 'call' ? t('links.call') : t('links.queue')}

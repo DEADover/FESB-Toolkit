@@ -242,9 +242,8 @@ export function LogsScreen({ connection, server, onGoToConnection }: Props) {
               )
             })}
             {rows.length === 0 && (
-              <TableMessage colSpan={4}>
-                {loading
-                  ? t('empty.scanning')
+              <TableMessage colSpan={4} busy={loading}>
+                {loading ? t('empty.scanning')
                   : selectedFiles.size === 0 ? t('logs.pickFile') : t('logs.empty')}
               </TableMessage>
             )}

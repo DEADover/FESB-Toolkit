@@ -158,8 +158,13 @@ export function EndpointsScreen({ connection, server, onGoToConnection }: Props)
       setRows(points)
       setOpenedAt(builtAt)
       // Полторы минуты работы не должны пропадать от перехода на соседний
-      // экран: отчёт сразу ложится в историю.
-      setHistory(await saveReportHistory(server.baseUrl, builtAt, points))
+      // экран: отчёт сразу ложится в историю. Но и от отказа диска тоже:
+      // не записался — остаётся на экране, а о записи говорим отдельно.
+      try {
+        setHistory(await saveReportHistory(server.baseUrl, builtAt, points))
+      } catch (err) {
+        toast({ tone: 'warn', title: t('endpoints.history.failed'), text: errorText(err) })
+      }
     } catch (err) {
       setError(errorText(err))
       setRows(null)
@@ -168,7 +173,7 @@ export function EndpointsScreen({ connection, server, onGoToConnection }: Props)
       setBuilding(false)
       setProgress(null)
     }
-  }, [connection, server])
+  }, [connection, server, toast, t])
 
   const openStored = useCallback(async (entry: ReportEntry) => {
     setError(null)

@@ -58,7 +58,14 @@ fn index_path(dir: &Path) -> PathBuf {
 }
 
 fn report_path(dir: &Path, id: &str) -> PathBuf {
-    dir.join(format!("{id}.json"))
+    dir.join(format!("{}.json", safe_id(id)))
+}
+
+/// Имя отчёта складывается из времени и хоста (`id_for`) и ничего другого
+/// содержать не может. Всё лишнее отбрасывается: путь наружу папки
+/// отчётов из имени не построить.
+fn safe_id(id: &str) -> String {
+    id.chars().filter(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.')).collect()
 }
 
 /// Читает список. Испорченный или отсутствующий индекс — это пустая история,

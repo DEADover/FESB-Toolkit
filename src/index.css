@@ -11,7 +11,10 @@
   --color-line-strong: #2e3a4d;
   --color-content: #e8ecf3;
   --color-content-muted: #97a2b4;
-  --color-content-subtle: #6d7889;
+  /* Подписи в 11 px читают так же, как основной текст, поэтому и контраст
+     им нужен тот же — 4.5:1 на любой поверхности. Прежние значения давали
+     3.4 в тёмной теме и 2.9 в светлой: мелкий серый на сером. */
+  --color-content-subtle: #8591a3;
   --color-accent: #5b7cfa;
   --color-accent-strong: #4361e8;
   --color-accent-content: #8fa5fb;
@@ -36,13 +39,13 @@
   --color-line-strong: #c5cedd;
   --color-content: #16202f;
   --color-content-muted: #5a6779;
-  --color-content-subtle: #838f9f;
+  --color-content-subtle: #5f6b7f;
   --color-accent: #4361e8;
   --color-accent-strong: #3350d6;
   --color-accent-content: #3350d6;
-  --color-positive: #0f9d70;
-  --color-caution: #b45309;
-  --color-negative: #dc2626;
+  --color-positive: #0a7352;
+  --color-caution: #a04706;
+  --color-negative: #c81e1e;
 }
 
 @layer base {

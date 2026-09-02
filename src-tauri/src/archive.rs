@@ -94,8 +94,9 @@ fn collect(dir: &Path, prefix: &str, output: &Path, files: &mut Vec<(PathBuf, St
         if path == output {
             continue;
         }
-        // Резервные копии — наши собственные, шине они не нужны.
-        if name.ends_with(".bak") || name.contains(".bak.") {
+        // Резервные копии — наши собственные, шине они не нужны. Как и
+        // обрывки недописанных файлов, если запись сорвалась на полпути.
+        if name.ends_with(".bak") || name.contains(".bak.") || (name.starts_with('.') && name.contains(".tmp-")) {
             *skipped += 1;
             continue;
         }
@@ -181,8 +182,16 @@ pub fn create_archive<F: FnMut(ArchiveProgress)>(
     if files.is_empty() {
         return Err("Nothing to archive".into());
     }
+    // Просили конкретные домены, а не нашли ни одного — список из другой
+    // выгрузки. Собрать «успешно» архив из одного файла version было бы ложью.
+    if only.is_some() && packed_domains == 0 {
+        return Err("None of the selected domains were found in this export".into());
+    }
 
-    let target = File::create(output).map_err(|err| format!("cannot create archive: {err}"))?;
+    // Пишем рядом и переименовываем в конце: сорвавшаяся сборка иначе
+    // оставляла обрезанный zip на месте прежнего архива с тем же именем.
+    let partial = output.with_extension("zip.part");
+    let target = File::create(&partial).map_err(|err| format!("cannot create archive: {err}"))?;
     let mut zip = ZipWriter::new(BufWriter::new(target));
     let options = SimpleFileOptions::default()
         .compression_method(CompressionMethod::Deflated)
@@ -208,6 +217,8 @@ pub fn create_archive<F: FnMut(ArchiveProgress)>(
 
     let mut buffered = zip.finish().map_err(|err| format!("cannot finish archive: {err}"))?;
     buffered.flush().map_err(|err| format!("cannot flush archive: {err}"))?;
+    drop(buffered);
+    fs::rename(&partial, output).map_err(|err| format!("cannot finish archive: {err}"))?;
 
     let bytes = fs::metadata(output).map(|meta| meta.len()).unwrap_or(0);
     Ok(ArchiveResult {
@@ -256,7 +267,6 @@ pub fn extract_archive<F: FnMut(ArchiveProgress)>(
     }
 
     let workspace = workspace_root();
-    let _ = fs::remove_dir_all(&workspace);
     let stem = archive.file_stem().map(|s| s.to_string_lossy().to_string()).unwrap_or_else(|| "config".into());
     let unique = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -270,7 +280,14 @@ pub fn extract_archive<F: FnMut(ArchiveProgress)>(
         let mut entry = zip.by_index(index).map_err(|err| err.to_string())?;
         // enclosed_name отсекает `..` и абсолютные пути — архив не должен писать мимо папки.
         let Some(relative) = entry.enclosed_name() else { continue };
-        let target = root.join(relative);
+        // Архив, собранный на Windows, может нести обратные косые в именах:
+        // на macOS это один компонент пути, и `domains\X\domain.xml` ложился
+        // одним файлом в корень. Разбираем имя по обоим видам косых.
+        let target = relative
+            .to_string_lossy()
+            .split(['/', '\\'])
+            .filter(|part| !part.is_empty() && *part != "..")
+            .fold(root.clone(), |acc, part| acc.join(part));
 
         if entry.is_dir() {
             fs::create_dir_all(&target).map_err(|err| format!("{}: {err}", target.display()))?;
@@ -286,6 +303,17 @@ pub fn extract_archive<F: FnMut(ArchiveProgress)>(
 
         if index % 200 == 0 || index + 1 == total {
             on_progress(ArchiveProgress { current: index + 1, total });
+        }
+    }
+
+    // Прежние распаковки убираются только теперь: сносить их до начала
+    // значило лишать человека открытых файлов, если эта распаковка сорвётся.
+    if let Ok(entries) = fs::read_dir(&workspace) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path != root && path.is_dir() {
+                let _ = fs::remove_dir_all(&path);
+            }
         }
     }
 

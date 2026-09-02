@@ -293,8 +293,7 @@ export function CertificatesScreen({ connection, server, onGoToConnection }: Pro
               </tr>
             ))}
             {visible.length === 0 && (
-              <TableMessage colSpan={COLUMNS.length}>
-                {loading ? t('empty.scanning') : t('certificates.nothing')}
+              <TableMessage colSpan={COLUMNS.length} busy={loading}>{loading ? t('empty.scanning') : t('certificates.nothing')}
               </TableMessage>
             )}
           </tbody>

@@ -620,7 +620,7 @@ function LinkChip({ neighbours, onOpen, t }: {
         onOpen(first.path)
       }}
       className={cx(
-        'mt-1 flex items-center gap-1 truncate rounded bg-accent/12 px-1 text-[9.5px] text-accent-content',
+        'mt-1 flex items-center gap-1 truncate rounded bg-accent/12 px-1 text-[10px] text-accent-content',
         onOpen && 'cursor-pointer hover:bg-accent/25',
       )}
     >
@@ -753,7 +753,7 @@ function BoxView({ box, selected, onSelect, neighbours, onOpenRoute, t }: {
           selected ? 'ring-2 ring-accent' : 'hover:border-content-subtle',
         )}
       >
-        <span className="text-[9.5px] uppercase tracking-wide text-content-subtle">{kindLabel(node.kind, t)}</span>
+        <span className="text-[10px] uppercase tracking-wide text-content-subtle">{kindLabel(node.kind, t)}</span>
         <span className="truncate font-mono text-[11px] text-content">{condition}</span>
       </button>
     )
@@ -783,7 +783,7 @@ function BoxView({ box, selected, onSelect, neighbours, onOpenRoute, t }: {
           {kindLabel(node.kind, t)}
         </span>
         {adapter && (
-          <span className="shrink-0 rounded bg-surface-2 px-1 font-mono text-[9.5px] text-content-subtle">{adapter}</span>
+          <span className="shrink-0 rounded bg-surface-2 px-1 font-mono text-[10px] text-content-subtle">{adapter}</span>
         )}
       </span>
       {/*

@@ -93,6 +93,8 @@ export const ru: Record<keyof typeof en, string> = {
   'job.api.verify': 'Сверка с сервером',
   'job.eta.seconds': '≈ {count} с',
   'job.eta.minutes': '≈ {count} мин',
+  'scan.failed': 'Не удалось прочитать конфигурацию',
+  'endpoints.history.failed': 'Отчёт на экране, но в историю не записался',
   'empty.unpacking': 'Распаковка архива…',
   'empty.scanning': 'Сканирование…',
   'empty.progress.walk': 'Просмотрено каталогов: {visited}, найдено доменов: {found}',
