@@ -4,6 +4,7 @@ import {
   History, Search, Trash2, RotateCcw, FileText, Tag, Download, Inbox, Mail,
   MessageSquare, X, GitCompare,
 } from "lucide-react";
+import { useAmqpText } from "../../i18n";
 import { HistoryEntry } from "../../types";
 import CollapsibleSection from "../CollapsibleSection";
 import PropsList from "../PropsList";
@@ -25,6 +26,7 @@ interface Props {
 }
 
 export default function HistoryView({ refreshVersion, onLog, onResend }: Props) {
+  const t = useAmqpText();
   const [entries,    setEntries]    = useState<HistoryEntry[]>([]);
   const [search,     setSearch]     = useState("");
   const [loading,    setLoading]    = useState(false);
@@ -53,7 +55,7 @@ export default function HistoryView({ refreshVersion, onLog, onResend }: Props) 
       await invoke("clear_history");
       setEntries([]);
       setSelectedId(null);
-      onLog("info", "History cleared");
+      onLog("info", t("history.cleared"));
       setConfirmClear(false);
     } catch (e) {
       onLog("err", String(e));
@@ -125,13 +127,13 @@ export default function HistoryView({ refreshVersion, onLog, onResend }: Props) 
       {/* ─── TOP BAR ─── */}
       <ViewTopBar
         icon={<History className="w-3.5 h-3.5" />}
-        title="Message History"
-        count={filtered.length === entries.length ? `${entries.length} sent` : `${filtered.length} / ${entries.length}`}
+        title={t("history.title")}
+        count={filtered.length === entries.length ? t("history.count", { count: entries.length }) : `${filtered.length} / ${entries.length}`}
       >
         <button onClick={load}
           className="px-2 py-1 rounded text-[11px] font-medium text-t-ink4 hover:text-blue-500 hover:bg-blue-500/10 transition-colors flex items-center gap-1"
-          title="Refresh">
-          <RotateCcw className={`w-3 h-3 ${loading ? "animate-spin" : ""}`} /> Refresh
+          title={t("history.refresh")}>
+          <RotateCcw className={`w-3 h-3 ${loading ? "animate-spin" : ""}`} /> {t("history.refresh")}
         </button>
         <button onClick={() => exportAs("json")} disabled={entries.length === 0}
           className="px-2 py-1 rounded text-[11px] font-medium text-t-ink4 hover:text-t-ink hover:bg-t-hover transition-colors disabled:opacity-40 disabled:hover:text-t-ink4 disabled:hover:bg-transparent flex items-center gap-1">
@@ -143,21 +145,14 @@ export default function HistoryView({ refreshVersion, onLog, onResend }: Props) 
         </button>
         <button onClick={() => setConfirmClear(true)} disabled={entries.length === 0}
           className="px-2 py-1 rounded text-[11px] font-medium text-t-ink4 hover:text-red-500 hover:bg-red-500/10 transition-colors disabled:opacity-40 disabled:hover:text-t-ink4 disabled:hover:bg-transparent flex items-center gap-1">
-          <Trash2 className="w-3 h-3" /> Clear
+          <Trash2 className="w-3 h-3" /> {t("history.clear.short")}
         </button>
       </ViewTopBar>
 
       <ConfirmDialog
         open={confirmClear}
-        title="Clear send history"
-        body={
-          <p>
-            Permanently delete{" "}
-            <span className="font-mono font-bold text-t-ink">{entries.length.toLocaleString()}</span>{" "}
-            history entr{entries.length === 1 ? "y" : "ies"} from <code className="text-t-ink4">~/.amqpush/history.json</code>?
-            This cannot be undone — resending past messages will no longer be possible.
-          </p>
-        }
+        title={t("history.clear")}
+        body={<p>{t("history.clear.body", { count: entries.length.toLocaleString() })}</p>}
         confirmLabel={`Delete ${entries.length.toLocaleString()} entr${entries.length === 1 ? "y" : "ies"}`}
         busy={clearing}
         busyLabel="Deleting…"
@@ -169,7 +164,7 @@ export default function HistoryView({ refreshVersion, onLog, onResend }: Props) 
       {entries.length > 0 && (
         <div className="shrink-0 px-3 py-1 border-b border-t-line bg-t-panel flex items-center gap-2">
           <Search className="w-3.5 h-3.5 text-t-ink5 shrink-0" />
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Filter by ID, profile, queue, or body…"
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder={t("history.search")}
             className="flex-1 bg-transparent text-xs text-t-ink outline-none placeholder:text-t-ink5" />
           {search && (
             <button onClick={() => setSearch("")} className="text-t-ink5 hover:text-t-ink3 transition-colors">
@@ -190,8 +185,8 @@ export default function HistoryView({ refreshVersion, onLog, onResend }: Props) 
           {filtered.length === 0 ? (
             <EmptyState
               icon={<History className="w-8 h-8" />}
-              title={search ? "No matching entries" : "No sent messages yet"}
-              subtitle={search ? undefined : "Messages you send will appear here"}
+              title={search ? t("history.nothing") : t("history.empty")}
+              subtitle={search ? undefined : t("history.empty.hint")}
             />
           ) : (
             <div className="flex-1 overflow-y-auto">
@@ -218,7 +213,7 @@ export default function HistoryView({ refreshVersion, onLog, onResend }: Props) 
           <div className="flex-1 min-w-0 flex flex-col min-h-0 overflow-hidden">
             <EmptyState
               icon={<Inbox className="w-8 h-8" />}
-              title="Select a message to preview"
+              title={t("history.pick")}
             />
           </div>
         )}
@@ -283,6 +278,7 @@ function PreviewPane({ entry, entries, onResend, onLog, onClose }: {
   onLog: (k: "info" | "ok" | "err", t: string) => void;
   onClose: () => void;
 }) {
+  const t = useAmqpText();
   const [diffPeer, setDiffPeer] = useState<HistoryEntry | null>(null);
 
   // The most recent text-body entry sent to the same queue strictly
@@ -356,41 +352,41 @@ function PreviewPane({ entry, entries, onResend, onLog, onClose }: {
             <>
               <button
                 onClick={() => onResend({ address: entry.address, body: bodyText, properties: entry.properties })}
-                title="Resend this message"
+                title={t("history.resend.message")}
                 className="flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium text-blue-500 hover:bg-blue-500/10 transition-colors"
               >
-                <RotateCcw className="w-3 h-3" /> Resend
+                <RotateCcw className="w-3 h-3" /> {t("history.resend")}
               </button>
               <button
                 onClick={() => previousToSameQueue && setDiffPeer(previousToSameQueue)}
                 disabled={!previousToSameQueue}
                 title={previousToSameQueue
-                  ? `Compare body with the previous send to '${entry.address}' (${previousToSameQueue.timestamp})`
-                  : "No earlier send to this queue to compare against"}
+                  ? t("history.compare.with", { queue: entry.address, time: previousToSameQueue.timestamp })
+                  : t("history.compare.none")}
                 className="flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium text-t-ink4 hover:text-t-ink hover:bg-t-hover transition-colors disabled:opacity-40 disabled:hover:text-t-ink4 disabled:hover:bg-transparent"
               >
-                <GitCompare className="w-3 h-3" /> Compare
+                <GitCompare className="w-3 h-3" /> {t("history.compare")}
               </button>
               <CopyButton
                 value={bodyText}
-                onCopied={() => onLog("info", "Body copied")}
-                label="Copy"
-                title="Copy body"
+                onCopied={() => onLog("info", t("history.copied"))}
+                label={t("history.copy")}
+                title={t("history.copy.body")}
                 className="flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium text-t-ink4 hover:text-t-ink hover:bg-t-hover transition-colors"
               />
             </>
           ) : entry.file_data_b64 ? (
             <button
               onClick={() => onResend({ address: entry.address, fileName: entry.file_name ?? "file", fileDataB64: entry.file_data_b64!, properties: entry.properties })}
-              title="Resend this file"
+              title={t("history.resend.file")}
               className="flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium text-blue-500 hover:bg-blue-500/10 transition-colors"
             >
-              <RotateCcw className="w-3 h-3" /> Resend
+              <RotateCcw className="w-3 h-3" /> {t("history.resend")}
             </button>
           ) : null}
           <button
             onClick={onClose}
-            title="Close preview"
+            title={t("history.close")}
             className="p-1 rounded text-t-ink4 hover:text-t-ink hover:bg-t-hover transition-colors"
           >
             <X className="w-3 h-3" />
@@ -412,13 +408,13 @@ function PreviewPane({ entry, entries, onResend, onLog, onClose }: {
           )}
           {entry.is_file && (
             <span className={`font-mono ${entry.file_data_b64 ? "text-green-500" : "text-t-ink5"}`}>
-              {entry.file_data_b64 ? "stored" : "content not retained"}
+              {entry.file_data_b64 ? t("history.stored") : t("history.notStored")}
             </span>
           )}
         </div>
 
         <CollapsibleSection
-          title="Properties"
+          title={t("history.props")}
           icon={<Tag className="w-3 h-3" />}
           open={propsOpen}
           onToggle={() => setPropsOpen(o => !o)}
@@ -434,7 +430,7 @@ function PreviewPane({ entry, entries, onResend, onLog, onClose }: {
 
         {autoEntries.length > 0 && (
           <CollapsibleSection
-            title={`Auto-set headers (${autoEntries.length})`}
+            title={t("history.props.auto", { count: autoEntries.length })}
             icon={<Tag className="w-3 h-3" />}
             open={autoOpen}
             onToggle={() => setAutoOpen(o => !o)}
@@ -444,20 +440,20 @@ function PreviewPane({ entry, entries, onResend, onLog, onClose }: {
         )}
 
         <CollapsibleSection
-          title={`Custom properties (${Object.keys(entry.properties).length})`}
+          title={t("history.props.custom", { count: Object.keys(entry.properties).length })}
           icon={<Tag className="w-3 h-3" />}
           open={customOpen}
           onToggle={() => setCustomOpen(o => !o)}
         >
           {hasProps
             ? <PropsList onLog={onLog} items={Object.entries(entry.properties)} />
-            : <p className="text-[11px] text-t-ink5">— none —</p>
+            : <p className="text-[11px] text-t-ink5">{t("history.props.none")}</p>
           }
         </CollapsibleSection>
 
         {!entry.is_file && (
           <CollapsibleSection
-            title="Body"
+            title={t("history.body")}
             icon={<MessageSquare className="w-3 h-3" />}
             open={bodyOpen}
             onToggle={() => setBodyOpen(o => !o)}
@@ -472,8 +468,8 @@ function PreviewPane({ entry, entries, onResend, onLog, onClose }: {
                         bodyMode === m ? "bg-blue-500/15 text-blue-500" : "text-t-ink4 hover:text-t-ink2 hover:bg-t-hover"
                       }`}
                       title={
-                        m === "auto" ? `Auto (${detected})` :
-                        m === "raw"  ? "Raw text" : "Hex dump"
+                        m === "auto" ? t("history.body.auto", { kind: detected }) :
+                        m === "raw"  ? t("history.body.raw") : t("history.body.hex")
                       }
                     >
                       {m === "auto" ? "Auto" : m === "raw" ? "Raw" : "Hex"}
@@ -483,8 +479,8 @@ function PreviewPane({ entry, entries, onResend, onLog, onClose }: {
                 {bodyText && (
                   <CopyButton
                     value={bodyText}
-                    onCopied={() => onLog("info", "Body copied")}
-                    label="Copy"
+                    onCopied={() => onLog("info", t("history.copied"))}
+                    label={t("history.copy")}
                     className="flex items-center gap-1 text-[10px] text-t-ink4 hover:text-t-ink2 transition-colors px-1.5 py-0.5 rounded hover:bg-t-hover"
                   />
                 )}
@@ -492,7 +488,7 @@ function PreviewPane({ entry, entries, onResend, onLog, onClose }: {
             }
           >
             <pre className="text-[11px] text-t-ink2 font-mono bg-t-field border border-t-line rounded-md p-2.5 overflow-x-auto whitespace-pre break-all max-h-80 overflow-y-auto select-text">
-              {bodyContent ?? <em className="text-t-ink5">no body</em>}
+              {bodyContent ?? <em className="text-t-ink5">{t("history.body.none")}</em>}
             </pre>
           </CollapsibleSection>
         )}
@@ -523,6 +519,7 @@ function HistoryDiffModal({ left, right, onClose }: {
   right: HistoryEntry;
   onClose: () => void;
 }) {
+  const t = useAmqpText();
   // Format each body by its likely subtype before diffing — same trick as
   // Receive's diff modal. Avoids spurious "everything changed" when JSON is
   // re-serialized with different whitespace.
@@ -552,9 +549,9 @@ function HistoryDiffModal({ left, right, onClose }: {
 
         <div className="shrink-0 px-4 py-2.5 border-b border-t-line bg-t-panel flex items-center gap-2">
           <GitCompare className="w-3.5 h-3.5 text-t-ink4" />
-          <span className="text-[13px] font-semibold text-t-ink">Compare body</span>
+          <span className="text-[13px] font-semibold text-t-ink">{t("history.diff.title")}</span>
           <span className="text-[11px] text-t-ink5">
-            — {diffCount} line{diffCount !== 1 ? "s" : ""} differ
+            {t("history.diff.count", { count: diffCount })}
           </span>
           <button onClick={onClose} className="ml-auto p-1 rounded hover:bg-t-hover text-t-ink4 hover:text-t-ink">
             <X className="w-3.5 h-3.5" />
@@ -565,7 +562,7 @@ function HistoryDiffModal({ left, right, onClose }: {
         <div className="shrink-0 grid grid-cols-2 gap-px bg-t-line border-b border-t-line">
           <div className="bg-t-panel px-3 py-1.5">
             <div className="flex items-center gap-2">
-              <span className="text-[10px] uppercase tracking-wider text-blue-500 font-bold">Earlier</span>
+              <span className="text-[10px] uppercase tracking-wider text-blue-500 font-bold">{t("history.diff.left")}</span>
               <span className="text-[11px] font-mono text-t-ink2 truncate">{left.id}</span>
             </div>
             <div className="flex items-center gap-2 mt-0.5 text-[10px] text-t-ink5 font-mono">
@@ -575,7 +572,7 @@ function HistoryDiffModal({ left, right, onClose }: {
           </div>
           <div className="bg-t-panel px-3 py-1.5">
             <div className="flex items-center gap-2">
-              <span className="text-[10px] uppercase tracking-wider text-amber-500 font-bold">Selected</span>
+              <span className="text-[10px] uppercase tracking-wider text-amber-500 font-bold">{t("history.diff.right")}</span>
               <span className="text-[11px] font-mono text-t-ink2 truncate">{right.id}</span>
             </div>
             <div className="flex items-center gap-2 mt-0.5 text-[10px] text-t-ink5 font-mono">
@@ -617,9 +614,9 @@ function HistoryDiffModal({ left, right, onClose }: {
         </div>
 
         <div className="shrink-0 px-3 py-1.5 border-t border-t-line bg-t-panel flex items-center text-[10px] text-t-ink5">
-          <span>JSON / XML pretty-printed before diffing so structural changes align by line.</span>
+          <span>{t("history.diff.note")}</span>
           <span className="ml-auto flex items-center gap-1">
-            <kbd className="font-mono px-1 py-0.5 border border-t-line rounded">Esc</kbd> close
+            <kbd className="font-mono px-1 py-0.5 border border-t-line rounded">Esc</kbd> {t("history.diff.close")}
           </span>
         </div>
       </div>

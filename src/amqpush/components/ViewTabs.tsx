@@ -1,5 +1,6 @@
 import { BarChart2, History, Inbox, Network, Radar, Send, Settings2, Terminal } from "lucide-react";
 
+import { useAmqpText, type AmqpKey } from "../i18n";
 import { View } from "../types";
 
 interface Props {
@@ -15,18 +16,20 @@ interface Props {
  * бы как ошибка. Порядок и подписи те же, горячие клавиши те же — сменилось
  * только направление.
  */
-const ITEMS: { id: View; icon: React.ReactNode; label: string; kbd: string }[] = [
-  { id: "connection", icon: <Settings2 className="w-3.5 h-3.5" />, label: "Connection", kbd: "⌘1" },
-  { id: "publisher", icon: <Send className="w-3.5 h-3.5" />, label: "Send", kbd: "⌘2" },
-  { id: "subscriber", icon: <Inbox className="w-3.5 h-3.5" />, label: "Receive", kbd: "⌘3" },
-  { id: "browser", icon: <Radar className="w-3.5 h-3.5" />, label: "Browser", kbd: "⌘4" },
-  { id: "inspector", icon: <Network className="w-3.5 h-3.5" />, label: "Clients", kbd: "⌘5" },
-  { id: "history", icon: <History className="w-3.5 h-3.5" />, label: "History", kbd: "⌘6" },
-  { id: "stats", icon: <BarChart2 className="w-3.5 h-3.5" />, label: "Stats", kbd: "⌘7" },
-  { id: "console", icon: <Terminal className="w-3.5 h-3.5" />, label: "Logs", kbd: "⌘8" },
+const ITEMS: { id: View; icon: React.ReactNode; label: AmqpKey; kbd: string }[] = [
+  { id: "connection", icon: <Settings2 className="w-3.5 h-3.5" />, label: "tab.connection", kbd: "⌘1" },
+  { id: "publisher", icon: <Send className="w-3.5 h-3.5" />, label: "tab.publisher", kbd: "⌘2" },
+  { id: "subscriber", icon: <Inbox className="w-3.5 h-3.5" />, label: "tab.subscriber", kbd: "⌘3" },
+  { id: "browser", icon: <Radar className="w-3.5 h-3.5" />, label: "tab.browser", kbd: "⌘4" },
+  { id: "inspector", icon: <Network className="w-3.5 h-3.5" />, label: "tab.inspector", kbd: "⌘5" },
+  { id: "history", icon: <History className="w-3.5 h-3.5" />, label: "tab.history", kbd: "⌘6" },
+  { id: "stats", icon: <BarChart2 className="w-3.5 h-3.5" />, label: "tab.stats", kbd: "⌘7" },
+  { id: "console", icon: <Terminal className="w-3.5 h-3.5" />, label: "tab.console", kbd: "⌘8" },
 ];
 
 export default function ViewTabs({ active, onChange }: Props) {
+  const t = useAmqpText();
+
   return (
     <nav
       aria-label="AMQP"
@@ -34,12 +37,13 @@ export default function ViewTabs({ active, onChange }: Props) {
     >
       {ITEMS.map((item) => {
         const isActive = active === item.id;
+        const label = t(item.label);
         return (
           <button
             key={item.id}
             type="button"
             onClick={() => onChange(item.id)}
-            title={`${item.label}  ${item.kbd}`}
+            title={`${label}  ${item.kbd}`}
             aria-current={isActive ? "page" : undefined}
             className={`flex h-7 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md px-2.5 text-[12px] transition-colors ${
               isActive
@@ -48,7 +52,7 @@ export default function ViewTabs({ active, onChange }: Props) {
             }`}
           >
             <span className="flex w-3.5 shrink-0 items-center justify-center">{item.icon}</span>
-            {item.label}
+            {label}
           </button>
         );
       })}

@@ -3,6 +3,7 @@ import {
   CheckCircle, XCircle, Info, Trash2, Terminal, Search, X, Filter,
   Pause, Play, Calendar, Download, ChevronUp, ChevronDown, ArrowDownToLine,
 } from "lucide-react";
+import { useAmqpText, type AmqpKey } from "../../i18n";
 import { LogEntry } from "../../types";
 import ViewTopBar from "../ViewTopBar";
 import EmptyState from "../EmptyState";
@@ -22,20 +23,20 @@ type DatePreset  = "all" | "today" | "1h" | "24h" | "7d";
 type SortKey     = "time" | "level" | "message";
 type SortDir     = "asc" | "desc";
 
-const LEVEL_LABEL: Record<LogEntry["kind"], string> = {
-  ok:   "OK",
-  err:  "Err",
-  info: "Info",
+const LEVEL_LABEL: Record<LogEntry["kind"], AmqpKey> = {
+  ok:   "console.level.ok",
+  err:  "console.level.err",
+  info: "console.level.info",
 };
 
 const LEVEL_RANK: Record<LogEntry["kind"], number> = { err: 0, ok: 1, info: 2 };
 
-const DATE_PRESETS: { id: DatePreset; label: string }[] = [
-  { id: "all",   label: "All time" },
-  { id: "today", label: "Today" },
-  { id: "1h",    label: "Last hour" },
-  { id: "24h",   label: "Last 24 hours" },
-  { id: "7d",    label: "Last 7 days" },
+const DATE_PRESETS: { id: DatePreset; label: AmqpKey }[] = [
+  { id: "all",   label: "console.date.all" },
+  { id: "today", label: "console.date.today" },
+  { id: "1h",    label: "console.date.1h" },
+  { id: "24h",   label: "console.date.24h" },
+  { id: "7d",    label: "console.date.7d" },
 ];
 
 function pad(n: number, w = 2): string {
@@ -90,6 +91,7 @@ const LEVEL_TEXT_COLOR = {
 const COLS = "grid grid-cols-[170px_70px_1fr] gap-3 items-start";
 
 export default function ConsoleView({ logs, onClear }: Props) {
+  const t = useAmqpText();
   const bottomRef = useRef<HTMLDivElement>(null);
   const [confirmClear, setConfirmClear] = useState(false);
   const [search,     setSearch]     = useState("");
@@ -117,7 +119,7 @@ export default function ConsoleView({ logs, onClear }: Props) {
       if (!q) return true;
       const msgMatch  = e.text.toLowerCase().includes(q);
       const timeMatch = formatTimestamp(e.tsMs).toLowerCase().includes(q);
-      const levelMatch = LEVEL_LABEL[e.kind].toLowerCase().includes(q);
+      const levelMatch = t(LEVEL_LABEL[e.kind]).toLowerCase().includes(q);
       return msgMatch || timeMatch || levelMatch;
     });
 
@@ -184,14 +186,14 @@ export default function ConsoleView({ logs, onClear }: Props) {
   function exportCsv() {
     const header = "timestamp,level,message\n";
     const rows = filtered.map(e =>
-      [csvEscape(formatTimestamp(e.tsMs)), csvEscape(LEVEL_LABEL[e.kind]), csvEscape(e.text)].join(",")
+      [csvEscape(formatTimestamp(e.tsMs)), csvEscape(t(LEVEL_LABEL[e.kind])), csvEscape(e.text)].join(",")
     ).join("\n");
     downloadBlob(header + rows, "text/csv", "csv");
   }
 
   function exportPlain() {
     const lines = filtered.map(e =>
-      `${formatTimestamp(e.tsMs)}  [${LEVEL_LABEL[e.kind].toUpperCase()}]  ${e.text}`
+      `${formatTimestamp(e.tsMs)}  [${t(LEVEL_LABEL[e.kind]).toUpperCase()}]  ${e.text}`
     );
     downloadBlob(lines.join("\n") + "\n", "text/plain", "log");
   }
@@ -207,7 +209,7 @@ export default function ConsoleView({ logs, onClear }: Props) {
   }), [sourceLogs]);
 
   const filtersActive = !!search.trim() || level !== "all" || datePreset !== "all";
-  const presetLabel = DATE_PRESETS.find(p => p.id === datePreset)?.label ?? "All time";
+  const presetLabel = t(DATE_PRESETS.find(p => p.id === datePreset)?.label ?? "console.date.all");
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden min-h-0">
@@ -215,34 +217,33 @@ export default function ConsoleView({ logs, onClear }: Props) {
       {/* ─── TOP BAR ─── */}
       <ViewTopBar
         icon={<Terminal className="w-3.5 h-3.5" />}
-        title="System Logs"
+        title={t("console.title")}
         count={
           filtered.length === sourceLogs.length
-            ? `${sourceLogs.length} event${sourceLogs.length !== 1 ? "s" : ""}`
+            ? t("console.events", { count: sourceLogs.length })
             : `${filtered.length} / ${sourceLogs.length}`
         }
         status={paused
           ? <span className="flex items-center gap-1 text-[10px] text-amber-500 font-mono">
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-500" /> paused
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-500" /> {t("console.paused")}
             </span>
           : <span className="flex items-center gap-1 text-[10px] text-t-ink5 font-mono">
-              <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" /> live
+              <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" /> {t("console.live")}
             </span>}
       >
         <button
           onClick={togglePause}
           aria-pressed={paused}
-          title={paused
-            ? "Resume — keep showing new logs as they arrive"
-            : "Pause — freeze the table at its current state. New logs still get recorded; they just don't appear until you resume."
-          }
+          title={paused ? t("console.resume.hint") : t("console.pause.hint")}
           className={`flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium transition-colors ${
             paused
               ? "text-amber-500 bg-amber-500/10 hover:bg-amber-500/20"
               : "text-t-ink4 hover:text-t-ink hover:bg-t-hover"
           }`}
         >
-          {paused ? <><Play className="w-3 h-3" /> Resume</> : <><Pause className="w-3 h-3" /> Pause</>}
+          {paused
+            ? <><Play className="w-3 h-3" /> {t("console.resume")}</>
+            : <><Pause className="w-3 h-3" /> {t("console.pause")}</>}
         </button>
 
         <Dropdown
@@ -254,17 +255,17 @@ export default function ConsoleView({ logs, onClear }: Props) {
               onClick={toggle}
               aria-expanded={open}
               disabled={filtered.length === 0}
-              title="Export filtered logs"
+              title={t("console.export")}
               className="flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium text-t-ink4 hover:text-blue-500 hover:bg-blue-500/10 transition-colors disabled:opacity-40"
             >
-              <Download className="w-3 h-3" /> Export
+              <Download className="w-3 h-3" /> {t("console.export.short")}
               <ChevronDown className="w-3 h-3" />
             </button>
           )}
         >
           <DropdownItem onClick={exportJson}>JSON</DropdownItem>
           <DropdownItem onClick={exportCsv}>CSV</DropdownItem>
-          <DropdownItem onClick={exportPlain}>Plain text (.log)</DropdownItem>
+          <DropdownItem onClick={exportPlain}>{t("console.export.text")}</DropdownItem>
         </Dropdown>
 
         <button
@@ -272,23 +273,15 @@ export default function ConsoleView({ logs, onClear }: Props) {
           disabled={logs.length === 0}
           className="flex items-center gap-1.5 px-2 py-1 rounded text-[11px] font-medium text-t-ink4 hover:text-red-500 hover:bg-red-500/10 transition-colors disabled:opacity-40 disabled:hover:text-t-ink4 disabled:hover:bg-transparent"
         >
-          <Trash2 className="w-3 h-3" /> Clear
+          <Trash2 className="w-3 h-3" /> {t("console.clear.short")}
         </button>
       </ViewTopBar>
 
       <ConfirmDialog
         open={confirmClear}
-        title="Clear all logs"
-        body={
-          <p>
-            Permanently delete{" "}
-            <span className="font-mono font-bold text-t-ink">{logs.length.toLocaleString()}</span>{" "}
-            log entr{logs.length === 1 ? "y" : "ies"}?
-            This wipes the in-memory buffer <i>and</i> the persisted copy in <code className="text-t-ink4">localStorage</code> —
-            past activity won't be recoverable.
-          </p>
-        }
-        confirmLabel={`Delete ${logs.length.toLocaleString()} entr${logs.length === 1 ? "y" : "ies"}`}
+        title={t("console.clear")}
+        body={<p>{t("console.clear.body", { count: logs.length.toLocaleString() })}</p>}
+        confirmLabel={t("console.clear.confirm", { count: logs.length.toLocaleString() })}
         onConfirm={() => { onClear(); setConfirmClear(false); }}
         onCancel={() => setConfirmClear(false)}
       />
@@ -299,11 +292,11 @@ export default function ConsoleView({ logs, onClear }: Props) {
         <input
           value={search}
           onChange={e => setSearch(e.target.value)}
-          placeholder="Search logs by message, time or level…"
+          placeholder={t("console.search")}
           className="flex-1 bg-transparent text-xs text-t-ink outline-none placeholder:text-t-ink5"
         />
         {search && (
-          <button onClick={() => setSearch("")} className="text-t-ink5 hover:text-t-ink3 transition-colors" title="Clear search">
+          <button onClick={() => setSearch("")} className="text-t-ink5 hover:text-t-ink3 transition-colors" title={t("console.search.clear")}>
             <X className="w-3 h-3" />
           </button>
         )}
@@ -314,10 +307,10 @@ export default function ConsoleView({ logs, onClear }: Props) {
           value={level}
           onChange={setLevel}
           options={[
-            { value: "all",  label: <span className="inline-flex items-center gap-1">All  {counts.all  > 0 && <span className="text-t-ink5 normal-case font-mono">{counts.all}</span>}</span> },
-            { value: "ok",   label: <span className="inline-flex items-center gap-1">OK   {counts.ok   > 0 && <span className="text-t-ink5 normal-case font-mono">{counts.ok}</span>}</span> },
-            { value: "info", label: <span className="inline-flex items-center gap-1">Info {counts.info > 0 && <span className="text-t-ink5 normal-case font-mono">{counts.info}</span>}</span> },
-            { value: "err",  label: <span className="inline-flex items-center gap-1">Err  {counts.err  > 0 && <span className="text-t-ink5 normal-case font-mono">{counts.err}</span>}</span> },
+            { value: "all",  label: <span className="inline-flex items-center gap-1">{t("console.filter.all")}  {counts.all  > 0 && <span className="text-t-ink5 normal-case font-mono">{counts.all}</span>}</span> },
+            { value: "ok",   label: <span className="inline-flex items-center gap-1">{t("console.level.ok")}   {counts.ok   > 0 && <span className="text-t-ink5 normal-case font-mono">{counts.ok}</span>}</span> },
+            { value: "info", label: <span className="inline-flex items-center gap-1">{t("console.level.info")} {counts.info > 0 && <span className="text-t-ink5 normal-case font-mono">{counts.info}</span>}</span> },
+            { value: "err",  label: <span className="inline-flex items-center gap-1">{t("console.level.err")}  {counts.err  > 0 && <span className="text-t-ink5 normal-case font-mono">{counts.err}</span>}</span> },
           ]}
         />
 
@@ -330,7 +323,7 @@ export default function ConsoleView({ logs, onClear }: Props) {
               type="button"
               onClick={toggle}
               aria-expanded={open}
-              title="Filter by date range"
+              title={t("console.date.filter")}
               className={`flex items-center gap-1 text-[11px] transition-colors px-1.5 py-0.5 rounded shrink-0 ${
                 datePreset !== "all" ? "text-blue-500 bg-blue-500/10" : "text-t-ink4 hover:text-t-ink3"
               }`}
@@ -346,7 +339,7 @@ export default function ConsoleView({ logs, onClear }: Props) {
               active={p.id === datePreset}
               onClick={() => setDatePreset(p.id)}
             >
-              {p.label}
+              {t(p.label)}
             </DropdownItem>
           ))}
         </Dropdown>
@@ -361,22 +354,19 @@ export default function ConsoleView({ logs, onClear }: Props) {
           className={`flex items-center gap-1 text-[11px] transition-colors px-1.5 py-0.5 rounded shrink-0 ${
             autoScroll ? "text-blue-500 bg-blue-500/10" : "text-t-ink4 hover:text-t-ink3"
           }`}
-          title={autoScroll
-            ? "Follow on — viewport scrolls to the newest log. Click to keep your scroll position when new logs arrive."
-            : "Follow off — your scroll position stays put when new logs arrive. Click to follow newest again."
-          }
+          title={autoScroll ? t("console.follow.on") : t("console.follow.off")}
         >
           <ArrowDownToLine className="w-3 h-3" />
-          Follow
+          {t("console.follow")}
         </button>
       </div>
 
       {/* ─── TABLE HEADER (sortable) ─── */}
       {sourceLogs.length > 0 && (
         <div className={`${COLS} shrink-0 px-3 py-1.5 border-b border-t-line bg-t-panel sticky top-0 z-10`}>
-          <SortableHeader label="Time"    col="time"    current={sortKey} dir={sortDir} onClick={toggleSort} />
-          <SortableHeader label="Level"   col="level"   current={sortKey} dir={sortDir} onClick={toggleSort} />
-          <SortableHeader label="Message" col="message" current={sortKey} dir={sortDir} onClick={toggleSort} />
+          <SortableHeader label={t("console.column.time")}    col="time"    current={sortKey} dir={sortDir} onClick={toggleSort} />
+          <SortableHeader label={t("console.column.level")}   col="level"   current={sortKey} dir={sortDir} onClick={toggleSort} />
+          <SortableHeader label={t("console.column.message")} col="message" current={sortKey} dir={sortDir} onClick={toggleSort} />
         </div>
       )}
 
@@ -385,13 +375,13 @@ export default function ConsoleView({ logs, onClear }: Props) {
         {sourceLogs.length === 0 ? (
           <EmptyState
             icon={<Terminal className="w-8 h-8" />}
-            title="No events yet"
-            subtitle="Application logs will appear here"
+            title={t("console.empty")}
+            subtitle={t("console.empty.hint")}
           />
         ) : filtered.length === 0 ? (
           <EmptyState
             icon={<Filter className="w-8 h-8" />}
-            title="No logs match the active filters"
+            title={t("console.nothing")}
             action={filtersActive && (
               <button onClick={resetFilters}
                 className="text-[11px] text-blue-500 hover:text-blue-400 transition-colors">
@@ -414,7 +404,7 @@ export default function ConsoleView({ logs, onClear }: Props) {
                 </span>
                 <span className={`flex items-center gap-1 ${LEVEL_TEXT_COLOR[entry.kind]}`}>
                   {LEVEL_ICONS[entry.kind]}
-                  <span>{LEVEL_LABEL[entry.kind]}</span>
+                  <span>{t(LEVEL_LABEL[entry.kind])}</span>
                 </span>
                 <span className={`${LEVEL_TEXT_COLOR[entry.kind]} break-all whitespace-pre-wrap leading-5`}>
                   {entry.text}

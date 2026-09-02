@@ -13,6 +13,7 @@ import Dropdown, { DropdownItem, DropdownSection, DropdownFooter } from "./compo
 import CommandPalette, { PaletteAction } from "./components/CommandPalette";
 import HelpModal from "./components/HelpModal";
 import ConfirmDialog from "./components/ConfirmDialog";
+import { useAmqpText } from "./i18n";
 import { LogEntry, View, Profile } from "./types";
 import { invoke } from "@tauri-apps/api/core";
 import "./amqpush.css";
@@ -71,6 +72,7 @@ function helpSectionFor(view: View, pubTab: string): string {
  * Тему, заголовок окна и обновления раздел не трогает: этим занят хозяин.
  */
 export function AmqpushScreen() {
+  const t = useAmqpText();
 
   const [view,           setView]           = useState<View>("publisher");
   const [prevView,       setPrevView]       = useState<View>("publisher");
@@ -470,19 +472,19 @@ export function AmqpushScreen() {
                 type="button"
                 onClick={toggle}
                 aria-expanded={open}
-                aria-label="Switch broker profile"
+                aria-label={t("shell.profile.switch")}
                 className="flex items-center gap-1.5 px-2 py-1 rounded-md text-t-ink3 hover:text-t-ink hover:bg-t-hover transition-colors text-[12px] border border-t-line"
-                title="Switch broker profile"
+                title={t("shell.profile.switch")}
               >
                 <User className="w-3 h-3 text-t-ink4" />
-                <span className="font-medium">{activeProfile || <span className="italic text-t-ink5">no profile</span>}</span>
+                <span className="font-medium">{activeProfile || <span className="italic text-t-ink5">{t("shell.profile.none")}</span>}</span>
                 <ChevronDown className="w-3 h-3 text-t-ink4" />
               </button>
             )}
           >
             {profiles.length === 0 ? (
-              <DropdownSection title="Broker profile">
-                <p className="text-[11px] text-t-ink5 text-center py-3">No saved profiles</p>
+              <DropdownSection title={t("shell.profile.section")}>
+                <p className="text-[11px] text-t-ink5 text-center py-3">{t("shell.profile.empty")}</p>
               </DropdownSection>
             ) : (
               // Group profiles by workspace. Stable workspace order: alphabetical,
@@ -533,7 +535,7 @@ export function AmqpushScreen() {
           <div className="flex items-center gap-1.5 px-2">
             <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${connected ? "bg-green-500" : "bg-t-ink5"}`} />
             <span className={`text-[11px] font-medium hidden sm:inline ${connected ? "text-green-500" : "text-t-ink4"}`}>
-              {connected ? "Connected" : "Not connected"}
+              {connected ? t("shell.connected") : t("shell.disconnected")}
             </span>
             {connected && brokerLatencyMs !== null && (
               <span
@@ -542,7 +544,7 @@ export function AmqpushScreen() {
                   : brokerLatencyMs < 500 ? "text-amber-500"
                   : "text-red-500"
                 }`}
-                title={`Broker round-trip latency (refreshed every 5 s)`}
+                title={t("shell.latency.hint")}
               >
                 {brokerLatencyMs}ms
               </span>
@@ -561,7 +563,7 @@ export function AmqpushScreen() {
           {view !== "console" && (
             <button
               onClick={() => changeView("console")}
-              title={`Logs — ${logs.length} event${logs.length !== 1 ? "s" : ""}  ⌘L`}
+              title={`${t("shell.logs")} — ${t("shell.logs.count", { count: logs.length })}  ⌘L`}
               className={`flex items-center gap-1.5 px-2 py-1 rounded-md transition-colors text-[11px] border ${
                 lastLog?.kind === "err"
                   ? "border-red-500/30 text-red-500 hover:bg-red-500/10"
@@ -569,7 +571,7 @@ export function AmqpushScreen() {
               }`}
             >
               <Terminal className="w-3 h-3" />
-              <span>Logs</span>
+              <span>{t("shell.logs")}</span>
               {logs.length > 0 && (
                 <>
                   <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${logDotColor}`} />
@@ -583,12 +585,12 @@ export function AmqpushScreen() {
           <button
             type="button"
             onClick={() => setShowHelp(true)}
-            title="Help — open the in-app guide  (?)"
-            aria-label="Help"
+            title={t("shell.help.hint")}
+            aria-label={t("shell.help")}
             className="flex items-center gap-1.5 px-2 py-1 rounded-md text-t-ink4 hover:text-t-ink hover:bg-t-hover transition-colors text-[12px]"
           >
             <HelpCircle className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Help</span>
+            <span className="hidden sm:inline">{t("shell.help")}</span>
           </button>
 
         </div>
@@ -694,7 +696,7 @@ export function AmqpushScreen() {
       {/* ─── CLEAR-LOGS CONFIRM (Cmd+K route) ─── */}
       <ConfirmDialog
         open={confirmClearLogs}
-        title="Clear all logs"
+        title={t("shell.logs.clear")}
         body={
           <p>
             Permanently delete{" "}
