@@ -445,14 +445,27 @@ async fn api_properties(connection: Connection, scope: PropertyScope) -> Result<
     fesb_ops::properties(&connection, scope).await
 }
 
+/// Константы всех уровней разом — чтобы искать по значению на всём стенде.
+#[tauri::command]
+async fn api_properties_sweep(
+    app: AppHandle,
+    connection: Connection,
+) -> Result<Vec<fesb_ops::SweepRow>, String> {
+    fesb_ops::properties_sweep(&connection, |progress| {
+        let _ = app.emit(API_PROGRESS_EVENT, progress);
+    })
+    .await
+}
+
 #[tauri::command]
 async fn api_save_property(
     connection: Connection,
     scope: PropertyScope,
     property: PropertyRow,
     create: bool,
+    comment: Option<String>,
 ) -> Result<(), String> {
-    fesb_ops::save_property(&connection, scope, property, create, None).await
+    fesb_ops::save_property(&connection, scope, property, create, comment).await
 }
 
 #[tauri::command]
@@ -529,6 +542,7 @@ pub fn run() {
             api_queue_message,
             api_queue_search,
             api_properties,
+            api_properties_sweep,
             api_save_property,
             api_delete_property,
             api_log_files,

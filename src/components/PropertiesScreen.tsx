@@ -2,12 +2,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 
 import { useI18n } from '../i18n'
-import { apiDomains, apiProperties, apiSaveProperty, errorText } from '../lib/api'
+import { apiDomains, apiProperties, apiPropertiesSweep, apiSaveProperty, errorText } from '../lib/api'
 import { humanizeKey } from '../lib/propertyName'
-import type { ApiDomain, Connection, PropertyRow, PropertyScope, ServerInfo } from '../types'
+import type { ApiDomain, Connection, PropertyRow, PropertyScope, ServerInfo, SweepRow } from '../types'
 import {
   ErrorBar, NotConnected, Panel, RefreshButton, ScreenBody, TableMessage, useApiData,
 } from './ApiShell'
+import { PropertiesBulk, plain, scopeOf } from './PropertiesBulk'
 import { Badge, Button, Checkbox, cx, DataTable, Modal, Notice, SearchInput, Segmented, Spinner, SuggestInput, TextInput, Th, THead } from './ui'
 
 interface Props {
@@ -16,7 +17,7 @@ interface Props {
   onGoToConnection: () => void
 }
 
-type ScopeId = 'application' | 'broker' | 'domain'
+type ScopeId = 'application' | 'broker' | 'domain' | 'all'
 
 const EMPTY: PropertyRow = { key: '', value: '', secured: false, vault: false, empty: false, description: '' }
 
@@ -37,6 +38,9 @@ export function PropertiesScreen({ connection, server, onGoToConnection }: Props
   const [saving, setSaving] = useState(false)
   /** Ключ константы, которая сейчас сохраняется: строка ждёт ответа. */
   const [pending, setPending] = useState<string | null>(null)
+  /** Что отмечено на весь стенд: ключ строки — уровень и имя константы. */
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [replacing, setReplacing] = useState(false)
 
   const loadDomains = useCallback((connection: Connection) => apiDomains(connection), [])
   const domains = useApiData<ApiDomain[]>(connection, loadDomains)
@@ -47,11 +51,20 @@ export function PropertiesScreen({ connection, server, onGoToConnection }: Props
     return domainGuid ? { domain: domainGuid } : null
   }, [scopeId, domainGuid])
 
-  const loadProperties = useCallback(
-    (connection: Connection) => (scope ? apiProperties(connection, scope) : Promise.resolve([])),
-    [scope],
-  )
-  const { data, loading, error, reload, setError } = useApiData<PropertyRow[]>(connection, loadProperties)
+  /**
+   * Строки всегда приходят в одном виде — со своим уровнем внутри.
+   *
+   * Так таблица, правка на месте и массовая замена работают одинаково
+   * и на одном уровне, и на всём стенде: строка сама знает, куда её писать.
+   */
+  const loadRows = useCallback(async (connection: Connection): Promise<SweepRow[]> => {
+    if (scopeId === 'all') return apiPropertiesSweep(connection)
+    if (!scope) return []
+    const rows = await apiProperties(connection, scope)
+    const level = scopeId === 'domain' ? domainGuid ?? '' : scopeId
+    return rows.map((row) => ({ ...row, scope: level, domain: null }))
+  }, [scopeId, scope, domainGuid])
+  const { data, loading, error, reload, setError } = useApiData<SweepRow[]>(connection, loadRows)
 
   const visible = useMemo(() => {
     const rows = data ?? []
@@ -60,8 +73,15 @@ export function PropertiesScreen({ connection, server, onGoToConnection }: Props
     return rows.filter((row) =>
       row.key.toLowerCase().includes(needle) ||
       (row.value ?? '').toLowerCase().includes(needle) ||
+      (row.domain ?? '').toLowerCase().includes(needle) ||
       (row.description ?? '').toLowerCase().includes(needle))
   }, [data, query])
+
+  const chosen = useMemo(() => visible.filter((row) => selected.has(rowKey(row))), [visible, selected])
+
+  // Смена уровня меняет и состав строк: отметки на прежнем списке
+  // означали бы правку не того, что видно.
+  useEffect(() => { setSelected(new Set()) }, [scopeId, domainGuid])
 
   const create = useCallback(async () => {
     if (!connection || !scope || !adding) return
@@ -84,24 +104,26 @@ export function PropertiesScreen({ connection, server, onGoToConnection }: Props
    * Диалог ради одного поля — лишний шаг: константы правят по одному значению
    * и сразу видят соседние. Строка сохраняется по Enter или уходу фокуса.
    */
-  const saveField = useCallback(async (row: PropertyRow, patch: Partial<PropertyRow>) => {
-    if (!connection || !scope) return
+  const saveField = useCallback(async (row: SweepRow, patch: Partial<PropertyRow>) => {
+    if (!connection) return
     setPending(row.key)
     setError(null)
     try {
-      await apiSaveProperty(connection, scope, { ...row, ...patch }, false)
+      await apiSaveProperty(connection, scopeOf(row), { ...plain(row), ...patch }, false)
       await reload()
     } catch (err) {
       setError(errorText(err))
     } finally {
       setPending(null)
     }
-  }, [connection, scope, reload, setError])
+  }, [connection, reload, setError])
 
   if (!connection || !server) return <NotConnected onGoToConnection={onGoToConnection} />
 
   const domainNames = (domains.data ?? []).map((domain) => domain.name)
   const selectedDomain = (domains.data ?? []).find((domain) => domain.guid === domainGuid)
+  const sweeping = scopeId === 'all'
+  const allVisibleSelected = visible.length > 0 && visible.every((row) => selected.has(rowKey(row)))
 
   return (
     <ScreenBody>
@@ -114,6 +136,7 @@ export function PropertiesScreen({ connection, server, onGoToConnection }: Props
             { id: 'application', label: t('properties.scope.application') },
             { id: 'broker', label: t('properties.scope.broker') },
             { id: 'domain', label: t('properties.scope.domain') },
+            { id: 'all', label: t('properties.scope.all') },
           ]}
         />
 
@@ -152,7 +175,7 @@ export function PropertiesScreen({ connection, server, onGoToConnection }: Props
         </Button>
         <RefreshButton
           busy={loading}
-          disabled={loading || !scope}
+          disabled={loading || (!scope && scopeId !== 'all')}
           onClick={() => void reload()}
         />
       </div>
@@ -162,6 +185,8 @@ export function PropertiesScreen({ connection, server, onGoToConnection }: Props
       <Panel className="flex-1">
         <DataTable>
           <colgroup>
+            {sweeping && <col className="w-9" />}
+            {sweeping && <col className="w-44" />}
             {/* Имя и значение делят остаток поровну: оба длинные, и жёсткая
                 ширина у имени на узком окне съедала значение целиком. */}
             <col />
@@ -169,13 +194,51 @@ export function PropertiesScreen({ connection, server, onGoToConnection }: Props
             <col className="w-56" />
           </colgroup>
           <THead>
+              {sweeping && (
+                <Th className="w-9">
+                  <Checkbox
+                    checked={allVisibleSelected}
+                    title={t('properties.selectAll')}
+                    onChange={(event) => setSelected(event.target.checked
+                      ? new Set(visible.map(rowKey))
+                      : new Set())}
+                  />
+                </Th>
+              )}
+              {sweeping && <Th>{t('properties.where')}</Th>}
               <Th>{t('properties.key')}</Th>
               <Th>{t('properties.value')}</Th>
               <Th>{t('properties.comment')}</Th>
             </THead>
           <tbody>
             {visible.map((property) => (
-              <tr key={property.key} className="border-b border-line/60 align-top hover:bg-surface-2">
+              <tr
+                key={rowKey(property)}
+                className={cx(
+                  'border-b border-line/60 align-top',
+                  selected.has(rowKey(property)) ? 'bg-accent/8' : 'hover:bg-surface-2',
+                )}
+              >
+                {sweeping && (
+                  <td className="px-3 py-2">
+                    <Checkbox
+                      checked={selected.has(rowKey(property))}
+                      onChange={(event) => setSelected((prev) => {
+                        const next = new Set(prev)
+                        if (event.target.checked) next.add(rowKey(property))
+                        else next.delete(rowKey(property))
+                        return next
+                      })}
+                    />
+                  </td>
+                )}
+                {sweeping && (
+                  <td className="px-3 py-1.5">
+                    <div className="truncate text-[12px]" title={property.domain ?? property.scope}>
+                      {property.domain ?? t(`properties.scope.${property.scope}` as 'properties.scope.broker')}
+                    </div>
+                  </td>
+                )}
                 <td className="px-3 py-1.5">
                   <div className="truncate text-[12.5px] font-medium" title={property.key}>
                     {humanizeKey(property.key, t)}
@@ -208,16 +271,44 @@ export function PropertiesScreen({ connection, server, onGoToConnection }: Props
               </tr>
             ))}
             {visible.length === 0 && (
-              <TableMessage colSpan={3} busy={loading}>
+              <TableMessage colSpan={sweeping ? 5 : 3} busy={loading}>
                 {loading ? t('empty.scanning')
                   : scopeId === 'domain' && !domainGuid
                     ? t('properties.pickDomain')
-                    : t('properties.empty')}
+                    : scopeId === 'all'
+                      ? t('properties.sweep.empty')
+                      : t('properties.empty')}
               </TableMessage>
             )}
           </tbody>
         </DataTable>
       </Panel>
+
+      {sweeping && (
+        <div className="flex flex-wrap items-center gap-2">
+          {chosen.length > 0 ? (
+            <>
+              <Badge tone="accent">{t('properties.selected', { count: chosen.length })}</Badge>
+              <Button size="sm" variant="primary" onClick={() => setReplacing(true)}>
+                {t('properties.replace')}
+              </Button>
+            </>
+          ) : (
+            <span className="text-[11.5px] text-content-subtle">{t('properties.scope.allHint')}</span>
+          )}
+        </div>
+      )}
+
+      {connection && (
+        <PropertiesBulk
+          open={replacing}
+          connection={connection}
+          rows={chosen}
+          initialFrom={query.trim()}
+          onClose={() => setReplacing(false)}
+          onDone={() => { setSelected(new Set()); void reload() }}
+        />
+      )}
 
       <Modal
         open={adding !== null}
@@ -358,4 +449,9 @@ function Field({ label, htmlFor, children }: { label: string; htmlFor: string; c
       {children}
     </div>
   )
+}
+
+/** Уровень плюс имя: константа с тем же именем живёт в каждом домене своя. */
+function rowKey(row: SweepRow): string {
+  return `${row.scope}/${row.key}`
 }

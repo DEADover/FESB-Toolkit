@@ -380,6 +380,18 @@ pub async fn properties(connection: &Connection, scope: PropertyScope) -> Result
     Ok(rows)
 }
 
+/// Приводит флаг пустоты к значению, которое пишем.
+///
+/// Пустоту шина решает по флагу, а не по значению: с `empty: true` она
+/// отвечает `200` и оставляет константу пустой, что бы ни лежало в `value`.
+/// Флаг приходит из чтения, поэтому правка ранее пустой константы молча
+/// не доезжала — сервер отвечал успехом, а значение не менялось. Считаем
+/// его сами, ровно так же, как считает сама шина при создании.
+fn with_empty_flag(mut property: PropertyRow) -> PropertyRow {
+    property.empty = property.value.as_deref().unwrap_or_default().is_empty();
+    property
+}
+
 /// Сохраняет одну константу: новую создаёт, существующую переписывает.
 pub async fn save_property(
     connection: &Connection,
@@ -391,6 +403,7 @@ pub async fn save_property(
     if property.key.trim().is_empty() {
         return Err("The constant needs a name".into());
     }
+    let property = with_empty_flag(property);
     let client = connection.client()?;
     let body = serde_json::json!({
         "comment": comment.unwrap_or_else(|| "FESB Toolkit".into()),
@@ -406,6 +419,78 @@ pub async fn save_property(
     let response = request.json(&body).send().await.map_err(transport_error)?;
     ensure_ok(response, "Cannot save the constant").await?;
     Ok(())
+}
+
+/// Сколько доменов опрашивается одновременно.
+///
+/// Константы мелкие: на стенде из 256 доменов их всего сто восемьдесят две,
+/// и всё время уходит не на разбор, а на ход до сервера. Восемь запросов
+/// разом превращают четверть тысячи ходов в тридцать.
+const SWEEP_CONCURRENCY: usize = 8;
+
+/// Константа вместе с тем, где она лежит.
+///
+/// Плоский список на весь стенд нужен, чтобы искать по значению: вопрос
+/// «кто смотрит на старый хост» не привязан ни к какому домену заранее.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SweepRow {
+    /// `application`, `broker` или guid домена — то же, чем адресуется правка.
+    pub scope: String,
+    /// Имя домена: guid в таблице читать невозможно.
+    pub domain: Option<String>,
+    #[serde(flatten)]
+    pub property: PropertyRow,
+}
+
+/// Читает константы всех трёх уровней разом.
+///
+/// Уровни приложения и брокера идут первыми и всегда: их немного, а
+/// подставляются они в те же СОПС, что и доменные, — искать старый адрес
+/// только по доменам значит не найти его там, где он задан один раз на всех.
+pub async fn properties_sweep<F: FnMut(ApiProgress)>(
+    connection: &Connection,
+    mut on_progress: F,
+) -> Result<Vec<SweepRow>, String> {
+    let domains = crate::fesb_api::domains(connection).await?;
+    let total = domains.len() as u64 + 2;
+    let mut done = 0u64;
+    let mut rows = Vec::new();
+    on_progress(ApiProgress { phase: "constants", current: 0, total });
+
+    for (scope, name) in [(PropertyScope::Application, "application"), (PropertyScope::Broker, "broker")] {
+        for property in properties(connection, scope).await? {
+            rows.push(SweepRow { scope: name.to_string(), domain: None, property });
+        }
+        done += 1;
+    }
+    on_progress(ApiProgress { phase: "constants", current: done, total });
+
+    for group in domains.chunks(SWEEP_CONCURRENCY) {
+        let mut running = Vec::with_capacity(group.len());
+        for domain in group {
+            let connection = connection.clone();
+            let guid = domain.guid.clone();
+            let name = domain.name.clone();
+            running.push(tauri::async_runtime::spawn(async move {
+                let found = properties(&connection, PropertyScope::Domain(guid.clone())).await;
+                (guid, name, found)
+            }));
+        }
+
+        for handle in running {
+            let (guid, name, found) = handle.await.map_err(|err| format!("Reading interrupted: {err}"))?;
+            done += 1;
+            // Домен, который не прочитался, не роняет обход: его могли
+            // удалить, пока мы шли по списку, — важнее показать остальные.
+            for property in found.unwrap_or_default() {
+                rows.push(SweepRow { scope: guid.clone(), domain: Some(name.clone()), property });
+            }
+        }
+        on_progress(ApiProgress { phase: "constants", current: done, total });
+    }
+
+    Ok(rows)
 }
 
 pub async fn delete_property(connection: &Connection, scope: PropertyScope, key: &str) -> Result<(), String> {
@@ -1357,3 +1442,33 @@ pub async fn audit(connection: &Connection, request: LogRequest) -> Result<Vec<A
         .map(|entry| parse_audit(entry.timestamp, entry.message.as_deref().unwrap_or_default()))
         .collect())
 }
+
+#[cfg(test)]
+mod property_tests {
+    use super::*;
+
+    fn property(value: Option<&str>, empty: bool) -> PropertyRow {
+        PropertyRow {
+            key: "const.url".into(),
+            value: value.map(str::to_string),
+            secured: false,
+            vault: false,
+            empty,
+            description: None,
+        }
+    }
+
+    #[test]
+    fn value_over_a_stale_empty_flag() {
+        // Флаг пришёл из чтения пустой константы, значение — новое.
+        let row = with_empty_flag(property(Some("http://host:8080"), true));
+        assert!(!row.empty, "с флагом пустоты шина оставила бы константу пустой");
+    }
+
+    #[test]
+    fn empty_value_stays_empty() {
+        assert!(with_empty_flag(property(Some(""), false)).empty);
+        assert!(with_empty_flag(property(None, false)).empty);
+    }
+}
+

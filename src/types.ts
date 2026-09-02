@@ -330,6 +330,17 @@ export interface PropertyRow {
 /** Где живут константы. Для домена нужен его guid, а не имя. */
 export type PropertyScope = 'application' | 'broker' | { domain: string }
 
+/**
+ * Константа вместе с тем, где она лежит.
+ *
+ * `scope` — `application`, `broker` или guid домена: ровно то, чем потом
+ * адресуется правка, поэтому строку из поиска можно писать как есть.
+ */
+export interface SweepRow extends PropertyRow {
+  scope: string
+  domain: string | null
+}
+
 export interface LogFileRow {
   name: string
   size: number

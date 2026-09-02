@@ -14,7 +14,7 @@ import type {
   ModuleAction, ModuleRow, PropertyRow, PropertyScope, PullResult, PushResult, QueueManager,
   QueueMatch, QueueMessage, QueueRow, RouteAction, RouteGraph, RouteState, SavePoint, ScanProgress,
   ScanResult,
-  ServerInfo, TraceUpdate, VerifyResult,
+  ServerInfo, SweepRow, TraceUpdate, VerifyResult,
 } from '../types'
 
 /** Единственная точка соприкосновения интерфейса с бэкендом на Rust. */
@@ -351,13 +351,20 @@ export function apiProperties(connection: Connection, scope: PropertyScope): Pro
   return invoke<PropertyRow[]>('api_properties', { connection, scope })
 }
 
+/** Константы всех уровней разом: ход работы идёт событиями `api:progress`. */
+export function apiPropertiesSweep(connection: Connection): Promise<SweepRow[]> {
+  return invoke<SweepRow[]>('api_properties_sweep', { connection })
+}
+
 export function apiSaveProperty(
   connection: Connection,
   scope: PropertyScope,
   property: PropertyRow,
   create: boolean,
+  /** Попадает в историю изменений шины: по нему потом видно, чья это правка. */
+  comment?: string,
 ): Promise<void> {
-  return invoke<void>('api_save_property', { connection, scope, property, create })
+  return invoke<void>('api_save_property', { connection, scope, property, create, comment: comment ?? null })
 }
 
 export function apiDeleteProperty(connection: Connection, scope: PropertyScope, key: string): Promise<void> {
