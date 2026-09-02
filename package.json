@@ -1,7 +1,7 @@
 {
   "name": "fesb-toolkit",
   "productName": "FESB Toolkit",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "Инструмент для работы с интеграционной шиной FESB: массовая правка конфигурации и управление стендом по API",
   "private": true,
   "type": "module",
