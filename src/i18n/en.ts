@@ -425,6 +425,10 @@ export const en = {
   'push.scope.title': 'What to send back',
   'push.scope.hint': 'Only the listed domains are replaced on the server. Everything else stays as it is.',
   'push.reload': 'Reload domains after import',
+  'push.savePoint': 'Take a save point first',
+  'push.savePoint.hint': 'A full snapshot of the server configuration, about fifteen seconds. It rolls back everything at once, not only the domains being sent — the list lives on the Save Points screen.',
+  'push.savePoint.running': 'Taking a save point…',
+  'push.savePoint.failed': 'The save point was not taken, so nothing was sent. {error}',
   'push.reloadedOn': 'The domains were reloaded. The bus is already running the new configuration.',
   'push.reloadedOff': 'The files were written, but running domains still use the old configuration until they are restarted.',
 

@@ -6,7 +6,7 @@ import { useI18n } from '../i18n'
 import { formatBytes } from '../lib/format'
 import { folderBesideExport, localStamp } from '../lib/paths'
 import {
-  apiPush, apiQueueManagers, apiQueues, apiVerify, applyTrace, buildArchive, errorText,
+  apiCreateSavePoint, apiPush, apiQueueManagers, apiQueues, apiVerify, applyTrace, buildArchive, errorText,
   onApiProgress, onApplyProgress, onArchiveProgress, revealPath, routeLinks, saveZipAs,
 } from '../lib/api'
 import { neighboursOf } from '../lib/links'
@@ -98,6 +98,16 @@ export function TraceScreen({ scan, isMac, sourcePath, server, onRescan, onGoToC
   const [verifyResult, setVerifyResult] = useState<VerifyResult | null>(null)
   const [reload, setReload] = useState(true)
   const [verifyAfterPush, setVerifyAfterPush] = useState(true)
+  /**
+   * Снимать ли точку восстановления перед отправкой.
+   *
+   * По умолчанию нет: это полный снимок конфигурации, пятнадцать секунд
+   * на каждую отправку, и копится он на сервере. Локальные копии правленых
+   * файлов приложение делает и без него — точка нужна там, где важно
+   * вернуть весь сервер, а не свои файлы.
+   */
+  const [savePoint, setSavePoint] = useState(false)
+  const [pointing, setPointing] = useState(false)
 
   /**
    * Что за менеджеры очередей есть на сервере. Пока конфигурация взята из файлов,
@@ -433,6 +443,19 @@ export function TraceScreen({ scan, isMac, sourcePath, server, onRescan, onGoToC
     setError(null)
     setVerifyResult(null)
     try {
+      // Точка снимается до отправки и только целиком: не снялась — значит
+      // и отправлять нельзя, иначе она обещала бы возврат, которого нет.
+      if (savePoint) {
+        setPointing(true)
+        try {
+          await apiCreateSavePoint(server.connection)
+        } catch (err) {
+          setError(t('push.savePoint.failed', { error: errorText(err) }))
+          return
+        } finally {
+          setPointing(false)
+        }
+      }
       setPushResult(await apiPush(server.connection, scan.root, guids, reload))
       // Отправка отвечает 200 и тогда, когда шина сохранила не всё:
       // единственный честный ответ — прочитать конфигурацию обратно.
@@ -443,7 +466,7 @@ export function TraceScreen({ scan, isMac, sourcePath, server, onRescan, onGoToC
       setPushing(false)
       setPushProgress(null)
     }
-  }, [server, scopeGuids, scan.root, reload, verifyAfterPush])
+  }, [server, scopeGuids, scan.root, reload, verifyAfterPush, savePoint, t])
 
   /** Сверка без отправки: показать, чем сервер отличается от локальных файлов. */
   const verifyOnServer = useCallback(async (paths: string[] | null) => {
@@ -739,7 +762,7 @@ export function TraceScreen({ scan, isMac, sourcePath, server, onRescan, onGoToC
               )}
             >
               {pushing
-                ? <><Spinner className="size-3.5" /> {t(pushPhase(pushProgress?.phase))}</>
+                ? <><Spinner className="size-3.5" /> {pointing ? t('push.savePoint.running') : t(pushPhase(pushProgress?.phase))}</>
                 : t('action.push')}
             </button>
           </div>
@@ -940,6 +963,12 @@ export function TraceScreen({ scan, isMac, sourcePath, server, onRescan, onGoToC
             <div className="flex flex-wrap gap-2 pt-1">
               <Toggle checked={reload} onChange={setReload} label={t('push.reload')} />
               <Toggle checked={verifyAfterPush} onChange={setVerifyAfterPush} label={t('push.verify')} />
+              <Toggle
+                checked={savePoint}
+                onChange={setSavePoint}
+                label={t('push.savePoint')}
+                title={t('push.savePoint.hint')}
+              />
             </div>
           )}
           <p className="text-[11.5px] leading-relaxed text-content-subtle">
