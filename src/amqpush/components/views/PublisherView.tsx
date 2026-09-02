@@ -22,6 +22,7 @@ import Tabs, { TabItem } from "../Tabs";
 import ViewTopBar from "../ViewTopBar";
 import EmptyState from "../EmptyState";
 import SectionLabel from "../SectionLabel";
+import { useAmqpText } from "../../i18n";
 import Toggle from "../Toggle";
 import SegmentedControl from "../SegmentedControl";
 import Callout from "../Callout";
@@ -183,6 +184,7 @@ function formatXml(raw: string): string {
 }
 
 export default function PublisherView({ connected, defaultAddress, activeProfile, resendPayload, sendTrigger, onLog, onSent, onSendError, onTabChange }: Props) {
+  const t = useAmqpText();
   const [address,    setAddress]    = useState(defaultAddress);
   const [tab,        setTab]        = useState<TabKey>("body");
   // Push tab changes to the parent so it can keep context-aware features
@@ -430,7 +432,7 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
       propRows.unshift({
         id: newRowId(), enabled: true,
         key: "correlation-id", value: resendPayload.correlationId,
-        description: "From received message (reply)",
+        description: t("send.replyFrom"),
       });
     }
     setProps(propRows);
@@ -676,12 +678,12 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
       complete(results) {
         const data = results.data as string[][];
         if (results.errors.length > 0) {
-          setCsvParseError(results.errors[0]?.message ?? "Unknown parser error");
+          setCsvParseError(results.errors[0]?.message ?? t("send.csv.parseError"));
         }
         if (data.length === 0) {
           setCsvHeaders([]);
           setCsvRows([]);
-          setCsvParseError("File is empty");
+          setCsvParseError(t("send.csv.empty"));
           return;
         }
         // First row is the header row. Empty headers fall back to "col_N".
@@ -734,11 +736,11 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
 
   // ── CSV: bulk-send loop ──────────────────────────────────────────────────
   async function sendCsvBatch() {
-    if (!connected)        { onLog("err", "Not connected"); return; }
-    if (!address.trim())   { onLog("err", "Queue address is required"); return; }
-    if (mode !== "raw")    { onLog("err", "CSV bulk send requires Body mode = Raw"); return; }
-    if (!text.trim())      { onLog("err", "Body is empty"); return; }
-    if (csvRows.length === 0) { onLog("err", "Load a CSV file first"); return; }
+    if (!connected)        { onLog("err", t("send.needConnection")); return; }
+    if (!address.trim())   { onLog("err", t("send.needQueue")); return; }
+    if (mode !== "raw")    { onLog("err", t("send.csv.needRaw")); return; }
+    if (!text.trim())      { onLog("err", t("send.needBody")); return; }
+    if (csvRows.length === 0) { onLog("err", t("send.csv.needFile")); return; }
 
     const ctrl = new AbortController();
     csvAbortRef.current = ctrl;
@@ -839,11 +841,11 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
   }
 
   async function doSend() {
-    if (!connected)       { onLog("err", "Not connected"); return; }
-    if (!address.trim())  { onLog("err", "Queue address is required"); return; }
-    if (mode === "raw" && !text.trim()) { onLog("err", "Message body is empty"); return; }
-    if (mode === "raw" && !textOk)      { onLog("err", rawType === "json" ? "Invalid JSON" : "Invalid XML"); return; }
-    if (mode === "binary" && !file)     { onLog("err", "No file selected"); return; }
+    if (!connected)       { onLog("err", t("send.needConnection")); return; }
+    if (!address.trim())  { onLog("err", t("send.needQueue")); return; }
+    if (mode === "raw" && !text.trim()) { onLog("err", t("send.needBody")); return; }
+    if (mode === "raw" && !textOk)      { onLog("err", rawType === "json" ? t("send.badJson") : t("send.badXml")); return; }
+    if (mode === "binary" && !file)     { onLog("err", t("send.needFile")); return; }
     // Batch parameters only apply when the toggle on the Batch tab is on.
     // Otherwise we send exactly once with no delay, regardless of leftover
     // values in the inputs.
@@ -1008,7 +1010,7 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
       // The user cancelled a scheduled / batched send — treat as a clean
       // exit, don't bump the error counter.
       if (e instanceof DOMException && e.name === "AbortError") {
-        onLog("info", "Send cancelled");
+        onLog("info", t("send.aborted"));
         setProgress(null);
         setScheduleRemaining(null);
         return;
@@ -1036,15 +1038,15 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
 
   const preScriptActive = preScript.trim().length > 0;
   const tabs: TabItem[] = [
-    { id: "body",       label: "Body",       icon: <Type className="w-3.5 h-3.5" /> },
-    { id: "properties", label: "Properties", icon: <Tag className="w-3.5 h-3.5" />, badge: enabledPropsCount },
-    { id: "variables",  label: "Variables",  icon: <Braces className="w-3.5 h-3.5" />, badge: enabledUserVarsCount, dot: hasVars && enabledUserVarsCount === 0 },
-    { id: "prescript",  label: "Pre-script", icon: <Code2 className="w-3.5 h-3.5" />, dot: preScriptActive },
-    { id: "batch",      label: "Batch",      icon: <Repeat2 className="w-3.5 h-3.5" />, dot: batchActive },
-    { id: "csv",        label: "CSV",        icon: <FileSpreadsheet className="w-3.5 h-3.5" />, badge: csvRows.length || undefined, dot: !!csvRows.length },
-    { id: "reply",      label: "Reply",      icon: <CornerDownLeft className="w-3.5 h-3.5" />, dot: rrEnabled },
-    { id: "chaos",      label: "Chaos",      icon: <Bug className="w-3.5 h-3.5" />, dot: chaosActive },
-    { id: "templates",  label: "Templates",  icon: <BookMarked className="w-3.5 h-3.5" />, badge: templates.length },
+    { id: "body",       label: t("send.tab.body"),      icon: <Type className="w-3.5 h-3.5" /> },
+    { id: "properties", label: t("send.tab.props"),     icon: <Tag className="w-3.5 h-3.5" />, badge: enabledPropsCount },
+    { id: "variables",  label: t("send.tab.vars"),      icon: <Braces className="w-3.5 h-3.5" />, badge: enabledUserVarsCount, dot: hasVars && enabledUserVarsCount === 0 },
+    { id: "prescript",  label: t("send.tab.prescript"), icon: <Code2 className="w-3.5 h-3.5" />, dot: preScriptActive },
+    { id: "batch",      label: t("send.tab.batch"),     icon: <Repeat2 className="w-3.5 h-3.5" />, dot: batchActive },
+    { id: "csv",        label: t("send.tab.csv"),       icon: <FileSpreadsheet className="w-3.5 h-3.5" />, badge: csvRows.length || undefined, dot: !!csvRows.length },
+    { id: "reply",      label: t("send.tab.reply"),     icon: <CornerDownLeft className="w-3.5 h-3.5" />, dot: rrEnabled },
+    { id: "chaos",      label: t("send.tab.chaos"),     icon: <Bug className="w-3.5 h-3.5" />, dot: chaosActive },
+    { id: "templates",  label: t("send.tab.templates"), icon: <BookMarked className="w-3.5 h-3.5" />, badge: templates.length },
   ];
 
   // Combined autocomplete list for the Body editor: user-defined variables
@@ -1080,7 +1082,7 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
       {/* ─── TITLE ROW ─── */}
       <ViewTopBar
         icon={<Send className="w-3.5 h-3.5" />}
-        title="Send Messages"
+        title={t("send.title")}
       >
         <button
           onClick={doSend}
@@ -1088,13 +1090,13 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
           className="shrink-0 flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-[12.5px] font-semibold bg-accent-strong hover:bg-accent text-white transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-sm"
         >
           <Send className="w-3.5 h-3.5" />
-          {sending ? "Sending…" : "Send"}
+          {sending ? t("send.sending") : t("send.send")}
         </button>
       </ViewTopBar>
 
       {/* ─── QUEUE PICKER ROW ─── */}
       <div className="shrink-0 px-3 py-1.5 border-b border-t-line bg-t-panel flex items-center gap-2">
-        <SectionLabel className="shrink-0">To</SectionLabel>
+        <SectionLabel className="shrink-0">{t("send.to")}</SectionLabel>
         <QueuePicker value={address} onChange={setAddress} connected={connected} profileName={activeProfile} showSave className="flex-1" />
       </div>
 
@@ -1117,9 +1119,9 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
                 onChange={setMode}
                 casing="normal"
                 options={[
-                  { value: "none",   label: "None",   title: "Send an empty payload" },
-                  { value: "raw",    label: "Raw",    title: "Send a text payload" },
-                  { value: "binary", label: "Binary", title: "Send a file as the payload" },
+                  { value: "none",   label: t("send.mode.none"),   title: t("send.mode.none.hint") },
+                  { value: "raw",    label: t("send.mode.raw"),    title: t("send.mode.raw.hint") },
+                  { value: "binary", label: t("send.mode.binary"), title: t("send.mode.binary.hint") },
                 ]}
               />
 
@@ -1156,20 +1158,20 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
                 {mode === "raw" && rawType === "json" && text.trim() && (
                   <span className={`flex items-center gap-1 text-[11.5px] font-medium ${jsonValid ? "text-positive" : "text-negative"}`}>
                     {jsonValid
-                      ? <><CheckCircle className="w-3 h-3" /> valid</>
-                      : <><XCircle className="w-3 h-3" /> invalid</>}
+                      ? <><CheckCircle className="w-3 h-3" /> {t("send.valid")}</>
+                      : <><XCircle className="w-3 h-3" /> {t("send.invalid")}</>}
                   </span>
                 )}
                 {mode === "raw" && rawType === "xml" && text.trim() && (
                   <span className={`flex items-center gap-1 text-[11.5px] font-medium ${xmlValid ? "text-positive" : "text-negative"}`}>
                     {xmlValid
-                      ? <><CheckCircle className="w-3 h-3" /> valid</>
-                      : <><XCircle className="w-3 h-3" /> invalid</>}
+                      ? <><CheckCircle className="w-3 h-3" /> {t("send.valid")}</>
+                      : <><XCircle className="w-3 h-3" /> {t("send.invalid")}</>}
                   </span>
                 )}
                 {hasVars && (
                   <span className="flex items-center gap-1 text-[11.5px] text-accent font-medium">
-                    <Braces className="w-3 h-3" /> vars
+                    <Braces className="w-3 h-3" /> {t("send.vars")}
                   </span>
                 )}
                 {/* Schema button — opens schema modal. Only shown for JSON / XML
@@ -1190,25 +1192,25 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
                     }`}
                     title={
                       xsdValidating
-                        ? "Validating XSD…"
+                        ? t("send.schema.validating")
                         : activeSchemaResult
                           ? activeSchemaResult.ok
-                            ? `Body matches the ${rawType === "json" ? "JSON Schema" : "XSD"}. Click to edit.`
-                            : `${activeSchemaResult.errors.length || 1} schema error${(activeSchemaResult.errors.length || 1) !== 1 ? "s" : ""} — click to see details.`
+                            ? t("send.schema.ok", { kind: t(rawType === "json" ? "send.schema.jsonKind" : "send.schema.xsdKind") })
+                            : t("send.schema.errors", { count: activeSchemaResult.errors.length || 1 })
                           : activeSchema.trim()
-                            ? `${rawType === "json" ? "JSON Schema" : "XSD"} configured — click to edit.`
-                            : `Click to define a ${rawType === "json" ? "JSON Schema" : "XSD"} for body validation.`
+                            ? t("send.schema.set", { kind: t(rawType === "json" ? "send.schema.jsonKind" : "send.schema.xsdKind") })
+                            : t("send.schema.none", { kind: t(rawType === "json" ? "send.schema.jsonKind" : "send.schema.xsdKind") })
                     }
                   >
                     {xsdValidating
-                      ? <><Loader2 className="w-3 h-3 animate-spin" /> schema…</>
+                      ? <><Loader2 className="w-3 h-3 animate-spin" /> {t("send.schema")}…</>
                       : activeSchemaResult
                         ? activeSchemaResult.ok
-                          ? <><ShieldCheck className="w-3 h-3" /> schema ✓</>
-                          : <><ShieldCheck className="w-3 h-3" /> schema ✗{activeSchemaResult.errors.length > 0 && ` (${activeSchemaResult.errors.length})`}</>
+                          ? <><ShieldCheck className="w-3 h-3" /> {t("send.schema")} ✓</>
+                          : <><ShieldCheck className="w-3 h-3" /> {t("send.schema")} ✗{activeSchemaResult.errors.length > 0 && ` (${activeSchemaResult.errors.length})`}</>
                         : activeSchema.trim()
-                          ? <><ShieldCheck className="w-3 h-3" /> schema</>
-                          : <><ShieldCheck className="w-3 h-3" /> Schema…</>}
+                          ? <><ShieldCheck className="w-3 h-3" /> {t("send.schema")}</>
+                          : <><ShieldCheck className="w-3 h-3" /> {t("send.schema.open")}</>}
                   </button>
                 )}
                 {mode === "raw" && rawType !== "text" && (
@@ -1225,8 +1227,8 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
               <div className="flex-1 min-h-0">
                 <EmptyState
                   icon={<Type className="w-8 h-8" />}
-                  title="This message has no body"
-                  subtitle="An empty payload will be sent to the queue"
+                  title={t("send.body.none")}
+                  subtitle={t("send.body.none.hint")}
                 />
               </div>
             )}
@@ -1273,15 +1275,15 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
                       <p className="text-[13px] text-t-ink font-medium">{file.name}</p>
                       <p className="text-[11.5px] text-t-ink4 mt-1">{(file.size / 1024).toFixed(1)} KB</p>
                       <button onClick={(e) => { e.stopPropagation(); setFile(null); if (fileRef.current) fileRef.current.value = ""; }}
-                        className="mt-2 text-[11.5px] text-t-ink5 hover:text-negative transition-colors">Clear</button>
+                        className="mt-2 text-[11.5px] text-t-ink5 hover:text-negative transition-colors">{t("send.file.clear")}</button>
                     </div>
                   ) : (
                     <div className="text-center">
                       <p className={`text-[13px] transition-colors ${dragOver ? "text-accent font-medium" : "text-t-ink5"}`}>
-                        {dragOver ? "Drop the file here" : "Click to choose a file"}
+                        {dragOver ? t("send.file.drop") : t("send.file.pick")}
                       </p>
                       {!dragOver && (
-                        <p className="text-[11.5px] text-t-ink5 mt-1">or drag and drop here</p>
+                        <p className="text-[11.5px] text-t-ink5 mt-1">{t("send.file.or")}</p>
                       )}
                     </div>
                   )}
@@ -1315,9 +1317,9 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
                 {/* Header labels match the row inputs' inner padding (px-1.5)
                     so KEY / VALUE / DESCRIPTION line up with the placeholder
                     text below, not 6 px to the left of it. */}
-                <SectionLabel className="px-1.5">Key</SectionLabel>
-                <SectionLabel className="px-1.5">Value</SectionLabel>
-                <SectionLabel className="px-1.5">Description</SectionLabel>
+                <SectionLabel className="px-1.5">{t("send.props.key")}</SectionLabel>
+                <SectionLabel className="px-1.5">{t("send.props.value")}</SectionLabel>
+                <SectionLabel className="px-1.5">{t("send.props.desc")}</SectionLabel>
                 <div></div>
               </div>
 
@@ -1325,7 +1327,7 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
               {props.length === 0 ? (
                 <EmptyState
                   icon={<Tag className="w-8 h-8" />}
-                  title="No properties added"
+                  title={t("send.props.none")}
                   action={
                     <button onClick={addProp}
                       className="text-[11.5px] text-accent hover:text-accent-content transition-colors">
@@ -1349,7 +1351,7 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
                       value={row.key}
                       onChange={v => updateProp(row.id, "key", v)}
                       suggestions={historyProps.keys}
-                      placeholder="key"
+                      placeholder={t("send.props.keyPlaceholder")}
                       className="bg-transparent text-[12.5px] leading-4 h-7 w-full box-border appearance-none text-t-ink outline-none placeholder:text-t-ink5 font-mono py-1.5 px-1.5 rounded-md hover:bg-t-card focus:bg-t-field focus:ring-1 focus:ring-accent/30"
                     />
                     {/* Value — keeps TokenInput for the `{{var}}` flow; on
@@ -1364,7 +1366,7 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
                       onChange={v => updateProp(row.id, "value", v)}
                     />
                     <input value={row.description ?? ""} onChange={e => updateProp(row.id, "description", e.target.value)}
-                      placeholder="description"
+                      placeholder={t("send.props.descPlaceholder")}
                       className="bg-transparent text-[12.5px] leading-4 h-7 box-border appearance-none text-t-ink3 outline-none placeholder:text-t-ink5 font-mono py-1.5 px-1.5 rounded-md hover:bg-t-card focus:bg-t-field focus:ring-1 focus:ring-accent/30" />
                     <button onClick={() => removeProp(row.id)}
                       className="opacity-0 group-hover:opacity-100 p-1 text-t-ink5 hover:text-negative transition-all rounded-md">
@@ -1405,7 +1407,7 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
                   )}
                 >
                   <div className="px-3 py-1.5 border-b border-t-line">
-                    <SectionLabel>Click to add as user variable</SectionLabel>
+                    <SectionLabel>{t("send.vars.add")}</SectionLabel>
                   </div>
                   <div className="max-h-64 overflow-y-auto py-1">
                     {VARIABLE_HINTS.map(v => (
@@ -1433,9 +1435,9 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
                 {/* Header labels match the row inputs' inner padding (px-1.5)
                     so KEY / VALUE / DESCRIPTION line up with the placeholder
                     text below, not 6 px to the left of it. */}
-                <SectionLabel className="px-1.5">Key</SectionLabel>
-                <SectionLabel className="px-1.5">Value</SectionLabel>
-                <SectionLabel className="px-1.5">Description</SectionLabel>
+                <SectionLabel className="px-1.5">{t("send.props.key")}</SectionLabel>
+                <SectionLabel className="px-1.5">{t("send.props.value")}</SectionLabel>
+                <SectionLabel className="px-1.5">{t("send.props.desc")}</SectionLabel>
                 <div></div>
               </div>
 
@@ -1443,8 +1445,8 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
               {userVars.length === 0 ? (
                 <EmptyState
                   icon={<Braces className="w-8 h-8" />}
-                  title="No variables defined"
-                  subtitle="Or pick a built-in preset from the dropdown above"
+                  title={t("send.vars.none")}
+                  subtitle={t("send.vars.none.hint")}
                   action={
                     <button onClick={addUserVar}
                       className="text-[11.5px] text-accent hover:text-accent-content transition-colors">
@@ -1463,13 +1465,13 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
                         className="w-3.5 h-3.5 accent-accent-strong cursor-pointer" />
                     </label>
                     <input value={v.key} onChange={e => updateUserVar(v.id, "key", e.target.value)}
-                      placeholder="key"
+                      placeholder={t("send.props.keyPlaceholder")}
                       className="bg-transparent text-[12.5px] leading-4 h-7 box-border appearance-none text-t-ink outline-none placeholder:text-t-ink5 font-mono py-1.5 px-1.5 rounded-md hover:bg-t-card focus:bg-t-field focus:ring-1 focus:ring-accent/30" />
                     <input value={v.value} onChange={e => updateUserVar(v.id, "value", e.target.value)}
-                      placeholder="value"
+                      placeholder={t("send.vars.valuePlaceholder")}
                       className="bg-transparent text-[12.5px] leading-4 h-7 box-border appearance-none text-t-ink outline-none placeholder:text-t-ink5 font-mono py-1.5 px-1.5 rounded-md hover:bg-t-card focus:bg-t-field focus:ring-1 focus:ring-accent/30" />
                     <input value={v.description} onChange={e => updateUserVar(v.id, "description", e.target.value)}
-                      placeholder="description"
+                      placeholder={t("send.props.descPlaceholder")}
                       className="bg-transparent text-[12.5px] leading-4 h-7 box-border appearance-none text-t-ink3 outline-none placeholder:text-t-ink5 font-mono py-1.5 px-1.5 rounded-md hover:bg-t-card focus:bg-t-field focus:ring-1 focus:ring-accent/30" />
                     <button onClick={() => removeUserVar(v.id)}
                       className="opacity-0 group-hover:opacity-100 p-1 text-t-ink5 hover:text-negative transition-all rounded-md">
@@ -1521,7 +1523,7 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
                 }}
                 disabled={!preScript.trim()}
                 className="ml-auto px-2 py-1 rounded-md text-[11.5px] font-medium text-t-ink4 hover:text-accent hover:bg-accent/10 transition-colors flex items-center gap-1 disabled:opacity-40"
-                title="Run the script once and log the results — useful for testing without sending a message"
+                title={t("send.prescript.run")}
               >
                 <Code2 className="w-3 h-3" /> Test run
               </button>
@@ -1533,35 +1535,35 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
         {tab === "batch" && (
           <div className="flex-1 min-h-0 flex flex-col">
             <div className="shrink-0 h-9 px-3 flex items-center border-b border-t-line bg-t-panel">
-              <span className="text-[11.5px] text-t-ink4">Send the same message multiple times with optional delay.</span>
+              <span className="text-[11.5px] text-t-ink4">{t("send.batch.note")}</span>
             </div>
             <div className="flex-1 min-h-0 overflow-y-auto p-3 space-y-3">
 
               {/* Enable toggle — same toggle-card pattern as Reply / Connection's TLS. */}
               <div className="flex items-center justify-between p-2.5 rounded-xl bg-t-card border border-t-line">
                 <div className="flex flex-col">
-                  <span className="text-[13px] text-t-ink2">Batch send</span>
-                  <span className="text-[10.5px] text-t-ink5">Repeat the message N times with an optional delay between each send</span>
+                  <span className="text-[13px] text-t-ink2">{t("send.batch.title")}</span>
+                  <span className="text-[10.5px] text-t-ink5">{t("send.batch.hint")}</span>
                 </div>
-                <Toggle checked={batchEnabled} onChange={setBatchEnabled} ariaLabel="Enable batch send" />
+                <Toggle checked={batchEnabled} onChange={setBatchEnabled} ariaLabel={t("send.batch.enable")} />
               </div>
 
               {/* Batch parameters — disabled when the toggle is off (visual + form-level). */}
               <div>
-                <SectionLabel className="block mb-2">Batch parameters</SectionLabel>
+                <SectionLabel className="block mb-2">{t("send.batch.params")}</SectionLabel>
                 <div className={`bg-t-card border border-t-line rounded-xl p-3 space-y-3 ${batchEnabled ? "" : "opacity-50"}`}>
                   <div>
                     <label className="block text-[10.5px] font-semibold text-t-ink4 uppercase tracking-wider mb-1.5">
-                      Repeat count
-                      <span className="text-t-ink5 normal-case font-normal"> — total messages to send</span>
+                      {t("send.batch.count")}
+                      <span className="text-t-ink5 normal-case font-normal">{t("send.batch.count.hint")}</span>
                     </label>
                     <input type="number" min="1" value={repeat} onChange={e => setRepeat(e.target.value)} disabled={!batchEnabled}
                       className={`${INPUT} w-32`} />
                   </div>
                   <div>
                     <label className="block text-[10.5px] font-semibold text-t-ink4 uppercase tracking-wider mb-1.5">
-                      Delay between messages
-                      <span className="text-t-ink5 normal-case font-normal"> — milliseconds, 0 = no delay</span>
+                      {t("send.batch.delayLabel")}
+                      <span className="text-t-ink5 normal-case font-normal">{t("send.batch.delay.hint")}</span>
                     </label>
                     <input type="number" min="0" value={delayMs} onChange={e => setDelayMs(e.target.value)} disabled={!batchEnabled}
                       className={`${INPUT} w-32`} />
@@ -1571,30 +1573,27 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
 
               {batchEnabled && (
                 <Callout variant="info">
-                  Will send <span className="font-mono font-bold">{repeat}</span> messages
-                  {Number(delayMs) > 0 && <> with <span className="font-mono">{delayMs}ms</span> delay between them</>}.
+                  {t("send.batch.summary", { count: repeat })}
+                  {Number(delayMs) > 0 && t("send.batch.summaryDelay", { delay: delayMs })}.
                 </Callout>
               )}
 
               {/* ── Schedule (delayed start) ───────────────────────────────────── */}
               <div className="flex items-center justify-between p-2.5 rounded-xl bg-t-card border border-t-line">
                 <div className="flex flex-col">
-                  <span className="text-[13px] text-t-ink2">Schedule send</span>
-                  <span className="text-[10.5px] text-t-ink5">
-                    Wait N seconds before sending {batchEnabled ? "the first message" : "the message"}.
-                    Useful for testing scheduled jobs and event triggers.
-                  </span>
+                  <span className="text-[13px] text-t-ink2">{t("send.schedule.title")}</span>
+                  <span className="text-[10.5px] text-t-ink5">{t("send.schedule.hint")}</span>
                 </div>
-                <Toggle checked={scheduleEnabled} onChange={setScheduleEnabled} ariaLabel="Enable scheduled send" />
+                <Toggle checked={scheduleEnabled} onChange={setScheduleEnabled} ariaLabel={t("send.schedule.enable")} />
               </div>
 
               <div>
-                <SectionLabel className="block mb-2">Schedule parameters</SectionLabel>
+                <SectionLabel className="block mb-2">{t("send.schedule.params")}</SectionLabel>
                 <div className={`bg-t-card border border-t-line rounded-xl p-3 space-y-3 ${scheduleEnabled ? "" : "opacity-50"}`}>
                   <div>
                     <label className="block text-[10.5px] font-semibold text-t-ink4 uppercase tracking-wider mb-1.5">
-                      Delay before first send
-                      <span className="text-t-ink5 normal-case font-normal"> — seconds; you can cancel during the countdown</span>
+                      {t("send.schedule.delay")}
+                      <span className="text-t-ink5 normal-case font-normal">{t("send.schedule.delay.hint")}</span>
                     </label>
                     <input type="number" min="0" value={scheduleDelay} onChange={e => setScheduleDelay(e.target.value)} disabled={!scheduleEnabled}
                       className={`${INPUT} w-32`} />
@@ -1604,8 +1603,7 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
 
               {scheduleEnabled && Number(scheduleDelay) > 0 && (
                 <Callout variant="info">
-                  Click Send and the {batchEnabled ? "first " : ""}message will fire after{" "}
-                  <span className="font-mono font-bold">{scheduleDelay}s</span>.
+                  {t("send.schedule.summary", { delay: scheduleDelay })}
                 </Callout>
               )}
             </div>
@@ -1620,7 +1618,7 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
           <div className="flex-1 min-h-0 flex flex-col">
             <div className="shrink-0 h-9 px-3 flex items-center border-b border-t-line bg-t-panel">
               <span className="text-[11.5px] text-t-ink4">
-                Load a CSV — each row becomes one message. Column headers turn into <span className="font-mono">{"{{column_name}}"}</span> variables.
+                {t("send.csv.note")}
               </span>
             </div>
             <div className="flex-1 min-h-0 overflow-y-auto p-3 space-y-3">
@@ -1644,8 +1642,8 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
                   }`}
                 >
                   <FileSpreadsheet className="w-8 h-8 text-t-ink4" />
-                  <div className="text-[13px] text-t-ink2">Click to choose a CSV file</div>
-                  <div className="text-[11.5px] text-t-ink5">or drag and drop here</div>
+                  <div className="text-[13px] text-t-ink2">{t("send.csv.pick")}</div>
+                  <div className="text-[11.5px] text-t-ink5">{t("send.csv.or")}</div>
                   <input
                     ref={csvFileInputRef}
                     type="file"
@@ -1669,7 +1667,7 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
                       type="button"
                       onClick={() => csvFileInputRef.current?.click()}
                       className="text-[11.5px] text-t-ink4 hover:text-accent px-2 py-1 rounded-md hover:bg-t-hover transition-colors"
-                      title="Replace with another CSV"
+                      title={t("send.csv.replace")}
                     >
                       Replace
                     </button>
@@ -1677,7 +1675,7 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
                       type="button"
                       onClick={() => setConfirmClearCsv(true)}
                       className="p-1 rounded-md text-t-ink4 hover:text-negative hover:bg-t-hover transition-colors"
-                      title="Clear CSV"
+                      title={t("send.csv.clear")}
                     >
                       <X className="w-3.5 h-3.5" />
                     </button>
@@ -1724,7 +1722,7 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
 
                       {/* Preview table — first 5 rows so the user can verify what columns look like. */}
                       <div>
-                        <SectionLabel className="block mb-2">Preview <span className="text-t-ink5 normal-case font-normal">— first {Math.min(5, csvRows.length)} of {csvRows.length} rows</span></SectionLabel>
+                        <SectionLabel className="block mb-2">{t("send.csv.preview")} <span className="text-t-ink5 normal-case font-normal">{t("send.csv.previewHint", { shown: Math.min(5, csvRows.length), total: csvRows.length })}</span></SectionLabel>
                         <div className="bg-t-card border border-t-line rounded-lg overflow-auto max-h-48">
                           <table className="w-full text-[11.5px] font-mono">
                             <thead className="sticky top-0 bg-t-panel">
@@ -1771,7 +1769,7 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
 
                       {/* Per-row delay control */}
                       <div>
-                        <SectionLabel className="block mb-2">Send parameters</SectionLabel>
+                        <SectionLabel className="block mb-2">{t("send.params")}</SectionLabel>
                         <div className="bg-t-card border border-t-line rounded-xl p-3">
                           <label className="block text-[10.5px] font-semibold text-t-ink4 uppercase tracking-wider mb-1.5">
                             Delay between rows
@@ -1815,7 +1813,7 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
                                         height={14}
                                         color="rgb(var(--t-ink3))"
                                         fillColor="rgb(var(--t-ink4) / 0.18)"
-                                        title="Sends per second (last 60s)"
+                                        title={t("send.rate")}
                                         className="ml-auto"
                                       />
                                       <span className="text-[10.5px] text-t-ink5 font-mono shrink-0">
@@ -1859,22 +1857,22 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
         {tab === "reply" && (
           <div className="flex-1 min-h-0 flex flex-col">
             <div className="shrink-0 h-9 px-3 flex items-center border-b border-t-line bg-t-panel">
-              <span className="text-[11.5px] text-t-ink4">Wait for a reply on a separate queue after sending.</span>
+              <span className="text-[11.5px] text-t-ink4">{t("send.reply.note")}</span>
             </div>
             <div className="flex-1 min-h-0 overflow-y-auto p-3 space-y-3">
 
               {/* Enable toggle — same toggle-card pattern as Connection's TLS / SASL ANONYMOUS. */}
               <div className="flex items-center justify-between p-2.5 rounded-xl bg-t-card border border-t-line">
                 <div className="flex flex-col">
-                  <span className="text-[13px] text-t-ink2">Wait for reply</span>
-                  <span className="text-[10.5px] text-t-ink5">Listen on a separate queue after this message is sent</span>
+                  <span className="text-[13px] text-t-ink2">{t("send.reply.title")}</span>
+                  <span className="text-[10.5px] text-t-ink5">{t("send.reply.hint")}</span>
                 </div>
-                <Toggle checked={rrEnabled} onChange={setRrEnabled} ariaLabel="Enable request-reply" />
+                <Toggle checked={rrEnabled} onChange={setRrEnabled} ariaLabel={t("send.reply.enable")} />
               </div>
 
               {/* Reply-target settings card — fields are disabled when the toggle is off. */}
               <div>
-                <SectionLabel className="block mb-2">Reply target</SectionLabel>
+                <SectionLabel className="block mb-2">{t("send.reply.target")}</SectionLabel>
                 <div className={`bg-t-card border border-t-line rounded-xl p-3 space-y-3 ${rrEnabled ? "" : "opacity-50"}`}>
                   <div>
                     <label className="block text-[10.5px] font-semibold text-t-ink4 uppercase tracking-wider mb-1.5">
@@ -1887,7 +1885,7 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
                       connected={connected}
                       profileName={activeProfile}
                       disabled={!rrEnabled}
-                      placeholder="reply_queue or temp address…"
+                      placeholder={t("send.reply.placeholder")}
                     />
                   </div>
                   <div>
@@ -1918,13 +1916,13 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
                 <Callout
                   variant="success"
                   icon={<CheckCircle className="w-3.5 h-3.5" />}
-                  title="Reply received"
+                  title={t("send.reply.received")}
                   action={
                     <CopyButton
                       value={rrReply ?? ""}
-                      onCopied={() => onLog("info", "Reply body copied")}
-                      label="Copy"
-                      title="Copy reply body"
+                      onCopied={() => onLog("info", t("send.reply.copied"))}
+                      label={t("send.copy")}
+                      title={t("send.reply.copy")}
                       className="flex items-center gap-1 text-[10.5px] text-t-ink4 hover:text-t-ink2 transition-colors px-1.5 py-0.5 rounded-md hover:bg-t-hover"
                     />
                   }
@@ -1942,14 +1940,14 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
         {tab === "templates" && (
           <div className="flex-1 min-h-0 flex flex-col">
             <div className="shrink-0 h-9 px-3 border-b border-t-line bg-t-panel flex items-center gap-2">
-              <span className="text-[11.5px] text-t-ink4">Saved message templates</span>
+              <span className="text-[11.5px] text-t-ink4">{t("send.tpl.title")}</span>
               <div className="ml-auto">
                 {savingTpl ? (
                   <div className="flex gap-1.5">
                     <input autoFocus value={newTplName} onChange={e => setNewTplName(e.target.value)}
                       onKeyDown={e => { if (e.key === "Enter") saveAsTemplate(); if (e.key === "Escape") setSavingTpl(false); }}
-                      placeholder="Template name…" className={`${INPUT} text-xs py-1 w-40`} />
-                    <button onClick={saveAsTemplate} className="px-2 py-1 bg-accent-strong text-white text-xs rounded-md hover:bg-accent">Save</button>
+                      placeholder={t("send.tpl.name")} className={`${INPUT} text-xs py-1 w-40`} />
+                    <button onClick={saveAsTemplate} className="px-2 py-1 bg-accent-strong text-white text-xs rounded-md hover:bg-accent">{t("send.tpl.save")}</button>
                     <button onClick={() => setSavingTpl(false)} className="px-2 py-1 text-t-ink4 text-xs hover:text-t-ink rounded-md hover:bg-t-hover">✕</button>
                   </div>
                 ) : (
@@ -1964,8 +1962,8 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
               {templates.length === 0 ? (
                 <EmptyState
                   icon={<BookMarked className="w-8 h-8" />}
-                  title="No templates saved yet"
-                  subtitle='Click "Save current" above to save one'
+                  title={t("send.tpl.none")}
+                  subtitle={t("send.tpl.saveHint")}
                 />
               ) : (
                 // Columns chosen for at-a-glance triage of saved templates.
@@ -1987,12 +1985,12 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
                   </colgroup>
                   <thead className="sticky top-0 bg-t-panel border-b border-t-line z-10">
                     <tr className="text-[10.5px] uppercase tracking-wider text-t-ink4 font-semibold">
-                      <th className="px-3 py-2 text-left font-semibold">Name</th>
-                      <th className="px-2 py-2 text-left font-semibold">Address</th>
-                      <th className="px-2 py-2 text-left font-semibold">Kind</th>
-                      <th className="px-2 py-2 text-left font-semibold">Size</th>
-                      <th className="px-2 py-2 text-left font-semibold" title="Configuration flags set on this template — custom properties, batch send, schedule, request-reply, pre-script, body validation schema, user-defined variables">Features</th>
-                      <th className="px-2 py-2" aria-label="Actions" />
+                      <th className="px-3 py-2 text-left font-semibold">{t("send.tpl.column.name")}</th>
+                      <th className="px-2 py-2 text-left font-semibold">{t("send.tpl.column.address")}</th>
+                      <th className="px-2 py-2 text-left font-semibold">{t("send.tpl.column.kind")}</th>
+                      <th className="px-2 py-2 text-left font-semibold">{t("send.tpl.column.size")}</th>
+                      <th className="px-2 py-2 text-left font-semibold" title={t("send.tpl.features.hint")}>{t("send.tpl.column.features")}</th>
+                      <th className="px-2 py-2" aria-label={t("send.tpl.actions")} />
                     </tr>
                   </thead>
                   <tbody>
@@ -2100,59 +2098,66 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
                                 on={schemaOn}
                                 icon={<ShieldCheck className="w-3.5 h-3.5" />}
                                 color="text-accent-content"
-                                title={schemaOn ? "Body validation schema configured (JSON Schema or XSD)" : "No body schema"}
+                                title={schemaOn ? t("send.tpl.hasSchema") : t("send.tpl.noSchema")}
                               />
                               <FeatureFlag
                                 on={propsCount > 0}
                                 icon={<Tag className="w-3.5 h-3.5" />}
                                 color="text-t-ink2"
-                                title={propsCount > 0 ? `${propsCount} custom application-propert${propsCount === 1 ? "y" : "ies"}` : "No custom properties"}
+                                title={propsCount > 0 ? t("send.tpl.props", { count: propsCount }) : t("send.tpl.noProps")}
                                 badge={propsCount > 0 ? propsCount : undefined}
                               />
                               <FeatureFlag
                                 on={userVarsCount > 0}
                                 icon={<Braces className="w-3.5 h-3.5" />}
                                 color="text-accent"
-                                title={userVarsCount > 0 ? `${userVarsCount} user-defined variable${userVarsCount === 1 ? "" : "s"} on the Variables tab` : "No user variables"}
+                                title={userVarsCount > 0 ? t("send.tpl.vars", { count: userVarsCount }) : t("send.tpl.noVars")}
                                 badge={userVarsCount > 0 ? userVarsCount : undefined}
                               />
                               <FeatureFlag
                                 on={preScriptOn}
                                 icon={<Code2 className="w-3.5 h-3.5" />}
                                 color="text-positive"
-                                title={preScriptOn ? "Has Pre-script — runs before each send" : "No pre-script"}
+                                title={preScriptOn ? t("send.tpl.hasScript") : t("send.tpl.noScript")}
                               />
                               <FeatureFlag
                                 on={batchOn}
                                 icon={<Repeat2 className="w-3.5 h-3.5" />}
                                 color="text-caution"
-                                title={batchOn ? `Batch send: ${tpl.repeat ?? 1}×${tpl.delay_ms ? ` every ${tpl.delay_ms}ms` : ""}` : "No batch send"}
+                                title={batchOn
+                                  ? t("send.tpl.batch", {
+                                      count: tpl.repeat ?? 1,
+                                      delay: tpl.delay_ms ? t("send.tpl.batchDelay", { delay: tpl.delay_ms }) : "",
+                                    })
+                                  : t("send.tpl.noBatch")}
                               />
                               <FeatureFlag
                                 on={scheduleOn}
                                 icon={<Clock className="w-3.5 h-3.5" />}
                                 color="text-caution"
-                                title={scheduleOn ? `Schedule: ${tpl.schedule_delay_secs ?? 0}s delay before first send` : "No schedule"}
+                                title={scheduleOn ? t("send.tpl.schedule", { delay: tpl.schedule_delay_secs ?? 0 }) : t("send.tpl.noSchedule")}
                               />
                               <FeatureFlag
                                 on={replyOn}
                                 icon={<CornerUpLeft className="w-3.5 h-3.5" />}
                                 color="text-accent-content"
-                                title={replyOn ? `Request-reply${tpl.reply_to ? ` on '${tpl.reply_to}'` : " (dynamic source)"}` : "No request-reply"}
+                                title={replyOn
+                                  ? (tpl.reply_to ? t("send.tpl.reply", { queue: tpl.reply_to }) : t("send.tpl.replyDynamic"))
+                                  : t("send.tpl.noReply")}
                               />
                             </div>
                           </td>
                           <td className="px-2 align-middle whitespace-nowrap">
                             <button
                               onClick={(e) => { e.stopPropagation(); setRenamingTpl(tpl.name); setRenamingDraft(tpl.name); }}
-                              title="Rename template"
+                              title={t("send.tpl.rename")}
                               className="opacity-0 group-hover:opacity-100 p-1 text-t-ink5 hover:text-accent transition-all rounded-md"
                             >
                               <Pencil className="w-3.5 h-3.5" />
                             </button>
                             <button
                               onClick={(e) => { e.stopPropagation(); deleteTemplate(tpl.name); }}
-                              title="Delete template"
+                              title={t("send.tpl.delete")}
                               className="opacity-0 group-hover:opacity-100 p-1 text-t-ink5 hover:text-negative transition-all rounded-md"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
@@ -2172,7 +2177,7 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
         {tab === "chaos" && (
           <div className="flex-1 min-h-0 overflow-y-auto p-3 space-y-3">
             <div className="text-[11.5px] text-t-ink5 leading-relaxed">
-              Apply opt-in mutations to the message <i>just before send</i>, so you can poke at how
+              Apply opt-in mutations to the message <i>{t("send.chaos.whenNote")}</i>, so you can poke at how
               your consumer handles malformed input without hand-crafting bad payloads. Each toggle
               is independent; combine them to stress multiple paths at once.
               <span className="block mt-1 text-caution">
@@ -2185,7 +2190,7 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
               <label className="flex items-center gap-2 cursor-pointer">
                 <input type="checkbox" checked={chaosPadBody} onChange={e => setChaosPadBody(e.target.checked)}
                   className="w-3.5 h-3.5 accent-accent-strong cursor-pointer" />
-                <span className="text-[13px] text-t-ink2 font-medium">Send oversized body</span>
+                <span className="text-[13px] text-t-ink2 font-medium">{t("send.chaos.oversized")}</span>
               </label>
               <div className={`pl-5 space-y-1 text-[11.5px] ${chaosPadBody ? "" : "opacity-50"}`}>
                 <p className="text-t-ink5">
@@ -2193,7 +2198,7 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
                   max-message-size limits or testing how the consumer streams large frames.
                 </p>
                 <div className="flex items-center gap-2">
-                  <label className="text-[10.5px] text-t-ink4 uppercase tracking-wider">Target size</label>
+                  <label className="text-[10.5px] text-t-ink4 uppercase tracking-wider">{t("send.chaos.size")}</label>
                   <input type="number" min="0.1" step="0.5" value={chaosPadSizeMb}
                     disabled={!chaosPadBody}
                     onChange={e => setChaosPadSizeMb(e.target.value)}
@@ -2208,7 +2213,7 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
               <label className="flex items-center gap-2 cursor-pointer">
                 <input type="checkbox" checked={chaosWrongCt} onChange={e => setChaosWrongCt(e.target.checked)}
                   className="w-3.5 h-3.5 accent-accent-strong cursor-pointer" />
-                <span className="text-[13px] text-t-ink2 font-medium">Override content-type</span>
+                <span className="text-[13px] text-t-ink2 font-medium">{t("send.chaos.contentType")}</span>
               </label>
               <div className={`pl-5 space-y-1 text-[11.5px] ${chaosWrongCt ? "" : "opacity-50"}`}>
                 <p className="text-t-ink5">
@@ -2219,7 +2224,7 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
                 <input value={chaosWrongCtValue}
                   disabled={!chaosWrongCt}
                   onChange={e => setChaosWrongCtValue(e.target.value)}
-                  placeholder="application/octet-stream"
+                  placeholder={t("send.chaos.contentTypePlaceholder")}
                   className="w-full bg-t-field border border-t-line2 rounded-md px-2 py-1 text-[12.5px] font-mono text-t-ink outline-none focus:border-accent disabled:opacity-50" />
               </div>
             </div>
@@ -2229,7 +2234,7 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
               <label className="flex items-center gap-2 cursor-pointer">
                 <input type="checkbox" checked={chaosCorruptJson} onChange={e => setChaosCorruptJson(e.target.checked)}
                   className="w-3.5 h-3.5 accent-accent-strong cursor-pointer" />
-                <span className="text-[13px] text-t-ink2 font-medium">Send malformed JSON</span>
+                <span className="text-[13px] text-t-ink2 font-medium">{t("send.chaos.malformed")}</span>
               </label>
               <p className={`pl-5 text-[11.5px] text-t-ink5 ${chaosCorruptJson ? "" : "opacity-50"}`}>
                 Drop the closing <span className="font-mono">{"}"}</span> or <span className="font-mono">]</span>{" "}
@@ -2244,7 +2249,7 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
               <label className="flex items-center gap-2 cursor-pointer">
                 <input type="checkbox" checked={chaosDropProp} onChange={e => setChaosDropProp(e.target.checked)}
                   className="w-3.5 h-3.5 accent-accent-strong cursor-pointer" />
-                <span className="text-[13px] text-t-ink2 font-medium">Strip application property</span>
+                <span className="text-[13px] text-t-ink2 font-medium">{t("send.chaos.strip")}</span>
               </label>
               <div className={`pl-5 space-y-1 text-[11.5px] ${chaosDropProp ? "" : "opacity-50"}`}>
                 <p className="text-t-ink5">
@@ -2256,7 +2261,7 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
                 <input value={chaosDropPropKey}
                   disabled={!chaosDropProp}
                   onChange={e => setChaosDropPropKey(e.target.value)}
-                  placeholder="property key to drop (e.g. tenant_id)"
+                  placeholder={t("send.chaos.stripPlaceholder")}
                   className="w-full bg-t-field border border-t-line2 rounded-md px-2 py-1 text-[12.5px] font-mono text-t-ink outline-none focus:border-accent disabled:opacity-50" />
               </div>
             </div>
@@ -2264,10 +2269,7 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
             {chaosActive && (
               <div className="rounded-md border border-caution/30 bg-caution/5 p-2 text-[11.5px] text-caution flex items-start gap-2">
                 <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-                <span>
-                  Chaos helpers are <b>active</b> — the Send tab marker is dotted. Untick everything
-                  before going back to normal smoke testing.
-                </span>
+                <span>{t("send.chaos.warning")}</span>
               </div>
             )}
           </div>
@@ -2280,14 +2282,12 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
           // Schedule countdown — sending is delayed but the user can bail.
           <>
             <Clock className="w-3 h-3 text-caution shrink-0" />
-            <span className="text-caution">
-              Sending in <span className="font-mono font-bold">{scheduleRemaining}s</span>…
-            </span>
+            <span className="text-caution">{t("send.status.scheduled", { sec: scheduleRemaining })}</span>
             <button
               onClick={cancelSend}
               className="ml-2 px-2 py-0.5 rounded-md text-[10.5px] font-medium text-negative hover:bg-negative/10 transition-colors"
             >
-              Cancel
+              {t("send.status.cancel")}
             </button>
           </>
         ) : sending && progress ? (
@@ -2317,7 +2317,7 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
                   height={12}
                   color="rgb(var(--t-ink3))"
                   fillColor="rgb(var(--t-ink4) / 0.18)"
-                  title="Sends per second (last 60s)"
+                  title={t("send.rate")}
                 />
                 <span className="text-[10.5px] text-t-ink5 font-mono">
                   {sendRateHistory[sendRateHistory.length - 1]}/s
@@ -2336,19 +2336,19 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
         ) : rrWaiting ? (
           <>
             <Loader2 className="w-3 h-3 animate-spin text-caution shrink-0" />
-            <span className="text-caution">Waiting for reply on <span className="text-caution">{rrAddress}</span> …</span>
+            <span className="text-caution">{t("send.status.waiting")} <span className="text-caution">{rrAddress}</span> …</span>
           </>
         ) : rrReply !== null ? (
           <>
             <CheckCircle className="w-3 h-3 text-positive shrink-0" />
-            <span className="text-positive">Reply received</span>
+            <span className="text-positive">{t("send.status.replied")}</span>
             <span className="text-t-ink5">·</span>
             <span className="text-t-ink4">{new TextEncoder().encode(rrReply).length} B</span>
           </>
         ) : rrTimedOut ? (
           <>
             <Clock className="w-3 h-3 text-caution shrink-0" />
-            <span className="text-caution">Reply timed out after {rrTimeout}ms</span>
+            <span className="text-caution">{t("send.status.timeout", { ms: rrTimeout })}</span>
           </>
         ) : lastSend?.ok ? (
           <>
@@ -2382,7 +2382,7 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
           <>
             <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${connected ? "bg-t-ink4" : "bg-caution"}`} />
             <span className="text-t-ink4">
-              {connected ? "Ready to send" : "Not connected — Configure connection first"}
+              {connected ? t("send.ready") : t("send.notConnected")}
             </span>
           </>
         )}
@@ -2416,15 +2416,9 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
       {/* ─── CLEAR-CSV CONFIRM ─── */}
       <ConfirmDialog
         open={confirmClearCsv}
-        title="Clear CSV"
-        body={
-          <p>
-            Discard <span className="font-mono font-bold text-t-ink">{csvFileName}</span> and
-            its <span className="font-mono">{csvRows.length.toLocaleString()}</span>{" "}
-            row{csvRows.length === 1 ? "" : "s"}? You'll need to re-load the file to send again.
-          </p>
-        }
-        confirmLabel="Clear CSV"
+        title={t("send.csv.clear")}
+        body={<p>{t("send.csv.clearBody", { file: csvFileName ?? "", count: csvRows.length.toLocaleString() })}</p>}
+        confirmLabel={t("send.csv.clear")}
         onConfirm={() => { clearCsv(); setConfirmClearCsv(false); }}
         onCancel={() => setConfirmClearCsv(false)}
       />
@@ -2484,10 +2478,12 @@ function FeatureFlag({
 function SchemaModal({
   language, value, onChange, result, validating, bodyEmpty, onClose, onLog,
 }: SchemaModalProps) {
+  const t = useAmqpText();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [confirmClear, setConfirmClear] = useState(false);
   const isJson = language === "json";
-  const title = isJson ? "JSON Schema" : "XML Schema (XSD)";
+  const title = isJson ? t("send.schemaModal.title.json") : t("send.schemaModal.title.xsd");
+  const kind = isJson ? t("send.schema.jsonKind") : t("send.schema.xsdKind");
   const editorLang = isJson ? "json" : "xml";
   const placeholder = isJson
     ? `{\n  "type": "object",\n  "required": ["id"],\n  "properties": {\n    "id": { "type": "string" }\n  }\n}`
@@ -2505,7 +2501,7 @@ function SchemaModal({
     try {
       const text = await file.text();
       onChange(text);
-      onLog("info", `Loaded ${language === "json" ? "JSON Schema" : "XSD"} from ${file.name}`);
+      onLog("info", t("send.schemaModal.loaded", { kind, file: file.name }));
     } catch (e) {
       onLog("err", `Failed to read ${file.name}: ${e}`);
     }
@@ -2531,21 +2527,21 @@ function SchemaModal({
     statusBanner = (
       <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-t-card border border-t-line text-[12.5px] text-t-ink4">
         <ShieldCheck className="w-3.5 h-3.5 shrink-0" />
-        <span>No schema configured. Paste or upload a {isJson ? "JSON Schema" : "XSD"} to enable validation.</span>
+        <span>{t("send.schemaModal.none", { kind })}</span>
       </div>
     );
   } else if (validating) {
     statusBanner = (
       <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-t-card border border-t-line text-[12.5px] text-t-ink3">
         <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" />
-        <span>Validating…</span>
+        <span>{t("send.schemaModal.validating")}</span>
       </div>
     );
   } else if (bodyEmpty) {
     statusBanner = (
       <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-t-card border border-t-line text-[12.5px] text-t-ink4">
         <ShieldCheck className="w-3.5 h-3.5 shrink-0" />
-        <span>Body is empty — nothing to validate yet.</span>
+        <span>{t("send.schemaModal.emptyBody")}</span>
       </div>
     );
   } else if (result?.schemaError) {
@@ -2553,7 +2549,7 @@ function SchemaModal({
       <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-negative/10 border border-negative/30 text-[12.5px] text-negative">
         <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
         <div>
-          <div className="font-medium">Schema is invalid</div>
+          <div className="font-medium">{t("send.schemaModal.bad")}</div>
           <div className="text-negative mt-0.5">{result.schemaError}</div>
         </div>
       </div>
@@ -2562,7 +2558,7 @@ function SchemaModal({
     statusBanner = (
       <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-positive/10 border border-positive/30 text-[12.5px] text-positive">
         <CheckCircle className="w-3.5 h-3.5 shrink-0" />
-        <span>Body matches the {isJson ? "JSON Schema" : "XSD"}.</span>
+        <span>{t("send.schemaModal.ok", { kind })}</span>
       </div>
     );
   } else if (result && !result.ok) {
@@ -2612,7 +2608,7 @@ function SchemaModal({
             type="button"
             onClick={pickFile}
             className="flex items-center gap-1 text-[11.5px] text-t-ink3 hover:text-accent px-2 py-1 rounded-md transition-colors border border-t-line2 hover:border-accent/50"
-            title={`Upload ${isJson ? "JSON Schema" : "XSD"} file from disk`}
+            title={t("send.schemaModal.upload", { kind })}
           >
             <FileUp className="w-3 h-3" /> Upload…
           </button>
@@ -2621,7 +2617,7 @@ function SchemaModal({
               type="button"
               onClick={() => setConfirmClear(true)}
               className="flex items-center gap-1 text-[11.5px] text-t-ink4 hover:text-negative px-2 py-1 rounded-md transition-colors"
-              title="Clear schema"
+              title={t("send.schemaModal.clear")}
             >
               <Trash2 className="w-3 h-3" /> Clear
             </button>
@@ -2630,7 +2626,7 @@ function SchemaModal({
             type="button"
             onClick={onClose}
             className="p-1 rounded-md text-t-ink4 hover:text-t-ink hover:bg-t-hover"
-            aria-label="Close"
+            aria-label={t("send.schemaModal.close")}
           >
             <X className="w-3.5 h-3.5" />
           </button>
@@ -2662,18 +2658,18 @@ function SchemaModal({
         <div className="shrink-0 px-3 py-2 border-t border-t-line bg-t-panel flex items-center gap-3 text-[10.5px] text-t-ink5">
           <span>
             {isJson
-              ? "Pass a JSON Schema (Draft-07 or 2020-12)."
-              : "Pass an XSD document; xmllint validates the body against it."}
+              ? t("send.schemaModal.draft")
+              : t("send.schemaModal.xsdNote")}
           </span>
           <span className="ml-auto flex items-center gap-1">
-            <kbd className="font-mono px-1 py-0.5 border border-t-line rounded-md">Esc</kbd> close
+            <kbd className="font-mono px-1 py-0.5 border border-t-line rounded-md">Esc</kbd> {t("send.schemaModal.esc")}
           </span>
         </div>
       </div>
 
       <ConfirmDialog
         open={confirmClear}
-        title={`Clear ${isJson ? "JSON Schema" : "XSD"}`}
+        title={t("send.schemaModal.clearOne", { kind })}
         body={
           <p>
             Discard the current {isJson ? "JSON Schema" : "XSD"}? You'll lose any unsaved
@@ -2681,7 +2677,7 @@ function SchemaModal({
             in the active template.
           </p>
         }
-        confirmLabel="Clear schema"
+        confirmLabel={t("send.schemaModal.clear")}
         onConfirm={() => { clearSchema(); setConfirmClear(false); }}
         onCancel={() => setConfirmClear(false)}
       />
@@ -2704,6 +2700,7 @@ function ValueWithHistoryPick({ row, historyValues, variableSuggestions, onChang
   variableSuggestions: VariableSuggestion[];
   onChange: (v: string) => void;
 }) {
+  const t = useAmqpText();
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
 
@@ -2730,8 +2727,8 @@ function ValueWithHistoryPick({ row, historyValues, variableSuggestions, onChang
         <button
           type="button"
           onClick={() => setOpen(o => !o)}
-          title={`${historyValues.length} previously-used value${historyValues.length === 1 ? "" : "s"} for '${row.key}'`}
-          aria-label="Pick from history"
+          title={t("send.history.hint", { count: historyValues.length, key: row.key })}
+          aria-label={t("send.history.pick")}
           className={`shrink-0 p-1 rounded-md transition-colors ${
             open ? "text-accent bg-accent/10" : "text-t-ink5 hover:text-t-ink2 hover:bg-t-hover"
           }`}
