@@ -413,6 +413,7 @@ export function AmqpushScreen({ view, visible, onView, stand, stands, onConfigur
   const publisherView = (
     <PublisherView
       connected={connected}
+      latencyMs={brokerLatencyMs}
       defaultAddress={defaultAddress}
       activeProfile={activeProfile}
       resendPayload={resendPayload}
@@ -446,45 +447,11 @@ export function AmqpushScreen({ view, visible, onView, stand, stands, onConfigur
         уезжает то, чего в переключателе нет, — состояние брокера и справка.
       */}
       <HeaderChip>
-        <button
-          type="button"
-          onClick={() => (connected ? void disconnectStand() : void connectStand())}
-          disabled={connecting}
-          title={
-            connected
-              ? `${t("shell.connected")} → ${stand?.host}:${stand?.port} · ${t("shell.disconnect")}`
-              : stand?.host
-                ? `${stand.host}:${stand.port} · ${t("shell.connect")}`
-                : t("shell.stand.noBroker")
-          }
-          className={`flex h-9 shrink-0 items-center gap-2 rounded-lg border px-2.5 text-[12.5px] transition disabled:opacity-60 ${
-            connected
-              ? "border-positive/35 bg-positive/8 text-t-ink2 hover:bg-positive/15"
-              : "border-t-line2 bg-t-panel text-t-ink3 hover:bg-t-hover"
-          }`}
-        >
-          <span
-            className={`size-2 shrink-0 rounded-full ${
-              connecting ? "animate-pulse bg-caution" : connected ? "bg-positive" : "bg-t-ink5"
-            }`}
-          />
-          <span className="font-mono">
-            {stand?.host ? `${stand.host}:${stand.port}` : t("shell.stand.noBroker")}
-          </span>
-          {connected && brokerLatencyMs !== null && (
-            <span
-              className={`font-mono text-[11.5px] ${
-                brokerLatencyMs < 100 ? "text-t-ink5"
-                : brokerLatencyMs < 500 ? "text-caution"
-                : "text-negative"
-              }`}
-              title={t("shell.latency.hint")}
-            >
-              {brokerLatencyMs}ms
-            </span>
-          )}
-        </button>
-
+        {/*
+          Адреса брокера в шапке нет: стенд назван переключателем рядом,
+          а состояние подключения видно там, где оно нужно, — в строке
+          состояния экрана отправки и приёма. Остаётся справка.
+        */}
         <button
           type="button"
           onClick={() => setShowHelp(true)}

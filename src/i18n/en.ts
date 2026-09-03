@@ -847,6 +847,7 @@ export const en = {
   'broker.endpoint.hint': 'Queue managers of the stand and the ports of their acceptors, read from the bus. Picking one fills in the port',
   'broker.endpoint.pick': 'Pick a broker…',
   'broker.endpoint.none': 'No brokers found',
+  'broker.endpoint.manual': 'By Hand · {port}',
   'broker.endpoint.stopped': 'stopped',
   'broker.endpoint.needsBus': 'Connect to the bus to read the list',
   'broker.access': 'Grant Access',

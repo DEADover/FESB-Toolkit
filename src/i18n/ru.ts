@@ -847,6 +847,7 @@ export const ru: Record<keyof typeof en, string> = {
   'broker.endpoint.hint': 'Менеджеры очередей стенда и порты их приёмников — читаются у шины. Выбор подставит порт',
   'broker.endpoint.pick': 'Выберите брокер…',
   'broker.endpoint.none': 'Брокеров не нашлось',
+  'broker.endpoint.manual': 'Вручную · {port}',
   'broker.endpoint.stopped': 'остановлен',
   'broker.endpoint.needsBus': 'Подключитесь к шине, чтобы прочитать список',
   'broker.access': 'Настроить доступ',

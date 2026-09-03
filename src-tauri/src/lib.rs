@@ -658,5 +658,6 @@ pub mod testing {
     // Проверка брокера: живой стенд нужен и ей, поэтому она рядом с остальными.
     pub use crate::broker_access::{broker_endpoints, grant_broker_access, BrokerEndpoint};
     pub use crate::amqpush::{probe_broker, BrokerProbe};
+    pub use crate::amqpush::amqp::{AmqpClient, ClientCert, TransportOpts};
     pub use crate::amqpush::profiles::Profile as BrokerProfile;
 }

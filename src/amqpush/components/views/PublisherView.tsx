@@ -32,6 +32,12 @@ import CopyButton from "../CopyButton";
 
 interface Props {
   connected: boolean;
+  /**
+   * Сколько идёт до брокера и обратно, мс. Стояло в шапке раздела, а после
+   * того как шапка ушла, живёт здесь — рядом с точкой подключения, где на
+   * него и смотрят: перед отправкой.
+   */
+  latencyMs?: number | null;
   defaultAddress: string;
   activeProfile: string;
   resendPayload?: {
@@ -183,7 +189,7 @@ function formatXml(raw: string): string {
   } catch { return raw; }
 }
 
-export default function PublisherView({ connected, defaultAddress, activeProfile, resendPayload, sendTrigger, onLog, onSent, onSendError, onTabChange }: Props) {
+export default function PublisherView({ connected, latencyMs, defaultAddress, activeProfile, resendPayload, sendTrigger, onLog, onSent, onSendError, onTabChange }: Props) {
   const t = useAmqpText();
   const [address,    setAddress]    = useState(defaultAddress);
   const [tab,        setTab]        = useState<TabKey>("body");
@@ -1074,7 +1080,22 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
     return out;
   })();
 
-  const sendDisabled = !connected || sending || (mode === "raw" && !!text && !textOk);
+  /**
+   * Почему «Отправить» не нажимается.
+   *
+   * Погашенная кнопка без объяснения — самая обидная поломка: тело
+   * не разбирается как выбранный формат, а выглядит это как «приложение
+   * не видит подключения». Причина теперь написана и в подсказке кнопки,
+   * и в строке состояния.
+   */
+  const sendBlocked =
+    !connected ? t("send.needConnection")
+    : sending ? t("send.sending")
+    : mode === "raw" && !!text && !jsonValid ? t("send.badJson")
+    : mode === "raw" && !!text && !xmlValid ? t("send.badXml")
+    : mode === "raw" && !!text && activeSchemaResult && !activeSchemaResult.ok ? t("send.badSchema")
+    : null;
+  const sendDisabled = sendBlocked !== null;
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden min-h-0">
@@ -1087,6 +1108,7 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
         <button
           onClick={doSend}
           disabled={sendDisabled}
+          title={sendBlocked ?? undefined}
           className="shrink-0 flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-[12.5px] font-semibold bg-accent-strong hover:bg-accent text-white transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-sm"
         >
           <Send className="w-3.5 h-3.5" />
@@ -2360,9 +2382,9 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
           </>
         ) : (
           <>
-            <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${connected ? "bg-t-ink4" : "bg-caution"}`} />
-            <span className="text-t-ink4">
-              {connected ? t("send.ready") : t("send.notConnected")}
+            <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${sendBlocked ? "bg-caution" : "bg-t-ink4"}`} />
+            <span className={sendBlocked ? "text-caution" : "text-t-ink4"}>
+              {sendBlocked ?? t("send.ready")}
             </span>
           </>
         )}
@@ -2374,6 +2396,16 @@ export default function PublisherView({ connected, defaultAddress, activeProfile
               <span className="text-t-ink5">→</span>
               <span className="text-t-ink3 truncate max-w-[200px]" title={address}>{address}</span>
             </>
+          )}
+          {connected && latencyMs !== null && latencyMs !== undefined && (
+            <span
+              className={`font-mono ${
+                latencyMs < 100 ? "text-t-ink5" : latencyMs < 500 ? "text-caution" : "text-negative"
+              }`}
+              title={t("shell.latency.hint")}
+            >
+              {latencyMs}ms
+            </span>
           )}
           <span className={`w-1.5 h-1.5 rounded-full ${connected ? "bg-positive" : "bg-t-ink5"}`} />
         </div>

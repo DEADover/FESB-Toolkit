@@ -65,8 +65,7 @@ export const SECTIONS_EN: HelpSection[] = [
         </P>
         <P>
           Which stand is active is decided in the app header, the same one the API section
-          works against. This section's header names it and connects to its broker; there is no
-          second list of profiles to keep in sync.
+          works against. There is no second list of profiles to keep in sync.
         </P>
 
         <P>
@@ -77,10 +76,10 @@ export const SECTIONS_EN: HelpSection[] = [
           auto-create on.
         </P>
 
-        <H3>The three fields that matter</H3>
-        <Row label="Broker host">Leave it empty and the bus host is used — the broker usually lives on the same machine. Fill it in when it doesn't.</Row>
-        <Row label="Port">Default <Code>5672</Code> without TLS, <Code>5671</Code> with it.</Row>
-        <Row label="Default queue">Optional. Pre-fills the destination in the Send view. Independent of the <b>Recent</b> queues in the queue picker.</Row>
+        <H3>The fields that matter</H3>
+        <Row label="Stand Broker">The list of managers and ports read from the bus. Picking one fills in the port, so neither host nor port has to be typed.</Row>
+        <Row label="Default Queue">Optional. Pre-fills the destination in the Send view. Independent of the <b>Recent</b> queues in the queue picker.</Row>
+        <Row label="Broker User and Password">Empty means the bus credentials. A FESB manager keeps its own users, and the manager account is not one of them — create it with <b>Grant Access</b>.</Row>
 
         <H3>Toggles</H3>
         <Row label="TLS / AMQPS">Encrypt the connection. Turning it on reveals <b>Skip certificate check</b> for self-signed and test brokers — keep it off in production.</Row>
@@ -122,10 +121,11 @@ export const SECTIONS_EN: HelpSection[] = [
           repeating it is a no-op — the password of an existing user is never overwritten.
         </P>
 
-        <H3>In the app header</H3>
+        <H3>Where the connection state shows</H3>
         <UL>
-          <Li><b>The broker chip</b> — dot, host:port and the round-trip time. Click it to disconnect or to connect again. The section has no header row of its own: the stand is already named by the switch next to it.</Li>
+          <Li><b>The bar at the bottom of Send and Receive</b> — a dot, the round-trip time, and why Send is not clickable: no connection, the body does not parse as the chosen format, or it does not match the schema.</Li>
           <Li><b>Round-trip time</b> — measured every 5 s by the cheapest management ping. Amber past 100 ms, red past 500 ms. Degrading network or broker health shows up <i>before</i> a send or a subscribe stalls.</Li>
+          <Li>The section has no header row of its own: the stand is named by the switch in the app header, and opening any screen of the section connects to its broker on its own. Disconnect from the command palette (<Kbd>⌘</Kbd><Kbd>K</Kbd>).</Li>
         </UL>
 
         <Note>

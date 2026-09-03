@@ -13,7 +13,10 @@
 //! отдаёт AMQP 1.0. У ActiveMQ Classic (модуль QMS) на 61616 живёт OpenWire,
 //! и клиент AMQP там получает отказ на рукопожатии.
 
-use fesb_toolkit_lib::testing::{broker_endpoints, grant_broker_access, probe_broker, BrokerProfile, Connection};
+use fesb_toolkit_lib::testing::{
+    broker_endpoints, grant_broker_access, probe_broker,
+    AmqpClient, BrokerProfile, ClientCert, Connection, TransportOpts,
+};
 
 fn profile() -> Option<BrokerProfile> {
     let host = std::env::var("AMQP_HOST").ok()?;
@@ -117,4 +120,42 @@ fn granting_access_twice_changes_nothing() {
     println!("второй вызов: {again:?}");
     assert!(!again.user_created, "пользователь не должен заводиться дважды");
     assert!(!again.rights_granted, "права не должны выдаваться повторно");
+}
+
+/// Отправка тем же путём, которым ходит экран «Отправка»: подключиться,
+/// прицепить отправителя к адресу, положить сообщение.
+///
+/// Проверяет то, чего не видно из проверки связи: хватает ли у пользователя
+/// прав завести адрес и писать в него. Сообщение остаётся в очереди —
+/// на тестовом стенде это и нужно.
+#[test]
+#[ignore]
+fn a_message_reaches_the_queue() {
+    let Some(profile) = profile() else {
+        eprintln!("AMQP_HOST не задан — проверять нечего");
+        return;
+    };
+    let queue = std::env::var("AMQP_QUEUE").unwrap_or_else(|_| "test_queue".into());
+
+    let sent = tauri::async_runtime::block_on(async {
+        let mut client = AmqpClient::new();
+        client
+            .connect(
+                &profile.host, profile.port, &queue,
+                &profile.username, &profile.password,
+                profile.use_tls, "", 0, 10,
+                profile.sasl_anonymous, profile.tls_skip_verify,
+                ClientCert::default(), TransportOpts::default(),
+            )
+            .await?;
+        let result = client
+            .send_message(&queue, Some("проверка из теста".into()), None, None, Default::default(), None)
+            .await;
+        client.disconnect().await.ok();
+        result
+    })
+    .expect("сообщение должно уйти в очередь");
+
+    println!("ушло в {}: {} в {}", sent.address, sent.message_id, sent.timestamp);
+    assert!(!sent.message_id.is_empty(), "у отправленного сообщения должен быть идентификатор");
 }

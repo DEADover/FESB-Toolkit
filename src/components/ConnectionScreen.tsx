@@ -683,7 +683,7 @@ function BrokerBlock({ broker, busUrl, busUser, stand, connection, onChange }: {
       <div className="px-5 pb-1 pt-4">
         {/* Порт брокера иначе ищут по конфигам на стенде — а шина знает свои
             менеджеры и их приёмники, и отвечает за секунду. */}
-        <div className="mb-3 grid grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,2fr)] items-end gap-3">
+        <div className="grid grid-cols-[minmax(0,2fr)_minmax(0,2fr)_minmax(0,1.4fr)] items-end gap-3">
           <Field
             label={t('broker.endpoint')}
             htmlFor="broker-endpoint"
@@ -693,12 +693,18 @@ function BrokerBlock({ broker, busUrl, busUser, stand, connection, onChange }: {
             <Select<string>
               className="w-full"
               ariaLabel={t('broker.endpoint')}
-              value={chosen ? `${chosen.server}:${chosen.port}` : ''}
+              value={chosen ? `${chosen.server}:${chosen.port}` : (broker.port.trim() ? 'manual' : '')}
               onChange={(value) => {
                 const picked = endpoints.find((item) => `${item.server}:${item.port}` === value)
                 if (picked) set('port', String(picked.port))
+                else if (value === '') set('port', '')
               }}
               options={[
+                // Порт, вписанный руками, тоже виден в списке: иначе выбор
+                // показывал бы «выберите брокер» при заполненном порте.
+                ...(!chosen && broker.port.trim()
+                  ? [{ id: 'manual', label: t('broker.endpoint.manual', { port: broker.port.trim() }) }]
+                  : []),
                 { id: '', label: endpoints.length ? t('broker.endpoint.pick') : t('broker.endpoint.none') },
                 ...endpoints.map((item) => ({
                   id: `${item.server}:${item.port}`,
@@ -707,7 +713,14 @@ function BrokerBlock({ broker, busUrl, busUser, stand, connection, onChange }: {
               ]}
             />
           </Field>
-          <div />
+          <Field label={t('broker.queue')} htmlFor="broker-queue" tip={t('broker.queue.hint')}>
+            <TextInput
+              id="broker-queue"
+              value={broker.queue}
+              placeholder="Mon.Trace"
+              onChange={(event) => set('queue', event.target.value)}
+            />
+          </Field>
           {/* Кнопка стоит рядом с выбором: доступ выдают тому брокеру,
               который только что выбрали. */}
           <Button
@@ -724,38 +737,6 @@ function BrokerBlock({ broker, busUrl, busUser, stand, connection, onChange }: {
             <ButtonGlyph busy={granting}><Key size={14} weight="regular" /></ButtonGlyph>
             {granting ? t('broker.access.granting') : t('broker.access')}
           </Button>
-        </div>
-
-        <div className="grid grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,2fr)] gap-3">
-          <Field
-            label={t('broker.host')}
-            htmlFor="broker-host"
-            tip={t('broker.host.hint')}
-            hint={inheritedHost ? t('broker.host.inherited', { host: inheritedHost }) : undefined}
-          >
-            <TextInput
-              id="broker-host"
-              value={broker.host}
-              placeholder={inheritedHost || 'broker.corp'}
-              onChange={(event) => set('host', event.target.value)}
-            />
-          </Field>
-          <Field label={t('broker.port')} htmlFor="broker-port" tip={t('broker.port.hint')}>
-            <TextInput
-              id="broker-port"
-              value={broker.port}
-              placeholder="5672"
-              onChange={(event) => set('port', event.target.value)}
-            />
-          </Field>
-          <Field label={t('broker.queue')} htmlFor="broker-queue" tip={t('broker.queue.hint')}>
-            <TextInput
-              id="broker-queue"
-              value={broker.queue}
-              placeholder="Mon.Trace"
-              onChange={(event) => set('queue', event.target.value)}
-            />
-          </Field>
         </div>
 
         {/* Пользователь и пароль стоят рядом с узлом и портом: без них
@@ -836,6 +817,33 @@ function BrokerBlock({ broker, busUrl, busUser, stand, connection, onChange }: {
         {advanced && (
           <>
             <BrokerGroup label={t('broker.group.connection')}>
+              <div className="mb-3 grid grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,2fr)] gap-3">
+                {/* Узел почти всегда тот же, что у шины, а порт подставляет
+                    выбор брокера. Руками их правят в двух случаях: брокер
+                    не из этого стенда или шина ещё не подключена, и списка
+                    брокеров нет. */}
+                <Field
+                  label={t('broker.host')}
+                  htmlFor="broker-host"
+                  tip={t('broker.host.hint')}
+                  hint={inheritedHost ? t('broker.host.inherited', { host: inheritedHost }) : undefined}
+                >
+                  <TextInput
+                    id="broker-host"
+                    value={broker.host}
+                    placeholder={inheritedHost || 'broker.corp'}
+                    onChange={(event) => set('host', event.target.value)}
+                  />
+                </Field>
+                <Field label={t('broker.port')} htmlFor="broker-port" tip={t('broker.port.hint')}>
+                  <TextInput
+                    id="broker-port"
+                    value={broker.port}
+                    placeholder="61616"
+                    onChange={(event) => set('port', event.target.value)}
+                  />
+                </Field>
+              </div>
               <div className="grid grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)] gap-3">
                 <Field label={t('broker.containerId')} htmlFor="broker-container" tip={t('broker.containerId.hint')}>
                   <TextInput
