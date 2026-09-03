@@ -15,6 +15,7 @@ import type {
   QueueMatch, QueueMessage, QueueRow, RouteAction, RouteGraph, RouteState, SavePoint, ScanProgress,
   ScanResult,
   Comparison, ServerInfo, SweepRow, TraceUpdate, VerifyResult,
+  BrokerEndpoint, BrokerAccessReport,
 } from '../types'
 
 /** Единственная точка соприкосновения интерфейса с бэкендом на Rust. */
@@ -47,6 +48,29 @@ export async function selectFile(
 ): Promise<string | null> {
   const result = await open({ directory: false, multiple: false, title, filters })
   return typeof result === 'string' ? result : null
+}
+
+/**
+ * Приёмники менеджеров QME стенда: куда можно подключиться по AMQP.
+ *
+ * Порт брокера иначе ищут по конфигам на самом стенде — а шина знает его
+ * сама и отвечает за секунду.
+ */
+export function apiBrokerEndpoints(connection: Connection): Promise<BrokerEndpoint[]> {
+  return invoke<BrokerEndpoint[]>('api_broker_endpoints', { connection })
+}
+
+/**
+ * Доступ к брокеру для того пользователя, под которым подключается раздел AMQP:
+ * заводит его на брокере и выдаёт права на все адреса.
+ */
+export function apiBrokerAccess(
+  connection: Connection,
+  server: string,
+  username: string,
+  password: string,
+): Promise<BrokerAccessReport> {
+  return invoke<BrokerAccessReport>('api_broker_access', { connection, server, username, password })
 }
 
 /** Распаковывает архив во временную папку и возвращает путь к ней. */

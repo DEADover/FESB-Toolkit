@@ -1,5 +1,7 @@
-import { useState, useCallback, useEffect } from "react";
-import { HelpCircle, Plug, Sparkles, Terminal, User } from "lucide-react";
+import { useState, useCallback, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
+
+import { HelpCircle, Plug, Sparkles, Terminal } from "lucide-react";
 import PublisherView from "./components/views/PublisherView";
 import SubscriberView from "./components/views/SubscriberView";
 import HistoryView from "./components/views/HistoryView";
@@ -32,6 +34,18 @@ const VIEW_KEYS: Record<string, View> = {
  * Tab strings come from PublisherView's TabKey union; everything else just
  * keys off `view`. Unknown combos fall back to "getting-started".
  */
+/**
+ * Место в шапке приложения, куда раздел кладёт своё.
+ *
+ * Узел шапки появляется в том же кадре, что и раздел, поэтому ищем его
+ * после отрисовки, а до тех пор не показываем ничего.
+ */
+function HeaderChip({ children }: { children: React.ReactNode }) {
+  const [host, setHost] = useState<HTMLElement | null>(null);
+  useEffect(() => setHost(document.getElementById("header-chip")), []);
+  return host ? createPortal(children, host) : null;
+}
+
 function helpSectionFor(view: View, pubTab: string): string {
   if (view === "publisher") {
     switch (pubTab) {
@@ -68,9 +82,15 @@ function helpSectionFor(view: View, pubTab: string): string {
  *
  * Тему, заголовок окна и обновления раздел не трогает: этим занят хозяин.
  */
-export function AmqpushScreen({ view, onView, stand, stands, onConfigure }: {
+export function AmqpushScreen({ view, visible, onView, stand, stands, onConfigure }: {
   /** Какой экран показывать. Выбирается боковой панелью приложения. */
   view: View;
+  /**
+   * Открыт ли раздел сейчас. После первого открытия он остаётся в дереве,
+   * чтобы не терять принятые сообщения, — но подключаться к брокеру, пока
+   * его не видно, незачем.
+   */
+  visible: boolean;
   /** Смена экрана изнутри: горячие клавиши и ссылки «отправить сюда». */
   onView: (view: View) => void;
   /**
@@ -121,9 +141,6 @@ export function AmqpushScreen({ view, onView, stand, stands, onConfigure }: {
    *  отправка из палитры). Всё, что считается, пишется в ведро текущего
    *  стенда, чтобы в «Статистике» дев и прод стояли рядом. */
   const [statsByProfile, setStatsByProfile] = useState<Record<string, StatsData>>({});
-  // Convenience accessor: the active profile's bucket, or an empty one
-  // for first-render code paths that want stat numbers (sentCount, etc).
-  const stats: StatsData = statsByProfile[activeProfile] ?? emptyStats();
 
   const [resendPayload,  setResendPayload]  = useState<{
     address: string;
@@ -287,6 +304,9 @@ export function AmqpushScreen({ view, onView, stand, stands, onConfigure }: {
     }
   }
 
+  /** Чем стенд отличается от прежнего: имя брокера, порт и очередь. */
+  const standKey = stand ? `${stand.host}:${stand.port}/${stand.queue}` : "";
+
   async function disconnectStand() {
     try {
       await invoke("disconnect");
@@ -298,13 +318,30 @@ export function AmqpushScreen({ view, onView, stand, stands, onConfigure }: {
   }
 
   /**
+   * Открыли раздел — подключаемся к брокеру выбранного стенда.
+   *
+   * Стенд уже выбран в шапке приложения, и брокер — его часть: спрашивать
+   * «подключиться?» второй раз значит переспрашивать того, кто уже ответил.
+   * Одна попытка на стенд: если она не удалась или пользователь отключился
+   * сам, навязываться снова не нужно — рядом есть кнопка.
+   */
+  const autoTried = useRef("");
+  useEffect(() => {
+    if (!visible || !stand?.host || connected || connecting) return;
+    if (autoTried.current === standKey) return;
+    autoTried.current = standKey;
+    void connectStand();
+    // Хватает ключа стенда и того, открыт ли раздел.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible, standKey, connected, connecting]);
+
+  /**
    * Сменили стенд — отключаемся от прежнего брокера.
    *
    * Иначе шапка называла бы новый стенд, а сокет вёл бы к старому: отправки
    * уходили бы не туда, куда написано. Подключение к новому брокеру остаётся
    * осознанным действием, само оно не происходит.
    */
-  const standKey = stand ? `${stand.host}:${stand.port}/${stand.queue}` : "";
   useEffect(() => {
     if (!connected) return;
     void invoke("disconnect")
@@ -399,131 +436,65 @@ export function AmqpushScreen({ view, onView, stand, stands, onConfigure }: {
     />
   );
 
-  // Recent log indicator (last entry kind for header dot)
-  const lastLog = logs[logs.length - 1];
-  const logDotColor = !lastLog ? "" :
-    lastLog.kind === "err" ? "bg-negative" :
-    lastLog.kind === "ok"  ? "bg-positive" :
-    "bg-t-ink4";
-
   return (
     // Раздел занимает то, что осталось от окна, а не всё окно: над ним
     // шапка приложения с переключателем стенда и ходом работы.
     <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden px-6 pb-4 select-none">
       {/*
-        Полоса раздела — карточкой, как полоса показателей на остальных
-        экранах: профиль и состояние подключения слева, журнал и справка
-        справа. Прежде она шла сплошной шапкой во всю ширину и читалась
-        второй шапкой приложения.
+        Своей строки у раздела больше нет: она повторяла переключатель стенда
+        из шапки приложения и занимала место над каждым экраном. В шапку
+        уезжает то, чего в переключателе нет, — состояние брокера и справка.
       */}
-      <header className="flex shrink-0 flex-wrap items-center justify-between gap-2 rounded-xl border border-line bg-surface px-5 py-2.5">
-
-        {/* ─── LEFT: Profile + Connection state ─── */}
-        <div className="flex items-center gap-2">
-          {/*
-            Стенд выбирается в шапке приложения — здесь он только назван,
-            и рядом стоит подключение к его брокеру. Своего списка профилей
-            у раздела больше нет: стенд один на приложение.
-          */}
-          <button
-            type="button"
-            onClick={onConfigure}
-            title={t("shell.stand.configure")}
-            className="flex items-center gap-1.5 rounded-lg border border-t-line px-2 py-1 text-[12px] text-t-ink3 transition hover:bg-t-bg2"
-          >
-            <User className="w-3 h-3 text-t-ink4" />
-            {stand
-              ? <span className="font-medium">{stand.name}</span>
-              : <span className="italic text-t-ink5">{t("shell.stand.none")}</span>}
-            {stand && (stand.host
-              ? <span className="font-mono text-t-ink5">{stand.host}:{stand.port}</span>
-              : <span className="italic text-t-ink5">{t("shell.stand.noBroker")}</span>)}
-          </button>
-
-          <button
-            type="button"
-            onClick={() => (connected ? void disconnectStand() : void connectStand())}
-            disabled={connecting}
-            className={`flex h-7 shrink-0 items-center gap-1.5 rounded-lg px-2.5 text-[12px] font-medium transition disabled:opacity-40 ${
-              connected
-                ? "border border-negative/30 bg-negative/10 text-negative hover:bg-negative/20"
-                : "bg-accent-strong text-white hover:bg-accent"
+      <HeaderChip>
+        <button
+          type="button"
+          onClick={() => (connected ? void disconnectStand() : void connectStand())}
+          disabled={connecting}
+          title={
+            connected
+              ? `${t("shell.connected")} → ${stand?.host}:${stand?.port} · ${t("shell.disconnect")}`
+              : stand?.host
+                ? `${stand.host}:${stand.port} · ${t("shell.connect")}`
+                : t("shell.stand.noBroker")
+          }
+          className={`flex h-9 shrink-0 items-center gap-2 rounded-lg border px-2.5 text-[12.5px] transition disabled:opacity-60 ${
+            connected
+              ? "border-positive/35 bg-positive/8 text-t-ink2 hover:bg-positive/15"
+              : "border-t-line2 bg-t-panel text-t-ink3 hover:bg-t-hover"
+          }`}
+        >
+          <span
+            className={`size-2 shrink-0 rounded-full ${
+              connecting ? "animate-pulse bg-caution" : connected ? "bg-positive" : "bg-t-ink5"
             }`}
-          >
-            {connecting
-              ? t("shell.connecting")
-              : connected
-                ? t("shell.disconnect")
-                : t("shell.connect")}
-          </button>
-
-          {/* Connection status. When connected, the green dot is followed by
-              a live latency chip — broker round-trip every 5 s via the
-              cheapest possible management RPC. Visible degradation in network
-              or broker health surfaces immediately, before sends/recvs stall. */}
-          <div className="flex items-center gap-1.5 px-2">
-            <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${connected ? "bg-positive" : "bg-t-ink5"}`} />
-            <span className={`text-[11.5px] font-medium hidden sm:inline ${connected ? "text-positive" : "text-t-ink4"}`}>
-              {connected ? t("shell.connected") : t("shell.disconnected")}
-            </span>
-            {connected && brokerLatencyMs !== null && (
-              <span
-                className={`text-[11.5px] font-mono ${
-                  brokerLatencyMs < 100 ? "text-t-ink4"
-                  : brokerLatencyMs < 500 ? "text-caution"
-                  : "text-negative"
-                }`}
-                title={t("shell.latency.hint")}
-              >
-                {brokerLatencyMs}ms
-              </span>
-            )}
-          </div>
-        </div>
-
-        {/* ─── RIGHT: stats + console + theme ─── */}
-        <div className="flex items-center gap-2">
-          {(stats.sentCount > 0 || stats.receivedCount > 0) && (
-            <span className="text-[11.5px] text-t-ink5 font-mono">
-              ↑{stats.sentCount} ↓{stats.receivedCount}
-            </span>
-          )}
-
-          {view !== "console" && (
-            <button
-              onClick={() => changeView("console")}
-              title={`${t("shell.logs")} — ${t("shell.logs.count", { count: logs.length })}  ⌘L`}
-              className={`flex items-center gap-1.5 px-2 py-1 rounded-lg transition-colors text-[11.5px] border ${
-                lastLog?.kind === "err"
-                  ? "border-negative/30 text-negative hover:bg-negative/10"
-                  : "border-t-line text-t-ink4 hover:text-t-ink hover:bg-t-hover"
+          />
+          <span className="font-mono">
+            {stand?.host ? `${stand.host}:${stand.port}` : t("shell.stand.noBroker")}
+          </span>
+          {connected && brokerLatencyMs !== null && (
+            <span
+              className={`font-mono text-[11.5px] ${
+                brokerLatencyMs < 100 ? "text-t-ink5"
+                : brokerLatencyMs < 500 ? "text-caution"
+                : "text-negative"
               }`}
+              title={t("shell.latency.hint")}
             >
-              <Terminal className="w-3 h-3" />
-              <span>{t("shell.logs")}</span>
-              {logs.length > 0 && (
-                <>
-                  <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${logDotColor}`} />
-                  <span className="font-mono text-t-ink5">{logs.length}</span>
-                </>
-              )}
-            </button>
+              {brokerLatencyMs}ms
+            </span>
           )}
+        </button>
 
-          {/* Help — opens the in-app guide */}
-          <button
-            type="button"
-            onClick={() => setShowHelp(true)}
-            title={t("shell.help.hint")}
-            aria-label={t("shell.help")}
-            className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-t-ink4 hover:text-t-ink hover:bg-t-hover transition-colors text-[12.5px]"
-          >
-            <HelpCircle className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">{t("shell.help")}</span>
-          </button>
-
-        </div>
-      </header>
+        <button
+          type="button"
+          onClick={() => setShowHelp(true)}
+          title={t("shell.help.hint")}
+          aria-label={t("shell.help")}
+          className="grid size-9 shrink-0 place-items-center rounded-lg border border-t-line2 bg-t-panel text-t-ink4 transition hover:bg-t-hover hover:text-t-ink"
+        >
+          <HelpCircle className="w-4 h-4" />
+        </button>
+      </HeaderChip>
 
       {/* Body */}
       <div className="isolate flex flex-1 min-h-0 overflow-hidden rounded-xl border border-line bg-surface">

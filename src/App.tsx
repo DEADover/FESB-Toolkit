@@ -412,6 +412,10 @@ export default function App() {
             )}
           </div>
           <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
+          {/* Место для того, что добавляет к шапке открытый раздел: раздел
+              AMQP кладёт сюда состояние брокера. Своей строки у него больше
+              нет — она повторяла переключатель стенда. */}
+          <div id="header-chip" className="flex items-center gap-2 empty:hidden" />
           {/* Полоса встаёт слева от переключателя: он крайний справа
               и не двигается, а полоса появляется и исчезает. */}
           <JobStatus />

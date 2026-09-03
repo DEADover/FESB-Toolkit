@@ -7,6 +7,7 @@ mod applier;
 mod analytics;
 mod api_report;
 mod archive;
+mod broker_access;
 mod amqpush;
 mod certificates;
 mod compare;
@@ -391,6 +392,23 @@ async fn api_queue_managers(connection: Connection) -> Result<Vec<QueueManager>,
     fesb_ops::queue_managers(&connection).await
 }
 
+/// Приёмники менеджеров QME стенда: куда можно подключиться по AMQP.
+#[tauri::command]
+async fn api_broker_endpoints(connection: Connection) -> Result<Vec<broker_access::BrokerEndpoint>, String> {
+    broker_access::broker_endpoints(&connection).await
+}
+
+/// Доступ к брокеру для пользователя, под которым подключается раздел AMQP.
+#[tauri::command]
+async fn api_broker_access(
+    connection: Connection,
+    server: String,
+    username: String,
+    password: String,
+) -> Result<broker_access::BrokerAccessReport, String> {
+    broker_access::grant_broker_access(&connection, &server, &username, &password).await
+}
+
 /// Очереди одного менеджера.
 #[tauri::command]
 async fn api_queues(connection: Connection, kind: ManagerKind, id: String) -> Result<Vec<QueueRow>, String> {
@@ -555,6 +573,8 @@ pub fn run() {
             api_delete_save_point,
             api_rollback_save_point,
             api_queue_managers,
+            api_broker_endpoints,
+            api_broker_access,
             api_queues,
             api_queue_messages,
             api_queue_message,
@@ -636,6 +656,7 @@ pub mod testing {
     pub use crate::route_links::build_links;
     pub use crate::scanner::scan_root;
     // Проверка брокера: живой стенд нужен и ей, поэтому она рядом с остальными.
+    pub use crate::broker_access::{broker_endpoints, grant_broker_access, BrokerEndpoint};
     pub use crate::amqpush::{probe_broker, BrokerProbe};
     pub use crate::amqpush::profiles::Profile as BrokerProfile;
 }

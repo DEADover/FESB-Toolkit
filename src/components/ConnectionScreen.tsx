@@ -1,17 +1,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react'
 
-import { ArrowsLeftRight, CaretDown, FolderOpen, Plugs, Queue, Trash, Warning } from '@phosphor-icons/react'
+import { ArrowsLeftRight, CaretDown, FolderOpen, Key, Plugs, Queue, Trash, Warning } from '@phosphor-icons/react'
 
 import { useI18n, type MessageKey } from '../i18n'
-import { apiConnect, apiServerUsage, errorText, selectFile } from '../lib/api'
+import { apiBrokerAccess, apiBrokerEndpoints, apiConnect, apiServerUsage, errorText, selectFile } from '../lib/api'
 import { formatBytes, formatShare, formatUptime } from '../lib/format'
 import {
   blankProfile, byEnvironment, isReady, markUsed, removeProfile, toConnection, upsertProfile,
   writeStore, type ConnectionProfile, type ConnectionStore, type Environment,
 } from '../lib/connection'
-import type { Connection, DiskUsage, ServerInfo, ServerUsage } from '../types'
+import type { BrokerEndpoint, Connection, DiskUsage, ServerInfo, ServerUsage } from '../types'
 import { ScreenBody, ScreenBodyRow, useApiData } from './ApiShell'
-import { Badge, Button, ButtonGlyph, Checkbox, cx, FOCUS_RING, Modal, Notice, Segmented, Spinner, TextInput, TextReadout, Tip, Toggle } from './ui'
+import { Badge, Button, ButtonGlyph, Checkbox, cx, FOCUS_RING, Modal, Notice, Segmented, Select, Spinner, TextInput, TextReadout, Tip, Toggle } from './ui'
 import { busHost, hasBroker, probeBroker } from '../lib/broker'
 import type { BrokerSettings } from '../lib/connection'
 
@@ -364,6 +364,7 @@ export function ConnectionScreen({ store, onStore, server, connection, activePro
                 busUrl={draft.url}
                 busUser={draft.username}
                 stand={draft}
+                connection={connection}
                 onChange={(next) => set('broker', next)}
               />
 
@@ -538,22 +539,81 @@ function formatWhen(value: string): string {
  * Под полем остаётся то, что меняется вместе с формой: унаследованные от
  * шины узел и пользователь.
  */
-function BrokerBlock({ broker, busUrl, busUser, stand, onChange }: {
+function BrokerBlock({ broker, busUrl, busUser, stand, connection, onChange }: {
   broker: BrokerSettings
   busUrl: string
   busUser: string
   /** Стенд целиком: проверка идёт по тем же полям, что и подключение. */
   stand: ConnectionProfile
+  /**
+   * Открытое подключение к шине. Через него читается список брокеров стенда
+   * и выдаётся доступ: сама шина знает и порты своих менеджеров, и как
+   * завести на них пользователя.
+   */
+  connection: Connection | null
   onChange: (broker: BrokerSettings) => void
 }) {
   const { t } = useI18n()
   const [advanced, setAdvanced] = useState(false)
   const [probing, setProbing] = useState(false)
   const [probe, setProbe] = useState<{ ok: boolean; text: string } | null>(null)
+  const [endpoints, setEndpoints] = useState<BrokerEndpoint[]>([])
+  const [granting, setGranting] = useState(false)
+  const [confirmGrant, setConfirmGrant] = useState<string | null>(null)
+
+  // Брокеры стенда читаются один раз на подключение: список меняется
+  // не чаще, чем перенастраивают саму шину.
+  useEffect(() => {
+    if (!connection) { setEndpoints([]); return }
+    let alive = true
+    apiBrokerEndpoints(connection)
+      .then((list) => { if (alive) setEndpoints(list) })
+      .catch(() => { if (alive) setEndpoints([]) })
+    return () => { alive = false }
+  }, [connection])
+
+  /** Выбранный приёмник — тот, чей порт стоит в поле. */
+  const chosen = endpoints.find((item) => String(item.port) === broker.port.trim())
+
+  /**
+   * Выдать доступ пользователю, под которым мы собираемся подключаться.
+   *
+   * Ровно то, что иначе делают руками в менеджере: завести пользователя
+   * на брокере и дать его роли права на адреса. Пароль берётся из формы —
+   * тот же, с которым потом пойдёт подключение.
+   */
+  const grant = async (server: string) => {
+    if (!connection) return
+    setConfirmGrant(null)
+    setGranting(true)
+    setProbe(null)
+    try {
+      const report = await apiBrokerAccess(connection, server, brokerUser, broker.password)
+      setProbe({
+        ok: true,
+        text: report.userCreated || report.rightsGranted
+          ? t('broker.access.done', {
+              server: report.server,
+              user: brokerUser,
+              what: [
+                report.userCreated ? t('broker.access.user') : null,
+                report.rightsGranted ? t('broker.access.rights', { role: report.role }) : null,
+              ].filter(Boolean).join(', '),
+            })
+          : t('broker.access.already', { server: report.server, user: brokerUser }),
+      })
+    } catch (err) {
+      setProbe({ ok: false, text: errorText(err) })
+    } finally {
+      setGranting(false)
+    }
+  }
   const set = <K extends keyof BrokerSettings>(key: K, value: BrokerSettings[K]) =>
     onChange({ ...broker, [key]: value })
 
   const inheritedHost = busHost(busUrl)
+  /** Под каким именем пойдёт подключение: своё или унаследованное у шины. */
+  const brokerUser = broker.username.trim() || busUser
 
   /**
    * Проверка брокера.
@@ -621,6 +681,51 @@ function BrokerBlock({ broker, busUrl, busUser, stand, onChange }: {
       )}
 
       <div className="px-5 pb-1 pt-4">
+        {/* Порт брокера иначе ищут по конфигам на стенде — а шина знает свои
+            менеджеры и их приёмники, и отвечает за секунду. */}
+        <div className="mb-3 grid grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,2fr)] items-end gap-3">
+          <Field
+            label={t('broker.endpoint')}
+            htmlFor="broker-endpoint"
+            tip={t('broker.endpoint.hint')}
+            hint={connection ? undefined : t('broker.endpoint.needsBus')}
+          >
+            <Select<string>
+              className="w-full"
+              ariaLabel={t('broker.endpoint')}
+              value={chosen ? `${chosen.server}:${chosen.port}` : ''}
+              onChange={(value) => {
+                const picked = endpoints.find((item) => `${item.server}:${item.port}` === value)
+                if (picked) set('port', String(picked.port))
+              }}
+              options={[
+                { id: '', label: endpoints.length ? t('broker.endpoint.pick') : t('broker.endpoint.none') },
+                ...endpoints.map((item) => ({
+                  id: `${item.server}:${item.port}`,
+                  label: `${item.server} · ${item.port}${item.running ? '' : ` · ${t('broker.endpoint.stopped')}`}`,
+                })),
+              ]}
+            />
+          </Field>
+          <div />
+          {/* Кнопка стоит рядом с выбором: доступ выдают тому брокеру,
+              который только что выбрали. */}
+          <Button
+            className="w-full"
+            onClick={() => setConfirmGrant(chosen?.server ?? null)}
+            disabled={!connection || !chosen || granting || brokerUser.trim() === ''}
+            title={
+              !connection ? t('broker.endpoint.needsBus')
+              : !chosen ? t('broker.access.needsEndpoint')
+              : brokerUser.trim() === '' ? t('broker.access.needsUser')
+              : t('broker.access.hint')
+            }
+          >
+            <ButtonGlyph busy={granting}><Key size={14} weight="regular" /></ButtonGlyph>
+            {granting ? t('broker.access.granting') : t('broker.access')}
+          </Button>
+        </div>
+
         <div className="grid grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,2fr)] gap-3">
           <Field
             label={t('broker.host')}
@@ -649,6 +754,36 @@ function BrokerBlock({ broker, busUrl, busUser, stand, onChange }: {
               value={broker.queue}
               placeholder="Mon.Trace"
               onChange={(event) => set('queue', event.target.value)}
+            />
+          </Field>
+        </div>
+
+        {/* Пользователь и пароль стоят рядом с узлом и портом: без них
+            брокер обычно не пускает, и прятать их за «Больше настроек»
+            значило заставлять искать то, что нужно при первом же
+            подключении. */}
+        <div className="mt-3 grid grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,2fr)] gap-3">
+          <Field
+            label={t('broker.user')}
+            htmlFor="broker-user"
+            tip={t('broker.user.hint')}
+            hint={busUser ? t('broker.user.inherited', { user: busUser }) : undefined}
+          >
+            <TextInput
+              id="broker-user"
+              value={broker.username}
+              placeholder={busUser}
+              disabled={broker.saslAnonymous}
+              onChange={(event) => set('username', event.target.value)}
+            />
+          </Field>
+          <Field label={t('broker.password')} htmlFor="broker-password" tip={t('broker.password.hint')} className="col-span-2">
+            <TextInput
+              id="broker-password"
+              type="password"
+              value={broker.password}
+              disabled={broker.saslAnonymous}
+              onChange={(event) => set('password', event.target.value)}
             />
           </Field>
         </div>
@@ -700,34 +835,6 @@ function BrokerBlock({ broker, busUrl, busUser, stand, onChange }: {
 
         {advanced && (
           <>
-            <BrokerGroup label={t('broker.group.auth')}>
-              <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-3">
-                <Field
-                  label={t('broker.user')}
-                  htmlFor="broker-user"
-                  tip={t('broker.user.hint')}
-                  hint={busUser ? t('broker.user.inherited', { user: busUser }) : undefined}
-                >
-                  <TextInput
-                    id="broker-user"
-                    value={broker.username}
-                    placeholder={busUser}
-                    disabled={broker.saslAnonymous}
-                    onChange={(event) => set('username', event.target.value)}
-                  />
-                </Field>
-                <Field label={t('broker.password')} htmlFor="broker-password" tip={t('broker.password.hint')}>
-                  <TextInput
-                    id="broker-password"
-                    type="password"
-                    value={broker.password}
-                    disabled={broker.saslAnonymous}
-                    onChange={(event) => set('password', event.target.value)}
-                  />
-                </Field>
-              </div>
-            </BrokerGroup>
-
             <BrokerGroup label={t('broker.group.connection')}>
               <div className="grid grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)] gap-3">
                 <Field label={t('broker.containerId')} htmlFor="broker-container" tip={t('broker.containerId.hint')}>
@@ -858,6 +965,28 @@ function BrokerBlock({ broker, busUrl, busUser, stand, onChange }: {
           </>
         )}
       </div>
+
+      {/* Настройка доступа меняет сам стенд, а не форму — поэтому спрашиваем,
+          и на бою говорим об этом отдельно. */}
+      <Modal
+        open={confirmGrant !== null}
+        onClose={() => setConfirmGrant(null)}
+        title={t('broker.access.confirm')}
+        closeLabel={t('action.close')}
+        footer={
+          <>
+            <Button onClick={() => setConfirmGrant(null)}>{t('action.cancel')}</Button>
+            <Button variant="primary" onClick={() => void grant(confirmGrant!)}>{t('broker.access')}</Button>
+          </>
+        }
+      >
+        <p className="text-[12.5px] leading-relaxed">
+          {t('broker.access.confirmText', { server: confirmGrant ?? '', user: brokerUser, stand: stand.name || stand.url })}
+        </p>
+        {stand.environment === 'prod' && (
+          <Notice tone="danger" small className="mt-3">{t('broker.access.prod')}</Notice>
+        )}
+      </Modal>
     </div>
   )
 }
@@ -956,15 +1085,17 @@ function FilePick({ id, value, placeholder, disabled, pickLabel, onChange, onPic
  * которое нужно один раз: оно висит подсказкой на значке у подписи и не
  * занимает строку под каждым полем.
  */
-function Field({ label, htmlFor, hint, tip, children }: {
+function Field({ label, htmlFor, hint, tip, className, children }: {
   label: string
   htmlFor: string
   hint?: string
   tip?: string
+  /** Ширина в сетке: поле может занимать больше одной колонки. */
+  className?: string
   children: ReactNode
 }) {
   return (
-    <div className="min-w-0">
+    <div className={cx('min-w-0', className)}>
       {/* Знак вопроса стоит рядом с подписью, но вне её: нажатие на него
           не должно попадать в поле, к которому подпись привязана. */}
       <div className="mb-1.5 flex items-center gap-1">

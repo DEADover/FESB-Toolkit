@@ -60,8 +60,8 @@ export const SECTIONS_EN: HelpSection[] = [
         <P>
           The broker belongs to a <b>stand</b>, right next to the bus address: one stand, one
           set of settings. Open <b>Connections</b> in the sidebar — the <b>AMQP</b> block sits
-          at the bottom of the stand form. The stand chip in this section's header opens the
-          very same screen.
+          at the bottom of the stand form. Opening any screen of this section connects to that
+          broker on its own — the stand is already chosen, and its broker is part of it.
         </P>
         <P>
           Which stand is active is decided in the app header, the same one the API section
@@ -107,11 +107,25 @@ export const SECTIONS_EN: HelpSection[] = [
           both enabled the connection errors out.
         </Row>
 
-        <H3>The section header</H3>
+        <H3>Picking the broker and granting access</H3>
+        <P>
+          <b>Stand Broker</b> lists the queue managers of the stand and the ports of their
+          acceptors — read from the bus itself, so the port is not hunted for in configs on the
+          machine. Picking one fills in the port.
+        </P>
+        <P>
+          <b>Grant Access</b> does on the broker what would otherwise be done by hand in the
+          manager: creates the broker user from the form with a role of the same name and gives
+          that role the rights to send, receive, browse, manage and create queues on all
+          addresses. A fresh FESB manager has an empty user list with security on, so nobody
+          gets in over the network until this is done. It asks first, changes nothing else, and
+          repeating it is a no-op — the password of an existing user is never overwritten.
+        </P>
+
+        <H3>In the app header</H3>
         <UL>
-          <Li><b>Stand name and host:port</b> — click it to open the stand settings. Says <i>broker not set</i> when the stand has no host to connect to; Connect then takes you to the settings instead of failing.</Li>
-          <Li><b>Connect / Disconnect</b> — connects to the broker of the selected stand. Also on Cmd+K.</Li>
-          <Li><b>Green dot and latency</b> — round-trip to the broker, measured every 5 s by the cheapest management ping. Amber past 100 ms, red past 500 ms. Degrading network or broker health shows up <i>before</i> a send or a subscribe stalls.</Li>
+          <Li><b>The broker chip</b> — dot, host:port and the round-trip time. Click it to disconnect or to connect again. The section has no header row of its own: the stand is already named by the switch next to it.</Li>
+          <Li><b>Round-trip time</b> — measured every 5 s by the cheapest management ping. Amber past 100 ms, red past 500 ms. Degrading network or broker health shows up <i>before</i> a send or a subscribe stalls.</Li>
         </UL>
 
         <Note>

@@ -86,6 +86,7 @@ export function AmqpushSection({ screen, onScreen, profiles, activeProfileId }: 
         */}
         <AmqpushScreen
           view={view ?? 'publisher'}
+          visible={view !== undefined}
           onView={(next) => onScreen(SCREENS[next])}
           stand={stand}
           stands={stands}

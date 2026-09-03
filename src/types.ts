@@ -821,3 +821,28 @@ export interface CertificateReport {
   stores: CertificateStore[]
   certificates: ApiCertificate[]
 }
+
+/** Приёмник брокера стенда: куда именно можно подключиться по AMQP. */
+export interface BrokerEndpoint {
+  /** Менеджер очередей: `EQM1`. */
+  server: string
+  /** Запущен ли он сейчас. */
+  running: boolean
+  /** Имя приёмника в конфигурации: `default-listener`. */
+  acceptor: string
+  /** Узел из адреса приёмника; `0.0.0.0` означает «все адреса». */
+  host: string
+  port: number
+  /** Поднят ли сам приёмник. */
+  started: boolean
+}
+
+/** Что сделала настройка доступа к брокеру. */
+export interface BrokerAccessReport {
+  server: string
+  /** Пользователь заведён сейчас; `false` — он уже был. */
+  userCreated: boolean
+  /** Права роли выданы сейчас; `false` — они уже были. */
+  rightsGranted: boolean
+  role: string
+}
