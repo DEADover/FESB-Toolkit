@@ -635,4 +635,7 @@ pub mod testing {
     pub use crate::route_graph::{parse_route_graphs, RouteNode};
     pub use crate::route_links::build_links;
     pub use crate::scanner::scan_root;
+    // Проверка брокера: живой стенд нужен и ей, поэтому она рядом с остальными.
+    pub use crate::amqpush::{probe_broker, BrokerProbe};
+    pub use crate::amqpush::profiles::Profile as BrokerProfile;
 }
