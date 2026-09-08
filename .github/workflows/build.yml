@@ -47,6 +47,7 @@ jobs:
         run: npm run build
 
       - name: Upload installers
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: fesb-toolkit-windows-installer
@@ -58,6 +59,7 @@ jobs:
       # Собранный exe самодостаточен: установка не нужна, из зависимостей —
       # только WebView2 Runtime, который есть в Windows 10/11 из коробки.
       - name: Upload portable build
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: fesb-toolkit-windows-portable
@@ -111,6 +113,7 @@ jobs:
         run: npm run build -- --target aarch64-apple-darwin
 
       - name: Upload build
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: fesb-toolkit-macos-arm64
