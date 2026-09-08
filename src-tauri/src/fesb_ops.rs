@@ -612,27 +612,27 @@ mod tests {
     }
 
     /// Фронтенд присылает уровень как есть, поэтому форма ответа зафиксирована.
-    const ACTION: &str = "Пользователь: root [ip=172.20.0.1], Действие: BROKER_DOMAINS_IMPORT \n\nАргументы: [domain-047],null,true, \n\nРезультат: <200 OK OK,[Content-Type:\"application/json\"]>;";
+    const ACTION: &str = "Пользователь: root [ip=10.0.0.5], Действие: BROKER_DOMAINS_IMPORT \n\nАргументы: [domain-0001],null,true, \n\nРезультат: <200 OK OK,[Content-Type:\"application/json\"]>;";
 
     #[test]
     fn reads_who_did_what_from_the_audit_log() {
         let entry = parse_audit(Some("2026-08-27T00:06:10.488".into()), ACTION);
         assert_eq!(entry.kind, "action");
         assert_eq!(entry.user.as_deref(), Some("root"));
-        assert_eq!(entry.ip.as_deref(), Some("172.20.0.1"));
+        assert_eq!(entry.ip.as_deref(), Some("10.0.0.5"));
         assert_eq!(entry.action.as_deref(), Some("BROKER_DOMAINS_IMPORT"));
         // Хвостовая запятая — часть разделителя, а не аргумент.
-        assert_eq!(entry.arguments.as_deref(), Some("[domain-047],null,true"));
+        assert_eq!(entry.arguments.as_deref(), Some("[domain-0001],null,true"));
         assert_eq!(entry.status, Some(200));
     }
 
     #[test]
     fn reads_session_events_too() {
-        let text = "Закрытие сессии WebSessionInfo{ user=root, ip=172.20.0.1, created=2026-08-25T18:45:24.378, lastAccessed=2026-08-25T20:42:08.297}";
+        let text = "Закрытие сессии WebSessionInfo{ user=root, ip=10.0.0.5, created=2026-08-25T18:45:24.378, lastAccessed=2026-08-25T20:42:08.297}";
         let entry = parse_audit(None, text);
         assert_eq!(entry.kind, "session");
         assert_eq!(entry.user.as_deref(), Some("root"));
-        assert_eq!(entry.ip.as_deref(), Some("172.20.0.1"));
+        assert_eq!(entry.ip.as_deref(), Some("10.0.0.5"));
         assert_eq!(entry.action.as_deref(), Some("Закрытие сессии"));
 
         // Анонимная сессия помечена прочерком — это не имя пользователя.
@@ -643,16 +643,16 @@ mod tests {
 
     #[test]
     fn reads_logins_and_failed_attempts() {
-        let ok = parse_audit(None, "Login: Local user - root [ip=172.20.0.1]");
+        let ok = parse_audit(None, "Login: Local user - root [ip=10.0.0.5]");
         assert_eq!(ok.kind, "login");
         assert_eq!(ok.action.as_deref(), Some("Login"));
         assert_eq!(ok.user.as_deref(), Some("root"));
-        assert_eq!(ok.ip.as_deref(), Some("172.20.0.1"));
+        assert_eq!(ok.ip.as_deref(), Some("10.0.0.5"));
 
-        let failed = parse_audit(None, "Login failed: Bad credentials: user -  root [ip=172.20.0.1]");
+        let failed = parse_audit(None, "Login failed: Bad credentials: user -  root [ip=10.0.0.5]");
         assert_eq!(failed.action.as_deref(), Some("Login failed"));
         assert_eq!(failed.user.as_deref(), Some("root"));
-        assert_eq!(failed.ip.as_deref(), Some("172.20.0.1"));
+        assert_eq!(failed.ip.as_deref(), Some("10.0.0.5"));
     }
 
     #[test]

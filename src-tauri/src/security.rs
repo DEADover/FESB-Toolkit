@@ -324,13 +324,13 @@ mod tests {
     #[test]
     fn identical_sessions_from_one_address_are_counted_not_listed() {
         let sessions = json!([
-            { "ip": "172.20.0.1", "agent": "null" },
-            { "ip": "172.20.0.1", "agent": "null" },
+            { "ip": "10.0.0.5", "agent": "null" },
+            { "ip": "10.0.0.5", "agent": "null" },
             { "ip": "10.0.0.5", "agent": "Mozilla/5.0" },
         ]);
         let folded = fold_sessions(Some(&sessions));
         assert_eq!(folded.len(), 2);
-        assert_eq!(folded[0].ip, "172.20.0.1");
+        assert_eq!(folded[0].ip, "10.0.0.5");
         assert_eq!(folded[0].count, 2);
         // «null» строкой — это не клиент, а его отсутствие.
         assert_eq!(folded[0].agent, None);
