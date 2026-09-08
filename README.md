@@ -9,14 +9,13 @@
 
 <p align="center">
   <a href="https://github.com/DEADover/FESB-Toolkit/releases">Релизы</a> ·
-  <a href="docs/fesb-api.md">API шины</a> ·
-  <a href="docs/design-notes.md">Как устроено</a>
+  <a href="https://github.com/DEADover/FESB-Toolkit/issues">Issues</a>
 </p>
 
 ---
 
 > [!CAUTION]
-> <img src="docs/assets/disclaimer.png" alt="" width="110" align="left" />
+> <img src="assets/disclaimer.png" alt="" width="110" align="left" />
 > **Дисклеймер:** приложение поставляется «как есть». Автор не несёт
 > ответственности за результаты работы приложения: за изменение и безвозвратную
 > потерю данных, за остановку или выход систем из строя, за любой прямой
