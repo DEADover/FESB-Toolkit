@@ -67,6 +67,8 @@
 Готовые сборки — в [релизах](https://github.com/DEADover/FESB-Toolkit/releases):
 Windows x64 (NSIS, MSI, портативный exe) и macOS на Apple Silicon (dmg).
 
+Первый запуск на macOS через Terminal: ```xattr -r -d com.apple.quarantine /Applications/FESB\ Toolkit.app```
+
 ## Сборка из исходников
 
 Нужны [Node 20+](https://nodejs.org) и [Rust 1.82+](https://rustup.rs):
