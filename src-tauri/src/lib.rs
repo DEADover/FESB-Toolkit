@@ -16,6 +16,7 @@ mod domain_xml;
 mod fesb_api;
 mod fesb_ops;
 mod properties;
+mod qme_config;
 mod report_store;
 mod route_graph;
 mod route_links;
@@ -201,6 +202,22 @@ async fn api_copy_run(
         let _ = app.emit(API_PROGRESS_EVENT, progress);
     })
     .await
+}
+
+/// Объекты РМО и то, хранятся ли они в конфигурации.
+#[tauri::command]
+async fn api_qme_config(connection: Connection, server: String) -> Result<qme_config::ConfigAudit, String> {
+    qme_config::audit(&connection, &server).await
+}
+
+/// Включает объектам РМО «Хранить в конфигурации».
+#[tauri::command]
+async fn api_qme_store(
+    connection: Connection,
+    server: String,
+    items: Vec<qme_config::StoreRequest>,
+) -> Result<Vec<qme_config::StoreOutcome>, String> {
+    qme_config::store(&connection, &server, &items).await
 }
 
 /// Разбирает файл СОПС в дерево шагов — из него рисуется схема.
@@ -580,6 +597,8 @@ pub fn run() {
             api_push,
             api_copy_plan,
             api_copy_run,
+            api_qme_config,
+            api_qme_store,
             api_verify,
             api_restart_module,
             api_modules,
@@ -682,6 +701,7 @@ pub mod testing {
     };
     pub use crate::archive::create_archive;
     pub use crate::domain_copy::{plan as copy_plan, run as copy_run, RouteChange};
+    pub use crate::qme_config::{audit as qme_config_audit, store as qme_store, ConfigKind, StoreRequest};
     pub use crate::xlsx::write_sheet as write_xlsx;
     pub use crate::report_store::{list as report_history, read as read_report, remove as remove_report, save as save_report_history};
     pub use crate::domain_xml::{parse_domain_xml, BeanTarget, TraceUpdate};

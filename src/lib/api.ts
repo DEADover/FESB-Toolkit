@@ -5,7 +5,7 @@ import { open, save } from '@tauri-apps/plugin-dialog'
 import { openUrl, revealItemInDir } from '@tauri-apps/plugin-opener'
 
 import type {
-  CopyPlan, CopyResult,
+  CopyPlan, CopyResult, QmeConfigAudit, QmeConfigKind, QmeStoreOutcome,
   ApiDomain, ApiProgress, AppInfo, ApplyProgress, ApplyReport, ApplyTarget, ArchiveProgress,
   AccessReport, ApiEndpoint, ArchiveResult, CertificateReport, InflightExchange, ReportEntry,
   RouteSummary, ServerUsage, StoredReport, AuditEntry, Connection, DomainAction, DomainActionResult,
@@ -264,6 +264,20 @@ export function apiVerify(connection: Connection, root: string, guids: string[])
 
 export function apiRestartModule(connection: Connection, module: string): Promise<void> {
   return invoke<void>('api_restart_module', { connection, module })
+}
+
+/** Объекты РМО и признак «Хранить в конфигурации». */
+export function apiQmeConfig(connection: Connection, server: string): Promise<QmeConfigAudit> {
+  return invoke<QmeConfigAudit>('api_qme_config', { connection, server })
+}
+
+/** Включает объектам РМО «Хранить в конфигурации»; пароль нужен только пользователям. */
+export function apiQmeStore(
+  connection: Connection,
+  server: string,
+  items: Array<{ kind: QmeConfigKind; id: string; password: string | null }>,
+): Promise<QmeStoreOutcome[]> {
+  return invoke<QmeStoreOutcome[]>('api_qme_store', { connection, server, items })
 }
 
 /** Предпросмотр копирования: домены забираются в память и сравниваются с целевым сервером. */

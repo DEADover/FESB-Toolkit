@@ -258,6 +258,34 @@ export interface VerifyResult {
   checkedAt: string
 }
 
+/** Разделы РМО, у объектов которых есть «Хранить в конфигурации». */
+export type QmeConfigKind = 'address' | 'queue' | 'divert' | 'addressSetting' | 'security' | 'user'
+
+export interface QmeConfigItem {
+  kind: QmeConfigKind
+  id: string
+  stored: boolean
+  /** Служебный объект брокера: `$sys.*`, `activemq.*`, внутренние и временные. */
+  system: boolean
+  autoCreated: boolean
+  /** Адрес очереди: без него в конфигурации очередь не запишется. */
+  address: string | null
+  detail: string | null
+  messages: number | null
+}
+
+export interface QmeConfigAudit {
+  server: string
+  items: QmeConfigItem[]
+  failures: string[]
+}
+
+export interface QmeStoreOutcome {
+  kind: QmeConfigKind
+  id: string
+  error: string | null
+}
+
 /** Что станет со СОПС на целевом сервере после копирования домена. */
 export type RouteChange = 'added' | 'changed' | 'removed' | 'same'
 

@@ -8,6 +8,7 @@ import { ConnectionScreen } from './components/ConnectionScreen'
 import { DomainLinksScreen } from './components/DomainLinksScreen'
 import { ConnectedPill, ServerSwitch } from './components/HeaderBar'
 import { DomainsScreen, type PullIntent } from './components/DomainsScreen'
+import { QmeConfigScreen } from './components/QmeConfigScreen'
 import { WelcomeScreen } from './components/WelcomeScreen'
 import { AccessScreen } from './components/AccessScreen'
 import { CertificatesScreen } from './components/CertificatesScreen'
@@ -348,6 +349,7 @@ export default function App() {
     'api.tracing': 'nav.api.tracing.title',
     welcome: 'nav.welcome',
     'api.queues': 'nav.api.queues.title',
+    'api.qmeConfig': 'nav.api.qmeConfig.title',
     'api.modules': 'nav.api.modules.title',
     'api.properties': 'nav.api.properties.title',
     'api.logs': 'nav.api.logs.title',
@@ -521,6 +523,8 @@ export default function App() {
           />
         ) : screen === 'api.certificates' ? (
           <CertificatesScreen {...apiScreenProps} />
+        ) : screen === 'api.qmeConfig' ? (
+          <QmeConfigScreen {...apiScreenProps} environment={session?.profile.environment ?? null} />
         ) : screen === 'api.queues' ? (
           <QueuesScreen {...apiScreenProps} />
         ) : screen === 'api.modules' ? (

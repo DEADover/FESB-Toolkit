@@ -1105,7 +1105,7 @@ fn message_from(item: &Value) -> Option<QueueMessage> {
 }
 
 /// Часть пути может содержать что угодно — от точек до двоеточий в id.
-fn encode_segment(value: &str) -> String {
+pub(crate) fn encode_segment(value: &str) -> String {
     let mut out = String::with_capacity(value.len());
     for byte in value.bytes() {
         match byte {
