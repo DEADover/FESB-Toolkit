@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
-import { ArrowsClockwise, FloppyDisk } from '@phosphor-icons/react'
+import { ArrowsClockwise, FileXls, FloppyDisk } from '@phosphor-icons/react'
 
 import { useI18n, type MessageKey } from '../i18n'
-import { apiQmeConfig, apiQmeStore, apiQueueManagers, errorText } from '../lib/api'
+import { apiMqConfig, apiMqStore, apiQueueManagers, errorText, revealPath, saveReport, saveXlsxAs } from '../lib/api'
+import { localStamp } from '../lib/paths'
 import type { Environment } from '../lib/connection'
-import type { Connection, QmeConfigAudit, QmeConfigItem, QmeConfigKind, QmeStoreOutcome, QueueManager, ServerInfo } from '../types'
+import type { Connection, MqConfigAudit, MqConfigItem, MqConfigKind, MqStoreOutcome, QueueManager, ServerInfo } from '../types'
 import { ErrorBar, NotConnected, Panel, ScreenBody, StatsBar, TableMessage } from './ApiShell'
+import { useToast } from './Toaster'
 import {
   Badge, Button, ButtonGlyph, Checkbox, cx, DataTable, Modal, Notice, Readout, SearchInput, Segmented, Select, Spinner,
   TextInput, Th, THead, Toggle,
@@ -20,40 +22,46 @@ interface Props {
   onGoToConnection: () => void
 }
 
-/** Порядок разделов — как в меню РМО веб-интерфейса FESB. */
-const KINDS: QmeConfigKind[] = ['queue', 'address', 'divert', 'addressSetting', 'security', 'user']
-
-const KIND_LABEL: Record<QmeConfigKind, MessageKey> = {
-  queue: 'qmeConfig.kind.queue',
-  address: 'qmeConfig.kind.address',
-  divert: 'qmeConfig.kind.divert',
-  addressSetting: 'qmeConfig.kind.addressSetting',
-  security: 'qmeConfig.kind.security',
-  user: 'qmeConfig.kind.user',
+/** Порядок разделов — как в меню менеджера в веб-интерфейсе FESB. */
+const KINDS_BY_MANAGER: Record<'QME' | 'QMS', MqConfigKind[]> = {
+  QME: ['queue', 'address', 'divert', 'addressSetting', 'security', 'user'],
+  QMS: ['queue', 'topic'],
 }
 
-const key = (item: { kind: QmeConfigKind; id: string }) => `${item.kind}\u0000${item.id}`
+const KIND_LABEL: Record<MqConfigKind, MessageKey> = {
+  queue: 'mqConfig.kind.queue',
+  topic: 'mqConfig.kind.topic',
+  address: 'mqConfig.kind.address',
+  divert: 'mqConfig.kind.divert',
+  addressSetting: 'mqConfig.kind.addressSetting',
+  security: 'mqConfig.kind.security',
+  user: 'mqConfig.kind.user',
+}
+
+const key = (item: { kind: MqConfigKind; id: string }) => `${item.kind}\u0000${item.id}`
 
 /**
- * Какие объекты расширенного менеджера очередей хранятся в конфигурации.
+ * Какие объекты менеджеров очередей хранятся в конфигурации.
  *
- * Объект без галочки «Хранить в конфигурации» живёт только в журнале брокера
- * и не переедет вместе с конфигурацией на другой стенд. Экран собирает такие
- * объекты из шести разделов РМО в одну таблицу, чтобы пройти по ним и решить,
+ * Объект без галочки «Хранить в конфигурации» живёт только в хранилище
+ * брокера и не переедет вместе с конфигурацией на другой стенд. Экран
+ * собирает такие объекты менеджера в одну таблицу — у РМО из шести разделов,
+ * у мультименеджера это очереди и топики, — чтобы пройти по ним и решить,
  * что сохранять.
  *
- * Сохранение учитывает две вещи, проверенные на стенде: очередь записывается,
- * только если записан её адрес, — поэтому адрес добавляется сам; а пароль
- * пользователя шина не отдаёт — поэтому его вводят заново.
+ * Для РМО сохранение учитывает две вещи, проверенные на стенде: очередь
+ * записывается, только если записан её адрес, — поэтому адрес добавляется
+ * сам; а пароль пользователя шина не отдаёт — поэтому его вводят заново.
  */
-export function QmeConfigScreen({ connection, server, environment, onGoToConnection }: Props) {
+export function MqConfigScreen({ connection, server, environment, onGoToConnection }: Props) {
   const { t } = useI18n()
   const [managers, setManagers] = useState<QueueManager[] | null>(null)
-  const [managerId, setManagerId] = useState<string | null>(null)
-  const [audit, setAudit] = useState<QmeConfigAudit | null>(null)
+  /** Менеджер в том виде, как он пишется в шине: `QME:EQM`, `QMS:QM`. */
+  const [managerKey, setManagerKey] = useState<string | null>(null)
+  const [audit, setAudit] = useState<MqConfigAudit | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [kind, setKind] = useState<QmeConfigKind | 'all'>('all')
+  const [kind, setKind] = useState<MqConfigKind | 'all'>('all')
   const [onlyLoose, setOnlyLoose] = useState(true)
   const [showSystem, setShowSystem] = useState(false)
   const [query, setQuery] = useState('')
@@ -61,39 +69,48 @@ export function QmeConfigScreen({ connection, server, environment, onGoToConnect
   const [confirming, setConfirming] = useState(false)
   const [passwords, setPasswords] = useState<Record<string, string>>({})
   const [saving, setSaving] = useState(false)
-  const [outcomes, setOutcomes] = useState<QmeStoreOutcome[] | null>(null)
+  const [outcomes, setOutcomes] = useState<MqStoreOutcome[] | null>(null)
 
-  // Менеджеры: нужны только расширенные, у мультименеджера этой галочки нет.
+  const toast = useToast()
+  const [exporting, setExporting] = useState(false)
+
+  // Удалённые менеджеры (RQMS) своей конфигурации здесь не держат — их нет в списке.
   useEffect(() => {
     if (!connection || !server) return
     let alive = true
     apiQueueManagers(connection)
       .then((list) => {
         if (!alive) return
-        const qme = list.filter((item) => item.kind === 'QME')
-        setManagers(qme)
-        setManagerId((current) => current ?? qme.find((item) => item.running)?.id ?? qme[0]?.id ?? null)
+        const local = list.filter((item) => item.kind === 'QME' || item.kind === 'QMS')
+        setManagers(local)
+        setManagerKey((current) => current ?? local.find((item) => item.running)?.broker ?? local[0]?.broker ?? null)
       })
       .catch((err) => alive && setError(errorText(err)))
     return () => { alive = false }
   }, [connection, server])
 
+  const manager = managers?.find((item) => item.broker === managerKey) ?? null
+  const managerId = manager?.id ?? null
+  const KINDS = KINDS_BY_MANAGER[manager?.kind === 'QMS' ? 'QMS' : 'QME']
+
   const load = useCallback(async () => {
-    if (!connection || !managerId) return
+    if (!connection || !manager) return
     setLoading(true)
     setError(null)
     try {
-      setAudit(await apiQmeConfig(connection, managerId))
+      setAudit(await apiMqConfig(connection, manager.kind, manager.id))
     } catch (err) {
       setError(errorText(err))
       setAudit(null)
     } finally {
       setLoading(false)
     }
-  }, [connection, managerId])
+  }, [connection, manager])
 
   useEffect(() => {
     setSelected(new Set())
+    setKind('all')
+    setOutcomes(null)
     void load()
   }, [load])
 
@@ -105,14 +122,14 @@ export function QmeConfigScreen({ connection, server, environment, onGoToConnect
   )
 
   const counted = useMemo(() => {
-    const count = Object.fromEntries(KINDS.map((item) => [item, { total: 0, loose: 0 }])) as Record<QmeConfigKind, { total: number; loose: number }>
+    const count = Object.fromEntries(KINDS.map((item) => [item, { total: 0, loose: 0 }])) as Record<MqConfigKind, { total: number; loose: number }>
     for (const item of items) {
       if (item.system && !showSystem) continue
       count[item.kind].total += 1
       if (!item.stored) count[item.kind].loose += 1
     }
     return count
-  }, [items, showSystem])
+  }, [items, showSystem, KINDS])
 
   const visible = useMemo(() => {
     const needle = query.trim().toLowerCase()
@@ -124,7 +141,7 @@ export function QmeConfigScreen({ connection, server, environment, onGoToConnect
         || item.id.toLowerCase().includes(needle)
         || (item.detail ?? '').toLowerCase().includes(needle))
       .sort((a, b) => KINDS.indexOf(a.kind) - KINDS.indexOf(b.kind) || a.id.localeCompare(b.id))
-  }, [items, showSystem, kind, onlyLoose, query])
+  }, [items, showSystem, kind, onlyLoose, query, KINDS])
 
   const selectable = visible.filter((item) => !item.stored)
   const allChosen = selectable.length > 0 && selectable.every((item) => selected.has(key(item)))
@@ -134,9 +151,9 @@ export function QmeConfigScreen({ connection, server, environment, onGoToConnect
    * нет в конфигурации, — без адреса очередь не запишется.
    */
   const plan = useMemo(() => {
-    const chosen = [...selected].map((id) => byKey.get(id)).filter((item): item is QmeConfigItem => !!item && !item.stored)
+    const chosen = [...selected].map((id) => byKey.get(id)).filter((item): item is MqConfigItem => !!item && !item.stored)
     const chosenKeys = new Set(chosen.map(key))
-    const added: QmeConfigItem[] = []
+    const added: MqConfigItem[] = []
     for (const item of chosen) {
       if (item.kind !== 'queue' || !item.address || storedAddresses.has(item.address)) continue
       const address = byKey.get(key({ kind: 'address', id: item.address }))
@@ -151,7 +168,7 @@ export function QmeConfigScreen({ connection, server, environment, onGoToConnect
   const users = plan.chosen.filter((item) => item.kind === 'user')
   const missingPassword = users.some((item) => !passwords[item.id])
 
-  const toggle = (item: QmeConfigItem) => setSelected((prev) => {
+  const toggle = (item: MqConfigItem) => setSelected((prev) => {
     const next = new Set(prev)
     if (next.has(key(item))) next.delete(key(item))
     else next.add(key(item))
@@ -159,7 +176,7 @@ export function QmeConfigScreen({ connection, server, environment, onGoToConnect
   })
 
   const save = useCallback(async () => {
-    if (!connection || !managerId) return
+    if (!connection || !manager) return
     setSaving(true)
     try {
       const requests = [...plan.added, ...plan.chosen].map((item) => ({
@@ -167,7 +184,7 @@ export function QmeConfigScreen({ connection, server, environment, onGoToConnect
         id: item.id,
         password: item.kind === 'user' ? passwords[item.id] ?? null : null,
       }))
-      setOutcomes(await apiQmeStore(connection, managerId, requests))
+      setOutcomes(await apiMqStore(connection, manager.kind, manager.id, requests))
       setConfirming(false)
       setSelected(new Set())
       setPasswords({})
@@ -178,7 +195,45 @@ export function QmeConfigScreen({ connection, server, environment, onGoToConnect
     } finally {
       setSaving(false)
     }
-  }, [connection, managerId, plan, passwords, load])
+  }, [connection, manager, plan, passwords, load])
+
+  /** В файл уходит то, что видно на экране: фильтры — часть отчёта. */
+  const exportXlsx = useCallback(async () => {
+    if (!manager) return
+    const headers = [
+      t('mqConfig.manager'), t('mqConfig.kind'), t('mqConfig.object'), t('mqConfig.detail'),
+      t('mqConfig.messages'), t('mqConfig.state'),
+    ]
+    const body = visible.map((item) => [
+      manager.broker,
+      t(KIND_LABEL[item.kind]),
+      item.id,
+      [
+        item.kind === 'queue' && item.address && item.address !== item.id ? item.address : null,
+        item.detail,
+        item.autoCreated ? t('mqConfig.autoCreated') : null,
+        item.system ? t('mqConfig.system') : null,
+      ].filter(Boolean).join(' · '),
+      item.messages === null ? '' : String(item.messages),
+      item.fixed ? t('mqConfig.fixed') : item.stored ? t('mqConfig.stored') : t('mqConfig.notStored'),
+    ])
+    const output = await saveXlsxAs(t('mqConfig.save'), `fesb-mq-config-${manager.id}-${localStamp()}.xlsx`)
+    if (!output) return
+    setExporting(true)
+    try {
+      await saveReport(output, manager.id, headers, body)
+      toast({
+        tone: 'ok',
+        title: t('report.saved'),
+        text: `${output.split(/[/\\]/).pop()} · ${t('report.savedRows', { count: body.length })}`,
+        action: { label: t('action.reveal'), onClick: () => void revealPath(output) },
+      })
+    } catch (err) {
+      setError(errorText(err))
+    } finally {
+      setExporting(false)
+    }
+  }, [manager, visible, t, toast])
 
   if (!connection || !server) return <NotConnected onGoToConnection={onGoToConnection} />
 
@@ -190,33 +245,33 @@ export function QmeConfigScreen({ connection, server, environment, onGoToConnect
       <StatsBar>
         {audit ? (
           <>
-            <Readout label={t('qmeConfig.total')} value={String(total)} />
-            <Readout label={t('qmeConfig.loose')} value={String(loose)} tone={loose > 0 ? 'warn' : undefined} hint={t('qmeConfig.loose.hint')} />
-            <span className="text-[12px] text-content-muted">{t('qmeConfig.intro')}</span>
+            <Readout label={t('mqConfig.total')} value={String(total)} />
+            <Readout label={t('mqConfig.loose')} value={String(loose)} tone={loose > 0 ? 'warn' : undefined} hint={t('mqConfig.loose.hint')} />
+            <span className="text-[12px] text-content-muted">{t('mqConfig.intro')}</span>
           </>
         ) : (
-          <span className="text-[12px] text-content-muted">{t('qmeConfig.intro')}</span>
+          <span className="text-[12px] text-content-muted">{t('mqConfig.intro')}</span>
         )}
       </StatsBar>
 
       <div className="flex flex-wrap items-center gap-2">
         <Select<string>
-          ariaLabel={t('qmeConfig.manager')}
-          label={t('qmeConfig.manager')}
-          className="w-64"
-          value={managerId ?? ''}
-          onChange={(id) => setManagerId(id || null)}
+          ariaLabel={t('mqConfig.manager')}
+          label={t('mqConfig.manager')}
+          className="w-72"
+          value={managerKey ?? ''}
+          onChange={(id) => setManagerKey(id || null)}
           options={(managers ?? []).map((item) => ({
-            id: item.id,
-            label: item.id,
-            hint: item.running ? undefined : t('qmeConfig.stopped'),
+            id: item.broker,
+            label: item.broker,
+            hint: item.running ? t(item.kind === 'QMS' ? 'mqConfig.qms' : 'mqConfig.qme') : t('mqConfig.stopped'),
           }))}
         />
-        <Button size="sm" variant="ghost" title={t('action.refresh')} aria-label={t('action.refresh')} disabled={loading || !managerId} onClick={() => void load()}>
+        <Button size="sm" variant="ghost" title={t('action.refresh')} aria-label={t('action.refresh')} disabled={loading || !manager} onClick={() => void load()}>
           <ButtonGlyph busy={loading}><ArrowsClockwise size={13} weight="bold" /></ButtonGlyph>
         </Button>
-        <Segmented<QmeConfigKind | 'all'>
-          ariaLabel={t('qmeConfig.kind')}
+        <Segmented<MqConfigKind | 'all'>
+          ariaLabel={t('mqConfig.kind')}
           value={kind}
           onChange={setKind}
           options={[
@@ -230,15 +285,15 @@ export function QmeConfigScreen({ connection, server, environment, onGoToConnect
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <SearchInput className="min-w-64 flex-1" value={query} placeholder={t('qmeConfig.search')} onChange={setQuery} />
-        <Toggle checked={onlyLoose} onChange={setOnlyLoose} label={t('qmeConfig.onlyLoose')} />
-        <Toggle checked={showSystem} onChange={setShowSystem} label={t('qmeConfig.showSystem')} title={t('qmeConfig.showSystem.hint')} />
+        <SearchInput className="min-w-64 flex-1" value={query} placeholder={t('mqConfig.search')} onChange={setQuery} />
+        <Toggle checked={onlyLoose} onChange={setOnlyLoose} label={t('mqConfig.onlyLoose')} />
+        <Toggle checked={showSystem} onChange={setShowSystem} label={t('mqConfig.showSystem')} title={t('mqConfig.showSystem.hint')} />
       </div>
 
       <ErrorBar error={error} />
-      {managers && managers.length === 0 && <Notice tone="warn">{t('qmeConfig.noManagers')}</Notice>}
+      {managers && managers.length === 0 && <Notice tone="warn">{t('mqConfig.noManagers')}</Notice>}
       {audit && audit.failures.length > 0 && (
-        <Notice tone="warn">{t('qmeConfig.partly', { list: audit.failures.join('; ') })}</Notice>
+        <Notice tone="warn">{t('mqConfig.partly', { list: audit.failures.join('; ') })}</Notice>
       )}
       {outcomes && (
         <Notice
@@ -248,14 +303,14 @@ export function QmeConfigScreen({ connection, server, environment, onGoToConnect
         >
           {outcomes.some((item) => item.error) ? (
             <>
-              {t('qmeConfig.saved.partly', { failed: outcomes.filter((item) => item.error).length, total: outcomes.length })}
+              {t('mqConfig.saved.partly', { failed: outcomes.filter((item) => item.error).length, total: outcomes.length })}
               <ul className="mt-1 list-disc pl-5">
                 {outcomes.filter((item) => item.error).map((item) => (
                   <li key={key(item)}>{t(KIND_LABEL[item.kind])} {item.id}: {errorText(item.error)}</li>
                 ))}
               </ul>
             </>
-          ) : t('qmeConfig.saved', { count: outcomes.length })}
+          ) : t('mqConfig.saved', { count: outcomes.length })}
         </Notice>
       )}
 
@@ -271,7 +326,7 @@ export function QmeConfigScreen({ connection, server, environment, onGoToConnect
           <THead>
             <Th>
               <Checkbox
-                aria-label={t('qmeConfig.selectAll')}
+                aria-label={t('mqConfig.selectAll')}
                 checked={allChosen}
                 disabled={selectable.length === 0}
                 onChange={() => setSelected((prev) => {
@@ -284,10 +339,10 @@ export function QmeConfigScreen({ connection, server, environment, onGoToConnect
                 })}
               />
             </Th>
-            <Th>{t('qmeConfig.kind')}</Th>
-            <Th>{t('qmeConfig.object')}</Th>
-            <Th align="right">{t('qmeConfig.messages')}</Th>
-            <Th>{t('qmeConfig.state')}</Th>
+            <Th>{t('mqConfig.kind')}</Th>
+            <Th>{t('mqConfig.object')}</Th>
+            <Th align="right">{t('mqConfig.messages')}</Th>
+            <Th>{t('mqConfig.state')}</Th>
           </THead>
           <tbody>
             {visible.map((item) => {
@@ -316,14 +371,14 @@ export function QmeConfigScreen({ connection, server, environment, onGoToConnect
                   <td className="px-3 py-1.5">
                     <div className="flex items-center gap-1.5">
                       <span className="min-w-0 truncate font-mono text-[12px]" title={item.id}>{item.id}</span>
-                      {item.autoCreated && <Badge title={t('qmeConfig.autoCreated.hint')}>{t('qmeConfig.autoCreated')}</Badge>}
-                      {item.system && <Badge>{t('qmeConfig.system')}</Badge>}
+                      {item.autoCreated && <Badge title={t('mqConfig.autoCreated.hint')}>{t('mqConfig.autoCreated')}</Badge>}
+                      {item.system && <Badge>{t('mqConfig.system')}</Badge>}
                     </div>
                     <div className="truncate text-[11px] text-content-subtle" title={item.detail ?? undefined}>
                       {item.kind === 'queue' && item.address && item.address !== item.id ? `${item.address} · ` : ''}
                       {item.detail}
                       {addressLoose && !item.stored && (
-                        <span className="text-caution" title={t('qmeConfig.addressLoose.hint')}> · {t('qmeConfig.addressLoose')}</span>
+                        <span className="text-caution" title={t('mqConfig.addressLoose.hint')}> · {t('mqConfig.addressLoose')}</span>
                       )}
                     </div>
                   </td>
@@ -331,16 +386,18 @@ export function QmeConfigScreen({ connection, server, environment, onGoToConnect
                     {item.messages ?? '—'}
                   </td>
                   <td className="px-3 py-1.5">
-                    {item.stored
-                      ? <Badge tone="ok">{t('qmeConfig.stored')}</Badge>
-                      : <Badge tone="warn">{t('qmeConfig.notStored')}</Badge>}
+                    {item.fixed
+                      ? <Badge tone="ok" title={t('mqConfig.fixed.hint')}>{t('mqConfig.fixed')}</Badge>
+                      : item.stored
+                        ? <Badge tone="ok">{t('mqConfig.stored')}</Badge>
+                        : <Badge tone="warn">{t('mqConfig.notStored')}</Badge>}
                   </td>
                 </tr>
               )
             })}
             {visible.length === 0 && (
               <TableMessage colSpan={5} busy={loading}>
-                {loading ? t('empty.scanning') : onlyLoose && audit ? t('qmeConfig.allStored') : t('table.empty')}
+                {loading ? t('empty.scanning') : onlyLoose && audit ? t('mqConfig.allStored') : t('table.empty')}
               </TableMessage>
             )}
           </tbody>
@@ -348,7 +405,7 @@ export function QmeConfigScreen({ connection, server, environment, onGoToConnect
       </Panel>
 
       <div className="flex items-center gap-3 rounded-xl border border-line bg-surface px-5 py-3">
-        <span className="text-[11.5px] text-content-subtle">{t('qmeConfig.shown', { visible: visible.length, total })}</span>
+        <span className="text-[11.5px] text-content-subtle">{t('mqConfig.shown', { visible: visible.length, total })}</span>
         {selected.size > 0 && (
           <>
             <Badge tone="accent">{t('api.domains.selected', { count: selected.size })}</Badge>
@@ -356,13 +413,21 @@ export function QmeConfigScreen({ connection, server, environment, onGoToConnect
           </>
         )}
         <Button
+          className="ml-auto"
+          disabled={exporting || visible.length === 0}
+          onClick={() => void exportXlsx()}
+        >
+          <ButtonGlyph busy={exporting}><FileXls size={14} weight="bold" /></ButtonGlyph>
+          {t('mqConfig.export')}
+        </Button>
+        <Button
           variant="primary"
-          className="ml-auto min-w-52"
+          className="min-w-52"
           disabled={plan.chosen.length === 0}
           onClick={() => setConfirming(true)}
         >
           <FloppyDisk size={14} weight="bold" />
-          {t('qmeConfig.store', { count: plan.chosen.length + plan.added.length })}
+          {t('mqConfig.store', { count: plan.chosen.length + plan.added.length })}
         </Button>
       </div>
 
@@ -370,7 +435,7 @@ export function QmeConfigScreen({ connection, server, environment, onGoToConnect
         open={confirming}
         onClose={() => !saving && setConfirming(false)}
         closeLabel={t('action.close')}
-        title={t('qmeConfig.confirm.title', { manager: managerId ?? '' })}
+        title={t('mqConfig.confirm.title', { manager: managerId ?? '' })}
         width="roomy"
         footer={(
           <>
@@ -379,21 +444,21 @@ export function QmeConfigScreen({ connection, server, environment, onGoToConnect
               variant={environment === 'prod' ? 'danger' : 'primary'}
               className="min-w-40"
               disabled={saving || missingPassword}
-              title={missingPassword ? t('qmeConfig.confirm.needPasswords') : undefined}
+              title={missingPassword ? t('mqConfig.confirm.needPasswords') : undefined}
               onClick={() => void save()}
             >
               <ButtonGlyph busy={saving}><FloppyDisk size={14} weight="bold" /></ButtonGlyph>
-              {t('qmeConfig.confirm.run')}
+              {t('mqConfig.confirm.run')}
             </Button>
           </>
         )}
       >
         <div className="space-y-3 text-[13px] leading-relaxed">
-          <p className="text-content-muted">{t('qmeConfig.confirm.text')}</p>
-          {environment === 'prod' && <Notice tone="warn">{t('qmeConfig.confirm.prod')}</Notice>}
+          <p className="text-content-muted">{t('mqConfig.confirm.text')}</p>
+          {environment === 'prod' && <Notice tone="warn">{t('mqConfig.confirm.prod')}</Notice>}
           {plan.added.length > 0 && (
             <Notice tone="warn">
-              {t('qmeConfig.confirm.addresses', { list: plan.added.map((item) => item.id).join(', ') })}
+              {t('mqConfig.confirm.addresses', { list: plan.added.map((item) => item.id).join(', ') })}
             </Notice>
           )}
           <div className="max-h-56 overflow-y-auto rounded-lg border border-line">
@@ -406,7 +471,7 @@ export function QmeConfigScreen({ connection, server, environment, onGoToConnect
           </div>
           {users.length > 0 && (
             <div className="space-y-2">
-              <p className="text-[12px] text-content-muted">{t('qmeConfig.confirm.passwords')}</p>
+              <p className="text-[12px] text-content-muted">{t('mqConfig.confirm.passwords')}</p>
               {users.map((item) => (
                 <label key={item.id} className="flex items-center gap-3">
                   <span className="w-40 shrink-0 truncate font-mono text-[12px]">{item.id}</span>
@@ -414,7 +479,7 @@ export function QmeConfigScreen({ connection, server, environment, onGoToConnect
                     type="password"
                     autoComplete="new-password"
                     value={passwords[item.id] ?? ''}
-                    placeholder={t('qmeConfig.confirm.password')}
+                    placeholder={t('mqConfig.confirm.password')}
                     onChange={(event) => setPasswords((prev) => ({ ...prev, [item.id]: event.target.value }))}
                   />
                 </label>
@@ -422,7 +487,7 @@ export function QmeConfigScreen({ connection, server, environment, onGoToConnect
             </div>
           )}
           {saving && (
-            <div className="flex items-center gap-2 text-content-muted"><Spinner className="size-4" /> {t('qmeConfig.confirm.saving')}</div>
+            <div className="flex items-center gap-2 text-content-muted"><Spinner className="size-4" /> {t('mqConfig.confirm.saving')}</div>
           )}
         </div>
       </Modal>

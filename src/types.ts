@@ -258,14 +258,16 @@ export interface VerifyResult {
   checkedAt: string
 }
 
-/** Разделы РМО, у объектов которых есть «Хранить в конфигурации». */
-export type QmeConfigKind = 'address' | 'queue' | 'divert' | 'addressSetting' | 'security' | 'user'
+/** Разделы менеджеров очередей, у объектов которых есть «Хранить в конфигурации». */
+export type MqConfigKind = 'address' | 'queue' | 'topic' | 'divert' | 'addressSetting' | 'security' | 'user'
 
-export interface QmeConfigItem {
-  kind: QmeConfigKind
+export interface MqConfigItem {
+  kind: MqConfigKind
   id: string
   stored: boolean
-  /** Служебный объект брокера: `$sys.*`, `activemq.*`, внутренние и временные. */
+  /** Галочку не поменять: составные очереди QMS хранятся в конфигурации всегда. */
+  fixed: boolean
+  /** Служебный объект брокера: `$sys.*`, `activemq.*`, `ActiveMQ.*`, внутренние и временные. */
   system: boolean
   autoCreated: boolean
   /** Адрес очереди: без него в конфигурации очередь не запишется. */
@@ -274,14 +276,15 @@ export interface QmeConfigItem {
   messages: number | null
 }
 
-export interface QmeConfigAudit {
+export interface MqConfigAudit {
+  manager: ManagerKind
   server: string
-  items: QmeConfigItem[]
+  items: MqConfigItem[]
   failures: string[]
 }
 
-export interface QmeStoreOutcome {
-  kind: QmeConfigKind
+export interface MqStoreOutcome {
+  kind: MqConfigKind
   id: string
   error: string | null
 }

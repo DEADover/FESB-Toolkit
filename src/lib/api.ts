@@ -5,7 +5,7 @@ import { open, save } from '@tauri-apps/plugin-dialog'
 import { openUrl, revealItemInDir } from '@tauri-apps/plugin-opener'
 
 import type {
-  CopyPlan, CopyResult, QmeConfigAudit, QmeConfigKind, QmeStoreOutcome,
+  CopyPlan, CopyResult, MqConfigAudit, MqConfigKind, MqStoreOutcome,
   ApiDomain, ApiProgress, AppInfo, ApplyProgress, ApplyReport, ApplyTarget, ArchiveProgress,
   AccessReport, ApiEndpoint, ArchiveResult, CertificateReport, InflightExchange, ReportEntry,
   RouteSummary, ServerUsage, StoredReport, AuditEntry, Connection, DomainAction, DomainActionResult,
@@ -266,18 +266,19 @@ export function apiRestartModule(connection: Connection, module: string): Promis
   return invoke<void>('api_restart_module', { connection, module })
 }
 
-/** Объекты РМО и признак «Хранить в конфигурации». */
-export function apiQmeConfig(connection: Connection, server: string): Promise<QmeConfigAudit> {
-  return invoke<QmeConfigAudit>('api_qme_config', { connection, server })
+/** Объекты менеджера очередей и признак «Хранить в конфигурации». */
+export function apiMqConfig(connection: Connection, manager: ManagerKind, server: string): Promise<MqConfigAudit> {
+  return invoke<MqConfigAudit>('api_mq_config', { connection, manager, server })
 }
 
-/** Включает объектам РМО «Хранить в конфигурации»; пароль нужен только пользователям. */
-export function apiQmeStore(
+/** Включает объектам «Хранить в конфигурации»; пароль нужен только пользователям РМО. */
+export function apiMqStore(
   connection: Connection,
+  manager: ManagerKind,
   server: string,
-  items: Array<{ kind: QmeConfigKind; id: string; password: string | null }>,
-): Promise<QmeStoreOutcome[]> {
-  return invoke<QmeStoreOutcome[]>('api_qme_store', { connection, server, items })
+  items: Array<{ kind: MqConfigKind; id: string; password: string | null }>,
+): Promise<MqStoreOutcome[]> {
+  return invoke<MqStoreOutcome[]>('api_mq_store', { connection, manager, server, items })
 }
 
 /** Предпросмотр копирования: домены забираются в память и сравниваются с целевым сервером. */

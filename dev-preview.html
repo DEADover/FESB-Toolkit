@@ -529,25 +529,39 @@
   { "kind": "QME", "id": "EQM", "broker": "QME:EQM", "status": "STARTED", "running": true, "autoStart": true },
   { "kind": "QME", "id": "EQM_MON", "broker": "QME:EQM_MON", "status": "STARTED", "running": true, "autoStart": true }
  ],
- "api_qme_config": {
+ "api_mq_config_qms": {
+  "manager": "QMS",
+  "server": "QM",
+  "failures": [],
+  "items": [
+   { "kind": "queue", "id": "Invoices.In", "stored": true, "fixed": false, "system": false, "autoCreated": false, "address": null, "detail": null, "messages": 0 },
+   { "kind": "queue", "id": "Invoices.Retry", "stored": false, "fixed": false, "system": false, "autoCreated": false, "address": null, "detail": null, "messages": 4 },
+   { "kind": "queue", "id": "Invoices.Fanout", "stored": true, "fixed": true, "system": false, "autoCreated": false, "address": null, "detail": "composite", "messages": 0 },
+   { "kind": "queue", "id": "ActiveMQ.DLQ", "stored": false, "fixed": false, "system": true, "autoCreated": false, "address": null, "detail": null, "messages": 2 },
+   { "kind": "topic", "id": "Invoices.Events", "stored": false, "fixed": false, "system": false, "autoCreated": false, "address": null, "detail": null, "messages": null },
+   { "kind": "topic", "id": "ActiveMQ.Advisory.Queue", "stored": false, "fixed": false, "system": true, "autoCreated": false, "address": null, "detail": null, "messages": null }
+  ]
+ },
+ "api_mq_config": {
+  "manager": "QME",
   "server": "EQM",
   "failures": [],
   "items": [
-   { "kind": "address", "id": "Orders.In", "stored": true, "system": false, "autoCreated": false, "address": null, "detail": "ANYCAST", "messages": null },
-   { "kind": "address", "id": "Orders.Out", "stored": false, "system": false, "autoCreated": false, "address": null, "detail": "ANYCAST", "messages": null },
-   { "kind": "address", "id": "Reports.Ready", "stored": false, "system": false, "autoCreated": true, "address": null, "detail": "ANYCAST, MULTICAST", "messages": null },
-   { "kind": "address", "id": "activemq.notifications", "stored": false, "system": true, "autoCreated": false, "address": null, "detail": "MULTICAST", "messages": null },
-   { "kind": "queue", "id": "Orders.In", "stored": true, "system": false, "autoCreated": false, "address": "Orders.In", "detail": "ANYCAST · durable", "messages": 0 },
-   { "kind": "queue", "id": "Orders.Out", "stored": false, "system": false, "autoCreated": false, "address": "Orders.Out", "detail": "ANYCAST · durable", "messages": 12 },
-   { "kind": "queue", "id": "Reports.Ready", "stored": false, "system": false, "autoCreated": true, "address": "Reports.Ready", "detail": "ANYCAST · durable", "messages": 0 },
-   { "kind": "queue", "id": "$sys.mqtt.sessions", "stored": false, "system": true, "autoCreated": false, "address": "$sys.mqtt.sessions", "detail": "ANYCAST · durable", "messages": 0 },
-   { "kind": "divert", "id": "Orders.Copy", "stored": false, "system": false, "autoCreated": false, "address": null, "detail": "Orders.In → Orders.Audit", "messages": null },
-   { "kind": "addressSetting", "id": "#", "stored": true, "system": false, "autoCreated": false, "address": null, "detail": "DLA DLQ · maxDeliveryAttempts 10", "messages": null },
-   { "kind": "addressSetting", "id": "Orders.#", "stored": false, "system": false, "autoCreated": false, "address": null, "detail": "maxDeliveryAttempts 5", "messages": null },
-   { "kind": "security", "id": "Orders.#", "stored": false, "system": false, "autoCreated": false, "address": null, "detail": "app_orders, monitoring", "messages": null },
-   { "kind": "security", "id": "#", "stored": true, "system": false, "autoCreated": false, "address": null, "detail": "admin", "messages": null },
-   { "kind": "user", "id": "app_orders", "stored": false, "system": false, "autoCreated": false, "address": null, "detail": "app_orders", "messages": null },
-   { "kind": "user", "id": "monitoring", "stored": true, "system": false, "autoCreated": false, "address": null, "detail": "monitoring", "messages": null }
+   { "kind": "address", "id": "Orders.In", "stored": true, "fixed": false, "system": false, "autoCreated": false, "address": null, "detail": "ANYCAST", "messages": null },
+   { "kind": "address", "id": "Orders.Out", "stored": false, "fixed": false, "system": false, "autoCreated": false, "address": null, "detail": "ANYCAST", "messages": null },
+   { "kind": "address", "id": "Reports.Ready", "stored": false, "fixed": false, "system": false, "autoCreated": true, "address": null, "detail": "ANYCAST, MULTICAST", "messages": null },
+   { "kind": "address", "id": "activemq.notifications", "stored": false, "fixed": false, "system": true, "autoCreated": false, "address": null, "detail": "MULTICAST", "messages": null },
+   { "kind": "queue", "id": "Orders.In", "stored": true, "fixed": false, "system": false, "autoCreated": false, "address": "Orders.In", "detail": "ANYCAST · durable", "messages": 0 },
+   { "kind": "queue", "id": "Orders.Out", "stored": false, "fixed": false, "system": false, "autoCreated": false, "address": "Orders.Out", "detail": "ANYCAST · durable", "messages": 12 },
+   { "kind": "queue", "id": "Reports.Ready", "stored": false, "fixed": false, "system": false, "autoCreated": true, "address": "Reports.Ready", "detail": "ANYCAST · durable", "messages": 0 },
+   { "kind": "queue", "id": "$sys.mqtt.sessions", "stored": false, "fixed": false, "system": true, "autoCreated": false, "address": "$sys.mqtt.sessions", "detail": "ANYCAST · durable", "messages": 0 },
+   { "kind": "divert", "id": "Orders.Copy", "stored": false, "fixed": false, "system": false, "autoCreated": false, "address": null, "detail": "Orders.In → Orders.Audit", "messages": null },
+   { "kind": "addressSetting", "id": "#", "stored": true, "fixed": false, "system": false, "autoCreated": false, "address": null, "detail": "DLA DLQ · maxDeliveryAttempts 10", "messages": null },
+   { "kind": "addressSetting", "id": "Orders.#", "stored": false, "fixed": false, "system": false, "autoCreated": false, "address": null, "detail": "maxDeliveryAttempts 5", "messages": null },
+   { "kind": "security", "id": "Orders.#", "stored": false, "fixed": false, "system": false, "autoCreated": false, "address": null, "detail": "app_orders, monitoring", "messages": null },
+   { "kind": "security", "id": "#", "stored": true, "fixed": false, "system": false, "autoCreated": false, "address": null, "detail": "admin", "messages": null },
+   { "kind": "user", "id": "app_orders", "stored": false, "fixed": false, "system": false, "autoCreated": false, "address": null, "detail": "app_orders", "messages": null },
+   { "kind": "user", "id": "monitoring", "stored": true, "fixed": false, "system": false, "autoCreated": false, "address": null, "detail": "monitoring", "messages": null }
   ]
  },
  "api_queues": [
@@ -2154,7 +2168,10 @@
             const legacy = localStorage.getItem('preview.route')
             if (legacy) return JSON.parse(legacy)
           }
-          if (key === 'api_qme_store') {
+          if (key === 'api_mq_config') {
+            return args.manager === 'QMS' ? DATA.api_mq_config_qms : DATA.api_mq_config
+          }
+          if (key === 'api_mq_store') {
             return args.items.map((item) => ({ kind: item.kind, id: item.id, error: null }))
           }
           if (key === 'api_domain_action') {

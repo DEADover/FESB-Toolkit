@@ -21,7 +21,7 @@ export type ScreenId =
   | 'api.certificates'
   | 'api.compare'
   | 'api.queues'
-  | 'api.qmeConfig'
+  | 'api.mqConfig'
   | 'api.modules'
   | 'api.properties'
   | 'api.logs'
@@ -72,7 +72,7 @@ export const API_SCREENS: ScreenEntry[] = [
   { id: 'api.modules', label: 'nav.api.modules', hint: 'welcome.hint.modules', icon: Cube },
   { id: 'api.properties', label: 'nav.api.properties', hint: 'welcome.hint.properties', icon: SlidersHorizontal },
   { id: 'api.queues', label: 'nav.api.queues', hint: 'welcome.hint.queues', icon: Queue },
-  { id: 'api.qmeConfig', label: 'nav.api.qmeConfig', title: 'nav.api.qmeConfig.title', hint: 'welcome.hint.qmeConfig', icon: FloppyDisk },
+  { id: 'api.mqConfig', label: 'nav.api.mqConfig', title: 'nav.api.mqConfig.title', hint: 'welcome.hint.mqConfig', icon: FloppyDisk },
   { id: 'api.routes', label: 'nav.api.routes', hint: 'welcome.hint.routes', icon: FlowArrow },
   { id: 'api.tracing', label: 'nav.api.tracing', title: 'nav.api.tracing.title', hint: 'welcome.hint.tracing', icon: CrosshairSimple },
 ]
