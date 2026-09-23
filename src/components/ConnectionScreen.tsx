@@ -28,7 +28,7 @@ interface Props {
   onConnect: (profile: ConnectionProfile) => Promise<void>
 }
 
-/** Цвет среды: боевой стенд должен быть виден с одного взгляда. */
+/** Цвет среды: продуктивный стенд должен быть виден с одного взгляда. */
 const ENVIRONMENT_TONE: Record<Environment, 'neutral' | 'accent' | 'warn' | 'danger'> = {
   dev: 'neutral',
   test: 'accent',
@@ -975,7 +975,7 @@ function BrokerBlock({ broker, busUrl, busUser, stand, connection, onChange }: {
       </div>
 
       {/* Настройка доступа меняет сам стенд, а не форму — поэтому спрашиваем,
-          и на бою говорим об этом отдельно. */}
+          и на продуктиве говорим об этом отдельно. */}
       <Modal
         open={confirmGrant !== null}
         onClose={() => setConfirmGrant(null)}

@@ -953,7 +953,7 @@ pub async fn save_points(connection: &Connection) -> Result<Vec<SavePoint>, Stri
         .map_err(|err| format!("Unexpected answer: {err}"))
 }
 
-/// Снятие точки восстановления. На боевой конфигурации это десятки секунд.
+/// Снятие точки восстановления. На продуктивной конфигурации это десятки секунд.
 pub async fn create_save_point(connection: &Connection) -> Result<(), String> {
     let client = connection.client()?;
     let response = connection
