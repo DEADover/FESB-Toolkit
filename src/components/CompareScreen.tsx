@@ -4,7 +4,7 @@ import { ArrowsLeftRight } from '@phosphor-icons/react'
 
 import { useI18n, type MessageKey } from '../i18n'
 import { apiCompareStands, errorText } from '../lib/api'
-import { toConnection, type ConnectionProfile, type ConnectionStore } from '../lib/connection'
+import { connectionWith, type ConnectionStore } from '../lib/connection'
 import type { Comparison, Connection, ServerInfo, Side } from '../types'
 import { ErrorBar, NotConnected, Panel, ScreenBody, StatsBar, TableMessage } from './ApiShell'
 import {
@@ -57,7 +57,7 @@ export function CompareScreen({ connection, server, store, activeProfileId, onGo
     setError(null)
     setResult(null)
     try {
-      setResult(await apiCompareStands(connection, connectionOf(other, password)))
+      setResult(await apiCompareStands(connection, connectionWith(other, password)))
     } catch (err) {
       setError(errorText(err))
     } finally {
@@ -242,11 +242,3 @@ const SIDE_TONE: Record<Side, 'accent' | 'warn' | 'neutral'> = {
 }
 
 /** Профиль превращается в подключение только на время сравнения. */
-function connectionOf(profile: ConnectionProfile, password: string): Connection {
-  return {
-    ...toConnection(profile),
-    // Пароль, набранный для сравнения, живёт только здесь: сохранять его
-    // ради одной операции незачем.
-    password: profile.rememberPassword ? profile.password : password,
-  }
-}

@@ -5,6 +5,7 @@ import { open, save } from '@tauri-apps/plugin-dialog'
 import { openUrl, revealItemInDir } from '@tauri-apps/plugin-opener'
 
 import type {
+  CopyPlan, CopyResult,
   ApiDomain, ApiProgress, AppInfo, ApplyProgress, ApplyReport, ApplyTarget, ArchiveProgress,
   AccessReport, ApiEndpoint, ArchiveResult, CertificateReport, InflightExchange, ReportEntry,
   RouteSummary, ServerUsage, StoredReport, AuditEntry, Connection, DomainAction, DomainActionResult,
@@ -263,6 +264,16 @@ export function apiVerify(connection: Connection, root: string, guids: string[])
 
 export function apiRestartModule(connection: Connection, module: string): Promise<void> {
   return invoke<void>('api_restart_module', { connection, module })
+}
+
+/** Предпросмотр копирования: домены забираются в память и сравниваются с целевым сервером. */
+export function apiCopyPlan(source: Connection, target: Connection, guids: string[]): Promise<CopyPlan> {
+  return invoke<CopyPlan>('api_copy_plan', { source, target, guids })
+}
+
+/** Загружает на целевой сервер то, что показал предпросмотр `planId`. */
+export function apiCopyRun(target: Connection, planId: string, reload: boolean, removeMissing: boolean): Promise<CopyResult> {
+  return invoke<CopyResult>('api_copy_run', { target, planId, reload, removeMissing })
 }
 
 export function onApiProgress(handler: (progress: ApiProgress) => void): Promise<UnlistenFn> {

@@ -297,6 +297,19 @@ export function toConnection(profile: ConnectionProfile): Connection {
   }
 }
 
+/**
+ * Подключение ко второму стенду на одну операцию — сравнение, копирование.
+ *
+ * Пароль, набранный ради неё, живёт только в вызове: сохранять его ради
+ * одной операции незачем.
+ */
+export function connectionWith(profile: ConnectionProfile, password: string): Connection {
+  return {
+    ...toConnection(profile),
+    password: profile.rememberPassword ? profile.password : password,
+  }
+}
+
 /** Профиль заполнен настолько, что имеет смысл пробовать подключиться. */
 export function isReady(profile: ConnectionProfile): boolean {
   return profile.url.trim().length > 0 && profile.username.trim().length > 0

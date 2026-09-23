@@ -496,6 +496,8 @@ export default function App() {
             onOpenRoutes={(guid) => { setRoutesDomain(guid); setScreen('api.routes') }}
             onGoToLogs={() => setScreen('api.logs')}
             onGoToConnection={() => setScreen('connection')}
+            store={connections}
+            activeProfileId={session?.profile.id ?? null}
           />
         ) : screen === 'api.routes' ? (
           <RoutesScreen {...apiScreenProps} isMac={isMac} initialGuid={routesDomain} />

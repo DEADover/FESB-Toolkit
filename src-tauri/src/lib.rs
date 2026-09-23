@@ -11,6 +11,7 @@ mod broker_access;
 mod amqpush;
 mod certificates;
 mod compare;
+mod domain_copy;
 mod domain_xml;
 mod fesb_api;
 mod fesb_ops;
@@ -168,6 +169,35 @@ async fn api_push(
 ) -> Result<PushResult, String> {
     let root = PathBuf::from(root);
     fesb_api::push(&connection, &root, &guids, reload, |progress| {
+        let _ = app.emit(API_PROGRESS_EVENT, progress);
+    })
+    .await
+}
+
+/// Предпросмотр копирования доменов на другой сервер.
+#[tauri::command]
+async fn api_copy_plan(
+    app: AppHandle,
+    source: Connection,
+    target: Connection,
+    guids: Vec<String>,
+) -> Result<domain_copy::CopyPlan, String> {
+    domain_copy::plan(&source, &target, &guids, |progress| {
+        let _ = app.emit(API_PROGRESS_EVENT, progress);
+    })
+    .await
+}
+
+/// Загружает на целевой сервер домены, показанные в предпросмотре.
+#[tauri::command]
+async fn api_copy_run(
+    app: AppHandle,
+    target: Connection,
+    plan_id: String,
+    reload: bool,
+    remove_missing: bool,
+) -> Result<domain_copy::CopyResult, String> {
+    domain_copy::run(&target, &plan_id, reload, remove_missing, |progress| {
         let _ = app.emit(API_PROGRESS_EVENT, progress);
     })
     .await
@@ -548,6 +578,8 @@ pub fn run() {
             api_domains,
             api_pull,
             api_push,
+            api_copy_plan,
+            api_copy_run,
             api_verify,
             api_restart_module,
             api_modules,
@@ -649,6 +681,7 @@ pub mod testing {
         PropertyScope,
     };
     pub use crate::archive::create_archive;
+    pub use crate::domain_copy::{plan as copy_plan, run as copy_run, RouteChange};
     pub use crate::xlsx::write_sheet as write_xlsx;
     pub use crate::report_store::{list as report_history, read as read_report, remove as remove_report, save as save_report_history};
     pub use crate::domain_xml::{parse_domain_xml, BeanTarget, TraceUpdate};

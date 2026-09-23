@@ -258,6 +258,37 @@ export interface VerifyResult {
   checkedAt: string
 }
 
+/** Что станет со СОПС на целевом сервере после копирования домена. */
+export type RouteChange = 'added' | 'changed' | 'removed' | 'same'
+
+export interface CopyDomain {
+  guid: string
+  name: string
+  /** Домен с тем же guid уже есть на целевом сервере и будет перезаписан. */
+  exists: boolean
+  /** Имя на целевом сервере, если оно отличается. */
+  targetName: string | null
+  /** Guid другого домена с тем же именем на целевом сервере. */
+  nameTakenBy: string | null
+  activeOnTarget: boolean
+  settingsChanged: boolean
+  routes: Array<{ id: string; name: string | null; change: RouteChange }>
+}
+
+export interface CopyPlan {
+  id: string
+  target: ServerInfo
+  domains: CopyDomain[]
+  bytes: number
+}
+
+export interface CopyResult {
+  domains: Array<{ guid: string; name: string; error: string | null; message: string | null }>
+  reloaded: boolean
+  removedMissing: boolean
+  finishedAt: string
+}
+
 export interface ApiProgress {
   /** `domains` при выгрузке, `pack` и `upload` при отправке, `verify` при сверке. */
   phase: 'domains' | 'pack' | 'upload' | 'verify'

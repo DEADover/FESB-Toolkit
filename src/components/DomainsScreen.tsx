@@ -1,13 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
-import { ArrowsClockwise, CaretDown, Play, Stop } from '@phosphor-icons/react'
+import { ArrowsClockwise, CaretDown, Copy, Play, Stop } from '@phosphor-icons/react'
 
 import { useI18n, useRichText } from '../i18n'
 import { apiDomainAction, apiDomains, apiDomainStatistics, errorText } from '../lib/api'
+import type { ConnectionStore } from '../lib/connection'
 import type { ApiDomain, ApiProgress, Connection, DomainAction, DomainStat, ServerInfo } from '../types'
 import {
   AutoRefreshToggle, NotConnected, RefreshButton, ScreenBody, StatsBar, TableMessage, useAutoRefresh,
 } from './ApiShell'
+import { CopyDomainsDialog } from './CopyDomainsDialog'
 import { ActionLink, Badge, Button, Checkbox, cx, DataTable, FOCUS_RING, IconButton, Modal, Notice, Readout, SearchInput, Spinner, Th, THead, Toggle } from './ui'
 
 /** Что делать с доменами после выгрузки. */
@@ -39,6 +41,9 @@ interface Props {
   /** Отказ шины объясняется только в журнале — туда и ведём. */
   onGoToLogs: () => void
   onGoToConnection: () => void
+  /** Сохранённые стенды: из них выбирают, куда копировать домены. */
+  store: ConnectionStore
+  activeProfileId: string | null
 }
 
 /**
@@ -47,7 +52,7 @@ interface Props {
  * Выгрузка всех доменов сразу занимает минуты, поэтому выбор нескольких —
  * основной путь, а «забрать все» вынесено отдельной кнопкой с предупреждением.
  */
-export function DomainsScreen({ connection, server, pulling, progress, error: pullError, onPull, onOpenRoutes, onGoToLogs, onGoToConnection }: Props) {
+export function DomainsScreen({ connection, server, pulling, progress, error: pullError, onPull, onOpenRoutes, onGoToLogs, onGoToConnection, store, activeProfileId }: Props) {
   const { t } = useI18n()
   const rich = useRichText()
   // Причина отказа лежит в журнале, и ходить туда должно быть одним нажатием.
@@ -75,6 +80,7 @@ export function DomainsScreen({ connection, server, pulling, progress, error: pu
     finished: boolean
   } | null>(null)
   const [confirmBulk, setConfirmBulk] = useState<DomainAction | null>(null)
+  const [copying, setCopying] = useState(false)
   /**
    * Что забираем, пока не выбрано, зачем.
    *
@@ -447,6 +453,11 @@ export function DomainsScreen({ connection, server, pulling, progress, error: pu
             <Button size="sm" disabled={bulk !== null || pulling} onClick={() => setConfirmBulk('restart')}>
               {t('modules.restart')}
             </Button>
+            <span className="mx-1 h-5 w-px bg-line" />
+            <Button size="sm" disabled={bulk !== null || pulling} onClick={() => setCopying(true)}>
+              <Copy size={13} weight="bold" />
+              {t('copy.action')}
+            </Button>
           </>
         )}
 
@@ -472,6 +483,18 @@ export function DomainsScreen({ connection, server, pulling, progress, error: pu
           </Button>
         </div>
       </div>
+      {connection && server && (
+        <CopyDomainsDialog
+          open={copying}
+          onClose={() => setCopying(false)}
+          connection={connection}
+          server={server}
+          store={store}
+          activeProfileId={activeProfileId}
+          domains={(domains ?? []).filter((domain) => selected.has(domain.guid))}
+        />
+      )}
+
       <Modal
         open={confirmBulk !== null}
         onClose={() => setConfirmBulk(null)}
