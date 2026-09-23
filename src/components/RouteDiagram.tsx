@@ -413,7 +413,11 @@ export function RouteDiagram({ nodes, selected, onSelect, outgoing, incoming, on
 
   const [view, setView] = useState({ x: 0, y: 0, scale: 1 })
   const [grabbing, setGrabbing] = useState(false)
-  const drag = useRef<{ x: number; y: number; ox: number; oy: number } | null>(null)
+  /**
+   * Протяжка холста. `frame` — рамка, в которой нажали: если мышь так и не
+   * сдвинулась, это был клик по ней, и выбирается она, а не пустое место.
+   */
+  const drag = useRef<{ x: number; y: number; ox: number; oy: number; frame: RouteNode | null; moved: boolean } | null>(null)
 
   /** Вписывает схему в окно — с этого начинается просмотр любой схемы. */
   const fit = useCallback(() => {
@@ -453,31 +457,41 @@ export function RouteDiagram({ nodes, selected, onSelect, outgoing, incoming, on
 
   const onMouseDown = useCallback((event: React.MouseEvent) => {
     // По шагам кликают, за пустое место таскают.
-    if ((event.target as HTMLElement).closest('[data-step]')) return
-    drag.current = { x: event.clientX, y: event.clientY, ox: view.x, oy: view.y }
+    // Рамку цикла, ветвления и прочих групп тоже выбирают кликом в любую
+    // её точку, но за неё же и таскают: большая рамка занимает полэкрана.
+    const target = event.target as HTMLElement
+    if (target.closest('[data-step]')) return
+    const key = target.closest<HTMLElement>('[data-frame]')?.dataset.frame
+    const frame = key ? layout.boxes.find((box) => box.key === key)?.node ?? null : null
+    drag.current = { x: event.clientX, y: event.clientY, ox: view.x, oy: view.y, frame, moved: false }
     setGrabbing(true)
-    onSelect(null)
-  }, [view.x, view.y, onSelect])
+  }, [view.x, view.y, layout.boxes])
 
   useEffect(() => {
     if (!grabbing) return
     const onMove = (event: MouseEvent) => {
       const start = drag.current
       if (!start) return
+      if (Math.abs(event.clientX - start.x) + Math.abs(event.clientY - start.y) > 3) start.moved = true
       setView((current) => ({
         ...current,
         x: start.ox + (event.clientX - start.x),
         y: start.oy + (event.clientY - start.y),
       }))
     }
-    const onUp = () => { drag.current = null; setGrabbing(false) }
+    const onUp = () => {
+      const start = drag.current
+      if (start && !start.moved) onSelect(start.frame)
+      drag.current = null
+      setGrabbing(false)
+    }
     window.addEventListener('mousemove', onMove)
     window.addEventListener('mouseup', onUp)
     return () => {
       window.removeEventListener('mousemove', onMove)
       window.removeEventListener('mouseup', onUp)
     }
-  }, [grabbing])
+  }, [grabbing, onSelect])
 
   const zoom = useCallback((factor: number) => {
     const element = viewport.current
@@ -656,9 +670,11 @@ function BoxView({ box, selected, onSelect, neighbours, onOpenRoute, t }: {
     return (
       <div
         style={style}
+        data-frame={box.key}
         className={cx(
-          'absolute rounded-2xl border-2 border-dashed',
+          'absolute rounded-2xl border-2 border-dashed transition-colors',
           box.tone === 'error' ? 'border-negative/35 bg-negative/4' : 'border-line-strong bg-surface-2/30',
+          selected ? 'border-accent/70' : 'hover:border-content-subtle',
         )}
       >
         <button

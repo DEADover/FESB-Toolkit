@@ -442,6 +442,8 @@ export interface RouteGraph {
   description: string | null
   traceEnabled: boolean
   traceConfig: string | null
+  /** Транзакционность — настройка всего СОПС, а не шаг схемы. */
+  transaction: { policy: string | null } | null
   /** Сколько шагов в схеме, включая вложенные ветки. */
   steps: number
   nodes: RouteNode[]

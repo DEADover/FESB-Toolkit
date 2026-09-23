@@ -90,6 +90,20 @@ export function RouteViewer({ path, domainName, isMac, live, links, onOpenRoute,
                 {graph.traceConfig}
               </code>
             )}
+            {graph?.transaction && (
+              <Badge
+                tone="accent"
+                title={graph.transaction.policy
+                  ? t('route.transaction.policy', { policy: graph.transaction.policy })
+                  : t('route.transaction.default')}
+              >
+                <Database size={11} weight="bold" />
+                {t('route.transaction')}
+                {graph.transaction.policy && (
+                  <span className="font-mono font-normal opacity-80">{graph.transaction.policy}</span>
+                )}
+              </Badge>
+            )}
             {graph && <span className="text-[11.5px] text-content-subtle">{t('route.steps', { count: graph.steps })}</span>}
           </div>
           <p className="truncate text-[11.5px] text-content-subtle">

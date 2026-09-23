@@ -106,10 +106,42 @@ pub struct RouteGraph {
     pub trace_enabled: bool,
     /// Объект трассировки, на который ссылается маршрут.
     pub trace_config: Option<String>,
+    /// Транзакционность СОПС. В XML это пустой `<transacted/>` среди шагов,
+    /// но шагом он не является — это настройка всего потока.
+    pub transaction: Option<Transaction>,
     /// Сколько шагов в схеме, включая вложенные ветки.
     pub steps: usize,
     pub nodes: Vec<RouteNode>,
     pub line: usize,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Transaction {
+    /// Политика из `ref`; без неё шина берёт политику по умолчанию.
+    pub policy: Option<String>,
+}
+
+/// Забирает из шагов верхнего уровня признак транзакционности.
+///
+/// Только пустой элемент: `<transacted>` с вложенными шагами — уже рамка
+/// вокруг части потока, и её место на схеме.
+fn take_transaction(nodes: Vec<RouteNode>) -> (Vec<RouteNode>, Option<Transaction>) {
+    let mut transaction = None;
+    let mut kept = Vec::with_capacity(nodes.len());
+    for node in nodes {
+        if node.kind == "transacted" && node.children.is_empty() && transaction.is_none() {
+            let policy = node
+                .attributes
+                .iter()
+                .find(|item| item.name == "ref")
+                .map(|item| item.value.clone());
+            transaction = Some(Transaction { policy });
+            continue;
+        }
+        kept.push(node);
+    }
+    (kept, transaction)
 }
 
 fn is_expression(kind: &str) -> bool {
@@ -185,7 +217,7 @@ pub fn parse_route_graphs(xml: &str) -> Vec<RouteGraph> {
         // У самого маршрута тоже бывает `<description>` — комментарий автора схемы.
         // Без сворачивания он оказался бы первым «шагом» вместо точки входа.
         let mut holder = blank("route", line_at(xml, tag.start));
-        let nodes = fold(&mut holder, children);
+        let (nodes, transaction) = take_transaction(fold(&mut holder, children));
         let steps = nodes.iter().map(count_steps).sum();
 
         graphs.push(RouteGraph {
@@ -194,6 +226,7 @@ pub fn parse_route_graphs(xml: &str) -> Vec<RouteGraph> {
             description: holder.description,
             trace_enabled: value("factor-trace").as_deref() == Some("true"),
             trace_config: value("factor-trace-config"),
+            transaction,
             steps,
             nodes,
             line: line_at(xml, tag.start),
@@ -554,6 +587,26 @@ mod tests {
         assert_eq!(graph.trace_config.as_deref(), Some("TraceToQueue"));
         assert_eq!(graph.steps, 1, "комментарий маршрута не шаг");
         assert_eq!(graph.nodes[0].kind, "from", "схема начинается с точки входа");
+    }
+
+    #[test]
+    fn transaction_is_a_setting_not_a_step() {
+        let xml = r#"<route factor-name="T" id="r">
+  <from factor-name="Вход" uri="direct://in"/>
+  <transacted factor-component="TransactionEndpoint" ref="PROPAGATION_REQUIRED"/>
+  <setBody factor-name="Тело"><simple>x</simple></setBody>
+</route>"#;
+        let graph = &parse_route_graphs(xml)[0];
+        let kinds: Vec<&str> = graph.nodes.iter().map(|n| n.kind.as_str()).collect();
+        assert_eq!(kinds, vec!["from", "setBody"]);
+        assert_eq!(graph.steps, 2);
+        let transaction = graph.transaction.as_ref().expect("транзакционность распознана");
+        assert_eq!(transaction.policy.as_deref(), Some("PROPAGATION_REQUIRED"));
+
+        let plain = r#"<route id="p"><from uri="direct://in"/><transacted/></route>"#;
+        let graph = &parse_route_graphs(plain)[0];
+        assert!(graph.transaction.as_ref().is_some_and(|t| t.policy.is_none()));
+        assert_eq!(graph.steps, 1);
     }
 
     #[test]
