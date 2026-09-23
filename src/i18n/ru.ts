@@ -669,9 +669,9 @@ export const ru: Record<keyof typeof en, string> = {
   'palette.move': 'Выбор',
   'palette.pick': 'Открыть',
 
-  'nav.api.mqConfig': 'Конфигурация МО',
-  'nav.api.mqConfig.title': 'Хранение в Конфигурации МО',
-  'welcome.hint.mqConfig': 'Объекты менеджеров очередей без галочки «Хранить в конфигурации»',
+  'nav.api.mqConfig': 'Настройки МО',
+  'nav.api.mqConfig.title': 'Хранение Настроек Менеджеров Очередей',
+  'welcome.hint.mqConfig': 'Настройки менеджеров очередей без галочки «Хранить в конфигурации»',
   'mqConfig.intro': 'Объекты без галочки «Хранить в конфигурации» живут только в хранилище брокера и не переедут вместе с конфигурацией.',
   'mqConfig.manager': 'Менеджер',
   'mqConfig.stopped': 'Остановлен',

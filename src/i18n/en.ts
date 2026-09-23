@@ -669,9 +669,9 @@ export const en = {
   'palette.move': 'Move',
   'palette.pick': 'Open',
 
-  'nav.api.mqConfig': 'Queue Config',
-  'nav.api.mqConfig.title': 'Queue Manager Configuration Storage',
-  'welcome.hint.mqConfig': 'Queue manager objects without Store in Configuration',
+  'nav.api.mqConfig': 'QM Settings',
+  'nav.api.mqConfig.title': 'Queue Manager Settings Storage',
+  'welcome.hint.mqConfig': 'Queue manager settings without Store in Configuration',
   'mqConfig.intro': 'Objects without Store in Configuration live only in the broker store and do not move with the configuration.',
   'mqConfig.manager': 'Manager',
   'mqConfig.stopped': 'Stopped',
