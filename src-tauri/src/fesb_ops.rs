@@ -115,16 +115,23 @@ pub async fn module_action(connection: &Connection, module: &str, action: &str) 
 pub struct DomainActionResult {
     pub guid: String,
     pub action: String,
-    /// Шина ответила согласием. Отказ приходит телом `false` при HTTP 200.
+    /// Домен пришёл в нужное состояние: запущен после запуска и перезапуска,
+    /// остановлен после остановки.
     pub done: bool,
 }
 
 /// Запуск, остановка или перезапуск домена.
 ///
-/// Отдельный случай, ради которого и заведён результат: домен может не
-/// подняться из-за собственной конфигурации — например, у СОПС не оказалось
-/// нужного компонента, — и тогда сервер отвечает `200 false`, а причина
-/// остаётся в `broker.log`. Молча считать это успехом нельзя.
+/// Результат заведён ради отказов: домен может не подняться из-за
+/// собственной конфигурации — например, у СОПС не оказалось нужного
+/// компонента, — и причина тогда остаётся в `broker.log`. Молча считать это
+/// успехом нельзя.
+///
+/// Тело ответа (`true`/`false`) об успехе не говорит: на FESB 8.6 первый
+/// запуск остановленного домена отвечает `false`, повторный — `true`, хотя
+/// домен запущен в обоих случаях. Поэтому исход определяется по состоянию
+/// домена после команды, а тело берётся, только если состояние прочитать
+/// не удалось.
 pub async fn domain_action(
     connection: &Connection,
     guid: &str,
@@ -148,12 +155,47 @@ pub async fn domain_action(
         .await
         .unwrap_or_default();
 
+    let want = action != "stop";
+    // Состояние обычно готово сразу, но шина вправе догонять его чуть позже.
+    let mut state = None;
+    for attempt in 0..5 {
+        if attempt > 0 {
+            tokio::time::sleep(Duration::from_secs(1)).await;
+        }
+        state = domain_active(connection, guid).await.ok().flatten();
+        if state == Some(want) {
+            break;
+        }
+    }
+
     Ok(DomainActionResult {
         guid: guid.to_string(),
         action: action.to_string(),
-        // Пустое тело считаем согласием: отказ шина проговаривает явным false.
-        done: body.trim() != "false",
+        done: match state {
+            Some(active) => active == want,
+            None => body.trim() != "false",
+        },
     })
+}
+
+/// Запущен ли домен: `None`, если шина о нём не знает.
+async fn domain_active(connection: &Connection, guid: &str) -> Result<Option<bool>, String> {
+    let client = connection.client()?;
+    let response = connection
+        .get(&client, "/api/domains/statistics/all")
+        .timeout(Duration::from_secs(30))
+        .send()
+        .await
+        .map_err(transport_error)?;
+    let raw: Vec<Value> = ensure_ok(response, "Cannot read domain statistics")
+        .await?
+        .json()
+        .await
+        .map_err(|err| format!("Unexpected answer: {err}"))?;
+    Ok(raw
+        .iter()
+        .find(|item| text(item, "domainGuid").as_deref() == Some(guid))
+        .map(|item| flag(item, "isActive")))
 }
 
 // ───────────────────────── менеджеры очередей ─────────────────────────
