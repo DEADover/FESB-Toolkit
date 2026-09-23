@@ -114,7 +114,10 @@ export function MqConfigScreen({ connection, server, environment, onGoToConnecti
     void load()
   }, [load])
 
-  const items = useMemo(() => audit?.items ?? [], [audit])
+  // Ответ по прежнему менеджеру, пока грузится новый, не показываем: у РМО и
+  // мультименеджера разные разделы, и чужие объекты не легли бы ни в один.
+  const current = audit && manager && audit.manager === manager.kind && audit.server === manager.id ? audit : null
+  const items = useMemo(() => current?.items ?? [], [current])
   const byKey = useMemo(() => new Map(items.map((item) => [key(item), item])), [items])
   const storedAddresses = useMemo(
     () => new Set(items.filter((item) => item.kind === 'address' && item.stored).map((item) => item.id)),
@@ -122,14 +125,16 @@ export function MqConfigScreen({ connection, server, environment, onGoToConnecti
   )
 
   const counted = useMemo(() => {
-    const count = Object.fromEntries(KINDS.map((item) => [item, { total: 0, loose: 0 }])) as Record<MqConfigKind, { total: number; loose: number }>
+    const all: MqConfigKind[] = ['address', 'queue', 'topic', 'divert', 'addressSetting', 'security', 'user']
+    const count = Object.fromEntries(all.map((item) => [item, { total: 0, loose: 0 }])) as Record<MqConfigKind, { total: number; loose: number }>
     for (const item of items) {
       if (item.system && !showSystem) continue
+      if (!count[item.kind]) continue
       count[item.kind].total += 1
       if (!item.stored) count[item.kind].loose += 1
     }
     return count
-  }, [items, showSystem, KINDS])
+  }, [items, showSystem])
 
   const visible = useMemo(() => {
     const needle = query.trim().toLowerCase()
@@ -243,7 +248,7 @@ export function MqConfigScreen({ connection, server, environment, onGoToConnecti
   return (
     <ScreenBody>
       <StatsBar>
-        {audit ? (
+        {current ? (
           <>
             <Readout label={t('mqConfig.total')} value={String(total)} />
             <Readout label={t('mqConfig.loose')} value={String(loose)} tone={loose > 0 ? 'warn' : undefined} hint={t('mqConfig.loose.hint')} />
@@ -292,8 +297,8 @@ export function MqConfigScreen({ connection, server, environment, onGoToConnecti
 
       <ErrorBar error={error} />
       {managers && managers.length === 0 && <Notice tone="warn">{t('mqConfig.noManagers')}</Notice>}
-      {audit && audit.failures.length > 0 && (
-        <Notice tone="warn">{t('mqConfig.partly', { list: audit.failures.join('; ') })}</Notice>
+      {current && current.failures.length > 0 && (
+        <Notice tone="warn">{t('mqConfig.partly', { list: current.failures.join('; ') })}</Notice>
       )}
       {outcomes && (
         <Notice
@@ -397,7 +402,7 @@ export function MqConfigScreen({ connection, server, environment, onGoToConnecti
             })}
             {visible.length === 0 && (
               <TableMessage colSpan={5} busy={loading}>
-                {loading ? t('empty.scanning') : onlyLoose && audit ? t('mqConfig.allStored') : t('table.empty')}
+                {loading ? t('empty.scanning') : onlyLoose && current ? t('mqConfig.allStored') : t('table.empty')}
               </TableMessage>
             )}
           </tbody>
