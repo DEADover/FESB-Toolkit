@@ -28,6 +28,12 @@
 //! Метода правки очереди у QMS нет, галочку включает повторное создание
 //! с `ifNotExists=true`: ответ 200, сообщения остаются. Без этого параметра
 //! шина отвечает 409 «уже существует», хотя галочку всё равно ставит.
+//!
+//! **Обратно, из конфигурации**, галочка снимается теми же вызовами. Проверено
+//! на стенде с перезапуском менеджера: объекты всех типов остаются на сервере
+//! со своими настройками, пользователь РМО входит со своим паролем. Адрес РМО
+//! уходит из файла вместе со своими очередями — шина снимает галочку и с них,
+//! молча, поэтому очереди адреса показываются в плане заранее.
 
 use std::collections::HashSet;
 
@@ -155,9 +161,16 @@ pub struct ConfigAudit {
 pub struct StoreRequest {
     pub kind: ConfigKind,
     pub id: String,
+    /// Каким сделать объект: `true` — хранить в конфигурации, `false` — убрать.
+    #[serde(default = "yes")]
+    pub stored: bool,
     /// Только для пользователей РМО: без пароля пользователь не сохраняется.
     #[serde(default)]
     pub password: Option<String>,
+}
+
+fn yes() -> bool {
+    true
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -187,9 +200,10 @@ pub async fn audit(connection: &Connection, manager: ManagerKind, server: &str) 
     Ok(ConfigAudit { manager, server: server.to_string(), items, failures })
 }
 
-/// Сохраняет объекты в конфигурации: включает им галочку.
+/// Включает или снимает объектам галочку «Хранить в конфигурации».
 ///
-/// Каждый объект перечитывается перед записью — отправляется то, что лежит
+/// Сначала снимается, потом ставится: снимать удобнее от очередей к адресам,
+/// ставить — от адресов к очередям. Каждый объект перечитывается перед записью — отправляется то, что лежит
 /// на сервере сейчас, а не то, что было на экране. Ошибка одного объекта
 /// не останавливает остальные.
 pub async fn store(
@@ -201,8 +215,12 @@ pub async fn store(
     let target = Manager::new(manager, server)?;
     let client = connection.client()?;
     let order = target.kinds();
-    let mut ordered: Vec<&StoreRequest> = requests.iter().collect();
-    ordered.sort_by_key(|item| order.iter().position(|kind| *kind == item.kind).unwrap_or(usize::MAX));
+    let rank = |item: &&StoreRequest| order.iter().position(|kind| *kind == item.kind).unwrap_or(usize::MAX);
+    let mut removed: Vec<&StoreRequest> = requests.iter().filter(|item| !item.stored).collect();
+    removed.sort_by_key(|item| std::cmp::Reverse(rank(item)));
+    let mut added: Vec<&StoreRequest> = requests.iter().filter(|item| item.stored).collect();
+    added.sort_by_key(rank);
+    let ordered = removed.into_iter().chain(added);
 
     // Адреса РМО, которые уже в конфигурации или попадут туда в этом же заходе.
     let mut stored_addresses: HashSet<String> = if manager == ManagerKind::Qme {
@@ -216,7 +234,7 @@ pub async fn store(
         HashSet::new()
     };
 
-    let mut outcomes = Vec::with_capacity(ordered.len());
+    let mut outcomes = Vec::with_capacity(requests.len());
     for request in ordered {
         let result = if !order.contains(&request.kind) {
             Err(coded("mq.unsupported", format!("{:?}", request.kind)))
@@ -226,7 +244,11 @@ pub async fn store(
             store_qme(connection, &client, target, request, &stored_addresses).await
         };
         if result.is_ok() && request.kind == ConfigKind::Address {
-            stored_addresses.insert(request.id.clone());
+            if request.stored {
+                stored_addresses.insert(request.id.clone());
+            } else {
+                stored_addresses.remove(&request.id);
+            }
         }
         outcomes.push(StoreOutcome { kind: request.kind, id: request.id.clone(), error: result.err() });
     }
@@ -242,27 +264,27 @@ async fn store_qme(
 ) -> Result<(), String> {
     let path = target.object(request.kind, &request.id);
     let mut value = read(connection, client, &path).await?;
-    if flag(&value, "configurationManaged") {
+    if flag(&value, "configurationManaged") == request.stored {
         return Ok(());
     }
-    if request.kind == ConfigKind::Queue {
+    if request.stored && request.kind == ConfigKind::Queue {
         let address = text(&value, "address").unwrap_or_default();
         if !stored_addresses.contains(&address) {
             return Err(coded("qme.addressNotStored", address));
         }
     }
-    if request.kind == ConfigKind::User {
+    if request.stored && request.kind == ConfigKind::User {
         let password = request.password.as_deref().unwrap_or("");
         if password.is_empty() {
             return Err(coded("qme.passwordRequired", request.id.clone()));
         }
         value["password"] = Value::String(password.to_string());
     }
-    value["configurationManaged"] = Value::Bool(true);
+    value["configurationManaged"] = Value::Bool(request.stored);
 
     let response = connection.put(client, &path).json(&value).send().await.map_err(transport_error)?;
     ensure_ok(response, "Cannot save the object").await?;
-    confirm(connection, client, &path, &request.id).await
+    confirm(connection, client, &path, request).await
 }
 
 async fn store_qms(
@@ -273,7 +295,7 @@ async fn store_qms(
 ) -> Result<(), String> {
     let path = target.object(request.kind, &request.id);
     let value = read(connection, client, &path).await?;
-    if flag(&value, "configurationManaged") {
+    if flag(&value, "configurationManaged") == request.stored {
         return Ok(());
     }
     if qms_fixed(request.kind, &value) {
@@ -283,21 +305,21 @@ async fn store_qms(
     let response = connection
         .post(client, &target.section(request.kind))
         .query(&[("ifNotExists", "true")])
-        .json(&json!({ "name": request.id, "configurationManaged": true }))
+        .json(&json!({ "name": request.id, "configurationManaged": request.stored }))
         .send()
         .await
         .map_err(transport_error)?;
     ensure_ok(response, "Cannot save the object").await?;
-    confirm(connection, client, &path, &request.id).await
+    confirm(connection, client, &path, request).await
 }
 
-/// Ответ «200» ещё не значит, что галочка встала: перечитываем.
-async fn confirm(connection: &Connection, client: &reqwest::Client, path: &str, id: &str) -> Result<(), String> {
+/// Ответ «200» ещё не значит, что галочка встала как надо: перечитываем.
+async fn confirm(connection: &Connection, client: &reqwest::Client, path: &str, request: &StoreRequest) -> Result<(), String> {
     let after = read(connection, client, path).await?;
-    if flag(&after, "configurationManaged") {
+    if flag(&after, "configurationManaged") == request.stored {
         Ok(())
     } else {
-        Err(coded("qme.notStored", id.to_string()))
+        Err(coded("qme.notStored", request.id.clone()))
     }
 }
 

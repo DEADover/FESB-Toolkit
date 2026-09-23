@@ -276,7 +276,7 @@ export function apiMqStore(
   connection: Connection,
   manager: ManagerKind,
   server: string,
-  items: Array<{ kind: MqConfigKind; id: string; password: string | null }>,
+  items: Array<{ kind: MqConfigKind; id: string; stored: boolean; password: string | null }>,
 ): Promise<MqStoreOutcome[]> {
   return invoke<MqStoreOutcome[]>('api_mq_store', { connection, manager, server, items })
 }

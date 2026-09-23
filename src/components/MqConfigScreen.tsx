@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
-import { ArrowsClockwise, FileXls, FloppyDisk } from '@phosphor-icons/react'
+import { ArrowsClockwise, FileXls, FloppyDisk, MinusCircle } from '@phosphor-icons/react'
 
 import { useI18n, type MessageKey } from '../i18n'
 import { apiMqConfig, apiMqStore, apiQueueManagers, errorText, revealPath, saveReport, saveXlsxAs } from '../lib/api'
@@ -66,7 +66,8 @@ export function MqConfigScreen({ connection, server, environment, onGoToConnecti
   const [showSystem, setShowSystem] = useState(false)
   const [query, setQuery] = useState('')
   const [selected, setSelected] = useState<Set<string>>(new Set())
-  const [confirming, setConfirming] = useState(false)
+  /** Что подтверждают: поставить галочку или снять. */
+  const [confirming, setConfirming] = useState<'store' | 'release' | null>(null)
   const [passwords, setPasswords] = useState<Record<string, string>>({})
   const [saving, setSaving] = useState(false)
   const [outcomes, setOutcomes] = useState<MqStoreOutcome[] | null>(null)
@@ -148,29 +149,47 @@ export function MqConfigScreen({ connection, server, environment, onGoToConnecti
       .sort((a, b) => KINDS.indexOf(a.kind) - KINDS.indexOf(b.kind) || a.id.localeCompare(b.id))
   }, [items, showSystem, kind, onlyLoose, query, KINDS])
 
-  const selectable = visible.filter((item) => !item.stored)
+  // Галочку можно менять в обе стороны; только у составных очередей QMS её нет.
+  const selectable = visible.filter((item) => !item.fixed)
   const allChosen = selectable.length > 0 && selectable.every((item) => selected.has(key(item)))
 
   /**
-   * Что уйдёт на запись: выбранное плюс адреса выбранных очередей, которых
-   * нет в конфигурации, — без адреса очередь не запишется.
+   * Что уйдёт на запись в каждую сторону.
+   *
+   * Сохраняя очередь, нужно сохранить и её адрес: без него очередь в файл
+   * не запишется. Убирая адрес, шина сама убирает и его очереди — они
+   * добавляются в список заранее, чтобы это не случилось молча.
    */
-  const plan = useMemo(() => {
-    const chosen = [...selected].map((id) => byKey.get(id)).filter((item): item is MqConfigItem => !!item && !item.stored)
-    const chosenKeys = new Set(chosen.map(key))
-    const added: MqConfigItem[] = []
-    for (const item of chosen) {
+  const plans = useMemo(() => {
+    const chosen = [...selected].map((id) => byKey.get(id)).filter((item): item is MqConfigItem => !!item && !item.fixed)
+
+    const toStore = chosen.filter((item) => !item.stored)
+    const storeKeys = new Set(toStore.map(key))
+    const storeAdded: MqConfigItem[] = []
+    for (const item of toStore) {
       if (item.kind !== 'queue' || !item.address || storedAddresses.has(item.address)) continue
       const address = byKey.get(key({ kind: 'address', id: item.address }))
-      if (address && !chosenKeys.has(key(address))) {
-        chosenKeys.add(key(address))
-        added.push(address)
+      if (address && !storeKeys.has(key(address))) {
+        storeKeys.add(key(address))
+        storeAdded.push(address)
       }
     }
-    return { chosen, added }
-  }, [selected, byKey, storedAddresses])
 
-  const users = plan.chosen.filter((item) => item.kind === 'user')
+    const toRelease = chosen.filter((item) => item.stored)
+    const releaseKeys = new Set(toRelease.map(key))
+    const released = new Set(toRelease.filter((item) => item.kind === 'address').map((item) => item.id))
+    const releaseAdded = items.filter((item) => item.kind === 'queue' && item.stored && item.address
+      && released.has(item.address) && !releaseKeys.has(key(item)))
+
+    return {
+      store: { chosen: toStore, added: storeAdded },
+      release: { chosen: toRelease, added: releaseAdded },
+    }
+  }, [selected, byKey, storedAddresses, items])
+
+  const plan = plans[confirming ?? 'store']
+  // Пароль нужен только для сохранения: убирая пользователя, пароль шина не трогает.
+  const users = confirming === 'store' ? plan.chosen.filter((item) => item.kind === 'user') : []
   const missingPassword = users.some((item) => !passwords[item.id])
 
   const toggle = (item: MqConfigItem) => setSelected((prev) => {
@@ -184,23 +203,25 @@ export function MqConfigScreen({ connection, server, environment, onGoToConnecti
     if (!connection || !manager) return
     setSaving(true)
     try {
+      const stored = confirming !== 'release'
       const requests = [...plan.added, ...plan.chosen].map((item) => ({
         kind: item.kind,
         id: item.id,
-        password: item.kind === 'user' ? passwords[item.id] ?? null : null,
+        stored,
+        password: stored && item.kind === 'user' ? passwords[item.id] ?? null : null,
       }))
       setOutcomes(await apiMqStore(connection, manager.kind, manager.id, requests))
-      setConfirming(false)
+      setConfirming(null)
       setSelected(new Set())
       setPasswords({})
       await load()
     } catch (err) {
       setError(errorText(err))
-      setConfirming(false)
+      setConfirming(null)
     } finally {
       setSaving(false)
     }
-  }, [connection, manager, plan, passwords, load])
+  }, [connection, manager, plan, confirming, passwords, load])
 
   /** В файл уходит то, что видно на экране: фильтры — часть отчёта. */
   const exportXlsx = useCallback(async () => {
@@ -356,17 +377,17 @@ export function MqConfigScreen({ connection, server, environment, onGoToConnecti
               return (
                 <tr
                   key={key(item)}
-                  onClick={() => !item.stored && toggle(item)}
+                  onClick={() => !item.fixed && toggle(item)}
                   className={cx(
                     'border-b border-line/60 transition',
-                    !item.stored && 'cursor-pointer',
-                    chosen ? 'bg-accent/8' : !item.stored && 'hover:bg-surface-2',
+                    !item.fixed && 'cursor-pointer',
+                    chosen ? 'bg-accent/8' : !item.fixed && 'hover:bg-surface-2',
                   )}
                 >
                   <td className="px-3 py-1.5">
                     <Checkbox
                       checked={chosen}
-                      disabled={item.stored}
+                      disabled={item.fixed}
                       aria-label={item.id}
                       onClick={(event) => event.stopPropagation()}
                       onChange={() => toggle(item)}
@@ -425,26 +446,32 @@ export function MqConfigScreen({ connection, server, environment, onGoToConnecti
           <ButtonGlyph busy={exporting}><FileXls size={14} weight="bold" /></ButtonGlyph>
           {t('mqConfig.export')}
         </Button>
+        {plans.release.chosen.length > 0 && (
+          <Button onClick={() => setConfirming('release')}>
+            <MinusCircle size={14} weight="bold" />
+            {t('mqConfig.release', { count: plans.release.chosen.length + plans.release.added.length })}
+          </Button>
+        )}
         <Button
           variant="primary"
           className="min-w-52"
-          disabled={plan.chosen.length === 0}
-          onClick={() => setConfirming(true)}
+          disabled={plans.store.chosen.length === 0}
+          onClick={() => setConfirming('store')}
         >
           <FloppyDisk size={14} weight="bold" />
-          {t('mqConfig.store', { count: plan.chosen.length + plan.added.length })}
+          {t('mqConfig.store', { count: plans.store.chosen.length + plans.store.added.length })}
         </Button>
       </div>
 
       <Modal
-        open={confirming}
-        onClose={() => !saving && setConfirming(false)}
+        open={confirming !== null}
+        onClose={() => !saving && setConfirming(null)}
         closeLabel={t('action.close')}
-        title={t('mqConfig.confirm.title', { manager: managerId ?? '' })}
+        title={t(confirming === 'release' ? 'mqConfig.release.title' : 'mqConfig.confirm.title', { manager: managerId ?? '' })}
         width="roomy"
         footer={(
           <>
-            <Button variant="ghost" disabled={saving} onClick={() => setConfirming(false)}>{t('action.cancel')}</Button>
+            <Button variant="ghost" disabled={saving} onClick={() => setConfirming(null)}>{t('action.cancel')}</Button>
             <Button
               variant={environment === 'prod' ? 'danger' : 'primary'}
               className="min-w-40"
@@ -452,18 +479,20 @@ export function MqConfigScreen({ connection, server, environment, onGoToConnecti
               title={missingPassword ? t('mqConfig.confirm.needPasswords') : undefined}
               onClick={() => void save()}
             >
-              <ButtonGlyph busy={saving}><FloppyDisk size={14} weight="bold" /></ButtonGlyph>
-              {t('mqConfig.confirm.run')}
+              <ButtonGlyph busy={saving}>
+                {confirming === 'release' ? <MinusCircle size={14} weight="bold" /> : <FloppyDisk size={14} weight="bold" />}
+              </ButtonGlyph>
+              {t(confirming === 'release' ? 'mqConfig.release.run' : 'mqConfig.confirm.run')}
             </Button>
           </>
         )}
       >
         <div className="space-y-3 text-[13px] leading-relaxed">
-          <p className="text-content-muted">{t('mqConfig.confirm.text')}</p>
+          <p className="text-content-muted">{t(confirming === 'release' ? 'mqConfig.release.text' : 'mqConfig.confirm.text')}</p>
           {environment === 'prod' && <Notice tone="warn">{t('mqConfig.confirm.prod')}</Notice>}
           {plan.added.length > 0 && (
             <Notice tone="warn">
-              {t('mqConfig.confirm.addresses', { list: plan.added.map((item) => item.id).join(', ') })}
+              {t(confirming === 'release' ? 'mqConfig.release.queues' : 'mqConfig.confirm.addresses', { list: plan.added.map((item) => item.id).join(', ') })}
             </Notice>
           )}
           <div className="max-h-56 overflow-y-auto rounded-lg border border-line">

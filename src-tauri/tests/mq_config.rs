@@ -26,7 +26,11 @@ fn connection() -> Option<Connection> {
 }
 
 fn request(kind: ConfigKind, id: &str, password: Option<&str>) -> StoreRequest {
-    StoreRequest { kind, id: id.into(), password: password.map(String::from) }
+    StoreRequest { kind, id: id.into(), stored: true, password: password.map(String::from) }
+}
+
+fn release(kind: ConfigKind, id: &str) -> StoreRequest {
+    StoreRequest { kind, id: id.into(), stored: false, password: None }
 }
 
 /// Запрос к шине в обход приложения: так заводятся объекты без галочки.
@@ -94,6 +98,23 @@ fn qme_objects_are_stored_in_the_right_order() {
         assert!(item.stored, "{id} в конфигурации");
     }
 
+    // Обратно: адрес уходит из конфигурации вместе с очередью, пользователь —
+    // без пароля. Порядок в запросе нарочно «неудобный».
+    let back = block(mq_store(&connection, ManagerKind::Qme, &server, &[
+        release(ConfigKind::Address, &address),
+        release(ConfigKind::Queue, &queue),
+        release(ConfigKind::Security, &matcher),
+        release(ConfigKind::User, &user),
+    ]))
+    .unwrap();
+    assert!(back.iter().all(|item| item.error.is_none()), "{back:?}");
+    assert_eq!(back[0].kind, ConfigKind::User, "снимается от конца порядка записи");
+    let released = block(mq_config_audit(&connection, ManagerKind::Qme, &server)).unwrap();
+    for (kind, id) in [(ConfigKind::Address, &address), (ConfigKind::Queue, &queue), (ConfigKind::Security, &matcher), (ConfigKind::User, &user)] {
+        let item = released.items.iter().find(|item| item.kind == kind && &item.id == id).expect(id);
+        assert!(!item.stored, "{id} вне конфигурации, но на месте");
+    }
+
     let delete = reqwest::Method::DELETE;
     let encoded = matcher.replace('#', "%23");
     call(&connection, delete.clone(), &format!("{base}/users/{user}"), None);
@@ -129,6 +150,18 @@ fn qms_queues_and_topics_are_stored() {
     for (kind, id) in [(ConfigKind::Queue, &queue), (ConfigKind::Topic, &topic)] {
         let item = after.items.iter().find(|item| item.kind == kind && &item.id == id).expect(id);
         assert!(item.stored, "{id} в конфигурации");
+    }
+
+    let back = block(mq_store(&connection, ManagerKind::Qms, &broker, &[
+        release(ConfigKind::Queue, &queue),
+        release(ConfigKind::Topic, &topic),
+    ]))
+    .unwrap();
+    assert!(back.iter().all(|item| item.error.is_none()), "{back:?}");
+    let released = block(mq_config_audit(&connection, ManagerKind::Qms, &broker)).unwrap();
+    for (kind, id) in [(ConfigKind::Queue, &queue), (ConfigKind::Topic, &topic)] {
+        let item = released.items.iter().find(|item| item.kind == kind && &item.id == id).expect(id);
+        assert!(!item.stored, "{id} вне конфигурации, но на месте");
     }
 
     call(&connection, reqwest::Method::DELETE, &format!("{base}/queues/{queue}"), None);
