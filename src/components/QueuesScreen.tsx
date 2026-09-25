@@ -4,7 +4,7 @@ import { ArrowLeft, ArrowsClockwise, Check, Copy, MagnifyingGlass } from '@phosp
 
 import { useI18n } from '../i18n'
 import { apiQueueManagers, apiQueueMessage, apiQueueMessages, apiQueues, apiQueueSearch, errorText, onApiProgress } from '../lib/api'
-import type { ApiProgress, Connection, QueueManager, QueueMessage, QueueRow, ServerInfo } from '../types'
+import type { ApiProgress, Connection, ManagerKind, QueueManager, QueueMessage, QueueRow, ServerInfo } from '../types'
 import {
   AutoRefreshToggle, Awaiting, ErrorBar, NotConnected, Panel, RefreshButton, ScreenBody, ScreenBodyRow, TableMessage, useApiData, useAutoRefresh, useDebounced,
 } from './ApiShell'
@@ -16,6 +16,9 @@ interface Props {
   connection: Connection | null
   server: ServerInfo | null
   onGoToConnection: () => void
+  /** Менеджер, который открыть сразу, — когда пришли из палитры. */
+  initialManager?: { kind: ManagerKind; id: string } | null
+  initialQuery?: string
 }
 
 /**
@@ -25,7 +28,7 @@ interface Props {
  * переводится трассировка, действительно существуют: значение `broker` в
  * `domain.xml` пишется ровно так же, как показано здесь.
  */
-export function QueuesScreen({ connection, server, onGoToConnection }: Props) {
+export function QueuesScreen({ connection, server, onGoToConnection, initialManager = null, initialQuery = '' }: Props) {
   const { t } = useI18n()
   const load = useCallback((connection: Connection) => apiQueueManagers(connection), [])
   const managers = useApiData<QueueManager[]>(connection, load)
@@ -34,7 +37,7 @@ export function QueuesScreen({ connection, server, onGoToConnection }: Props) {
   const [queues, setQueues] = useState<QueueRow[] | null>(null)
   const [loadingQueues, setLoadingQueues] = useState(false)
   const [queueError, setQueueError] = useState<string | null>(null)
-  const [query, setQuery] = useState('')
+  const [query, setQuery] = useState(initialQuery)
   const [hideInternal, setHideInternal] = useState(true)
   const [copied, setCopied] = useState<string | null>(null)
   /** Очередь, сообщения которой сейчас смотрят. */
@@ -49,9 +52,10 @@ export function QueuesScreen({ connection, server, onGoToConnection }: Props) {
     }
     setSelected((prev) => {
       if (prev && list.some((item) => item.broker === prev.broker)) return prev
-      return list.find((item) => item.running) ?? list[0]
+      const wanted = initialManager && list.find((item) => item.kind === initialManager.kind && item.id === initialManager.id)
+      return wanted || (list.find((item) => item.running) ?? list[0])
     })
-  }, [managers.data])
+  }, [managers.data, initialManager])
 
   // Номер последнего открытия: очереди медленного менеджера не должны
   // лечь под заголовок того, что выбрали после него.

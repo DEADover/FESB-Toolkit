@@ -24,6 +24,8 @@ interface Props {
   isMac: boolean
   /** Домен, выбранный снаружи — например, кликом на карте. */
   initialGuid?: string | null
+  /** СОПС, схему которого открыть сразу, — когда пришли из палитры. */
+  initialRoute?: string | null
   onGoToConnection: () => void
 }
 
@@ -35,7 +37,7 @@ interface Props {
  * из выгрузки одного домена (доли секунды), а состояние и счётчики —
  * по каждому маршруту отдельно; так виден и остановленный.
  */
-export function RoutesScreen({ connection, server, isMac, initialGuid, onGoToConnection }: Props) {
+export function RoutesScreen({ connection, server, isMac, initialGuid, initialRoute, onGoToConnection }: Props) {
   const { t } = useI18n()
   const load = useCallback((connection: Connection) => apiDomainStatistics(connection), [])
   const stats = useApiData<DomainStat[]>(connection, load)
@@ -186,6 +188,15 @@ export function RoutesScreen({ connection, server, isMac, initialGuid, onGoToCon
     }
     if (!selected) void openDomain(withRoutes[0])
   }, [selected, withRoutes, openDomain, initialGuid])
+
+  // Схема СОПС из палитры раскрывается, как только прочитан его домен, — один раз.
+  const routeApplied = useRef(false)
+  useEffect(() => {
+    if (!initialRoute || routeApplied.current || !domain || selected?.guid !== initialGuid) return
+    const wanted = domain.routes.find((route) => route.id === initialRoute)
+    routeApplied.current = true
+    if (wanted) setOpen(wanted)
+  }, [initialRoute, initialGuid, domain, selected])
 
   /** Обновляем только состояния: состав СОПС меняется куда реже счётчиков. */
   useAutoRefresh(auto, () => {

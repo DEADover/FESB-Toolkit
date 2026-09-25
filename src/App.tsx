@@ -24,6 +24,7 @@ import { RoutesScreen } from './components/RoutesScreen'
 import { Sidebar, type ScreenId } from './components/Sidebar'
 import { TraceScreen } from './components/TraceScreen'
 import { CommandPalette } from './components/CommandPalette'
+import type { Focus } from './lib/standIndex'
 import { JobStatus } from './components/JobStatus'
 import { useToast } from './components/Toaster'
 import { Badge, Button, ButtonGlyph, cx, Notice, Spinner } from './components/ui'
@@ -92,6 +93,20 @@ export default function App() {
   const [focusProfile, setFocusProfile] = useState<string | null>(null)
   /** Домен, к СОПС которого перешли с карты. */
   const [routesDomain, setRoutesDomain] = useState<string | null>(null)
+  /**
+   * Куда привела палитра: экран открывается уже на найденном. Номер —
+   * ключ экрана: второй переход туда же пересоздаёт экран, иначе он
+   * помнил бы прежний выбор и новый не применил.
+   */
+  const [focus, setFocus] = useState<{ seq: number; target: Focus } | null>(null)
+  const openFocus = useCallback((target: Focus) => {
+    setFocus((prev) => ({ seq: (prev?.seq ?? 0) + 1, target }))
+    if (target.screen === 'api.routes') setRoutesDomain(target.guid)
+    setScreen(target.screen)
+  }, [])
+  const routeFocus = focus?.target.screen === 'api.routes' ? focus.target : null
+  const propertyFocus = focus?.target.screen === 'api.properties' ? focus.target : null
+  const queueFocus = focus?.target.screen === 'api.queues' ? focus.target : null
 
   const isMac = info?.platform === 'macos'
   const busy = scanning || unpacking
@@ -502,7 +517,13 @@ export default function App() {
             activeProfileId={session?.profile.id ?? null}
           />
         ) : screen === 'api.routes' ? (
-          <RoutesScreen {...apiScreenProps} isMac={isMac} initialGuid={routesDomain} />
+          <RoutesScreen
+            key={routeFocus ? focus?.seq : undefined}
+            {...apiScreenProps}
+            isMac={isMac}
+            initialGuid={routesDomain}
+            initialRoute={routeFocus?.route ?? null}
+          />
         ) : screen === 'api.tracing' ? (
           <TracingScreen
             {...apiScreenProps}
@@ -526,11 +547,20 @@ export default function App() {
         ) : screen === 'api.mqConfig' ? (
           <MqConfigScreen {...apiScreenProps} environment={session?.profile.environment ?? null} />
         ) : screen === 'api.queues' ? (
-          <QueuesScreen {...apiScreenProps} />
+          <QueuesScreen
+            key={queueFocus ? focus?.seq : undefined}
+            {...apiScreenProps}
+            initialManager={queueFocus?.manager ?? null}
+            initialQuery={queueFocus?.query ?? ''}
+          />
         ) : screen === 'api.modules' ? (
           <ModulesScreen {...apiScreenProps} />
         ) : screen === 'api.properties' ? (
-          <PropertiesScreen {...apiScreenProps} />
+          <PropertiesScreen
+            key={propertyFocus ? focus?.seq : undefined}
+            {...apiScreenProps}
+            initialQuery={propertyFocus?.query ?? null}
+          />
         ) : screen === 'api.logs' ? (
           <LogsScreen {...apiScreenProps} />
         ) : screen === 'api.audit' ? (
@@ -575,6 +605,8 @@ export default function App() {
         onClose={() => setPaletteOpen(false)}
         store={connections}
         onScreen={setScreen}
+        onFocus={openFocus}
+        connection={session?.connection ?? null}
         onConnect={switchProfile}
         onConfigure={configure}
       />

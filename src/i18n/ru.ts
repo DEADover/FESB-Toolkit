@@ -688,8 +688,9 @@ export const ru: Record<keyof typeof en, string> = {
   'error.amqp.notAmqpPort': 'Порт отвечает, но не по AMQP: соединение приняли и закрыли на рукопожатии. Обычно это порт другого протокола — у ActiveMQ на 61616 говорит OpenWire, а AMQP слушает 5672. В журнале FESB это видно как «Frame size of 1 GB is larger than max allowed»',
 
   'palette.title': 'Перейти',
-  'palette.search': 'Название раздела или стенда',
+  'palette.search': 'Раздел, стенд, СОПС, константа или очередь',
   'palette.nothing': 'Ничего не найдено',
+  'palette.indexing': 'Читаю содержимое стенда…',
   'palette.move': 'Выбор',
   'palette.pick': 'Открыть',
 

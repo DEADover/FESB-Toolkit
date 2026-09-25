@@ -15,6 +15,8 @@ interface Props {
   connection: Connection | null
   server: ServerInfo | null
   onGoToConnection: () => void
+  /** Константа из палитры: ищется сразу по всему стенду. */
+  initialQuery?: string | null
 }
 
 type ScopeId = 'application' | 'broker' | 'domain' | 'all'
@@ -28,12 +30,12 @@ const EMPTY: PropertyRow = { key: '', value: '', secured: false, vault: false, e
  * константы маршрут падает на старте — поэтому смотреть и править их полезно
  * прямо здесь, не открывая веб-интерфейс.
  */
-export function PropertiesScreen({ connection, server, onGoToConnection }: Props) {
+export function PropertiesScreen({ connection, server, onGoToConnection, initialQuery = null }: Props) {
   const { t } = useI18n()
 
-  const [scopeId, setScopeId] = useState<ScopeId>('application')
+  const [scopeId, setScopeId] = useState<ScopeId>(initialQuery ? 'all' : 'application')
   const [domainGuid, setDomainGuid] = useState<string | null>(null)
-  const [query, setQuery] = useState('')
+  const [query, setQuery] = useState(initialQuery ?? '')
   const [adding, setAdding] = useState<PropertyRow | null>(null)
   const [saving, setSaving] = useState(false)
   /** Ключ константы, которая сейчас сохраняется: строка ждёт ответа. */

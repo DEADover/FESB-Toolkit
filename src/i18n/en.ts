@@ -688,8 +688,9 @@ export const en = {
   'error.amqp.notAmqpPort': 'The port answers, but not over AMQP: it accepted the connection and dropped it during the handshake. This is usually a port of another protocol — ActiveMQ speaks OpenWire on 61616 and AMQP on 5672. In the FESB log it shows up as \'Frame size of 1 GB is larger than max allowed\'',
 
   'palette.title': 'Go to',
-  'palette.search': 'Section or stand name',
+  'palette.search': 'Section, stand, route, constant or queue',
   'palette.nothing': 'Nothing found',
+  'palette.indexing': 'Reading what is on the stand…',
   'palette.move': 'Move',
   'palette.pick': 'Open',
 
