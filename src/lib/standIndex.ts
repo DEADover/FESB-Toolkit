@@ -5,18 +5,12 @@
 // правила: из ответов API строится плоский список, а поиск по нему
 // ранжирует совпадения. Сами запросы делает палитра.
 
-import type { ManagerKind, QueueManager, QueueRow, RouteSummary, SweepRow, ApiDomain } from '../types'
+import type { Focus } from './focus'
+import type { QueueManager, QueueRow, RouteSummary, SweepRow, ApiDomain } from '../types'
 
 export type IndexKind = 'domain' | 'route' | 'constant' | 'queue'
 
-/**
- * Куда вести с найденного. Экран открывается уже настроенным: нужный домен
- * выбран, в поиске стоит имя, схема СОПС раскрыта.
- */
-export type Focus =
-  | { screen: 'api.routes'; guid: string; route?: string }
-  | { screen: 'api.properties'; query: string }
-  | { screen: 'api.queues'; manager: { kind: ManagerKind; id: string }; query: string }
+export type { Focus } from './focus'
 
 export interface IndexEntry {
   kind: IndexKind

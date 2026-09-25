@@ -24,7 +24,7 @@ import { RoutesScreen } from './components/RoutesScreen'
 import { Sidebar, type ScreenId } from './components/Sidebar'
 import { TraceScreen } from './components/TraceScreen'
 import { CommandPalette } from './components/CommandPalette'
-import type { Focus } from './lib/standIndex'
+import { exchangeLogFocus, type Focus } from './lib/focus'
 import { JobStatus } from './components/JobStatus'
 import { useToast } from './components/Toaster'
 import { Badge, Button, ButtonGlyph, cx, Notice, Spinner } from './components/ui'
@@ -107,6 +107,7 @@ export default function App() {
   const routeFocus = focus?.target.screen === 'api.routes' ? focus.target : null
   const propertyFocus = focus?.target.screen === 'api.properties' ? focus.target : null
   const queueFocus = focus?.target.screen === 'api.queues' ? focus.target : null
+  const logFocus = focus?.target.screen === 'api.logs' ? focus.target : null
 
   const isMac = info?.platform === 'macos'
   const busy = scanning || unpacking
@@ -533,6 +534,7 @@ export default function App() {
           <InflightScreen
             {...apiScreenProps}
             onOpenRoutes={(guid) => { setRoutesDomain(guid); setScreen('api.routes') }}
+            onOpenLog={(exchange) => openFocus(exchangeLogFocus(exchange))}
           />
         ) : screen === 'api.endpoints' ? (
           <EndpointsScreen {...apiScreenProps} />
@@ -562,7 +564,7 @@ export default function App() {
             initialQuery={propertyFocus?.query ?? null}
           />
         ) : screen === 'api.logs' ? (
-          <LogsScreen {...apiScreenProps} />
+          <LogsScreen key={logFocus ? focus?.seq : undefined} {...apiScreenProps} exchange={logFocus} />
         ) : screen === 'api.audit' ? (
           <AuditScreen {...apiScreenProps} />
         ) : screen === 'api.access' ? (

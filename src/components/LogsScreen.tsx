@@ -3,6 +3,7 @@ import { Fragment, useCallback, useEffect, useMemo, useState } from 'react'
 import { useI18n } from '../i18n'
 import { apiLog, apiLogFiles, errorText } from '../lib/api'
 import { formatBytes } from '../lib/format'
+import { belongsToExchange, type LogFocus } from '../lib/focus'
 import type { Connection, LogEntry, LogFileRow, ServerInfo } from '../types'
 import {
   AutoRefreshToggle, ErrorBar, LimitSelect, useDebounced, NotConnected, Panel, RefreshButton, ScreenBody, TableMessage, useApiData, useAutoRefresh,
@@ -13,7 +14,12 @@ interface Props {
   connection: Connection | null
   server: ServerInfo | null
   onGoToConnection: () => void
+  /** Журнал одного обмена — когда пришли из «Обменов». */
+  exchange?: LogFocus | null
 }
+
+/** Записи СОПС ложатся в `sops.log`, их ошибки — в `core.log`. */
+const EXCHANGE_FILES = ['sops.log', 'core.log']
 
 const LEVELS = ['ERROR', 'WARN', 'INFO', 'DEBUG', 'TRACE'] as const
 
@@ -24,16 +30,31 @@ const LEVELS = ['ERROR', 'WARN', 'INFO', 'DEBUG', 'TRACE'] as const
  * за ней в контейнер каждый раз — лишнее: сервер умеет отдавать записи
  * разобранными, с уровнем, потоком и классом.
  */
-export function LogsScreen({ connection, server, onGoToConnection }: Props) {
+export function LogsScreen({ connection, server, onGoToConnection, exchange: initialExchange = null }: Props) {
   const { t } = useI18n()
 
   const loadFiles = useCallback((connection: Connection) => apiLogFiles(connection), [])
   const files = useApiData<LogFileRow[]>(connection, loadFiles)
 
-  const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set(['core.log']))
-  const [levels, setLevels] = useState<Set<string>>(new Set(['ERROR', 'WARN']))
-  const [search, setSearch] = useState('')
+  const [exchange, setExchange] = useState<LogFocus | null>(initialExchange)
+  // Журнал обмена — все уровни: его обычные записи идут с INFO, а
+  // по умолчанию экран показывает только ошибки и предупреждения.
+  const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set(initialExchange ? EXCHANGE_FILES : ['core.log']))
+  const [levels, setLevels] = useState<Set<string>>(new Set(initialExchange ? [] : ['ERROR', 'WARN']))
+  const [search, setSearch] = useState(initialExchange?.search ?? '')
   const [limit, setLimit] = useState(200)
+
+  // Файлов, которых на сервере нет, в выборе не держим: у стенда журнал
+  // СОПС может называться иначе, и фильтр показывал бы пустоту.
+  useEffect(() => {
+    const names = files.data?.map((file) => file.name)
+    if (!names) return
+    setSelectedFiles((prev) => {
+      const kept = [...prev].filter((name) => names.includes(name))
+      if (kept.length === prev.size) return prev
+      return new Set(kept.length > 0 ? kept : names.filter((name) => name === 'core.log'))
+    })
+  }, [files.data])
   const [auto, setAuto] = useState(false)
 
   const [entries, setEntries] = useState<LogEntry[] | null>(null)
@@ -106,8 +127,10 @@ export function LogsScreen({ connection, server, onGoToConnection }: Props) {
       first: cut < 0 ? message : message.slice(0, cut),
       multiline: cut >= 0,
       message,
+      own: exchange !== null && belongsToExchange(entry, exchange),
     }
-  }), [entries])
+  }), [entries, exchange])
+  const ownCount = rows.filter((row) => row.own).length
 
   const counts = useMemo(() => {
     const result = new Map<string, number>()
@@ -162,6 +185,20 @@ export function LogsScreen({ connection, server, onGoToConnection }: Props) {
         </div>
       </div>
 
+      {exchange && (
+        // Поиск по СОПС можно поправить руками — полоса держится, пока её не
+        // закрыли: подсветка своего потока полезна и при другом поиске.
+        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-accent/30 bg-accent/8 px-3 py-2 text-[12px]">
+          <span className="font-medium">{t('logs.exchange', { route: exchange.label })}</span>
+          <span className="font-mono text-[11px] text-content-subtle">{exchange.exchangeId}</span>
+          <span className="text-content-muted">
+            {exchange.thread ? t('logs.exchange.own', { count: ownCount }) : t('logs.exchange.noThread')}
+          </span>
+          <div className="flex-1" />
+          <Button size="sm" variant="ghost" onClick={() => setExchange(null)}>{t('action.close')}</Button>
+        </div>
+      )}
+
       <ErrorBar error={error ?? files.error} />
 
       <Panel className="flex-1">
@@ -179,7 +216,7 @@ export function LogsScreen({ connection, server, onGoToConnection }: Props) {
               <Th>{t('logs.message')}</Th>
             </THead>
           <tbody>
-            {rows.map(({ entry, index, first, multiline, message }) => {
+            {rows.map(({ entry, index, first, multiline, message, own }) => {
               const open = expanded.has(index)
               return (
                 <Fragment key={`${entry.timestamp ?? ''}-${index}`}>
@@ -189,6 +226,8 @@ export function LogsScreen({ connection, server, onGoToConnection }: Props) {
                     'align-top',
                     open ? 'bg-surface-2/60' : 'border-b border-line/60',
                     multiline && 'cursor-pointer hover:bg-surface-2',
+                    // Строка потока этого обмена — полосой слева, чтобы не спорить с цветом уровня.
+                    own && 'bg-accent/6 shadow-[inset_2px_0_0] shadow-accent',
                   )}
                 >
                   <td className="px-3 py-1.5 font-mono text-[11px] text-content-subtle">

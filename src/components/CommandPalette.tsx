@@ -4,7 +4,8 @@ import { FlowArrow, Gear, House, Plugs, Queue, SlidersHorizontal, Stack, type Ic
 
 import { useI18n, type MessageKey } from '../i18n'
 import { apiDomains, apiPropertiesSweep, apiQueueManagers, apiQueues, apiRoutesOverview } from '../lib/api'
-import { buildIndex, MIN_QUERY, searchIndex, type Focus, type IndexEntry, type IndexKind } from '../lib/standIndex'
+import type { Focus } from '../lib/focus'
+import { buildIndex, MIN_QUERY, searchIndex, type IndexEntry, type IndexKind } from '../lib/standIndex'
 import type { Connection } from '../types'
 import { byEnvironment, type ConnectionProfile, type ConnectionStore } from '../lib/connection'
 import { API_GROUPS, FILE_SCREENS, sortByLabel, type ScreenId } from './Sidebar'

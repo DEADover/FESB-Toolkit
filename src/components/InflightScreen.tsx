@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from 'react'
 
-import { CheckCircle } from '@phosphor-icons/react'
+import { CheckCircle, ListDashes } from '@phosphor-icons/react'
 
 import { SLOW_MS } from '../lib/health'
 import { useI18n, type MessageKey } from '../i18n'
@@ -11,7 +11,7 @@ import {
   useApiData, useAutoRefresh, useDebounced,
 } from './ApiShell'
 import {
-  Badge, cx, DataTable, EmptyState, Readout, rowClick, SearchInput, Select, Th, THead, Toggle,
+  Badge, cx, DataTable, EmptyState, IconButton, Readout, rowClick, SearchInput, Select, Th, THead, Toggle,
 } from './ui'
 
 interface Props {
@@ -19,6 +19,8 @@ interface Props {
   server: ServerInfo | null
   onGoToConnection: () => void
   onOpenRoutes: (domainGuid: string) => void
+  /** Журнал обмена: записи его СОПС и его потока. */
+  onOpenLog: (exchange: InflightExchange) => void
 }
 
 /** Вид домена, из которого пришёл обмен. */
@@ -49,7 +51,7 @@ function duration(ms: number | null): string {
  * и на каком шаге. Ответ живёт ровно то время, что висит сам обмен,
  * поэтому у экрана есть автообновление.
  */
-export function InflightScreen({ connection, server, onGoToConnection, onOpenRoutes }: Props) {
+export function InflightScreen({ connection, server, onGoToConnection, onOpenRoutes, onOpenLog }: Props) {
   const { t } = useI18n()
   const load = useCallback((open: Connection) => apiInflight(open), [])
   const { data, loading, error, reload } = useApiData<InflightExchange[]>(connection, load)
@@ -169,6 +171,7 @@ export function InflightScreen({ connection, server, onGoToConnection, onOpenRou
             <col className="hidden w-44 xl:table-column" />
             <col className="w-24" />
             <col className="w-24" />
+            <col className="w-12" />
           </colgroup>
           <THead>
             <Th>{t('table.domain')}</Th>
@@ -178,6 +181,7 @@ export function InflightScreen({ connection, server, onGoToConnection, onOpenRou
             <Th className="hidden xl:table-cell">{t('inflight.thread')}</Th>
             <Th align="right">{t('inflight.duration')}</Th>
             <Th align="right">{t('inflight.elapsed')}</Th>
+            <Th><span className="sr-only">{t('inflight.log')}</span></Th>
           </THead>
           <tbody>
             {visible.map((row) => {
@@ -221,11 +225,17 @@ export function InflightScreen({ connection, server, onGoToConnection, onOpenRou
                   <td className="px-3 py-1.5 text-right tabular-nums text-content-muted">
                     {duration(row.elapsed)}
                   </td>
+                  <td className="px-2 py-1">
+                    {/* Своя кнопка, а не щелчок по строке: строка ведёт к СОПС. */}
+                    {row.domain && row.route && (
+                      <IconButton icon={ListDashes} label={t('inflight.log')} onClick={() => onOpenLog(row)} />
+                    )}
+                  </td>
                 </tr>
               )
             })}
             {visible.length === 0 && (
-              <TableMessage colSpan={7} busy={loading}>{loading ? t('empty.scanning') : t('inflight.nothing')}</TableMessage>
+              <TableMessage colSpan={8} busy={loading}>{loading ? t('empty.scanning') : t('inflight.nothing')}</TableMessage>
             )}
           </tbody>
         </DataTable>
