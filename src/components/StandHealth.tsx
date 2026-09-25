@@ -3,32 +3,11 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { ArrowClockwise, ArrowRight, CheckCircle, Question, Warning, WarningOctagon, type Icon } from '@phosphor-icons/react'
 
 import { useI18n, type MessageKey } from '../i18n'
-import {
-  apiCertificates, apiDomainStatistics, apiInflight, apiModules, apiQueueManagers, apiQueues, apiRoutesOverview, errorText,
-} from '../lib/api'
-import { buildHealth, worstLevel, type HealthCheck, type HealthId, type HealthLevel, type Loaded, type QueueSnapshot } from '../lib/health'
+import { worstLevel, type HealthCheck, type HealthId, type HealthLevel } from '../lib/health'
+import { loadHealth } from '../lib/healthLoad'
 import type { Connection } from '../types'
 import type { ScreenId } from './Sidebar'
-import { Badge, cx, FOCUS_RING, IconButton, Spinner, type Tone } from './ui'
-
-async function settle<T>(promise: Promise<T>): Promise<Loaded<T>> {
-  try {
-    return { data: await promise }
-  } catch (err) {
-    return { error: errorText(err) }
-  }
-}
-
-/** Очереди — по каждому запущенному менеджеру; у остановленного спрашивать нечего. */
-async function loadQueues(connection: Connection): Promise<QueueSnapshot[]> {
-  const managers = await apiQueueManagers(connection)
-  return Promise.all(managers.map(async (manager) => ({
-    manager,
-    queues: manager.running
-      ? await settle(apiQueues(connection, manager.kind, manager.id))
-      : { error: 'stopped' },
-  })))
-}
+import { Badge, cx, FOCUS_RING, IconButton, Spinner, Toggle, type Tone } from './ui'
 
 const TITLE: Record<HealthId, MessageKey> = {
   modules: 'nav.api.modules',
@@ -73,9 +52,12 @@ const LEVEL: Record<HealthLevel, { icon: Icon; color: string; tone: Tone; summar
  * ведёт туда, где её разбирают; строка без находки остаётся тихой, чтобы
  * глаз цеплялся только за то, что требует внимания.
  */
-export function StandHealth({ connection, onScreen }: {
+export function StandHealth({ connection, onScreen, watching, onWatching }: {
   connection: Connection
   onScreen: (screen: ScreenId) => void
+  /** Следить ли за стендом в фоне — с системными уведомлениями о новом. */
+  watching: boolean
+  onWatching: (value: boolean) => void
 }) {
   const { t, language } = useI18n()
   const [checks, setChecks] = useState<HealthCheck[] | null>(null)
@@ -87,18 +69,10 @@ export function StandHealth({ connection, onScreen }: {
   const check = useCallback(async () => {
     const mine = ++ticket.current
     setLoading(true)
-    const [domains, routes, certificates, inflight, modules, queues] = await Promise.all([
-      settle(apiDomainStatistics(connection)),
-      settle(apiRoutesOverview(connection)),
-      settle(apiCertificates(connection)),
-      settle(apiInflight(connection)),
-      settle(apiModules(connection)),
-      settle(loadQueues(connection)),
-    ])
+    const fresh = await loadHealth(connection)
     if (mine !== ticket.current) return
-    const now = new Date()
-    setChecks(buildHealth({ domains, routes, certificates, inflight, modules, queues, now }))
-    setCheckedAt(now)
+    setChecks(fresh)
+    setCheckedAt(new Date())
     setLoading(false)
   }, [connection])
 
@@ -117,6 +91,7 @@ export function StandHealth({ connection, onScreen }: {
         {worst && <Badge tone={LEVEL[worst].tone}>{t(LEVEL[worst].summary)}</Badge>}
         <div className="flex-1" />
         {time && <span className="text-[11px] text-content-subtle">{t('health.checkedAt', { time })}</span>}
+        <Toggle checked={watching} onChange={onWatching} label={t('watch.toggle')} title={t('watch.hint')} />
         <IconButton icon={ArrowClockwise} label={t('action.refresh')} busy={loading} disabled={loading} onClick={() => void check()} />
       </div>
 

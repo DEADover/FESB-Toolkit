@@ -25,6 +25,8 @@ interface Props {
   onOpenFolder: () => void
   onOpenArchive: () => void
   onConnect: (profile: ConnectionProfile) => void
+  watching: boolean
+  onWatching: (value: boolean) => void
 }
 
 /**
@@ -38,7 +40,7 @@ interface Props {
  */
 export function WelcomeScreen({
   server, connection, scan, sourcePath, connections, connecting,
-  onScreen, onOpenFolder, onOpenArchive, onConnect,
+  onScreen, onOpenFolder, onOpenArchive, onConnect, watching, onWatching,
 }: Props) {
   const { t, language } = useI18n()
 
@@ -141,7 +143,7 @@ export function WelcomeScreen({
 
         {/* Сводка — сразу под карточками: после подключения первый вопрос
             не «куда пойти», а «всё ли в порядке». */}
-        {server && connection && <StandHealth connection={connection} onScreen={onScreen} />}
+        {server && connection && <StandHealth connection={connection} onScreen={onScreen} watching={watching} onWatching={onWatching} />}
 
         {connections.profiles.length > 0 && !server && (
           <Section title={t('welcome.stands')}>

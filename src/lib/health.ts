@@ -33,6 +33,8 @@ export interface HealthCheck {
   count: number
   /** Несколько имён для примера, самые важные первыми. */
   samples: string[]
+  /** Всё найденное — по нему фоновая проверка узнаёт новое. */
+  items: string[]
   screen: ScreenId
   /** Текст ошибки, если данные получить не удалось. */
   error?: string
@@ -61,12 +63,12 @@ export interface HealthInput {
 const SAMPLE = 3
 
 function unknown(id: HealthId, screen: ScreenId, error: string): HealthCheck {
-  return { id, level: 'unknown', count: 0, samples: [], screen, error }
+  return { id, level: 'unknown', count: 0, samples: [], items: [], screen, error }
 }
 
 function found(id: HealthId, screen: ScreenId, level: 'warn' | 'error', names: string[]): HealthCheck {
-  if (names.length === 0) return { id, level: 'ok', count: 0, samples: [], screen }
-  return { id, level, count: names.length, samples: names.slice(0, SAMPLE), screen }
+  if (names.length === 0) return { id, level: 'ok', count: 0, samples: [], items: [], screen }
+  return { id, level, count: names.length, samples: names.slice(0, SAMPLE), items: names, screen }
 }
 
 /** Дней до конца срока; отрицательное — уже истёк. */
