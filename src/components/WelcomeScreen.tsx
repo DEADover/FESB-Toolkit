@@ -8,6 +8,7 @@ import { formatUptime } from '../lib/format'
 import { useApiData } from './ApiShell'
 import { byEnvironment, type ConnectionProfile, type ConnectionStore } from '../lib/connection'
 import type { Connection, ScanResult, ServerInfo, ServerUsage } from '../types'
+import { StandHealth } from './StandHealth'
 import { ENVIRONMENT_LABEL, ENVIRONMENT_TONE } from './HeaderBar'
 import { AMQP_SCREENS, API_GROUPS, FILE_SCREENS, sortByLabel, type ScreenEntry, type ScreenId } from './Sidebar'
 import { Badge, Button, cx, FOCUS_RING, Readout } from './ui'
@@ -137,6 +138,10 @@ export function WelcomeScreen({
             )}
           </Panel>
         </section>
+
+        {/* Сводка — сразу под карточками: после подключения первый вопрос
+            не «куда пойти», а «всё ли в порядке». */}
+        {server && connection && <StandHealth connection={connection} onScreen={onScreen} />}
 
         {connections.profiles.length > 0 && !server && (
           <Section title={t('welcome.stands')}>

@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from 'react'
 
 import { CheckCircle } from '@phosphor-icons/react'
 
+import { SLOW_MS } from '../lib/health'
 import { useI18n, type MessageKey } from '../i18n'
 import { apiInflight } from '../lib/api'
 import type { Connection, InflightExchange, ServerInfo } from '../types'
@@ -19,15 +20,6 @@ interface Props {
   onGoToConnection: () => void
   onOpenRoutes: (domainGuid: string) => void
 }
-
-/**
- * Сколько обмен должен идти, чтобы на него стоило посмотреть.
- *
- * Минута выбрана не по красоте: обычный обмен на шине укладывается
- * в сотни миллисекунд, и всё, что живёт дольше минуты, либо ждёт чужую
- * систему, либо уже никого не дождётся.
- */
-const SLOW_MS = 60_000
 
 /** Вид домена, из которого пришёл обмен. */
 type Kind = 'all' | 'broker' | 'rest' | 'ws'
