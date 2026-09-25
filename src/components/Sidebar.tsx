@@ -1,4 +1,4 @@
-import { ArrowsLeftRight, Broadcast, CaretDown, CaretLeft, PaperPlaneTilt, CaretRight, Certificate, CircleHalf, Crosshair, CrosshairSimple, Cube, FingerprintSimple, FloppyDisk, FlowArrow, Key, GithubLogo, House, ListDashes, Moon, Plugs, PlugsConnected, Queue, SlidersHorizontal, Stack, Sun, Tray, ChartBar, ClockCounterClockwise, UsersThree, Binoculars, Terminal, type Icon } from '@phosphor-icons/react'
+import { FolderOpen, FolderSimple, ArrowsLeftRight, Broadcast, CaretDown, CaretLeft, PaperPlaneTilt, CaretRight, Certificate, CircleHalf, Crosshair, CrosshairSimple, Cube, FingerprintSimple, FloppyDisk, FlowArrow, Key, GithubLogo, House, ListDashes, Moon, Plugs, PlugsConnected, Queue, SlidersHorizontal, Stack, Sun, Tray, ChartBar, ClockCounterClockwise, UsersThree, Binoculars, Terminal, type Icon } from '@phosphor-icons/react'
 
 import { useEffect, useState } from 'react'
 
@@ -279,24 +279,23 @@ export function Sidebar({ screen, onScreen, info, isMac, collapsed, onCollapse, 
               <div className={cx('flex flex-col gap-0.5', !collapsed && folded.has(section.title) && 'hidden')}>
                 {section.groups
                   ? section.groups.map((group) => (
-                    <div key={group.title} className={cx(!collapsed && 'mt-1 first:mt-0')}>
+                    <div key={group.title}>
                       {collapsed ? (
                         // В узкой панели папка — короткий штрих между группами значков.
                         <div className="mx-auto my-1 h-px w-3 bg-line" />
                       ) : (
-                        <FolderToggle
+                        <FolderRow
                           label={t(group.title)}
                           folded={folded.has(group.title)}
                           onToggle={() => toggleSection(group.title)}
-                          sub
                         />
                       )}
-                      {/* Отступ слева с тонкой линией: видно, что пункты вложены
-                          в папку, а не стоят наравне с разделами. */}
+                      {/* Линия идёт от середины значка папки: видно, что пункты
+                          вложены в неё, а не стоят наравне с ней. */}
                       <div
                         className={cx(
                           'flex flex-col gap-0.5',
-                          !collapsed && 'ml-[18px] border-l border-line pl-1.5',
+                          !collapsed && 'ml-6 mt-0.5 border-l border-line pl-2',
                           !collapsed && folded.has(group.title) && 'hidden',
                         )}
                       >
@@ -348,39 +347,72 @@ export function Sidebar({ screen, onScreen, info, isMac, collapsed, onCollapse, 
 }
 
 /**
- * Заголовок раздела или папки внутри него — кнопка: он и подписывает группу,
- * и сворачивает её. Отдельный значок рядом с подписью занимал бы место и
- * промахивался бы мимо пальца. Папка (`sub`) — на ступень тише раздела:
- * без жирности и капса, чтобы не спорить с ним за внимание.
+ * Заголовок раздела — кнопка: он и подписывает раздел, и сворачивает его.
+ * Мелкий капс с разрядкой — отдельный уровень, который не спутать ни с
+ * пунктом, ни с папкой: в свёрнутом виде все три иначе читались одной
+ * строкой одинаковых подписей.
  */
-function FolderToggle({ label, folded, onToggle, sub = false }: {
+function FolderToggle({ label, folded, onToggle }: {
   label: string
   folded: boolean
   onToggle: () => void
-  sub?: boolean
 }) {
   return (
-    <div className={cx('flex items-center gap-1 px-2.5', sub ? 'mb-0.5' : 'mb-1.5')}>
+    <div className="mb-1.5 flex items-center px-2.5">
       <button
         type="button"
         onClick={onToggle}
         aria-expanded={!folded}
         className={cx(
-          '-ml-1 flex min-w-0 items-center gap-1 rounded-md px-1 py-0.5 transition',
+          '-ml-1 flex min-w-0 items-center gap-1.5 rounded-md px-1 py-0.5 transition',
           'text-content-subtle hover:text-content',
           FOCUS_RING,
         )}
       >
         <CaretDown
-          size={sub ? 10 : 11}
+          size={10}
           weight="bold"
           className={cx('shrink-0 transition-transform', folded && '-rotate-90')}
         />
-        <span className={cx('whitespace-nowrap', sub ? 'text-[11.5px] font-medium' : 'text-[11px] font-semibold tracking-wide')}>
+        <span className="whitespace-nowrap text-[10.5px] font-semibold uppercase tracking-[0.08em]">
           {label}
         </span>
       </button>
     </div>
+  )
+}
+
+/**
+ * Папка внутри раздела — строка того же вида, что и пункт меню: значок в
+ * плашке и подпись того же размера. Так она читается как часть раздела, а
+ * не как ещё один раздел; стрелка справа показывает, раскрыта ли папка.
+ */
+function FolderRow({ label, folded, onToggle }: {
+  label: string
+  folded: boolean
+  onToggle: () => void
+}) {
+  const Glyph = folded ? FolderSimple : FolderOpen
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-expanded={!folded}
+      className={cx(
+        'flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-content-muted transition hover:bg-surface-3',
+        FOCUS_RING,
+      )}
+    >
+      <span className="grid size-7 shrink-0 place-items-center rounded-md bg-surface-2 text-content-subtle">
+        <Glyph size={16} weight="regular" />
+      </span>
+      <span className="min-w-0 flex-1 truncate text-[12.5px] font-medium">{label}</span>
+      <CaretRight
+        size={11}
+        weight="bold"
+        className={cx('shrink-0 text-content-subtle transition-transform', !folded && 'rotate-90')}
+      />
+    </button>
   )
 }
 
