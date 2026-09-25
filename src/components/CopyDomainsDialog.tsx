@@ -17,6 +17,9 @@ interface Props {
   store: ConnectionStore
   activeProfileId: string | null
   domains: ApiDomain[]
+  /** Стенд, выбранный заранее, — когда копирование открыли из сравнения. */
+  initialTargetId?: string | null
+  initialPassword?: string
 }
 
 type Tone = 'neutral' | 'accent' | 'ok' | 'warn' | 'danger'
@@ -38,10 +41,12 @@ const CHANGE_TONE: Record<RouteChange, Tone> = {
  * Целевой сервер — любой сохранённый стенд, кроме открытого. Пароль
  * спрашивается здесь же, если он не запомнен, и нигде не сохраняется.
  */
-export function CopyDomainsDialog({ open, onClose, connection, server, store, activeProfileId, domains }: Props) {
+export function CopyDomainsDialog({
+  open, onClose, connection, server, store, activeProfileId, domains, initialTargetId = null, initialPassword = '',
+}: Props) {
   const { t } = useI18n()
-  const [targetId, setTargetId] = useState<string | null>(null)
-  const [password, setPassword] = useState('')
+  const [targetId, setTargetId] = useState<string | null>(initialTargetId)
+  const [password, setPassword] = useState(initialPassword)
   const [plan, setPlan] = useState<CopyPlan | null>(null)
   const [result, setResult] = useState<CopyResult | null>(null)
   const [busy, setBusy] = useState<'plan' | 'run' | null>(null)

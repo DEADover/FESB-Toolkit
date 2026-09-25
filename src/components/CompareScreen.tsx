@@ -1,15 +1,18 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
-import { ArrowRight, ArrowsLeftRight, Camera, Trash } from '@phosphor-icons/react'
+import { ArrowLeft, ArrowRight, ArrowsLeftRight, Camera, Trash } from '@phosphor-icons/react'
 
 import { useI18n, type MessageKey } from '../i18n'
-import { apiCompareStands, errorText, snapshotCompare, snapshotDelete, snapshotList, snapshotTake } from '../lib/api'
+import { apiCompareStands, apiDomains, errorText, snapshotCompare, snapshotDelete, snapshotList, snapshotTake } from '../lib/api'
 import { localTime } from '../lib/paths'
+import { diffKey, planTransfer, type Direction } from '../lib/transfer'
 import { connectionWith, type ConnectionStore } from '../lib/connection'
-import type { Comparison, Connection, ServerInfo, Side, SnapshotEntry } from '../types'
+import type { ApiDomain, Comparison, Connection, ServerInfo, Side, SnapshotEntry } from '../types'
+import { CopyDomainsDialog } from './CopyDomainsDialog'
+import { TransferDialog } from './TransferDialog'
 import { ErrorBar, NotConnected, Panel, ScreenBody, StatsBar, TableMessage } from './ApiShell'
 import {
-  Badge, Button, ButtonGlyph, cx, DataTable, IconButton, Readout, SearchInput, Segmented, Select, Th, THead, TextInput,
+  Badge, Button, ButtonGlyph, Checkbox, cx, DataTable, IconButton, Readout, SearchInput, Segmented, Select, Th, THead, TextInput,
 } from './ui'
 
 interface Props {
@@ -55,6 +58,10 @@ export function CompareScreen({ connection, server, store, activeProfileId, onGo
   const [after, setAfter] = useState<string>(NOW)
   const [label, setLabel] = useState('')
   const [taking, setTaking] = useState(false)
+  /** Отмеченные строки — для переноса; только в режиме двух стендов. */
+  const [picked, setPicked] = useState<Set<string>>(new Set())
+  const [transfer, setTransfer] = useState<Direction | null>(null)
+  const [copyDomains, setCopyDomains] = useState<ApiDomain[] | null>(null)
 
   /** Снимки только этого стенда: чужие с ним сравнивать — это режим «Два стенда». */
   const mine = useMemo(
@@ -140,6 +147,9 @@ export function CompareScreen({ connection, server, store, activeProfileId, onGo
     }
   }, [connection, other, password])
 
+  // Новое сравнение или другая вкладка — прежние отметки к ним не относятся.
+  useEffect(() => { setPicked(new Set()) }, [result, part, mode])
+
   const rows = useMemo(() => {
     if (!result) return []
     const all = result[part]
@@ -155,6 +165,42 @@ export function CompareScreen({ connection, server, store, activeProfileId, onGo
       )
     })
   }, [result, part, side, query])
+
+  const pickedRows = useMemo(() => rows.filter((row) => picked.has(diffKey(row))), [rows, picked])
+  const allPicked = rows.length > 0 && rows.every((row) => picked.has(diffKey(row)))
+  const togglePick = (key: string) => setPicked((prev) => {
+    const next = new Set(prev)
+    if (next.has(key)) next.delete(key)
+    else next.add(key)
+    return next
+  })
+  const canTransfer = mode === 'stands' && result !== null && other !== null && !needsPassword
+  const plan = useMemo(
+    () => (transfer ? planTransfer(pickedRows, part, transfer) : null),
+    [transfer, pickedRows, part],
+  )
+  const activeProfile = store.profiles.find((profile) => profile.id === activeProfileId) ?? null
+  const here = {
+    name: activeProfile?.name ?? server?.baseUrl ?? '',
+    connection: connection!,
+    prod: activeProfile?.environment === 'prod',
+  }
+  const there = other ? { name: other.name, connection: connectionWith(other, password), prod: other.environment === 'prod' } : null
+
+  /** Домены копируются с открытого стенда: их guid берутся у него по именам. */
+  const openCopy = useCallback(async (names: string[]) => {
+    if (!connection) return
+    try {
+      const found = (await apiDomains(connection)).filter((domain) => names.includes(domain.name))
+      setTransfer(null)
+      // Домен могли удалить или переименовать после сравнения — пустой
+      // диалог копирования ничего бы не объяснил.
+      if (found.length === 0) setError(t('transfer.noSourceDomains'))
+      else setCopyDomains(found)
+    } catch (err) {
+      setError(errorText(err))
+    }
+  }, [connection, t])
 
   if (!connection || !server) return <NotConnected onGoToConnection={onGoToConnection} />
 
@@ -324,9 +370,23 @@ export function CompareScreen({ connection, server, store, activeProfileId, onGo
         </div>
       )}
 
+      {canTransfer && pickedRows.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-accent/30 bg-accent/8 px-3 py-2">
+          <span className="text-[12px] text-content-muted">{t('transfer.picked', { count: pickedRows.length })}</span>
+          <div className="flex-1" />
+          <Button size="sm" onClick={() => setTransfer('toHere')}>
+            <ArrowLeft size={13} weight="bold" /> {t('transfer.toHere', { name: here.name })}
+          </Button>
+          <Button size="sm" variant="primary" onClick={() => setTransfer('toOther')}>
+            {t('transfer.toOther', { name: other?.name ?? '' })} <ArrowRight size={13} weight="bold" />
+          </Button>
+        </div>
+      )}
+
       <Panel className="flex-1">
         <DataTable>
           <colgroup>
+            {canTransfer && <col className="w-9" />}
             <col className="w-28" />
             <col className="w-52" />
             <col />
@@ -334,6 +394,15 @@ export function CompareScreen({ connection, server, store, activeProfileId, onGo
             <col />
           </colgroup>
           <THead>
+            {canTransfer && (
+              <Th>
+                <Checkbox
+                  aria-label={t('transfer.pickAll')}
+                  checked={allPicked}
+                  onChange={() => setPicked(allPicked ? new Set() : new Set(rows.map(diffKey)))}
+                />
+              </Th>
+            )}
             <Th>{t('compare.side')}</Th>
             <Th>{t('compare.where')}</Th>
             <Th>{t('compare.name')}</Th>
@@ -342,7 +411,16 @@ export function CompareScreen({ connection, server, store, activeProfileId, onGo
           </THead>
           <tbody>
             {rows.map((row) => (
-              <tr key={`${row.side}/${row.scope}/${row.name}`} className="border-b border-line/60 hover:bg-surface-2">
+              <tr key={diffKey(row)} className="border-b border-line/60 hover:bg-surface-2">
+                {canTransfer && (
+                  <td className="px-3 py-1.5">
+                    <Checkbox
+                      aria-label={row.name}
+                      checked={picked.has(diffKey(row))}
+                      onChange={() => togglePick(diffKey(row))}
+                    />
+                  </td>
+                )}
                 <td className="px-3 py-1.5">
                   <Badge tone={SIDE_TONE[row.side]}>{sideLabel(row.side)}</Badge>
                 </td>
@@ -353,7 +431,7 @@ export function CompareScreen({ connection, server, store, activeProfileId, onGo
               </tr>
             ))}
             {rows.length === 0 && (
-              <TableMessage colSpan={5} busy={running}>
+              <TableMessage colSpan={canTransfer ? 6 : 5} busy={running}>
                 {running
                   ? t('compare.running')
                   : result
@@ -364,6 +442,35 @@ export function CompareScreen({ connection, server, store, activeProfileId, onGo
           </tbody>
         </DataTable>
       </Panel>
+
+      {plan && transfer && there && connection && (
+        <TransferDialog
+          open
+          plan={plan}
+          direction={transfer}
+          source={transfer === 'toOther' ? here : there}
+          target={transfer === 'toOther' ? there : here}
+          onCopyDomains={(names) => void openCopy(names)}
+          onClose={(changed) => {
+            setTransfer(null)
+            // Перенесённое должно уйти из разницы — сравнение повторяется.
+            if (changed) void run()
+          }}
+        />
+      )}
+      {copyDomains && connection && server && (
+        <CopyDomainsDialog
+          open
+          onClose={() => { setCopyDomains(null); void run() }}
+          connection={connection}
+          server={server}
+          store={store}
+          activeProfileId={activeProfileId}
+          domains={copyDomains}
+          initialTargetId={otherId}
+          initialPassword={password}
+        />
+      )}
     </ScreenBody>
   )
 }
