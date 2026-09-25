@@ -40,7 +40,8 @@ export function useUpdates() {
     setState({ kind: 'checking' })
     try {
       const update = await check()
-      if (update) {
+      // Ответ без номера версии — не обновление, а сбой: предлагать нечего.
+      if (update?.version) {
         setState({ kind: 'available', update })
         if (!manual) {
           const { t, toast } = latest.current

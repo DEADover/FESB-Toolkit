@@ -30,11 +30,12 @@ export function buildGroups(scan: ScanResult | null): DomainGroup[] {
 export type SortKey = 'domain' | 'broker' | 'bean' | 'routes'
 export type SortDir = 'asc' | 'desc'
 /** `default` — трассировка включена, а объект не назван. */
-export type RouteFilter = 'all' | 'untraced' | 'default'
+export type RouteFilter = 'all' | 'untraced' | 'default' | 'memory'
 
 export interface Filters {
   query: string
-  broker: string | 'all' | 'none'
+  /** `memory` — объекты, которые пишут в память, а не в очередь. */
+  broker: string | 'all' | 'none' | 'memory'
   onlyEditable: boolean
   /** Только записи, изменённые в текущей сессии. */
   onlyChanged: boolean
@@ -90,15 +91,29 @@ export function tracedByDefault(route: RouteInfo): boolean {
   return route.traceEnabled && !route.inlineTraceConfig && route.traceConfigs.length === 0
 }
 
+/**
+ * СОПС пишет трассировку в память: трассировка включена и хоть один из
+ * названных им объектов — `TraceMemoryConfig`. Такие события живут только
+ * в памяти сервера и пропадают с перезапуском, поэтому их ищут отдельно.
+ */
+export function writesToMemory(route: RouteInfo, domain: DomainRecord): boolean {
+  if (!route.traceEnabled) return false
+  return route.traceConfigs.some((name) => domain.traces.some((bean) => bean.beanId === name && bean.kind === 'memory'))
+}
+
 /** Подходит ли СОПС под выбранный отбор. */
-export function matchesRouteFilter(route: RouteInfo, filter: RouteFilter): boolean {
-  if (filter === 'all') return true
-  return filter === 'untraced' ? !route.traceEnabled : tracedByDefault(route)
+export function matchesRouteFilter(route: RouteInfo, filter: RouteFilter, domain: DomainRecord): boolean {
+  switch (filter) {
+    case 'all': return true
+    case 'untraced': return !route.traceEnabled
+    case 'default': return tracedByDefault(route)
+    case 'memory': return writesToMemory(route, domain)
+  }
 }
 
 /** Сколько СОПС домена подходит под выбранный отбор. */
 export function countRoutes(domain: DomainRecord, filter: Exclude<RouteFilter, 'all'>): number {
-  return domain.routes.filter((route) => matchesRouteFilter(route, filter)).length
+  return domain.routes.filter((route) => matchesRouteFilter(route, filter, domain)).length
 }
 
 /** Сколько СОПС домена ссылается на конкретный объект трассировки. */
@@ -139,8 +154,11 @@ export function filterGroups(groups: DomainGroup[], filters: Filters, changedBea
 
     const entries = group.entries.filter((entry) => {
       const broker = namedBroker(entry.trace)
-      if (filters.broker === 'none' && broker !== null) return false
-      if (filters.broker !== 'all' && filters.broker !== 'none' && broker !== filters.broker) return false
+      const memory = entry.trace.kind === 'memory'
+      // Объекту «в память» брокер не нужен вовсе: в «брокер по умолчанию» он не входит.
+      if (filters.broker === 'none' && (broker !== null || memory)) return false
+      if (filters.broker === 'memory' && !memory) return false
+      if (filters.broker !== 'all' && filters.broker !== 'none' && filters.broker !== 'memory' && broker !== filters.broker) return false
       if (filters.onlyEditable && !entry.editable) return false
       if (filters.onlyChanged && !changedBeans.has(changeKey(group.domain, entry.trace.beanId))) return false
       if (!query) return true
@@ -213,9 +231,14 @@ export function brokerStats(groups: DomainGroup[]): Array<{ value: string; count
  */
 export function withoutBroker(groups: DomainGroup[]): number {
   return groups.reduce(
-    (count, group) => count + group.entries.filter((entry) => namedBroker(entry.trace) === null).length,
+    (count, group) => count + group.entries.filter((entry) => namedBroker(entry.trace) === null && entry.trace.kind !== 'memory').length,
     0,
   )
+}
+
+/** Сколько объектов трассировки пишут в память. */
+export function inMemory(groups: DomainGroup[]): number {
+  return groups.reduce((count, group) => count + group.entries.filter((entry) => entry.trace.kind === 'memory').length, 0)
 }
 
 export const queueValues = (groups: DomainGroup[]) => distinct(groups, (trace) => trace.queue)
@@ -230,5 +253,6 @@ export function domainSummary(domains: DomainRecord[]) {
     routes: domains.reduce((n, d) => n + d.routes.length, 0),
     tracedRoutes: domains.reduce((n, d) => n + d.routes.filter((r) => r.traceEnabled).length, 0),
     defaultTraced: domains.reduce((n, d) => n + d.routes.filter(tracedByDefault).length, 0),
+    memoryRoutes: domains.reduce((n, d) => n + d.routes.filter((r) => writesToMemory(r, d)).length, 0),
   }
 }

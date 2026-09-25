@@ -2,7 +2,7 @@ import { useEffect, useRef, type MouseEvent, type ReactNode } from 'react'
 
 import { ArrowRight, CaretRight } from '@phosphor-icons/react'
 
-import { useI18n } from '../i18n'
+import { useI18n, type MessageKey } from '../i18n'
 import type { DomainGroup, RouteFilter, SortDir, SortKey, TraceEntry } from '../lib/rows'
 import { changeKey, matchesRouteFilter, routeSummary, routesUsingBean, selectableKeys } from '../lib/rows'
 import type { DomainRecord, RouteInfo, TraceBean, TraceUpdate } from '../types'
@@ -116,7 +116,7 @@ export function TraceTable({
           const routes = routeSummary(domain)
           // При включённом отборе в раскрытом домене остаются только
           // найденные схемы: иначе среди сотни строк их не отыскать.
-          const found = domain.routes.filter((route) => matchesRouteFilter(route, routeFilter))
+          const found = domain.routes.filter((route) => matchesRouteFilter(route, routeFilter, domain))
           const domainChanged = group.entries.some((entry) => changedBeans.has(changeKey(domain, entry.trace.beanId)))
 
           return (
@@ -151,8 +151,7 @@ export function TraceTable({
                     {/* Домен попал в список из-за своих схем — вот сколько их. */}
                     {routeFilter !== 'all' && (
                       <Badge tone="warn" className="shrink-0 whitespace-nowrap">
-                        {t(routeFilter === 'untraced' ? 'filter.foundUntraced' : 'filter.foundDefault',
-                          { count: found.length })}
+                        {t(FOUND_LABEL[routeFilter], { count: found.length })}
                       </Badge>
                     )}
                     {domain.errors.length > 0 && <Badge tone="danger" className="shrink-0">{t('table.readError')}</Badge>}
@@ -409,6 +408,13 @@ function BeanRow({ entry, number, changed, domain, selected, update, onToggle }:
       <Cell className="py-1.5" />
     </SubRow>
   )
+}
+
+/** Подпись у домена при отборе по СОПС: сколько в нём найдено. */
+const FOUND_LABEL: Record<Exclude<RouteFilter, 'all'>, MessageKey> = {
+  untraced: 'filter.foundUntraced',
+  default: 'filter.foundDefault',
+  memory: 'filter.foundMemory',
 }
 
 function RouteRow({ route, beans, onReveal, onOpen }: {

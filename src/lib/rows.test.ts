@@ -33,7 +33,7 @@ const DOMAINS = [
     route('Alfresco.Get', true, ['TraceToQueue']),
     route('Alfresco.Idle', false),
   ]),
-  domain('EDI.Tessa', [bean('TraceToQueue', 'QME:EQM')], [
+  domain('EDI.Tessa', [bean('TraceToQueue', 'QME:EQM'), bean('Mon.Default', null)], [
     route('Status.REST.In', true),
     route('T1.WS.In', true, ['TraceToQueue']),
   ]),
@@ -56,15 +56,15 @@ describe('tracedByDefault', () => {
 
 describe('matchesRouteFilter', () => {
   it('«все» пропускает любой СОПС', () => {
-    expect(matchesRouteFilter(route('a', false), 'all')).toBe(true)
-    expect(matchesRouteFilter(route('b', true, ['X']), 'all')).toBe(true)
+    expect(matchesRouteFilter(route('a', false), 'all', DOMAINS[0])).toBe(true)
+    expect(matchesRouteFilter(route('b', true, ['X']), 'all', DOMAINS[0])).toBe(true)
   })
 
   it('отбор берёт ровно то, что обещает', () => {
-    expect(matchesRouteFilter(route('a', false), 'untraced')).toBe(true)
-    expect(matchesRouteFilter(route('b', true), 'untraced')).toBe(false)
-    expect(matchesRouteFilter(route('c', true), 'default')).toBe(true)
-    expect(matchesRouteFilter(route('d', true, ['X']), 'default')).toBe(false)
+    expect(matchesRouteFilter(route('a', false), 'untraced', DOMAINS[0])).toBe(true)
+    expect(matchesRouteFilter(route('b', true), 'untraced', DOMAINS[0])).toBe(false)
+    expect(matchesRouteFilter(route('c', true), 'default', DOMAINS[0])).toBe(true)
+    expect(matchesRouteFilter(route('d', true, ['X']), 'default', DOMAINS[0])).toBe(false)
   })
 })
 
@@ -92,9 +92,28 @@ describe('filterGroups', () => {
 
   it('«без брокера» оставляет объекты без брокера, а не домены без объектов', () => {
     const found = filterGroups(groups, { ...ALL, broker: 'none' }, new Set())
-    expect(found.map((g) => g.domain.domainName)).toEqual(['EDI.Alfresco'])
+    // Объект «в память» сюда не входит: брокер ему не нужен вовсе.
+    expect(found.map((g) => g.domain.domainName)).toEqual(['EDI.Tessa'])
     // Домен приходит уже суженным до тех объектов, которые искали.
+    expect(found[0].entries.map((entry) => entry.trace.beanId)).toEqual(['Mon.Default'])
+  })
+
+  it('«в память» оставляет только объекты, которые пишут в память', () => {
+    const found = filterGroups(groups, { ...ALL, broker: 'memory' }, new Set())
+    expect(found.map((g) => g.domain.domainName)).toEqual(['EDI.Alfresco'])
     expect(found[0].entries.map((entry) => entry.trace.beanId)).toEqual(['conf.trace.General'])
+  })
+
+  it('отбор СОПС «пишут в память» — по объектам, на которые они ссылаются', () => {
+    const withMemory = domain('Memo', [bean('conf.trace.General', null, 'memory'), bean('Q', 'QME:EQM')], [
+      route('ToMemory', true, ['conf.trace.General']),
+      route('ToQueue', true, ['Q']),
+      route('Off', false, ['conf.trace.General']),
+    ])
+    expect(withMemory.routes.filter((r) => matchesRouteFilter(r, 'memory', withMemory)).map((r) => r.name)).toEqual(['ToMemory'])
+    expect(domainSummary([withMemory]).memoryRoutes).toBe(1)
+    const memoGroups = buildGroups({ root: '/c', fesbVersion: null, scannedAt: '', durationMs: 0, domains: [...DOMAINS, withMemory] })
+    expect(filterGroups(memoGroups, { ...ALL, routes: 'memory' }, new Set()).map((g) => g.domain.domainName)).toEqual(['Memo'])
   })
 
   it('отбор по конкретному брокеру не задевает соседние объекты', () => {

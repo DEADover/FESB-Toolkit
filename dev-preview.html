@@ -2153,6 +2153,8 @@
             (window.__previewListeners[args.event] ||= []).push(args.handler)
             return 1
           }
+          // Обновлений в предпросмотре нет: иначе «1» сошла бы за найденную версию.
+          if (command === 'plugin:updater|check') return null
           if (command.startsWith('plugin:')) return 1
           const key = args && args.cmd ? args.cmd : command
           // Любой ответ подменяется из консоли:

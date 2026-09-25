@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent, type ReactNode } from 'react'
 
-import { ArrowsLeftRight, Check } from '@phosphor-icons/react'
+import { ArrowsIn, ArrowsLeftRight, ArrowsOut, Check } from '@phosphor-icons/react'
 
 import { useI18n } from '../i18n'
 import { formatBytes } from '../lib/format'
@@ -12,7 +12,7 @@ import {
 import { neighboursOf } from '../lib/links'
 import {
   brokerStats, buildGroups, domainSummary, filterGroups, queueValues,
-  selectableKeys, sortGroups, traceModeValues, withoutBroker,
+  selectableKeys, sortGroups, traceModeValues, withoutBroker, inMemory,
   type DomainGroup, type Filters, type RouteFilter, type SortDir, type SortKey,
 } from '../lib/rows'
 import type {
@@ -24,7 +24,7 @@ import { ReportDialog } from './ReportDialog'
 import { RouteViewer } from './RouteViewer'
 import { TraceTable } from './TraceTable'
 import { HeaderActions, ScreenBody, StatsBar } from './ApiShell'
-import { Badge, Button, cx, DataTable, FOCUS_RING, Modal, MultiSelect, Notice, SearchInput, Select, Spinner, Stat, SuggestInput, Th, THead, Toggle } from './ui'
+import { Badge, Button, cx, DataTable, FOCUS_RING, IconButton, Modal, MultiSelect, Notice, SearchInput, Select, Spinner, Stat, SuggestInput, Th, THead, Toggle } from './ui'
 
 interface Props {
   scan: ScanResult
@@ -56,6 +56,9 @@ export function TraceScreen({ scan, isMac, sourcePath, server, onRescan, onGoToC
   const [sortDir, setSortDir] = useState<SortDir>('asc')
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
+  /** Список во весь экран: поиск, отборы и таблица поверх остального. */
+  const [fullscreen, setFullscreen] = useState(false)
+
 
   const [newBroker, setNewBroker] = useState('')
   const [newQueue, setNewQueue] = useState('')
@@ -81,6 +84,20 @@ export function TraceScreen({ scan, isMac, sourcePath, server, onRescan, onGoToC
   /** Одно окно выбора охвата на два действия: отправку и сверку. */
   /** Открытая схема СОПС: путь к файлу и домен, которому он принадлежит. */
   const [route, setRoute] = useState<{ path: string; domain: string } | null>(null)
+
+  // Esc выходит из полноэкранного списка — если его не забрало открытое
+  // окно или раскрытый список поверх: они закрываются первыми.
+  useEffect(() => {
+    if (!fullscreen) return
+    const onKey = (event: KeyboardEvent) => {
+      // Открытая схема СОПС закрывается своим Esc — список остаётся во весь экран.
+      if (event.key !== 'Escape' || event.defaultPrevented || route) return
+      if (document.querySelector('[role="dialog"], [aria-expanded="true"][aria-haspopup]')) return
+      setFullscreen(false)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [fullscreen, route])
   /** Граф связей считается один раз на выгрузку — обход всех маршрутов не бесплатный. */
   const [graph, setGraph] = useState<LinkGraph | null>(null)
   const [scopeMode, setScopeMode] = useState<'push' | 'verify' | null>(null)
@@ -183,6 +200,7 @@ export function TraceScreen({ scan, isMac, sourcePath, server, onRescan, onGoToC
   const groups = useMemo(() => buildGroups(scan), [scan])
   const stats = useMemo(() => brokerStats(groups), [groups])
   const noBroker = useMemo(() => withoutBroker(groups), [groups])
+  const memoryBeans = useMemo(() => inMemory(groups), [groups])
   /** Два выключателя в виде набора: `MultiSelect` работает с множеством. */
   const extraFilters = useMemo(() => {
     const set = new Set<string>()
@@ -556,11 +574,25 @@ export function TraceScreen({ scan, isMac, sourcePath, server, onRescan, onGoToC
             hint={t('stats.defaultTraced.hint')}
           />
         )}
+        {/* События «в память» пропадают с перезапуском сервера — о таких
+            СОПС полезно знать, не открывая отбор. */}
+        {summary.memoryRoutes > 0 && (
+          <Stat label={t('stats.memoryRoutes')} value={summary.memoryRoutes} tone="warn" hint={t('stats.memoryRoutes.hint')} />
+        )}
         {summary.withErrors > 0 && <Stat label={t('stats.readErrors')} value={summary.withErrors} tone="danger" />}
         </div>
 
       </StatsBar>
 
+      {/* Во весь экран разворачиваются поиск, отборы и таблица — без них
+          большой список бесполезен. Вне этого режима обёртка не участвует
+          в раскладке (`contents`), и экран выглядит как раньше. */}
+      <div
+        className={cx(
+          fullscreen ? 'fixed inset-0 z-30 flex flex-col gap-3 bg-canvas px-5 pb-4' : 'contents',
+          fullscreen && (isMac ? 'pt-10' : 'pt-4'),
+        )}
+      >
       <SearchInput
         inputRef={searchRef}
         value={filters.query}
@@ -584,6 +616,7 @@ export function TraceScreen({ scan, isMac, sourcePath, server, onRescan, onGoToC
             { id: 'all', label: t('filter.all') },
             { id: 'untraced', label: t('filter.untracedRoutes') },
             { id: 'default', label: t('filter.defaultTraced') },
+            ...(summary.memoryRoutes > 0 ? [{ id: 'memory' as const, label: t('filter.memoryRoutes'), hint: String(summary.memoryRoutes) }] : []),
           ]}
         />
         {/* Фильтр по брокеру — такой же пикёр, как соседние: значений
@@ -597,6 +630,7 @@ export function TraceScreen({ scan, isMac, sourcePath, server, onRescan, onGoToC
           options={[
             { id: 'all', label: t('filter.all') },
             ...(noBroker > 0 ? [{ id: 'none', label: t('filter.noBroker'), hint: String(noBroker) }] : []),
+            ...(memoryBeans > 0 ? [{ id: 'memory', label: t('filter.inMemory'), hint: String(memoryBeans) }] : []),
             ...stats.map((item) => ({ id: item.value, label: item.value, hint: String(item.count) })),
           ]}
         />
@@ -623,6 +657,12 @@ export function TraceScreen({ scan, isMac, sourcePath, server, onRescan, onGoToC
         <Button className="min-w-36" onClick={toggleAllExpanded} disabled={visible.length === 0}>
           {allExpanded ? t('endpoints.collapseAll') : t('endpoints.expandAll')}
         </Button>
+        <IconButton
+          size="md"
+          icon={fullscreen ? ArrowsIn : ArrowsOut}
+          label={fullscreen ? t('table.fullscreen.exit') : t('table.fullscreen')}
+          onClick={() => setFullscreen((value) => !value)}
+        />
 
         <div className="ml-auto flex items-center gap-2 text-[11.5px] text-content-subtle">
           <span>{t('filter.shown', { visible: visible.length, total: groups.length })}</span>
@@ -674,6 +714,7 @@ export function TraceScreen({ scan, isMac, sourcePath, server, onRescan, onGoToC
         onReveal={revealPath}
         onOpenRoute={(path, domain) => setRoute({ path, domain })}
       />
+      </div>
 
       <div className="rounded-xl border border-line bg-surface">
         <div className="flex items-end gap-4 px-5 pt-4">
