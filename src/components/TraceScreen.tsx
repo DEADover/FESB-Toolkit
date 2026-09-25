@@ -201,6 +201,7 @@ export function TraceScreen({ scan, isMac, sourcePath, server, onRescan, onGoToC
   const stats = useMemo(() => brokerStats(groups), [groups])
   const noBroker = useMemo(() => withoutBroker(groups), [groups])
   const memoryBeans = useMemo(() => inMemory(groups), [groups])
+  const editableCount = useMemo(() => groups.reduce((n, group) => n + group.entries.filter((entry) => entry.editable).length, 0), [groups])
   /** Два выключателя в виде набора: `MultiSelect` работает с множеством. */
   const extraFilters = useMemo(() => {
     const set = new Set<string>()
@@ -644,9 +645,9 @@ export function TraceScreen({ scan, isMac, sourcePath, server, onRescan, onGoToC
           emptyLabel={t('filter.additional.none')}
           className="w-56"
           options={[
-            { id: 'editable', label: t('filter.onlyEditable') },
+            { id: 'editable', label: t('filter.onlyEditable'), hint: String(editableCount) },
             // Изменённых ещё нет — и отбирать нечего.
-            ...(changedBeans.size > 0 ? [{ id: 'changed', label: t('filter.onlyChanged') }] : []),
+            ...(changedBeans.size > 0 ? [{ id: 'changed', label: t('filter.onlyChanged'), hint: String(changedBeans.size) }] : []),
           ]}
           selected={extraFilters}
           onChange={(next) => setFilters((prev) => ({

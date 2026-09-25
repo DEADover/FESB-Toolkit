@@ -151,10 +151,10 @@ export function InflightScreen({ connection, server, onGoToConnection, onOpenRou
           value={kind}
           onChange={setKind}
           options={[
-            { id: 'all', label: t('filter.all') },
-            { id: 'broker', label: t('inflight.kind.broker') },
-            { id: 'rest', label: t('inflight.kind.rest') },
-            { id: 'ws', label: t('inflight.kind.ws') },
+            { id: 'all', label: t('filter.all'), hint: String(all.length) },
+            { id: 'broker', label: t('inflight.kind.broker'), hint: String(all.filter((row) => row.kind === 'broker').length) },
+            { id: 'rest', label: t('inflight.kind.rest'), hint: String(all.filter((row) => row.kind === 'rest').length) },
+            { id: 'ws', label: t('inflight.kind.ws'), hint: String(all.filter((row) => row.kind === 'ws').length) },
           ]}
         />
       </div>

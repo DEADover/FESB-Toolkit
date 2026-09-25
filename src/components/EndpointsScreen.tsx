@@ -413,9 +413,9 @@ export function EndpointsScreen({ connection, server, onGoToConnection }: Props)
           value={direction}
           onChange={setDirection}
           options={[
-            { id: 'all', label: t('filter.all') },
-            { id: 'in', label: t('endpoints.in') },
-            { id: 'out', label: t('endpoints.out') },
+            { id: 'all', label: t('filter.all'), hint: String(all.length) },
+            { id: 'in', label: t('endpoints.in'), hint: String(all.filter((row) => row.direction === 'in').length) },
+            { id: 'out', label: t('endpoints.out'), hint: String(all.filter((row) => row.direction !== 'in').length) },
           ]}
         />
         <MultiSelect

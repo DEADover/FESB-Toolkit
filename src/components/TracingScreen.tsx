@@ -249,9 +249,9 @@ export function TracingScreen({ connection, server, onGoToConnection, onOpenRout
           value={state}
           onChange={setState}
           options={[
-            { id: 'all', label: t('filter.all') },
-            { id: 'started', label: t('tracing.started') },
-            { id: 'stopped', label: t('table.stopped') },
+            { id: 'all', label: t('filter.all'), hint: String(all.length) },
+            { id: 'started', label: t('tracing.started'), hint: String(all.filter((row) => row.state === 'Started').length) },
+            { id: 'stopped', label: t('table.stopped'), hint: String(all.filter((row) => row.state !== 'Started').length) },
           ]}
         />
         <Toggle checked={onlyTraced} onChange={setOnlyTraced} label={t('tracing.onlyTraced')} />

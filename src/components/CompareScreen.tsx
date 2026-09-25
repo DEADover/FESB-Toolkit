@@ -350,10 +350,11 @@ export function CompareScreen({ connection, server, store, activeProfileId, onGo
             value={side}
             onChange={setSide}
             options={[
-              { id: 'all', label: t('filter.all') },
-              { id: 'onlyLeft', label: sideLabel('onlyLeft') },
-              { id: 'onlyRight', label: sideLabel('onlyRight') },
-              { id: 'differs', label: sideLabel('differs') },
+              // Числа — по открытой вкладке: разница считается внутри неё.
+              { id: 'all', label: t('filter.all'), hint: String(result[part].length) },
+              { id: 'onlyLeft', label: sideLabel('onlyLeft'), hint: String(result[part].filter((row) => row.side === 'onlyLeft').length) },
+              { id: 'onlyRight', label: sideLabel('onlyRight'), hint: String(result[part].filter((row) => row.side === 'onlyRight').length) },
+              { id: 'differs', label: sideLabel('differs'), hint: String(result[part].filter((row) => row.side === 'differs').length) },
             ]}
           />
           <SearchInput

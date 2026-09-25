@@ -301,7 +301,10 @@ export function MqConfigScreen({ connection, server, environment, onGoToConnecti
           value={kind}
           onChange={setKind}
           options={[
-            { id: 'all', label: t('filter.all') },
+            {
+              id: 'all',
+              label: `${t('filter.all')} · ${KINDS.reduce((sum, item) => sum + (onlyLoose ? counted[item].loose : counted[item].total), 0)}`,
+            },
             ...KINDS.map((item) => ({
               id: item,
               label: `${t(KIND_LABEL[item])} · ${onlyLoose ? counted[item].loose : counted[item].total}`,

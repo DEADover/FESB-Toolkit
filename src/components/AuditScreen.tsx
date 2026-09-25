@@ -97,10 +97,10 @@ export function AuditScreen({ connection, server, onGoToConnection }: Props) {
           value={filter}
           onChange={setFilter}
           options={[
-            { id: 'action', label: `${t('audit.filter.action')} · ${counts.action}` },
-            { id: 'login', label: `${t('audit.filter.login')} · ${counts.login}` },
-            { id: 'session', label: `${t('audit.filter.session')} · ${counts.session}` },
-            { id: 'all', label: `${t('filter.all')} · ${entries.length}` },
+            { id: 'action', label: t('audit.filter.action'), hint: String(counts.action) },
+            { id: 'login', label: t('audit.filter.login'), hint: String(counts.login) },
+            { id: 'session', label: t('audit.filter.session'), hint: String(counts.session) },
+            { id: 'all', label: t('filter.all'), hint: String(entries.length) },
           ]}
         />
         <LimitSelect value={limit} onChange={setLimit} />
