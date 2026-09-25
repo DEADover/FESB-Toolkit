@@ -307,8 +307,16 @@ function Pill({ children, tone = 'plain', title, strike }: {
   return (
     <span
       title={title}
+      // Не поместилось в колонку — полное значение всплывает при наведении.
+      // Проверка на месте, а не всегда: у коротких имён подсказка только мешала бы.
+      onMouseEnter={title || typeof children !== 'string' ? undefined : (event) => {
+        const box = event.currentTarget
+        box.title = box.scrollWidth > box.clientWidth ? children : ''
+      }}
       className={cx(
-        'inline-flex max-w-full items-center truncate rounded px-1.5 py-0.5 font-mono text-[11.5px] leading-none',
+        // `inline-block`, а не `inline-flex`: у гибкого блока текст обрезался
+        // без многоточия, и имя просто обрывалось на полуслове.
+        'inline-block max-w-full truncate rounded px-1.5 py-0.5 align-middle font-mono text-[11.5px] leading-none',
         tones[tone],
         strike && 'text-content-subtle line-through',
       )}
