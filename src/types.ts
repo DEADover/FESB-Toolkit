@@ -433,6 +433,18 @@ export interface Comparison {
   securedSkipped: number
 }
 
+/** Снимок стенда: строка списка. Сам слепок читается только при сравнении. */
+export interface SnapshotEntry {
+  id: string
+  server: string
+  /** Местное время: `2026-09-25T13:05:04`. */
+  takenAt: string
+  label: string
+  domains: number
+  routes: number
+  properties: number
+}
+
 export interface LogFileRow {
   name: string
   size: number

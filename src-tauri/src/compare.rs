@@ -13,7 +13,7 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use crate::fesb_api::Connection;
 use crate::fesb_ops;
@@ -48,7 +48,7 @@ pub struct DiffRow {
     pub right: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct StandFacts {
     pub url: String,
@@ -70,6 +70,33 @@ pub struct Comparison {
     pub secured_skipped: usize,
 }
 
+/// Одна сравниваемая единица: СОПС в домене или константа на уровне.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Fact {
+    /// Домен у СОПС, уровень у константы.
+    pub scope: String,
+    pub name: String,
+    /// Трассировка у СОПС, значение у константы.
+    pub value: String,
+}
+
+/// Стенд в том виде, в котором его сравнивают.
+///
+/// Всё, что не участвует в сравнении, — счётчики, состояния, guid — сюда
+/// не попадает. Поэтому слепок и годится для хранения: снимок стенда —
+/// это он же, положенный на диск, и сравнивается он тем же кодом, что
+/// и живой стенд.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Profile {
+    pub facts: StandFacts,
+    pub domains: Vec<String>,
+    pub routes: Vec<Fact>,
+    pub properties: Vec<Fact>,
+    /// Скрытых констант — их значения сервер не отдаёт.
+    pub secured: usize,
+}
+
 /// Всё, что стенд рассказывает о себе для сравнения.
 struct Facts {
     info: crate::fesb_api::ServerInfo,
@@ -86,46 +113,59 @@ async fn read(connection: &Connection) -> Result<Facts, String> {
     Ok(Facts { info, domains, routes, properties })
 }
 
+/// Читает стенд и сразу сводит к слепку.
+pub async fn read_profile(connection: &Connection) -> Result<Profile, String> {
+    Ok(profile_of(&read(connection).await?))
+}
+
+fn profile_of(facts: &Facts) -> Profile {
+    let (properties, secured) = property_facts(&facts.properties);
+    Profile {
+        facts: StandFacts {
+            url: facts.info.base_url.clone(),
+            version: facts.info.api_version.clone(),
+            domains: facts.domains.len(),
+            routes: facts.routes.len(),
+            properties: facts.properties.len(),
+        },
+        domains: facts.domains.iter().map(|domain| domain.name.clone()).collect(),
+        routes: route_facts(&facts.routes),
+        properties,
+        secured,
+    }
+}
+
 pub async fn compare(left: &Connection, right: &Connection) -> Result<Comparison, String> {
     // Стенды опрашиваются одновременно: они друг о друге не знают, и ждать
     // второй, пока отвечает первый, незачем.
     let one = {
         let connection = left.clone();
-        tauri::async_runtime::spawn(async move { read(&connection).await })
+        tauri::async_runtime::spawn(async move { read_profile(&connection).await })
     };
     let two = {
         let connection = right.clone();
-        tauri::async_runtime::spawn(async move { read(&connection).await })
+        tauri::async_runtime::spawn(async move { read_profile(&connection).await })
     };
-    let left_facts = one
+    let left_profile = one
         .await
         .map_err(|err| format!("Comparison interrupted: {err}"))?
         .map_err(|err| format!("Left stand: {err}"))?;
-    let right_facts = two
+    let right_profile = two
         .await
         .map_err(|err| format!("Comparison interrupted: {err}"))?
         .map_err(|err| format!("Right stand: {err}"))?;
-
-    let (properties, secured_skipped) =
-        diff_properties(&left_facts.properties, &right_facts.properties);
-
-    Ok(Comparison {
-        left: facts_of(&left_facts),
-        right: facts_of(&right_facts),
-        domains: diff_domains(&left_facts.domains, &right_facts.domains),
-        routes: diff_routes(&left_facts.routes, &right_facts.routes),
-        properties,
-        secured_skipped,
-    })
+    Ok(diff(&left_profile, &right_profile))
 }
 
-fn facts_of(facts: &Facts) -> StandFacts {
-    StandFacts {
-        url: facts.info.base_url.clone(),
-        version: facts.info.api_version.clone(),
-        domains: facts.domains.len(),
-        routes: facts.routes.len(),
-        properties: facts.properties.len(),
+/// Разница двух слепков — живых стендов, снимков или того и другого.
+pub fn diff(left: &Profile, right: &Profile) -> Comparison {
+    Comparison {
+        left: left.facts.clone(),
+        right: right.facts.clone(),
+        domains: diff_domains(&left.domains, &right.domains),
+        routes: diff_facts(&left.routes, &right.routes),
+        properties: diff_facts(&left.properties, &right.properties),
+        secured_skipped: left.secured + right.secured,
     }
 }
 
@@ -133,51 +173,41 @@ fn facts_of(facts: &Facts) -> StandFacts {
 ///
 /// Guid переживает перенос домена архивом, но не пересоздание руками, —
 /// а разговаривают о доменах всё равно по именам.
-fn diff_domains(left: &[crate::fesb_api::ApiDomain], right: &[crate::fesb_api::ApiDomain]) -> Vec<DiffRow> {
-    let here: BTreeSet<&str> = left.iter().map(|d| d.name.as_str()).collect();
-    let there: BTreeSet<&str> = right.iter().map(|d| d.name.as_str()).collect();
+fn diff_domains(left: &[String], right: &[String]) -> Vec<DiffRow> {
+    let here: BTreeSet<&str> = left.iter().map(String::as_str).collect();
+    let there: BTreeSet<&str> = right.iter().map(String::as_str).collect();
 
     let mut rows = Vec::new();
     for name in here.difference(&there) {
-        rows.push(DiffRow {
-            side: Side::OnlyLeft,
-            scope: String::new(),
-            name: (*name).to_string(),
-            left: None,
-            right: None,
-        });
+        rows.push(DiffRow { side: Side::OnlyLeft, scope: String::new(), name: (*name).to_string(), left: None, right: None });
     }
     for name in there.difference(&here) {
-        rows.push(DiffRow {
-            side: Side::OnlyRight,
-            scope: String::new(),
-            name: (*name).to_string(),
-            left: None,
-            right: None,
-        });
+        rows.push(DiffRow { side: Side::OnlyRight, scope: String::new(), name: (*name).to_string(), left: None, right: None });
     }
     rows.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
     rows
 }
 
-/// СОПС сравниваются по паре «домен и имя», а различие — по трассировке.
-fn diff_routes(left: &[RouteSummary], right: &[RouteSummary]) -> Vec<DiffRow> {
-    let here = route_map(left);
-    let there = route_map(right);
+/// СОПС и константы сравниваются одинаково: по паре «где и что», а
+/// различие — по значению.
+fn diff_facts(left: &[Fact], right: &[Fact]) -> Vec<DiffRow> {
+    let map = |facts: &[Fact]| -> BTreeMap<(String, String), String> {
+        facts.iter().map(|fact| ((fact.scope.clone(), fact.name.clone()), fact.value.clone())).collect()
+    };
+    let here = map(left);
+    let there = map(right);
 
     let mut rows = Vec::new();
-    for (key, trace) in &here {
+    for (key, value) in &here {
         match there.get(key) {
-            None => rows.push(route_row(Side::OnlyLeft, key, Some(trace.clone()), None)),
-            Some(other) if other != trace => {
-                rows.push(route_row(Side::Differs, key, Some(trace.clone()), Some(other.clone())))
-            }
+            None => rows.push(row(Side::OnlyLeft, key, Some(value.clone()), None)),
+            Some(other) if other != value => rows.push(row(Side::Differs, key, Some(value.clone()), Some(other.clone()))),
             Some(_) => {}
         }
     }
-    for (key, trace) in &there {
+    for (key, value) in &there {
         if !here.contains_key(key) {
-            rows.push(route_row(Side::OnlyRight, key, None, Some(trace.clone())));
+            rows.push(row(Side::OnlyRight, key, None, Some(value.clone())));
         }
     }
     rows.sort_by(|a, b| {
@@ -189,12 +219,16 @@ fn diff_routes(left: &[RouteSummary], right: &[RouteSummary]) -> Vec<DiffRow> {
     rows
 }
 
+fn row(side: Side, key: &(String, String), left: Option<String>, right: Option<String>) -> DiffRow {
+    DiffRow { side, scope: key.0.clone(), name: key.1.clone(), left, right }
+}
+
 /// Трассировка СОПС одной строкой: её и показываем, и по ней же сравниваем.
-fn route_map(routes: &[RouteSummary]) -> BTreeMap<(String, String), String> {
+fn route_facts(routes: &[RouteSummary]) -> Vec<Fact> {
     routes
         .iter()
         .map(|route| {
-            let trace = if route.trace_beans.is_empty() {
+            let value = if route.trace_beans.is_empty() {
                 if route.trace {
                     // Трассировка включена, а объект не назван: работает
                     // умолчание домена. Это не то же самое, что её отсутствие.
@@ -205,56 +239,24 @@ fn route_map(routes: &[RouteSummary]) -> BTreeMap<(String, String), String> {
             } else {
                 route.trace_beans.join(", ")
             };
-            ((route.domain.clone(), route.name.clone()), trace)
+            Fact { scope: route.domain.clone(), name: route.name.clone(), value }
         })
         .collect()
 }
 
-fn route_row(side: Side, key: &(String, String), left: Option<String>, right: Option<String>) -> DiffRow {
-    DiffRow { side, scope: key.0.clone(), name: key.1.clone(), left, right }
-}
-
-/// Константы сравниваются по паре «уровень и имя».
+/// Константы — по паре «уровень и имя».
 ///
 /// Уровень домена — это его имя, а не guid: guid у одной и той же по смыслу
 /// конфигурации на двух стендах разный, и по нему всё сошлось бы в «только
-/// здесь» и «только там».
-fn diff_properties(left: &[fesb_ops::SweepRow], right: &[fesb_ops::SweepRow]) -> (Vec<DiffRow>, usize) {
-    let mut skipped = 0;
-    let here = property_map(left, &mut skipped);
-    let there = property_map(right, &mut skipped);
-
-    let mut rows = Vec::new();
-    for (key, value) in &here {
-        match there.get(key) {
-            None => rows.push(property_row(Side::OnlyLeft, key, Some(value.clone()), None)),
-            Some(other) if other != value => {
-                rows.push(property_row(Side::Differs, key, Some(value.clone()), Some(other.clone())))
-            }
-            Some(_) => {}
-        }
-    }
-    for (key, value) in &there {
-        if !here.contains_key(key) {
-            rows.push(property_row(Side::OnlyRight, key, None, Some(value.clone())));
-        }
-    }
-    rows.sort_by(|a, b| {
-        a.scope
-            .to_lowercase()
-            .cmp(&b.scope.to_lowercase())
-            .then_with(|| a.name.to_lowercase().cmp(&b.name.to_lowercase()))
-    });
-    (rows, skipped)
-}
-
-fn property_map(rows: &[fesb_ops::SweepRow], skipped: &mut usize) -> BTreeMap<(String, String), String> {
-    let mut map = BTreeMap::new();
+/// здесь» и «только там». Скрытые значения не берутся — только считаются.
+fn property_facts(rows: &[fesb_ops::SweepRow]) -> (Vec<Fact>, usize) {
+    let mut secured = 0;
+    let mut facts = Vec::new();
     for row in rows {
         // Скрытое значение сервер не отдаёт: сравнивать было бы нечего,
         // а показать «разное» там, где мы просто не видим, — обман.
         if row.property.secured {
-            *skipped += 1;
+            secured += 1;
             continue;
         }
         let scope = match row.scope.as_str() {
@@ -262,16 +264,9 @@ fn property_map(rows: &[fesb_ops::SweepRow], skipped: &mut usize) -> BTreeMap<(S
             BROKER => BROKER.to_string(),
             _ => row.domain.clone().unwrap_or_else(|| row.scope.clone()),
         };
-        map.insert(
-            (scope, row.property.key.clone()),
-            row.property.value.clone().unwrap_or_default(),
-        );
+        facts.push(Fact { scope, name: row.property.key.clone(), value: row.property.value.clone().unwrap_or_default() });
     }
-    map
-}
-
-fn property_row(side: Side, key: &(String, String), left: Option<String>, right: Option<String>) -> DiffRow {
-    DiffRow { side, scope: key.0.clone(), name: key.1.clone(), left, right }
+    (facts, secured)
 }
 
 #[cfg(test)]
@@ -301,10 +296,8 @@ mod tests {
 
     #[test]
     fn trace_on_by_default_is_not_trace_off() {
-        let map = route_map(&[route("D", "R", true, &[])]);
-        assert_eq!(map.get(&("D".into(), "R".into())).map(String::as_str), Some("on"));
-        let off = route_map(&[route("D", "R", false, &[])]);
-        assert_eq!(off.get(&("D".into(), "R".into())).map(String::as_str), Some("off"));
+        assert_eq!(route_facts(&[route("D", "R", true, &[])])[0].value, "on");
+        assert_eq!(route_facts(&[route("D", "R", false, &[])])[0].value, "off");
     }
 
     fn domain(name: &str) -> crate::fesb_api::ApiDomain {
@@ -328,16 +321,17 @@ mod tests {
 
     #[test]
     fn domains_are_matched_by_name() {
-        let rows = diff_domains(&[domain("A"), domain("B")], &[domain("B"), domain("C")]);
+        let names = |list: &[crate::fesb_api::ApiDomain]| list.iter().map(|d| d.name.clone()).collect::<Vec<_>>();
+        let rows = diff_domains(&names(&[domain("A"), domain("B")]), &names(&[domain("B"), domain("C")]));
         let names: Vec<_> = rows.iter().map(|r| (r.side, r.name.as_str())).collect();
         assert_eq!(names, vec![(Side::OnlyLeft, "A"), (Side::OnlyRight, "C")]);
     }
 
     #[test]
     fn a_route_with_other_tracing_is_a_difference() {
-        let rows = diff_routes(
-            &[route("D", "R", true, &["TraceToQueue"]), route("D", "Same", false, &[])],
-            &[route("D", "R", true, &["MC.Trace"]), route("D", "Same", false, &[])],
+        let rows = diff_facts(
+            &route_facts(&[route("D", "R", true, &["TraceToQueue"]), route("D", "Same", false, &[])]),
+            &route_facts(&[route("D", "R", true, &["MC.Trace"]), route("D", "Same", false, &[])]),
         );
         assert_eq!(rows.len(), 1, "одинаковые СОПС в разницу попадать не должны");
         assert_eq!(rows[0].side, Side::Differs);
@@ -349,9 +343,9 @@ mod tests {
     /// поэтому уровень констант — имя домена.
     #[test]
     fn domain_properties_are_matched_by_domain_name() {
-        let (rows, _) = diff_properties(
-            &[property("guid-here", Some("Orders"), "const.url", "http://a", false)],
-            &[property("guid-there", Some("Orders"), "const.url", "http://b", false)],
+        let rows = diff_facts(
+            &property_facts(&[property("guid-here", Some("Orders"), "const.url", "http://a", false)]).0,
+            &property_facts(&[property("guid-there", Some("Orders"), "const.url", "http://b", false)]).0,
         );
         assert_eq!(rows.len(), 1);
         assert_eq!(rows[0].side, Side::Differs);
@@ -360,21 +354,15 @@ mod tests {
 
     #[test]
     fn hidden_values_are_counted_not_compared() {
-        let (rows, skipped) = diff_properties(
-            &[property("application", None, "secret", "", true)],
-            &[property("application", None, "secret", "", true)],
-        );
-        assert!(rows.is_empty());
-        assert_eq!(skipped, 2, "по одному пропуску с каждой стороны");
+        let (left, left_secured) = property_facts(&[property("application", None, "secret", "", true)]);
+        let (right, right_secured) = property_facts(&[property("application", None, "secret", "", true)]);
+        assert!(diff_facts(&left, &right).is_empty());
+        assert_eq!(left_secured + right_secured, 2, "по одному пропуску с каждой стороны");
     }
 
     #[test]
     fn a_named_bean_is_the_comparison_value() {
-        let map = route_map(&[route("D", "R", true, &["TraceToQueue", "MC.TRACE"])]);
-        assert_eq!(
-            map.get(&("D".into(), "R".into())).map(String::as_str),
-            Some("TraceToQueue, MC.TRACE"),
-        );
+        assert_eq!(route_facts(&[route("D", "R", true, &["TraceToQueue", "MC.TRACE"])])[0].value, "TraceToQueue, MC.TRACE");
     }
 }
 

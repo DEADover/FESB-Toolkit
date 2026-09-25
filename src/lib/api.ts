@@ -15,7 +15,7 @@ import type {
   ModuleAction, ModuleRow, PropertyRow, PropertyScope, PullResult, PushResult, QueueManager,
   QueueMatch, QueueMessage, QueueRow, RouteAction, RouteGraph, RouteState, SavePoint, ScanProgress,
   ScanResult,
-  Comparison, ServerInfo, SweepRow, TraceUpdate, VerifyResult,
+  Comparison, ServerInfo, SnapshotEntry, SweepRow, TraceUpdate, VerifyResult,
   BrokerEndpoint, BrokerAccessReport,
 } from '../types'
 
@@ -422,6 +422,24 @@ export function apiCompareStands(left: Connection, right: Connection): Promise<C
 }
 
 /** Константы всех уровней разом: ход работы идёт событиями `api:progress`. */
+export function snapshotList(): Promise<SnapshotEntry[]> {
+  return invoke<SnapshotEntry[]>('snapshot_list')
+}
+
+/** Снимает стенд и возвращает обновлённый список снимков. */
+export function snapshotTake(connection: Connection, takenAt: string, label: string): Promise<SnapshotEntry[]> {
+  return invoke<SnapshotEntry[]>('snapshot_take', { connection, takenAt, label })
+}
+
+export function snapshotDelete(id: string): Promise<SnapshotEntry[]> {
+  return invoke<SnapshotEntry[]>('snapshot_delete', { id })
+}
+
+/** Снимок «до» против другого снимка или, если `after` пуст, против стенда сейчас. */
+export function snapshotCompare(before: string, after: string | null, connection: Connection | null): Promise<Comparison> {
+  return invoke<Comparison>('snapshot_compare', { before, after, connection })
+}
+
 export function apiPropertiesSweep(connection: Connection): Promise<SweepRow[]> {
   return invoke<SweepRow[]>('api_properties_sweep', { connection })
 }

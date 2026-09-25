@@ -17,6 +17,7 @@ use fesb_toolkit_lib::testing::{
     queues, route_state, routes_overview, save_property, server_usage, verify,
     ApplyRequest, ApplyTarget, BeanTarget, Connection, LogRequest, ManagerKind, PropertyRow,
     PropertyScope, TraceUpdate,
+    compare_profiles, read_profile, read_snapshot, save_snapshot, Side,
 };
 
 /// Обёртка над рантаймом: приложение вызывает те же функции из команд Tauri.
@@ -827,4 +828,46 @@ fn reads_every_route_of_the_server_at_once() {
 
     // Метод должен быть быстрым — иначе он не заменяет выгрузку конфигурации.
     assert!(spent.as_secs() < 20, "обзор занял {spent:?} — это не быстрее выгрузки");
+}
+
+/// Снимок стенда: снять, поменять константу, снять снова — разница видна.
+/// Константа заводится и удаляется самим тестом.
+#[test]
+#[ignore]
+fn a_snapshot_shows_what_changed_since() {
+    let Some(connection) = connection() else {
+        eprintln!("FESB_URL не задан — пропускаем");
+        return;
+    };
+    let dir = std::env::temp_dir().join(format!("fesb-snapshot-live-{}", std::process::id()));
+    let key = "const.settings.editor.snapshot";
+
+    let started = std::time::Instant::now();
+    let before = block(read_profile(&connection)).expect("первый снимок");
+    println!(
+        "снимок: {} доменов, {} СОПС, {} констант, скрытых {} — за {:?}",
+        before.domains.len(), before.routes.len(), before.properties.len(), before.secured, started.elapsed(),
+    );
+    let listed = save_snapshot(&dir, "2026-09-25T10:00:00", "до", before).expect("запись");
+
+    let property = PropertyRow {
+        key: key.into(),
+        value: Some("snapshot".into()),
+        secured: false,
+        vault: false,
+        empty: false,
+        description: None,
+    };
+    block(save_property(&connection, PropertyScope::Application, property, true, None)).expect("создание");
+    let now = block(read_profile(&connection));
+    block(delete_property(&connection, PropertyScope::Application, key)).expect("удаление");
+    let now = now.expect("второй снимок");
+
+    let stored = read_snapshot(&dir, &listed[0].id).expect("чтение снимка");
+    let comparison = compare_profiles(&stored.profile, &now);
+    let added: Vec<_> = comparison.properties.iter().filter(|row| row.name == key).collect();
+    assert_eq!(added.len(), 1, "новая константа должна быть в разнице");
+    assert_eq!(added[0].side, Side::OnlyRight);
+    assert!(comparison.domains.is_empty() && comparison.routes.is_empty(), "остальное не менялось");
+    let _ = std::fs::remove_dir_all(&dir);
 }

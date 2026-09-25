@@ -23,6 +23,7 @@ mod route_links;
 mod route_xml;
 mod routes_overview;
 mod scanner;
+mod snapshot_store;
 mod security;
 mod xlsx;
 mod xml;
@@ -526,6 +527,56 @@ async fn api_compare_stands(
     compare::compare(&left, &right).await
 }
 
+/// Каталог снимков стендов — рядом с историей отчётов, в данных приложения.
+fn snapshots_dir(app: &AppHandle) -> Result<PathBuf, String> {
+    let base = app
+        .path()
+        .app_data_dir()
+        .map_err(|err| format!("Cannot find the data folder: {err}"))?;
+    Ok(base.join("snapshots"))
+}
+
+/// Снимки всех стендов, свежие сверху. Интерфейс сам оставляет снимки своего.
+#[tauri::command]
+async fn snapshot_list(app: AppHandle) -> Result<Vec<snapshot_store::SnapshotEntry>, String> {
+    Ok(snapshot_store::list(&snapshots_dir(&app)?))
+}
+
+/// Снимает стенд: тот же слепок, что и для сравнения, только на диск.
+#[tauri::command]
+async fn snapshot_take(
+    app: AppHandle,
+    connection: Connection,
+    taken_at: String,
+    label: String,
+) -> Result<Vec<snapshot_store::SnapshotEntry>, String> {
+    let profile = compare::read_profile(&connection).await?;
+    snapshot_store::save(&snapshots_dir(&app)?, &taken_at, &label, profile)
+}
+
+#[tauri::command]
+async fn snapshot_delete(app: AppHandle, id: String) -> Result<Vec<snapshot_store::SnapshotEntry>, String> {
+    snapshot_store::remove(&snapshots_dir(&app)?, &id)
+}
+
+/// Что поменялось: снимок «до» против другого снимка или против стенда сейчас.
+#[tauri::command]
+async fn snapshot_compare(
+    app: AppHandle,
+    before: String,
+    after: Option<String>,
+    connection: Option<Connection>,
+) -> Result<compare::Comparison, String> {
+    let dir = snapshots_dir(&app)?;
+    let old = snapshot_store::read(&dir, &before)?.profile;
+    let new = match (after, connection) {
+        (Some(id), _) => snapshot_store::read(&dir, &id)?.profile,
+        (None, Some(connection)) => compare::read_profile(&connection).await?,
+        (None, None) => return Err("Nothing to compare the snapshot with".into()),
+    };
+    Ok(compare::diff(&old, &new))
+}
+
 /// Константы всех уровней разом — чтобы искать по значению на всём стенде.
 #[tauri::command]
 async fn api_properties_sweep(
@@ -638,6 +689,10 @@ pub fn run() {
             api_properties,
             api_properties_sweep,
             api_compare_stands,
+            snapshot_list,
+            snapshot_take,
+            snapshot_delete,
+            snapshot_compare,
             api_save_property,
             api_delete_property,
             api_log_files,
@@ -708,6 +763,8 @@ pub mod testing {
     pub use crate::domain_copy::{plan as copy_plan, run as copy_run, RouteChange};
     pub use crate::mq_config::{audit as mq_config_audit, store as mq_store, ConfigKind, StoreRequest};
     pub use crate::xlsx::write_sheet as write_xlsx;
+    pub use crate::compare::{diff as compare_profiles, read_profile, Side};
+    pub use crate::snapshot_store::{list as snapshot_list, read as read_snapshot, save as save_snapshot};
     pub use crate::report_store::{list as report_history, read as read_report, remove as remove_report, save as save_report_history};
     pub use crate::domain_xml::{parse_domain_xml, BeanTarget, TraceUpdate};
     pub use crate::route_graph::{parse_route_graphs, RouteNode};

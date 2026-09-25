@@ -2188,6 +2188,34 @@
               { id: DATA.api_queue_messages[1].id, excerpt: `…<doc><type>СчётФактура</type><state>${needle}</state></doc>…` },
             ]
           }
+          // Снимки живут в памяти страницы: этого хватает, чтобы пройти
+          // весь путь — снять, выбрать, сравнить, удалить.
+          if (key === 'snapshot_list') return [...(window.__snapshots ||= [])]
+          if (key === 'snapshot_take') {
+            const list = window.__snapshots ||= []
+            list.unshift({
+              id: `snapshot-${list.length}`, server: DATA.api_connect.baseUrl, takenAt: args.takenAt,
+              label: args.label.trim(), domains: 256, routes: 2293, properties: 4120,
+            })
+            return [...list]
+          }
+          if (key === 'snapshot_delete') return window.__snapshots = (window.__snapshots || []).filter((item) => item.id !== args.id)
+          if (key === 'snapshot_compare' || key === 'api_compare_stands') {
+            const facts = { url: DATA.api_connect.baseUrl, version: '8.6.524', domains: 256, routes: 2293, properties: 4120 }
+            return {
+              left: facts, right: { ...facts, routes: 2294 },
+              domains: [{ side: 'onlyRight', scope: '', name: 'Payments.Gateway', left: null, right: null }],
+              routes: [
+                { side: 'differs', scope: 'Orders', name: 'Orders.Receive', left: 'off', right: 'TraceToQueue' },
+                { side: 'onlyRight', scope: 'Payments.Gateway', name: 'Payments.In', left: null, right: 'off' },
+              ],
+              properties: [
+                { side: 'differs', scope: 'application', name: 'url.sap', left: 'https://sap-test.corp/api', right: 'https://sap.corp/api' },
+                { side: 'onlyLeft', scope: 'Orders', name: 'retry.count', left: '3', right: null },
+              ],
+              securedSkipped: 12,
+            }
+          }
           if (key in DATA) return DATA[key]
           return []
         },
