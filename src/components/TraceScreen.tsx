@@ -609,13 +609,15 @@ export function TraceScreen({ scan, isMac, sourcePath, server, onRescan, onGoToC
         <Select<RouteFilter>
           ariaLabel={t('filter.routes')}
           label={t('filter.routes')}
-          className="w-60"
+          className="w-80"
           value={filters.routes}
           onChange={(value) => setFilters((prev) => ({ ...prev, routes: value }))}
+          // Рядом с каждым вопросом — сколько СОПС под него подходит: так
+          // видно, стоит ли вообще открывать отбор.
           options={[
-            { id: 'all', label: t('filter.all') },
-            { id: 'untraced', label: t('filter.untracedRoutes') },
-            { id: 'default', label: t('filter.defaultTraced') },
+            { id: 'all', label: t('filter.all'), hint: String(summary.routes) },
+            { id: 'untraced', label: t('filter.untracedRoutes'), hint: String(summary.routes - summary.tracedRoutes) },
+            { id: 'default', label: t('filter.defaultTraced'), hint: String(summary.defaultTraced) },
             ...(summary.memoryRoutes > 0 ? [{ id: 'memory' as const, label: t('filter.memoryRoutes'), hint: String(summary.memoryRoutes) }] : []),
           ]}
         />
@@ -628,7 +630,7 @@ export function TraceScreen({ scan, isMac, sourcePath, server, onRescan, onGoToC
           value={filters.broker}
           onChange={(value) => setFilters((prev) => ({ ...prev, broker: value }))}
           options={[
-            { id: 'all', label: t('filter.all') },
+            { id: 'all', label: t('filter.all'), hint: String(summary.traces) },
             ...(noBroker > 0 ? [{ id: 'none', label: t('filter.noBroker'), hint: String(noBroker) }] : []),
             ...(memoryBeans > 0 ? [{ id: 'memory', label: t('filter.inMemory'), hint: String(memoryBeans) }] : []),
             ...stats.map((item) => ({ id: item.value, label: item.value, hint: String(item.count) })),
