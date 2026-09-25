@@ -11,6 +11,8 @@
     "dialog:allow-open",
     "dialog:allow-save",
     "notification:default",
+    "updater:default",
+    "process:allow-restart",
     "opener:allow-reveal-item-in-dir",
     {
       "identifier": "opener:allow-open-url",

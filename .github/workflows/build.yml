@@ -44,7 +44,18 @@ jobs:
         run: npm test
 
       - name: Build installer
-        run: npm run build
+        shell: bash
+        run: |
+          if [ -n "$TAURI_SIGNING_PRIVATE_KEY" ]; then
+            npm run build -- --config '{"bundle":{"createUpdaterArtifacts":true}}'
+          else
+            npm run build
+          fi
+        env:
+          # Ключ подписи обновлений. Без него сборка идёт как раньше, только
+          # без файлов для автообновления: развилок в выпуске это не ломает.
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
 
       - name: Upload installers
         continue-on-error: true
@@ -77,6 +88,10 @@ jobs:
           cp "src-tauri/target/release/fesb-toolkit.exe" "release/FESB-Toolkit-$version-x64-portable.exe"
           cp src-tauri/target/release/bundle/nsis/*-setup.exe "release/FESB-Toolkit-$version-x64-setup.exe"
           cp src-tauri/target/release/bundle/msi/*.msi "release/FESB-Toolkit-$version-x64.msi"
+          # Подпись установщика — для автообновления; имя то же, что у файла.
+          for sig in src-tauri/target/release/bundle/nsis/*-setup.exe.sig; do
+            [ -f "$sig" ] && cp "$sig" "release/FESB-Toolkit-$version-x64-setup.exe.sig"
+          done
           gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 \
             || gh release create "$GITHUB_REF_NAME" --title "FESB Toolkit $version" --generate-notes
           gh release upload "$GITHUB_REF_NAME" release/* --clobber
@@ -111,7 +126,17 @@ jobs:
         run: npm test
 
       - name: Build app
-        run: npm run build -- --target aarch64-apple-darwin
+        run: |
+          if [ -n "$TAURI_SIGNING_PRIVATE_KEY" ]; then
+            npm run build -- --target aarch64-apple-darwin --config '{"bundle":{"createUpdaterArtifacts":true}}'
+          else
+            npm run build -- --target aarch64-apple-darwin
+          fi
+        env:
+          # Ключ подписи обновлений. Без него сборка идёт как раньше, только
+          # без файлов для автообновления: развилок в выпуске это не ломает.
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
 
       - name: Upload build
         continue-on-error: true
@@ -132,8 +157,54 @@ jobs:
           mkdir -p release
           cp src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.dmg \
              "release/FESB-Toolkit-$version-macos-arm64.dmg"
+          # Для автообновления на macOS нужен архив приложения и его подпись.
+          bundle=src-tauri/target/aarch64-apple-darwin/release/bundle/macos
+          if [ -f "$bundle/FESB Toolkit.app.tar.gz.sig" ]; then
+            cp "$bundle/FESB Toolkit.app.tar.gz" "release/FESB-Toolkit-$version-macos-arm64.app.tar.gz"
+            cp "$bundle/FESB Toolkit.app.tar.gz.sig" "release/FESB-Toolkit-$version-macos-arm64.app.tar.gz.sig"
+          fi
           gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 \
             || gh release create "$GITHUB_REF_NAME" --title "FESB Toolkit $version" --generate-notes
           gh release upload "$GITHUB_REF_NAME" release/* --clobber
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+  # Манифест автообновления: версия, описание релиза и по подписи на
+  # платформу. Приложение читает его по адресу releases/latest/download,
+  # поэтому он собирается, когда обе сборки уже выложены.
+  updater:
+    name: Update manifest
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [windows, macos]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Publish latest.json
+        shell: bash
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          base="https://github.com/$GITHUB_REPOSITORY/releases/download/$GITHUB_REF_NAME"
+          mkdir -p sigs && cd sigs
+          gh release download "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --pattern '*.sig' || true
+          win="FESB-Toolkit-$version-x64-setup.exe.sig"
+          mac="FESB-Toolkit-$version-macos-arm64.app.tar.gz.sig"
+          if [ ! -f "$win" ] && [ ! -f "$mac" ]; then
+            echo "Подписей нет — сборка шла без ключа, манифест не нужен."
+            exit 0
+          fi
+          notes="$(gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --json body --jq .body)"
+          jq -n \
+            --arg version "$version" \
+            --arg notes "$notes" \
+            --arg date "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            --arg winSig "$( [ -f "$win" ] && cat "$win" )" \
+            --arg winUrl "$base/FESB-Toolkit-$version-x64-setup.exe" \
+            --arg macSig "$( [ -f "$mac" ] && cat "$mac" )" \
+            --arg macUrl "$base/FESB-Toolkit-$version-macos-arm64.app.tar.gz" \
+            '{version: $version, notes: $notes, pub_date: $date, platforms: (
+               (if $winSig != "" then {"windows-x86_64": {signature: $winSig, url: $winUrl}} else {} end)
+               + (if $macSig != "" then {"darwin-aarch64": {signature: $macSig, url: $macUrl}} else {} end)
+             )}' > latest.json
+          cat latest.json
+          gh release upload "$GITHUB_REF_NAME" latest.json --repo "$GITHUB_REPOSITORY" --clobber
         env:
           GH_TOKEN: ${{ github.token }}

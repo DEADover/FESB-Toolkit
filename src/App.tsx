@@ -25,6 +25,7 @@ import { Sidebar, type ScreenId } from './components/Sidebar'
 import { TraceScreen } from './components/TraceScreen'
 import { CommandPalette } from './components/CommandPalette'
 import { useStandWatch } from './components/useStandWatch'
+import { UpdateDialog, useUpdates } from './components/Updates'
 import { exchangeLogFocus, type Focus } from './lib/focus'
 import { JobStatus } from './components/JobStatus'
 import { useToast } from './components/Toaster'
@@ -109,6 +110,7 @@ export default function App() {
   const propertyFocus = focus?.target.screen === 'api.properties' ? focus.target : null
   const queueFocus = focus?.target.screen === 'api.queues' ? focus.target : null
   const logFocus = focus?.target.screen === 'api.logs' ? focus.target : null
+  const updates = useUpdates()
   const watch = useStandWatch(session?.connection ?? null, session?.profile.name ?? '', setScreen)
 
   const isMac = info?.platform === 'macos'
@@ -392,6 +394,10 @@ export default function App() {
         onCollapse={toggleSidebar}
         themeMode={themeMode}
         onThemeMode={changeTheme}
+        updateVersion={updates.state.kind === 'available' ? updates.state.update.version : null}
+        checkingUpdates={updates.state.kind === 'checking'}
+        onCheckUpdates={updates.check}
+        onOpenUpdate={updates.openDialog}
       />
 
       <main className="flex min-w-0 flex-1 flex-col">
@@ -605,6 +611,10 @@ export default function App() {
           />
         )}
       </main>
+
+      {updates.state.kind === 'available' && (
+        <UpdateDialog update={updates.state.update} open={updates.dialog} onClose={updates.closeDialog} />
+      )}
 
       <CommandPalette
         open={paletteOpen}

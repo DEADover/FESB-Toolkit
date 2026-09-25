@@ -1,4 +1,4 @@
-import { FolderOpen, FolderSimple, ArrowsLeftRight, Broadcast, CaretDown, CaretLeft, PaperPlaneTilt, CaretRight, Certificate, CircleHalf, Crosshair, CrosshairSimple, Cube, FingerprintSimple, FloppyDisk, FlowArrow, Key, GithubLogo, House, ListDashes, Moon, Plugs, PlugsConnected, Queue, SlidersHorizontal, Stack, Sun, Tray, ChartBar, ClockCounterClockwise, UsersThree, Binoculars, Terminal, type Icon } from '@phosphor-icons/react'
+import { ArrowCircleUp, FolderOpen, FolderSimple, ArrowsLeftRight, Broadcast, CaretDown, CaretLeft, PaperPlaneTilt, CaretRight, Certificate, CircleHalf, Crosshair, CrosshairSimple, Cube, FingerprintSimple, FloppyDisk, FlowArrow, Key, GithubLogo, House, ListDashes, Moon, Plugs, PlugsConnected, Queue, SlidersHorizontal, Stack, Sun, Tray, ChartBar, ClockCounterClockwise, UsersThree, Binoculars, Terminal, type Icon } from '@phosphor-icons/react'
 
 import { useEffect, useState } from 'react'
 
@@ -191,13 +191,21 @@ interface Props {
   onCollapse: () => void
   themeMode: ThemeMode
   onThemeMode: (mode: ThemeMode) => void
+  /** Вышла новая версия — рядом с номером появляется кнопка обновления. */
+  updateVersion: string | null
+  checkingUpdates: boolean
+  onCheckUpdates: () => void
+  onOpenUpdate: () => void
 }
 
 /**
  * Боковая панель сворачивается не в ноль, а в узкую полосу: кнопка раскрытия
  * остаётся на своём месте, и переключаться между режимами можно не сходя с него.
  */
-export function Sidebar({ screen, onScreen, info, isMac, collapsed, onCollapse, themeMode, onThemeMode }: Props) {
+export function Sidebar({
+  screen, onScreen, info, isMac, collapsed, onCollapse, themeMode, onThemeMode,
+  updateVersion, checkingUpdates, onCheckUpdates, onOpenUpdate,
+}: Props) {
   const { t, language, setLanguage } = useI18n()
   const [folded, setFolded] = useState<Set<MessageKey>>(readFolded)
 
@@ -337,7 +345,29 @@ export function Sidebar({ screen, onScreen, info, isMac, collapsed, onCollapse, 
               onClick={() => void openRepository()}
             />
             {!collapsed && info && (
-              <span className="font-mono text-[12px] tabular-nums text-content-subtle">v{info.version}</span>
+              // Номер версии — он же кнопка проверки: за обновлением идут туда,
+              // где видно, какая версия стоит.
+              <button
+                type="button"
+                onClick={onCheckUpdates}
+                disabled={checkingUpdates}
+                title={t('update.check')}
+                className={cx(
+                  'rounded-md px-1 font-mono text-[12px] tabular-nums text-content-subtle transition hover:text-content',
+                  checkingUpdates && 'animate-pulse',
+                  FOCUS_RING,
+                )}
+              >
+                v{info.version}
+              </button>
+            )}
+            {updateVersion && (
+              <FooterButton
+                icon={ArrowCircleUp}
+                label={t('update.available', { version: updateVersion })}
+                onClick={onOpenUpdate}
+                className="text-accent-content hover:text-accent-content"
+              />
             )}
           </div>
         </div>
