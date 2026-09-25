@@ -60,7 +60,7 @@ export const FILE_SCREENS: ScreenEntry[] = [
 ]
 
 /**
- * Разделы API двумя папками. В «Общем» — то, с чем живут на стенде каждый
+ * Экраны API разложены по двум папкам внутри раздела. В «Общем» — то, с чем живут на стенде каждый
  * день: домены, схемы, очереди, журналы. В «Точечных задачах» — экраны под
  * одну конкретную работу: сверить стенды, проверить сроки сертификатов,
  * включить трассировку. Четырнадцать пунктов одним списком читались как
@@ -87,7 +87,7 @@ export const API_TASK_SCREENS: ScreenEntry[] = [
   { id: 'api.tracing', label: 'nav.api.tracing', title: 'nav.api.tracing.title', hint: 'welcome.hint.tracing', icon: CrosshairSimple },
 ]
 
-/** Папки API — в одном месте для панели, «Начала» и палитры команд. */
+/** Папки внутри раздела API — одни и те же в панели, на «Начале» и в палитре команд. */
 export const API_GROUPS: Array<{ title: MessageKey; items: ScreenEntry[] }> = [
   { title: 'nav.api.general', items: API_GENERAL_SCREENS },
   { title: 'nav.api.tasks', items: API_TASK_SCREENS },
@@ -126,6 +126,8 @@ interface Section {
   /** Порядок пунктов — по алфавиту текущего языка. */
   sorted?: boolean
   items: ScreenEntry[]
+  /** Папки внутри раздела — вместо плоского списка `items`. */
+  groups?: Array<{ title: MessageKey; items: ScreenEntry[] }>
 }
 
 const SECTIONS: Section[] = [
@@ -147,7 +149,12 @@ const SECTIONS: Section[] = [
     title: 'nav.files',
     items: FILE_SCREENS,
   },
-  ...API_GROUPS.map((group) => ({ ...group, sorted: true })),
+  {
+    title: 'nav.api',
+    sorted: true,
+    items: [],
+    groups: API_GROUPS,
+  },
   {
     // Экраны раздела стоят наравне с остальными, а не вкладками внутри:
     // разделов в панели три, и у всех трёх одинаковые правила. Брокер —
@@ -205,6 +212,34 @@ export function Sidebar({ screen, onScreen, info, isMac, collapsed, onCollapse, 
     return next
   })
 
+  const renderItem = (item: ScreenEntry) => (
+    <button
+      key={item.id}
+      type="button"
+      onClick={() => onScreen(item.id)}
+      title={collapsed ? t(item.label) : undefined}
+      className={cx(
+        'flex w-full items-center gap-2.5 rounded-lg py-1.5 text-left transition',
+        FOCUS_RING,
+        collapsed ? 'justify-center px-0' : 'px-2.5',
+        screen === item.id ? 'bg-accent/12 text-content' : 'text-content-muted',
+        screen !== item.id && 'hover:bg-surface-3',
+      )}
+    >
+      <span
+        className={cx(
+          'grid size-7 shrink-0 place-items-center rounded-md text-[13px]',
+          screen === item.id ? 'bg-accent/20 text-accent-content' : 'bg-surface-2 text-content-subtle',
+        )}
+      >
+        <item.icon size={16} weight="regular" />
+      </span>
+      {!collapsed && (
+        <span className="min-w-0 flex-1 truncate text-[12.5px] font-medium">{t(item.label)}</span>
+      )}
+    </button>
+  )
+
   return (
     <aside
       className={cx(
@@ -234,60 +269,42 @@ export function Sidebar({ screen, onScreen, info, isMac, collapsed, onCollapse, 
                 // В узком режиме заголовок раздела не помещается — вместо него разделитель.
                 <div className="mx-auto mb-2 h-px w-6 bg-line" />
               ) : (
-                <div className="mb-1.5 flex items-center gap-1 px-2.5">
-                  {/* Заголовок — кнопка: он и подписывает раздел, и сворачивает
-                      его. Отдельный значок рядом с подписью занимал бы место
-                      и промахивался бы мимо пальца. */}
-                  <button
-                    type="button"
-                    onClick={() => toggleSection(section.title)}
-                    aria-expanded={!folded.has(section.title)}
-                    className={cx(
-                      'group -ml-1 flex min-w-0 items-center gap-1 rounded-md px-1 py-0.5 transition',
-                      'text-content-subtle hover:text-content',
-                      FOCUS_RING,
-                    )}
-                  >
-                    <CaretDown
-                      size={11}
-                      weight="bold"
-                      className={cx('shrink-0 transition-transform', folded.has(section.title) && '-rotate-90')}
-                    />
-                    <span className="whitespace-nowrap text-[11px] font-semibold tracking-wide">
-                      {t(section.title)}
-                    </span>
-                  </button>
-                </div>
+                <FolderToggle
+                  label={t(section.title)}
+                  folded={folded.has(section.title)}
+                  onToggle={() => toggleSection(section.title)}
+                />
               )}
 
               <div className={cx('flex flex-col gap-0.5', !collapsed && folded.has(section.title) && 'hidden')}>
-                {(section.sorted ? sortByLabel(section.items, (item) => t(item.label), language) : section.items).map((item) => (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => onScreen(item.id)}
-                    title={collapsed ? t(item.label) : undefined}
-                    className={cx(
-                      'flex w-full items-center gap-2.5 rounded-lg py-1.5 text-left transition',
-                      FOCUS_RING,
-                      collapsed ? 'justify-center px-0' : 'px-2.5',
-                      screen === item.id ? 'bg-accent/12 text-content' : 'text-content-muted',
-                      screen !== item.id && 'hover:bg-surface-3',
-                    )}
-                  >
-                    <span
-                      className={cx(
-                        'grid size-7 shrink-0 place-items-center rounded-md text-[13px]',
-                        screen === item.id ? 'bg-accent/20 text-accent-content' : 'bg-surface-2 text-content-subtle',
+                {section.groups
+                  ? section.groups.map((group) => (
+                    <div key={group.title} className={cx(!collapsed && 'mt-1 first:mt-0')}>
+                      {collapsed ? (
+                        // В узкой панели папка — короткий штрих между группами значков.
+                        <div className="mx-auto my-1 h-px w-3 bg-line" />
+                      ) : (
+                        <FolderToggle
+                          label={t(group.title)}
+                          folded={folded.has(group.title)}
+                          onToggle={() => toggleSection(group.title)}
+                          sub
+                        />
                       )}
-                    >
-                      <item.icon size={16} weight="regular" />
-                    </span>
-                    {!collapsed && (
-                      <span className="min-w-0 flex-1 truncate text-[12.5px] font-medium">{t(item.label)}</span>
-                    )}
-                  </button>
-                ))}
+                      {/* Отступ слева с тонкой линией: видно, что пункты вложены
+                          в папку, а не стоят наравне с разделами. */}
+                      <div
+                        className={cx(
+                          'flex flex-col gap-0.5',
+                          !collapsed && 'ml-[18px] border-l border-line pl-1.5',
+                          !collapsed && folded.has(group.title) && 'hidden',
+                        )}
+                      >
+                        {sortByLabel(group.items, (item) => t(item.label), language).map(renderItem)}
+                      </div>
+                    </div>
+                  ))
+                  : (section.sorted ? sortByLabel(section.items, (item) => t(item.label), language) : section.items).map(renderItem)}
               </div>
             </div>
           ))}
@@ -327,6 +344,43 @@ export function Sidebar({ screen, onScreen, info, isMac, collapsed, onCollapse, 
         </div>
       </div>
     </aside>
+  )
+}
+
+/**
+ * Заголовок раздела или папки внутри него — кнопка: он и подписывает группу,
+ * и сворачивает её. Отдельный значок рядом с подписью занимал бы место и
+ * промахивался бы мимо пальца. Папка (`sub`) — на ступень тише раздела:
+ * без жирности и капса, чтобы не спорить с ним за внимание.
+ */
+function FolderToggle({ label, folded, onToggle, sub = false }: {
+  label: string
+  folded: boolean
+  onToggle: () => void
+  sub?: boolean
+}) {
+  return (
+    <div className={cx('flex items-center gap-1 px-2.5', sub ? 'mb-0.5' : 'mb-1.5')}>
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={!folded}
+        className={cx(
+          '-ml-1 flex min-w-0 items-center gap-1 rounded-md px-1 py-0.5 transition',
+          'text-content-subtle hover:text-content',
+          FOCUS_RING,
+        )}
+      >
+        <CaretDown
+          size={sub ? 10 : 11}
+          weight="bold"
+          className={cx('shrink-0 transition-transform', folded && '-rotate-90')}
+        />
+        <span className={cx('whitespace-nowrap', sub ? 'text-[11.5px] font-medium' : 'text-[11px] font-semibold tracking-wide')}>
+          {label}
+        </span>
+      </button>
+    </div>
   )
 }
 

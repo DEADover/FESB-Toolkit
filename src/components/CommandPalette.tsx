@@ -66,7 +66,7 @@ export function CommandPalette({ open, onClose, store, onScreen, onConnect, onCo
       {
         id: 'connection',
         label: t('nav.connection'),
-        group: t('nav.api.general'),
+        group: `${t('nav.api')} · ${t('nav.api.general')}`,
         icon: Gear,
         run: () => onScreen('connection'),
       },
@@ -74,7 +74,7 @@ export function CommandPalette({ open, onClose, store, onScreen, onConnect, onCo
         sortByLabel(group.items, (entry) => t(entry.label), language).map((entry) => ({
           id: entry.id,
           label: t(entry.title ?? entry.label),
-          group: t(group.title),
+          group: `${t('nav.api')} · ${t(group.title)}`,
           icon: entry.icon,
           run: () => onScreen(entry.id),
         })),

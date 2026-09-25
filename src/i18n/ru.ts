@@ -47,8 +47,9 @@ export const ru: Record<keyof typeof en, string> = {
   'domainLinks.internal': 'Внутри домена',
   'domainLinks.empty': 'Связей не найдено',
 
-  'nav.api.general': 'API — Общее',
-  'nav.api.tasks': 'API — Точечные задачи',
+  'nav.api': 'API',
+  'nav.api.general': 'Общее',
+  'nav.api.tasks': 'Точечные задачи',
   'nav.api.domains': 'Домены',
 
   'action.selectFolder': 'Выбрать папку',

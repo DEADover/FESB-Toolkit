@@ -201,17 +201,23 @@ export function WelcomeScreen({
           </div>
         </Section>
 
-        {/* Те же две папки API, что и в боковой панели, внутри — по алфавиту.
-            Алфавит зависит от языка, поэтому порядок считается при отрисовке. */}
-        {API_GROUPS.map((group) => (
-          <Section key={group.title} title={t(group.title)} note={server ? undefined : t('welcome.needsServer')}>
-            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-              {sortByLabel(group.items, (entry) => t(entry.title ?? entry.label), language).map((entry) => (
-                <Tile key={entry.id} entry={entry} dim={!server} onClick={() => onScreen(entry.id)} />
-              ))}
-            </div>
-          </Section>
-        ))}
+        {/* Раздел API с теми же двумя папками, что и в боковой панели; внутри
+            папки — по алфавиту. Алфавит зависит от языка, поэтому порядок
+            считается при отрисовке. */}
+        <Section title={t('nav.api')} note={server ? undefined : t('welcome.needsServer')}>
+          <div className="flex flex-col gap-4">
+            {API_GROUPS.map((group) => (
+              <div key={group.title}>
+                <h4 className="mb-2 text-[11.5px] font-medium text-content-muted">{t(group.title)}</h4>
+                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                  {sortByLabel(group.items, (entry) => t(entry.title ?? entry.label), language).map((entry) => (
+                    <Tile key={entry.id} entry={entry} dim={!server} onClick={() => onScreen(entry.id)} />
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </Section>
 
         {/* Брокеры AMQP — другая машина и другой разговор: у раздела своё
             подключение, и подключение к шине ему не нужно. */}
