@@ -46,7 +46,8 @@ export const en = {
   'domainLinks.internal': 'Inside One Domain',
   'domainLinks.empty': 'No links found',
 
-  'nav.api': 'API',
+  'nav.api.general': 'API — General',
+  'nav.api.tasks': 'API — Specific Tasks',
   'nav.api.domains': 'Domains',
 
   'action.selectFolder': 'Select Folder',

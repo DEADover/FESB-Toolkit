@@ -9,7 +9,7 @@ import { useApiData } from './ApiShell'
 import { byEnvironment, type ConnectionProfile, type ConnectionStore } from '../lib/connection'
 import type { Connection, ScanResult, ServerInfo, ServerUsage } from '../types'
 import { ENVIRONMENT_LABEL, ENVIRONMENT_TONE } from './HeaderBar'
-import { AMQP_SCREENS, API_SCREENS, FILE_SCREENS, sortByLabel, type ScreenEntry, type ScreenId } from './Sidebar'
+import { AMQP_SCREENS, API_GROUPS, FILE_SCREENS, sortByLabel, type ScreenEntry, type ScreenId } from './Sidebar'
 import { Badge, Button, cx, FOCUS_RING, Readout } from './ui'
 
 interface Props {
@@ -201,15 +201,17 @@ export function WelcomeScreen({
           </div>
         </Section>
 
-        {/* Разделы по алфавиту — так же, как в боковой панели. Алфавит
-            зависит от языка, поэтому порядок считается при отрисовке. */}
-        <Section title={t('nav.api')} note={server ? undefined : t('welcome.needsServer')}>
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-            {sortByLabel(API_SCREENS, (entry) => t(entry.title ?? entry.label), language).map((entry) => (
-              <Tile key={entry.id} entry={entry} dim={!server} onClick={() => onScreen(entry.id)} />
-            ))}
-          </div>
-        </Section>
+        {/* Те же две папки API, что и в боковой панели, внутри — по алфавиту.
+            Алфавит зависит от языка, поэтому порядок считается при отрисовке. */}
+        {API_GROUPS.map((group) => (
+          <Section key={group.title} title={t(group.title)} note={server ? undefined : t('welcome.needsServer')}>
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+              {sortByLabel(group.items, (entry) => t(entry.title ?? entry.label), language).map((entry) => (
+                <Tile key={entry.id} entry={entry} dim={!server} onClick={() => onScreen(entry.id)} />
+              ))}
+            </div>
+          </Section>
+        ))}
 
         {/* Брокеры AMQP — другая машина и другой разговор: у раздела своё
             подключение, и подключение к шине ему не нужно. */}

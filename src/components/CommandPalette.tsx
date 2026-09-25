@@ -4,7 +4,7 @@ import { Gear, House, Plugs, type Icon } from '@phosphor-icons/react'
 
 import { useI18n } from '../i18n'
 import { byEnvironment, type ConnectionProfile, type ConnectionStore } from '../lib/connection'
-import { API_SCREENS, FILE_SCREENS, sortByLabel, type ScreenId } from './Sidebar'
+import { API_GROUPS, FILE_SCREENS, sortByLabel, type ScreenId } from './Sidebar'
 import { Badge, cx, FOCUS_RING, Modal, SearchInput } from './ui'
 import { ENVIRONMENT_LABEL, ENVIRONMENT_TONE } from './HeaderBar'
 
@@ -66,17 +66,19 @@ export function CommandPalette({ open, onClose, store, onScreen, onConnect, onCo
       {
         id: 'connection',
         label: t('nav.connection'),
-        group: t('nav.api'),
+        group: t('nav.api.general'),
         icon: Gear,
         run: () => onScreen('connection'),
       },
-      ...sortByLabel(API_SCREENS, (entry) => t(entry.label), language).map((entry) => ({
-        id: entry.id,
-        label: t(entry.title ?? entry.label),
-        group: t('nav.api'),
-        icon: entry.icon,
-        run: () => onScreen(entry.id),
-      })),
+      ...API_GROUPS.flatMap((group) =>
+        sortByLabel(group.items, (entry) => t(entry.label), language).map((entry) => ({
+          id: entry.id,
+          label: t(entry.title ?? entry.label),
+          group: t(group.title),
+          icon: entry.icon,
+          run: () => onScreen(entry.id),
+        })),
+      ),
     ]
 
     const stands: Command[] = byEnvironment(store.profiles).flatMap(([, profiles]) =>

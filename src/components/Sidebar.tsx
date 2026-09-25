@@ -59,22 +59,38 @@ export const FILE_SCREENS: ScreenEntry[] = [
   { id: 'files.links', label: 'nav.files.links', title: 'nav.files.links.title', hint: 'welcome.hint.links', icon: ArrowsLeftRight },
 ]
 
-export const API_SCREENS: ScreenEntry[] = [
+/**
+ * Разделы API двумя папками. В «Общем» — то, с чем живут на стенде каждый
+ * день: домены, схемы, очереди, журналы. В «Точечных задачах» — экраны под
+ * одну конкретную работу: сверить стенды, проверить сроки сертификатов,
+ * включить трассировку. Четырнадцать пунктов одним списком читались как
+ * стена, и редкие задачи терялись среди ежедневных.
+ */
+export const API_GENERAL_SCREENS: ScreenEntry[] = [
   { id: 'api.access', label: 'nav.api.access', hint: 'welcome.hint.access', icon: Key },
   // Щит для аудита — штамп; отпечаток точнее: аудит отвечает «кто это сделал».
   { id: 'api.audit', label: 'nav.api.audit', hint: 'welcome.hint.audit', icon: FingerprintSimple },
-  { id: 'api.certificates', label: 'nav.api.certificates', hint: 'welcome.hint.certificates', icon: Certificate },
-  { id: 'api.compare', label: 'nav.api.compare', title: 'nav.api.compare.title', hint: 'welcome.hint.compare', icon: ArrowsLeftRight },
   { id: 'api.domains', label: 'nav.api.domains', hint: 'welcome.hint.domains', icon: Stack },
-  { id: 'api.endpoints', label: 'nav.api.endpoints', title: 'nav.api.endpoints.title', hint: 'welcome.hint.endpoints', icon: Plugs },
   { id: 'api.inflight', label: 'nav.api.inflight', hint: 'welcome.hint.inflight', icon: Broadcast },
   { id: 'api.logs', label: 'nav.api.logs', hint: 'welcome.hint.logs', icon: ListDashes },
   { id: 'api.modules', label: 'nav.api.modules', hint: 'welcome.hint.modules', icon: Cube },
   { id: 'api.properties', label: 'nav.api.properties', hint: 'welcome.hint.properties', icon: SlidersHorizontal },
   { id: 'api.queues', label: 'nav.api.queues', hint: 'welcome.hint.queues', icon: Queue },
-  { id: 'api.mqConfig', label: 'nav.api.mqConfig', title: 'nav.api.mqConfig.title', hint: 'welcome.hint.mqConfig', icon: FloppyDisk },
   { id: 'api.routes', label: 'nav.api.routes', hint: 'welcome.hint.routes', icon: FlowArrow },
+]
+
+export const API_TASK_SCREENS: ScreenEntry[] = [
+  { id: 'api.certificates', label: 'nav.api.certificates', hint: 'welcome.hint.certificates', icon: Certificate },
+  { id: 'api.compare', label: 'nav.api.compare', title: 'nav.api.compare.title', hint: 'welcome.hint.compare', icon: ArrowsLeftRight },
+  { id: 'api.endpoints', label: 'nav.api.endpoints', title: 'nav.api.endpoints.title', hint: 'welcome.hint.endpoints', icon: Plugs },
+  { id: 'api.mqConfig', label: 'nav.api.mqConfig', title: 'nav.api.mqConfig.title', hint: 'welcome.hint.mqConfig', icon: FloppyDisk },
   { id: 'api.tracing', label: 'nav.api.tracing', title: 'nav.api.tracing.title', hint: 'welcome.hint.tracing', icon: CrosshairSimple },
+]
+
+/** Папки API — в одном месте для панели, «Начала» и палитры команд. */
+export const API_GROUPS: Array<{ title: MessageKey; items: ScreenEntry[] }> = [
+  { title: 'nav.api.general', items: API_GENERAL_SCREENS },
+  { title: 'nav.api.tasks', items: API_TASK_SCREENS },
 ]
 
 /**
@@ -95,8 +111,8 @@ export const AMQP_SCREENS: ScreenEntry[] = [
 ]
 
 /**
- * Разделы API — по алфавиту, и алфавит здесь зависит от языка: по-русски
- * первым идёт «Аудит», по-английски — «Access». Поэтому порядок считается
+ * Пункты внутри папок API — по алфавиту, и алфавит здесь зависит от языка:
+ * по-русски первым идёт «Аудит», по-английски — «Access». Поэтому порядок считается
  * при отрисовке по видимой подписи, а не задаётся порядком в коде.
  */
 export function sortByLabel<T>(items: T[], label: (item: T) => string, language: string): T[] {
@@ -131,11 +147,7 @@ const SECTIONS: Section[] = [
     title: 'nav.files',
     items: FILE_SCREENS,
   },
-  {
-    title: 'nav.api',
-    sorted: true,
-    items: API_SCREENS,
-  },
+  ...API_GROUPS.map((group) => ({ ...group, sorted: true })),
   {
     // Экраны раздела стоят наравне с остальными, а не вкладками внутри:
     // разделов в панели три, и у всех трёх одинаковые правила. Брокер —
