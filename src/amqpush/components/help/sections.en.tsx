@@ -58,7 +58,7 @@ export const SECTIONS_EN: HelpSection[] = [
       <>
         <H><Plug className="w-4 h-4 text-accent" />Broker &amp; stand</H>
         <P>
-          The broker belongs to a <b>stand</b>, right next to the bus address: one stand, one
+          The broker belongs to a <b>stand</b>, right next to the FESB address: one stand, one
           set of settings. Open <b>Connections</b> in the sidebar — the <b>AMQP</b> block sits
           at the bottom of the stand form. Opening any screen of this section connects to that
           broker on its own — the stand is already chosen, and its broker is part of it.
@@ -77,9 +77,9 @@ export const SECTIONS_EN: HelpSection[] = [
         </P>
 
         <H3>The fields that matter</H3>
-        <Row label="Stand Broker">The list of managers and ports read from the bus. Picking one fills in the port, so neither host nor port has to be typed.</Row>
+        <Row label="Stand Broker">The list of managers and ports read from FESB. Picking one fills in the port, so neither host nor port has to be typed.</Row>
         <Row label="Default Queue">Optional. Pre-fills the destination in the Send view. Independent of the <b>Recent</b> queues in the queue picker.</Row>
-        <Row label="Broker User and Password">Empty means the bus credentials. A FESB manager keeps its own users, and the manager account is not one of them — create it with <b>Grant Access</b>.</Row>
+        <Row label="Broker User and Password">Empty means the FESB credentials. A FESB manager keeps its own users, and the manager account is not one of them — create it with <b>Grant Access</b>.</Row>
 
         <H3>Toggles</H3>
         <Row label="TLS / AMQPS">Encrypt the connection. Turning it on reveals <b>Skip certificate check</b> for self-signed and test brokers — keep it off in production.</Row>
@@ -88,7 +88,7 @@ export const SECTIONS_EN: HelpSection[] = [
 
         <H3>More Settings</H3>
         <P>Set once per broker; <b>More Settings</b> at the top right of the block unfolds them, grouped by what they are for. A question mark next to a label opens what that field does.</P>
-        <Row label="Broker user / password">Empty means the bus credentials — same as the host. Fill them in when the broker has its own account.</Row>
+        <Row label="Broker user / password">Empty means the FESB credentials — same as the host. Fill them in when the broker has its own account.</Row>
         <Row label="WebSocket path">The path in the URL when the WebSocket transport is on; empty is the root.</Row>
         <Row label="Container id">How the client introduces itself to the broker; defaults to <Code>amqpush-&lt;uuid&gt;</Code>. Set it when the broker authorises connections by container name, or to make yourself recognisable in broker logs.</Row>
         <Row label="Heartbeat">Seconds between keep-alive frames; <Code>0</Code> is off. Needed when a firewall or NAT drops idle connections — most brokers use 30 s.</Row>
@@ -109,7 +109,7 @@ export const SECTIONS_EN: HelpSection[] = [
         <H3>Picking the broker and granting access</H3>
         <P>
           <b>Stand Broker</b> lists the queue managers of the stand and the ports of their
-          acceptors — read from the bus itself, so the port is not hunted for in configs on the
+          acceptors — read from FESB itself, so the port is not hunted for in configs on the
           machine. Picking one fills in the port.
         </P>
         <P>
@@ -130,7 +130,7 @@ export const SECTIONS_EN: HelpSection[] = [
 
         <Note>
           Stands live with the rest of the app's settings, and the broker password follows the
-          same rule as the bus password: it is only written down when <b>Remember password</b>
+          same rule as the FESB password: it is only written down when <b>Remember password</b>
           is on for that stand. The mTLS key passphrase goes with it.
         </Note>
       </>
@@ -1164,7 +1164,7 @@ ctx.set("amount_cents", String(Math.round(usd * 100)));`}</pre>
           <Li><b>Test request-reply locally</b>: open two AMQPush windows, one Subscribed to <Code>requests</Code>, the other Sending with Reply on. The reply lands in the original Send view.</Li>
           <Li><b>Stress-test with Batch</b>: Repeat = 10000, Delay = 0. Watch Stats → Throughput. Set Pre-script <Code>ctx.set("id", "batch-" + ctx.iter)</Code> to make every message unique.</Li>
           <Li><b>Validate before send</b>: paste a JSON Schema / XSD into the Body schema modal. Send is gated on the body validating — no more "oops, missing field" sends.</Li>
-          <Li><b>One stand per environment</b>: dev / test / prod as separate stands. Switching the stand in the app header switches the bus and its broker together; nothing else changes.</Li>
+          <Li><b>One stand per environment</b>: dev / test / prod as separate stands. Switching the stand in the app header switches FESB and its broker together; nothing else changes.</Li>
         </UL>
       </>
     ),
@@ -1188,7 +1188,7 @@ ctx.set("amount_cents", String(Math.round(usd * 100)));`}</pre>
         <Row label="amqpush.recentQueues.*">The Recent queues of each stand.</Row>
         <Row label="amqpush.subscriber.*">Highlight rules, saved selectors, and kept messages.</Row>
         <Note>
-          Broker settings are not here: they belong to the stand, next to the bus address, and
+          Broker settings are not here: they belong to the stand, next to the FESB address, and
           live with the rest of the app's settings. Backing up <Code>~/.amqpush/</Code> carries
           your templates and send history to a fresh machine.
         </Note>
