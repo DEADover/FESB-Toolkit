@@ -103,7 +103,7 @@ export function StandHealth({ connection, onScreen, watching, onWatching }: {
         </div>
       ) : (
         <div className="flex items-center gap-2 py-6 text-[12px] text-content-subtle">
-          <Spinner /> {t('health.loading')}
+          <Spinner className="size-4" /> {t('health.loading')}
         </div>
       )}
     </section>
