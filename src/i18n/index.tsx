@@ -1,5 +1,6 @@
 import { createContext, Fragment, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 
+import { keep } from '../lib/kept'
 import { en, type MessageKey } from './en'
 import { ru } from './ru'
 
@@ -57,7 +58,7 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   }, [language])
 
   const setLanguage = useCallback((next: Language) => {
-    localStorage.setItem(STORAGE_KEY, next)
+    keep(STORAGE_KEY, next)
     setLanguageState(next)
   }, [])
 

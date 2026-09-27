@@ -4,6 +4,7 @@ import { isPermissionGranted, requestPermission, sendNotification } from '@tauri
 
 import { useI18n, type MessageKey } from '../i18n'
 import { loadHealth } from '../lib/healthLoad'
+import { keep } from '../lib/kept'
 import { newAlerts, WATCH_INTERVAL_MS, type Alert, type Seen } from '../lib/watch'
 import type { HealthId } from '../lib/health'
 import type { Connection } from '../types'
@@ -73,7 +74,7 @@ export function useStandWatch(connection: Connection | null, standName: string, 
 
   const setWatching = (value: boolean) => {
     setWatchingState(value)
-    try { localStorage.setItem(WATCH_KEY, value ? 'on' : 'off') } catch { /* приватный режим */ }
+    keep(WATCH_KEY, value ? 'on' : 'off')
   }
 
   useEffect(() => {

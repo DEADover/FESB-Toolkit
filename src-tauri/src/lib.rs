@@ -25,6 +25,7 @@ mod routes_overview;
 mod scanner;
 mod snapshot_store;
 mod security;
+mod settings_store;
 mod xlsx;
 mod xml;
 
@@ -536,6 +537,23 @@ fn snapshots_dir(app: &AppHandle) -> Result<PathBuf, String> {
     Ok(base.join("snapshots"))
 }
 
+/// Копия настроек интерфейса на диске — на случай, если хранилище WebView пропадёт.
+#[tauri::command]
+fn settings_read(app: AppHandle) -> Result<std::collections::BTreeMap<String, String>, String> {
+    Ok(settings_store::read(&settings_dir(&app)?))
+}
+
+#[tauri::command]
+fn settings_write(app: AppHandle, key: String, value: Option<String>) -> Result<(), String> {
+    settings_store::write(&settings_dir(&app)?, &key, value.as_deref())
+}
+
+fn settings_dir(app: &AppHandle) -> Result<PathBuf, String> {
+    app.path()
+        .app_data_dir()
+        .map_err(|err| format!("Cannot find the data folder: {err}"))
+}
+
 /// Снимки всех стендов, свежие сверху. Интерфейс сам оставляет снимки своего.
 #[tauri::command]
 async fn snapshot_list(app: AppHandle) -> Result<Vec<snapshot_store::SnapshotEntry>, String> {
@@ -691,6 +709,8 @@ pub fn run() {
             api_properties,
             api_properties_sweep,
             api_compare_stands,
+            settings_read,
+            settings_write,
             snapshot_list,
             snapshot_take,
             snapshot_delete,

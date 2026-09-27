@@ -1,5 +1,7 @@
 import { getCurrentWindow } from '@tauri-apps/api/window'
 
+import { keep } from './kept'
+
 export type ThemeMode = 'system' | 'light' | 'dark'
 
 /** Фон нативного окна: иначе при холодном старте на миг видно чужой цвет. */
@@ -16,7 +18,7 @@ export function readThemeMode(): ThemeMode {
 }
 
 export function storeThemeMode(mode: ThemeMode): void {
-  localStorage.setItem(STORAGE_KEY, mode)
+  keep(STORAGE_KEY, mode)
 }
 
 export function systemPrefersDark(): boolean {

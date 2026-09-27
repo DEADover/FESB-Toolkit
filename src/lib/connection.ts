@@ -1,4 +1,5 @@
 import type { Connection } from '../types'
+import { keep } from './kept'
 
 /**
  * Профили подключений: как они хранятся между запусками и что с ними можно делать.
@@ -234,7 +235,7 @@ export function writeStore(store: ConnectionStore): void {
       broker: forget(profile.rememberPassword, profile.broker),
     })),
   }
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(payload))
+  keep(STORAGE_KEY, JSON.stringify(payload))
 }
 
 export function upsertProfile(store: ConnectionStore, profile: ConnectionProfile): ConnectionStore {
