@@ -1,17 +1,21 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react'
 
-import { ArrowsLeftRight, CaretDown, FolderOpen, Key, Plugs, Queue, Trash, Warning } from '@phosphor-icons/react'
+import { ArrowsLeftRight, CaretDown, FolderOpen, Key, Plugs, Queue, Trash, TrayArrowDown, TrayArrowUp, Warning } from '@phosphor-icons/react'
 
 import { useI18n, type MessageKey } from '../i18n'
-import { apiBrokerAccess, apiBrokerEndpoints, apiConnect, apiServerUsage, errorText, selectFile } from '../lib/api'
+import {
+  apiBrokerAccess, apiBrokerEndpoints, apiConnect, apiServerUsage, errorText, readStandsFile, saveJsonAs, selectFile, writeStandsFile,
+} from '../lib/api'
 import { formatBytes, formatShare, formatUptime } from '../lib/format'
 import {
   blankProfile, byEnvironment, isReady, markUsed, removeProfile, toConnection, upsertProfile,
   writeStore, type ConnectionProfile, type ConnectionStore, type Environment,
 } from '../lib/connection'
 import type { BrokerEndpoint, Connection, DiskUsage, ServerInfo, ServerUsage } from '../types'
+import { applyImport, exportStands, parseStands, planImport, standsFileName, StandsFileProblem, type ImportItem } from '../lib/standsFile'
 import { ScreenBody, ScreenBodyRow, useApiData } from './ApiShell'
-import { Badge, Button, ButtonGlyph, Checkbox, cx, FOCUS_RING, Modal, Notice, Segmented, Select, Spinner, TextInput, TextReadout, Tip, Toggle } from './ui'
+import { useToast } from './Toaster'
+import { Badge, Button, ButtonGlyph, Checkbox, cx, FOCUS_RING, IconButton, Modal, Notice, Segmented, Select, Spinner, TextInput, TextReadout, Tip, Toggle } from './ui'
 import { busHost, hasBroker, probeBroker } from '../lib/broker'
 import type { BrokerSettings } from '../lib/connection'
 
@@ -58,6 +62,8 @@ export function ConnectionScreen({ store, onStore, server, connection, activePro
   const [testResult, setTestResult] = useState<{ ok: boolean; text: string } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<ConnectionProfile | null>(null)
+  const [importing, setImporting] = useState<{ file: string; items: ImportItem[] } | null>(null)
+  const toast = useToast()
 
   const stored = useMemo(
     () => store.profiles.find((profile) => profile.id === selectedId) ?? null,
@@ -168,6 +174,38 @@ export function ConnectionScreen({ store, onStore, server, connection, activePro
     setConfirmDelete(null)
   }, [confirmDelete, persist, store, selectedId])
 
+  const exportAll = useCallback(async () => {
+    try {
+      const path = await saveJsonAs(t('stands.export.title'), standsFileName(new Date()))
+      if (!path) return
+      await writeStandsFile(path, exportStands(store.profiles, new Date().toISOString()))
+      toast({ tone: 'ok', title: t('stands.exported', { count: store.profiles.length }), text: t('stands.exported.text') })
+    } catch (err) {
+      toast({ tone: 'danger', title: t('stands.exportFailed'), text: errorText(err) })
+    }
+  }, [store.profiles, t, toast])
+
+  const pickImport = useCallback(async () => {
+    try {
+      const path = await selectFile(t('stands.import.title'), [{ name: 'JSON', extensions: ['json'] }])
+      if (!path) return
+      const items = planImport(store, parseStands(await readStandsFile(path)))
+      setImporting({ file: path.split(/[\\/]/).pop() ?? path, items })
+    } catch (err) {
+      const text = err instanceof StandsFileProblem ? t(`stands.error.${err.reason}`) : errorText(err)
+      toast({ tone: 'warn', title: t('stands.importFailed'), text })
+    }
+  }, [store, t, toast])
+
+  const runImport = useCallback(() => {
+    if (!importing) return
+    const added = importing.items.filter((item) => item.status === 'new')
+    persist(applyImport(store, importing.items))
+    if (added.length > 0) setSelectedId(added[0].profile.id)
+    toast({ tone: 'ok', title: t('stands.imported', { count: added.length }) })
+    setImporting(null)
+  }, [importing, persist, store, t, toast])
+
   // Enter в поле формы — та же кнопка «Подключиться», с теми же запретами:
   // без них он обходил и незаполненный логин, и уже идущее подключение.
   const submit = useCallback((event: FormEvent) => {
@@ -187,7 +225,16 @@ export function ConnectionScreen({ store, onStore, server, connection, activePro
             <span className="text-[11px] tracking-wide text-content-subtle">
               {t('profiles.title', { count: store.profiles.length })}
             </span>
-            <Button size="sm" variant="ghost" className="ml-auto" onClick={addProfile}>
+            <span className="ml-auto flex items-center gap-1">
+              <IconButton icon={TrayArrowDown} label={t('stands.import')} onClick={() => void pickImport()} />
+              <IconButton
+                icon={TrayArrowUp}
+                label={t('stands.export')}
+                disabled={store.profiles.length === 0}
+                onClick={() => void exportAll()}
+              />
+            </span>
+            <Button size="sm" variant="ghost" onClick={addProfile}>
               {t('profiles.add')}
             </Button>
           </div>
@@ -431,6 +478,8 @@ export function ConnectionScreen({ store, onStore, server, connection, activePro
         </div>
       </ScreenBodyRow>
 
+      <StandsImportDialog items={importing} onClose={() => setImporting(null)} onRun={runImport} />
+
       <Modal
         open={confirmDelete !== null}
         onClose={() => setConfirmDelete(null)}
@@ -453,6 +502,64 @@ export function ConnectionScreen({ store, onStore, server, connection, activePro
         )}
       </Modal>
     </ScreenBody>
+  )
+}
+
+/**
+ * Что добавится из файла со стендами. Уже известные стенды показаны тоже —
+ * чтобы было видно, что файл прочитан целиком, а не потерял половину.
+ */
+function StandsImportDialog({ items, onClose, onRun }: {
+  items: { file: string; items: ImportItem[] } | null
+  onClose: () => void
+  onRun: () => void
+}) {
+  const { t } = useI18n()
+  const fresh = items?.items.filter((item) => item.status === 'new').length ?? 0
+  return (
+    <Modal
+      open={items !== null}
+      onClose={onClose}
+      closeLabel={t('action.close')}
+      title={t('stands.importDialog')}
+      width="wide"
+      footer={(
+        <>
+          <Button variant="ghost" onClick={onClose}>{t('action.cancel')}</Button>
+          <Button variant="primary" className="min-w-36" disabled={fresh === 0} onClick={onRun}>
+            <TrayArrowDown size={14} weight="bold" /> {t('stands.importRun', { count: fresh })}
+          </Button>
+        </>
+      )}
+    >
+      {items && (
+        <div className="space-y-3 text-[13px] leading-relaxed">
+          <p className="text-content-muted">{t('stands.importIntro', { file: items.file })}</p>
+          {fresh === 0 && <Notice tone="ok">{t('stands.nothingNew')}</Notice>}
+          <div className="max-h-80 overflow-auto rounded-lg border border-line">
+            {items.items.map(({ profile, status, existingName }) => (
+              <div
+                key={profile.id}
+                className={cx('flex items-center gap-3 border-t border-line/60 px-3 py-2 first:border-t-0', status === 'exists' && 'opacity-60')}
+                title={status === 'exists' ? t('stands.existsHint') : undefined}
+              >
+                <Badge tone={ENVIRONMENT_TONE[profile.environment]}>{t(ENVIRONMENT_LABEL[profile.environment])}</Badge>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[12.5px] font-medium">{profile.name}</span>
+                  <span className="block truncate text-[11px] text-content-subtle">
+                    {profile.url}{profile.port ? `:${profile.port}` : ''} · {profile.username || '—'}
+                    {existingName && ` · ${t('stands.existsAs', { name: existingName })}`}
+                  </span>
+                </span>
+                <Badge tone={status === 'new' ? 'accent' : 'neutral'}>
+                  {t(status === 'new' ? 'stands.status.new' : 'stands.status.exists')}
+                </Badge>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </Modal>
   )
 }
 

@@ -548,6 +548,24 @@ fn settings_write(app: AppHandle, key: String, value: Option<String>) -> Result<
     settings_store::write(&settings_dir(&app)?, &key, value.as_deref())
 }
 
+/// Список стендов в файл — путь выбран человеком в окне сохранения.
+#[tauri::command]
+async fn stands_file_write(path: String, text: String) -> Result<(), String> {
+    std::fs::write(&path, text).map_err(|err| format!("Cannot write {path}: {err}"))
+}
+
+/// Список стендов из файла. Больше мегабайта такой файл не бывает —
+/// значит, выбран не тот, и читать его в память незачем.
+#[tauri::command]
+async fn stands_file_read(path: String) -> Result<String, String> {
+    const LIMIT: u64 = 1024 * 1024;
+    let size = std::fs::metadata(&path).map_err(|err| format!("Cannot read {path}: {err}"))?.len();
+    if size > LIMIT {
+        return Err(format!("{path} is too large for a list of stands"));
+    }
+    std::fs::read_to_string(&path).map_err(|err| format!("Cannot read {path}: {err}"))
+}
+
 fn settings_dir(app: &AppHandle) -> Result<PathBuf, String> {
     app.path()
         .app_data_dir()
@@ -711,6 +729,8 @@ pub fn run() {
             api_compare_stands,
             settings_read,
             settings_write,
+            stands_file_read,
+            stands_file_write,
             snapshot_list,
             snapshot_take,
             snapshot_delete,

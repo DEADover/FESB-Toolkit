@@ -153,7 +153,7 @@ function newId(): string {
   return `profile-${Date.now()}-${Math.floor(Math.random() * 1e6)}`
 }
 
-function sanitize(raw: Partial<ConnectionProfile>): ConnectionProfile | null {
+export function sanitize(raw: Partial<ConnectionProfile>): ConnectionProfile | null {
   if (typeof raw.url !== 'string' || raw.url.trim() === '') return null
   const remember = raw.rememberPassword === true
   const environment = ENVIRONMENTS.includes(raw.environment as Environment)

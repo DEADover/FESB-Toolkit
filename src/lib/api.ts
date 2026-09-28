@@ -104,6 +104,18 @@ export function saveZipAs(title: string, defaultName: string): Promise<string | 
   return save({ title, defaultPath: defaultName, filters: [{ name: 'ZIP', extensions: ['zip'] }] })
 }
 
+export function saveJsonAs(title: string, defaultName: string): Promise<string | null> {
+  return save({ title, defaultPath: defaultName, filters: [{ name: 'JSON', extensions: ['json'] }] })
+}
+
+export function writeStandsFile(path: string, text: string): Promise<void> {
+  return invoke('stands_file_write', { path, text })
+}
+
+export function readStandsFile(path: string): Promise<string> {
+  return invoke<string>('stands_file_read', { path })
+}
+
 export function saveXlsxAs(title: string, defaultName: string): Promise<string | null> {
   return save({ title, defaultPath: defaultName, filters: [{ name: 'Excel', extensions: ['xlsx'] }] })
 }
