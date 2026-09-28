@@ -5,7 +5,7 @@ import { ArrowBendUpLeft, ArrowRight, Copy, Trash } from '@phosphor-icons/react'
 import { useI18n, type MessageKey } from '../i18n'
 import { apiQueueMessagesAction, errorText } from '../lib/api'
 import type { Environment } from '../lib/connection'
-import { groupByOrigin } from '../lib/deadLetters'
+import { groupByOrigin, isErrorQueue } from '../lib/deadLetters'
 import type { Connection, MessageAction, MessageActionResult, QueueManager, QueueMessage } from '../types'
 import { Badge, Button, ButtonGlyph, cx, Modal, Notice, Select } from './ui'
 
@@ -82,7 +82,7 @@ export function MessageActionDialog({ kind, connection, manager, queue, messages
     setResult(null)
     setError(null)
     const { origins, targets } = latest.current
-    const usual = origins.find((group) => group.queue && targets.some((item) => item.name === group.queue))?.queue
+    const usual = origins.find((group) => group.queue && !isErrorQueue(group.queue) && targets.some((item) => item.name === group.queue))?.queue
     setTarget(usual ?? targets[0]?.name ?? '')
   }, [kind])
 

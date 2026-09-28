@@ -1,4 +1,4 @@
-import { ArrowCircleUp, FolderOpen, FolderSimple, ArrowsLeftRight, Broadcast, CaretDown, CaretLeft, PaperPlaneTilt, CaretRight, Certificate, CircleHalf, Crosshair, CrosshairSimple, Cube, FingerprintSimple, FloppyDisk, FlowArrow, Key, GithubLogo, House, ListDashes, Moon, Plugs, PlugsConnected, Queue, SlidersHorizontal, Stack, Sun, Tray, ChartBar, ClockCounterClockwise, UsersThree, Binoculars, Terminal, type Icon } from '@phosphor-icons/react'
+import { ArrowCircleUp, FolderOpen, FolderSimple, ArrowsLeftRight, Broadcast, CaretDown, CaretLeft, PaperPlaneTilt, CaretRight, Certificate, CircleHalf, Crosshair, CrosshairSimple, Cube, FingerprintSimple, FloppyDisk, FlowArrow, Footprints, Key, GithubLogo, House, ListDashes, Moon, Plugs, PlugsConnected, Queue, SlidersHorizontal, Stack, Sun, Tray, ChartBar, ClockCounterClockwise, UsersThree, Binoculars, Terminal, type Icon } from '@phosphor-icons/react'
 
 import { useEffect, useState } from 'react'
 
@@ -16,6 +16,7 @@ export type ScreenId =
   | 'api.domains'
   | 'api.routes'
   | 'api.tracing'
+  | 'api.keySearch'
   | 'api.inflight'
   | 'api.endpoints'
   | 'api.certificates'
@@ -82,6 +83,7 @@ export const API_GENERAL_SCREENS: ScreenEntry[] = [
 export const API_TASK_SCREENS: ScreenEntry[] = [
   { id: 'api.certificates', label: 'nav.api.certificates', hint: 'welcome.hint.certificates', icon: Certificate },
   { id: 'api.compare', label: 'nav.api.compare', title: 'nav.api.compare.title', hint: 'welcome.hint.compare', icon: ArrowsLeftRight },
+  { id: 'api.keySearch', label: 'nav.api.keySearch', title: 'nav.api.keySearch.title', hint: 'welcome.hint.keySearch', icon: Footprints },
   { id: 'api.endpoints', label: 'nav.api.endpoints', title: 'nav.api.endpoints.title', hint: 'welcome.hint.endpoints', icon: Plugs },
   { id: 'api.mqConfig', label: 'nav.api.mqConfig', title: 'nav.api.mqConfig.title', hint: 'welcome.hint.mqConfig', icon: FloppyDisk },
   { id: 'api.tracing', label: 'nav.api.tracing', title: 'nav.api.tracing.title', hint: 'welcome.hint.tracing', icon: CrosshairSimple },

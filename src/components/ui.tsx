@@ -1009,3 +1009,22 @@ export function SortHead<K extends string>({ label, sortKey, active, dir, onSort
     </th>
   )
 }
+
+/** Подсвечивает найденное в вырезке: иначе её приходится перечитывать глазами. */
+export function Highlight({ text, needle }: { text: string; needle: string }) {
+  const parts: ReactNode[] = []
+  const lower = text.toLowerCase()
+  const target = needle.toLowerCase()
+  let at = 0
+  for (let found = lower.indexOf(target); found >= 0; found = lower.indexOf(target, at)) {
+    if (found > at) parts.push(text.slice(at, found))
+    parts.push(
+      <mark key={found} className="rounded bg-accent/25 text-accent-content">
+        {text.slice(found, found + target.length)}
+      </mark>,
+    )
+    at = found + target.length
+  }
+  parts.push(text.slice(at))
+  return <>{parts}</>
+}

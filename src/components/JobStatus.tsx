@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useI18n, type MessageKey } from '../i18n'
 import { onApiProgress, onApplyProgress, onArchiveProgress, onExtractProgress, onScanProgress } from '../lib/api'
 import { formatEta } from '../lib/format'
+import type { ApiProgress } from '../types'
 import { cx, Spinner } from './ui'
 
 /**
@@ -168,9 +169,13 @@ export function JobStatus() {
 }
 
 /** Ход работы с сервером приходит одним событием на все её этапы. */
-const API_LABEL: Record<'domains' | 'pack' | 'upload' | 'verify', MessageKey> = {
+const API_LABEL: Record<ApiProgress['phase'], MessageKey> = {
   domains: 'job.api.domains',
   pack: 'job.api.pack',
   upload: 'job.api.upload',
   verify: 'job.api.verify',
+  messages: 'job.api.messages',
+  logs: 'job.api.keySearch',
+  inflight: 'job.api.keySearch',
+  queues: 'job.api.keySearch',
 }

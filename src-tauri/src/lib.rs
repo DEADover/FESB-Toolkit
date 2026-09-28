@@ -15,6 +15,7 @@ mod domain_copy;
 mod domain_xml;
 mod fesb_api;
 mod fesb_ops;
+mod key_trace;
 mod properties;
 mod mq_config;
 mod report_store;
@@ -513,6 +514,15 @@ async fn api_queue_messages_action(
     fesb_ops::queue_messages_action(&connection, kind, &id, &queue, ids, action).await
 }
 
+/// Поиск обмена по бизнес-ключу: журналы, незавершённые обмены и очереди.
+#[tauri::command]
+async fn api_find_key(app: AppHandle, connection: Connection, key: String) -> Result<key_trace::KeyTrace, String> {
+    key_trace::find_key(&connection, &key, |progress| {
+        let _ = app.emit(API_PROGRESS_EVENT, progress);
+    })
+    .await
+}
+
 /// Поиск текста в телах сообщений очереди.
 ///
 /// Тела в списке нет, поэтому каждое сообщение приходится забрать отдельно;
@@ -744,6 +754,7 @@ pub fn run() {
             api_queue_messages,
             api_queue_message,
             api_queue_messages_action,
+            api_find_key,
             api_queue_search,
             api_properties,
             api_properties_sweep,
@@ -827,6 +838,7 @@ pub mod testing {
     pub use crate::mq_config::{audit as mq_config_audit, store as mq_store, ConfigKind, StoreRequest};
     pub use crate::xlsx::write_sheet as write_xlsx;
     pub use crate::compare::{diff as compare_profiles, read_profile, Side};
+    pub use crate::key_trace::{find_key, KeyTrace};
     pub use crate::snapshot_store::{list as snapshot_list, read as read_snapshot, save as save_snapshot};
     pub use crate::report_store::{list as report_history, read as read_report, remove as remove_report, save as save_report_history};
     pub use crate::domain_xml::{parse_domain_xml, BeanTarget, TraceUpdate};

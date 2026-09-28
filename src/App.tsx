@@ -14,6 +14,7 @@ import { AccessScreen } from './components/AccessScreen'
 import { CertificatesScreen } from './components/CertificatesScreen'
 import { CompareScreen } from './components/CompareScreen'
 import { EndpointsScreen } from './components/EndpointsScreen'
+import { KeySearchScreen } from './components/KeySearchScreen'
 import { InflightScreen } from './components/InflightScreen'
 import { TracingScreen } from './components/TracingScreen'
 import { LogsScreen } from './components/LogsScreen'
@@ -367,6 +368,7 @@ export default function App() {
     'api.inflight': 'nav.api.inflight.title',
     'api.compare': 'nav.api.compare.title',
     'api.tracing': 'nav.api.tracing.title',
+    'api.keySearch': 'nav.api.keySearch.title',
     welcome: 'nav.welcome',
     'api.queues': 'nav.api.queues.title',
     'api.mqConfig': 'nav.api.mqConfig.title',
@@ -539,6 +541,14 @@ export default function App() {
           <TracingScreen
             {...apiScreenProps}
             onOpenRoutes={(guid) => { setRoutesDomain(guid); setScreen('api.routes') }}
+          />
+        ) : screen === 'api.keySearch' ? (
+          <KeySearchScreen
+            {...apiScreenProps}
+            onOpenRoute={(guid, route) => openFocus({ screen: 'api.routes', guid, route })}
+            onOpenQueue={(manager, queue) => openFocus({ screen: 'api.queues', manager, query: queue })}
+            onOpenLog={(key) => openFocus({ screen: 'api.logs', search: key, thread: null, exchangeId: key, label: key })}
+            onOpenInflight={() => setScreen('api.inflight')}
           />
         ) : screen === 'api.inflight' ? (
           <InflightScreen

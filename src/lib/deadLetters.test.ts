@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { cameFromElsewhere, groupByOrigin, isErrorQueue, retryBlock } from './deadLetters'
+import { cameFromElsewhere, groupByOrigin, inErrorQueue, isErrorQueue, retryBlock } from './deadLetters'
 import type { QueueMessage } from '../types'
 
 const message = (id: string, originalQueue: string | null): QueueMessage => ({
@@ -45,5 +45,13 @@ describe('очереди ошибок', () => {
     expect(retryBlock('QME', known)).toBeNull()
     expect(retryBlock('RQMS', known)).toBe('remote')
     expect(retryBlock('QMS', [...known, message('3', null)])).toBe('noOrigin')
+    expect(retryBlock('QMS', [message('4', 'DLQ.Invoices.In')])).toBe('backToErrors')
+  })
+
+  it('возвращённое из очереди ошибок сообщение лежит уже в рабочей очереди', () => {
+    expect(inErrorQueue('DLQ.Invoices.In', 'Invoices.In')).toBe(true)
+    expect(inErrorQueue('Orders.Audit', 'Orders.In')).toBe(true)
+    expect(inErrorQueue('Invoices.In', 'DLQ.Invoices.In')).toBe(false)
+    expect(inErrorQueue('Invoices.In', null)).toBe(false)
   })
 })

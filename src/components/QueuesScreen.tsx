@@ -1,18 +1,18 @@
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { ArrowBendUpLeft, ArrowLeft, ArrowRight, ArrowsClockwise, Check, Copy, MagnifyingGlass, Trash } from '@phosphor-icons/react'
 
-import { useI18n } from '../i18n'
+import { useI18n, type MessageKey } from '../i18n'
 import { apiQueueManagers, apiQueueMessage, apiQueueMessages, apiQueues, apiQueueSearch, errorText, onApiProgress } from '../lib/api'
 import type { Environment } from '../lib/connection'
-import { cameFromElsewhere, isErrorQueue, retryBlock } from '../lib/deadLetters'
+import { cameFromElsewhere, isErrorQueue, retryBlock, type RetryBlock } from '../lib/deadLetters'
 import type { ApiProgress, Connection, ManagerKind, QueueManager, QueueMessage, QueueRow, ServerInfo } from '../types'
 import {
   AutoRefreshToggle, Awaiting, ErrorBar, NotConnected, Panel, RefreshButton, ScreenBody, ScreenBodyRow, TableMessage, useApiData, useAutoRefresh, useDebounced,
 } from './ApiShell'
 import { MessageActionDialog, type ActionKind } from './MessageActionDialog'
 import {
-  Badge, Button, ButtonGlyph, Checkbox, cx, DataTable, IconButton, Notice, rowClick, SearchInput, Spinner, Th, THead, Toggle,
+  Badge, Button, ButtonGlyph, Checkbox, cx, DataTable, Highlight, IconButton, Notice, rowClick, SearchInput, Spinner, Th, THead, Toggle,
 } from './ui'
 
 interface Props {
@@ -91,6 +91,17 @@ export function QueuesScreen({ connection, server, onGoToConnection, initialMana
 
   // Смена менеджера закрывает открытую очередь: сообщения были из другой.
   useEffect(() => { setInbox(null) }, [selected])
+
+  // Пришли к конкретной очереди — из поиска обмена или палитры: её
+  // сообщения открываются сразу, а не строкой в отобранном списке.
+  const autoOpened = useRef(false)
+  useEffect(() => {
+    if (autoOpened.current || !initialQuery || !queues) return
+    const exact = queues.find((queue) => queue.name === initialQuery)
+    if (!exact) return
+    autoOpened.current = true
+    setInbox(exact)
+  }, [queues, initialQuery])
 
   const errorQueues = useMemo(
     () => (queues ?? []).filter((queue) => !(hideInternal && queue.internal) && isErrorQueue(queue.name)).length,
@@ -280,6 +291,12 @@ export function QueuesScreen({ connection, server, onGoToConnection, initialMana
       </ScreenBodyRow>
     </ScreenBody>
   )
+}
+
+const RETRY_BLOCK: Record<RetryBlock, MessageKey> = {
+  remote: 'queues.retryBlock.remote',
+  noOrigin: 'queues.retryBlock.noOrigin',
+  backToErrors: 'queues.retryBlock.backToErrors',
 }
 
 /**
@@ -600,7 +617,7 @@ function Messages({ connection, manager, queue, queues, environment, onBack, onC
           <span className="text-[12px] font-medium tabular-nums">{t('queues.selected', { count: chosen.length })}</span>
           <Button size="sm" variant="ghost" onClick={() => setPicked(new Set())}>{t('queues.clearSelection')}</Button>
           <div className="ml-auto flex flex-wrap items-center gap-2">
-            <span title={blocked ? t(blocked === 'remote' ? 'queues.retryBlock.remote' : 'queues.retryBlock.noOrigin') : undefined}>
+            <span title={blocked ? t(RETRY_BLOCK[blocked]) : undefined}>
               <Button size="sm" variant="primary" disabled={blocked !== null} onClick={() => openAction('retry')}>
                 <ArrowBendUpLeft size={13} weight="bold" /> {t('queues.action.retry')}
               </Button>
@@ -695,23 +712,4 @@ function matchesHeader(message: QueueMessage, needle: string): boolean {
     (property) =>
       property.name.toLowerCase().includes(needle) || property.value.toLowerCase().includes(needle),
   )
-}
-
-/** Подсвечивает найденное в вырезке: иначе её приходится перечитывать глазами. */
-function Highlight({ text, needle }: { text: string; needle: string }) {
-  const parts: ReactNode[] = []
-  const lower = text.toLowerCase()
-  const target = needle.toLowerCase()
-  let at = 0
-  for (let found = lower.indexOf(target); found >= 0; found = lower.indexOf(target, at)) {
-    if (found > at) parts.push(text.slice(at, found))
-    parts.push(
-      <mark key={found} className="rounded bg-accent/25 text-accent-content">
-        {text.slice(found, found + target.length)}
-      </mark>,
-    )
-    at = found + target.length
-  }
-  parts.push(text.slice(at))
-  return <>{parts}</>
 }

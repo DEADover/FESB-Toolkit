@@ -11,6 +11,7 @@
 use std::path::PathBuf;
 
 use fesb_toolkit_lib::testing::{
+    find_key,
     access, apply_trace_change, audit, certificates, connect, delete_property, domain_statistics,
     domains, fetch_domain_routes, inflight_exchanges, listening_ports, log_entries, log_files,
     modules, properties, pull, push, queue_managers, queue_message, queue_messages, queue_search,
@@ -870,4 +871,33 @@ fn a_snapshot_shows_what_changed_since() {
     assert_eq!(added[0].side, Side::OnlyRight);
     assert!(comparison.domains.is_empty() && comparison.routes.is_empty(), "остальное не менялось");
     let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// Поиск по бизнес-ключу на живом стенде. Ключ задаётся переменной
+/// `FESB_KEY`: тест только читает и печатает, что и где нашлось.
+#[test]
+#[ignore]
+fn a_business_key_is_traced_across_the_stand() {
+    let Some(connection) = connection() else {
+        eprintln!("FESB_URL не задан — пропускаем");
+        return;
+    };
+    let key = std::env::var("FESB_KEY").unwrap_or_else(|_| "INV-4815162342".into());
+    let started = std::time::Instant::now();
+    let trace = block(find_key(&connection, &key, |_| {})).expect("поиск должен пройти");
+    println!(
+        "{key}: журнал {} строк{}, обменов {}, незавершённых {}, в очередях {} (очередей {}, сообщений {}, тел не прочитано {}) — за {:?}",
+        trace.logs.len(), if trace.logs_limited { " (предел)" } else { "" }, trace.exchange_ids.len(), trace.inflight.len(),
+        trace.queues.len(), trace.queues_checked, trace.messages_checked, trace.bodies_skipped, started.elapsed(),
+    );
+    for hit in trace.logs.iter().take(5) {
+        println!("  журнал: {:?} {:?} {:?} {}", hit.timestamp, hit.level, hit.route.as_ref().map(|r| format!("{}/{}", r.domain, r.route)), hit.message.lines().next().unwrap_or(""));
+    }
+    for hit in &trace.queues {
+        println!("  очередь: {} / {} — {} ({})", hit.broker, hit.queue, hit.message_id, hit.excerpt);
+    }
+    for problem in &trace.problems {
+        println!("  не прочитано: {problem}");
+    }
+    assert_eq!(trace.key, key);
 }

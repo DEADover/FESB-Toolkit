@@ -323,8 +323,8 @@ export interface CopyResult {
 }
 
 export interface ApiProgress {
-  /** `domains` при выгрузке, `pack` и `upload` при отправке, `verify` при сверке. */
-  phase: 'domains' | 'pack' | 'upload' | 'verify'
+  /** `domains` при выгрузке, `pack` и `upload` при отправке, `verify` при сверке, `messages` при поиске в очереди, остальные — при поиске по ключу. */
+  phase: 'domains' | 'pack' | 'upload' | 'verify' | 'messages' | 'logs' | 'inflight' | 'queues'
   current: number
   total: number
 }
@@ -938,4 +938,52 @@ export interface BrokerAccessReport {
   /** Права роли выданы сейчас; `false` — они уже были. */
   rightsGranted: boolean
   role: string
+}
+
+// ───────────────────────── поиск по бизнес-ключу ─────────────────────────
+
+/** СОПС, записавший строку журнала. */
+export interface RouteRef {
+  domain: string
+  route: string
+  /** Для перехода к СОПС нужен guid, а журнал пишет имя домена. */
+  domainGuid: string | null
+}
+
+export interface KeyLogHit {
+  timestamp: string | null
+  level: string | null
+  file: string | null
+  thread: string | null
+  route: RouteRef | null
+  message: string
+  /** Найдена не по ключу, а по идентификатору найденного обмена. */
+  byExchange: boolean
+}
+
+export interface KeyQueueHit {
+  kind: ManagerKind
+  manager: string
+  broker: string
+  queue: string
+  messageId: string
+  timestamp: string | null
+  originalQueue: string | null
+  excerpt: string
+  inBody: boolean
+}
+
+/** Всё, что нашлось по ключу на стенде. */
+export interface KeyTrace {
+  key: string
+  logs: KeyLogHit[]
+  logsLimited: boolean
+  exchangeIds: string[]
+  inflight: InflightExchange[]
+  queues: KeyQueueHit[]
+  queuesChecked: number
+  messagesChecked: number
+  bodiesSkipped: number
+  queuesTruncated: string[]
+  problems: string[]
 }
