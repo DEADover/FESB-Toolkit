@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-import { ArrowCircleUp } from '@phosphor-icons/react'
+import { ArrowCircleUp, DownloadSimple } from '@phosphor-icons/react'
 import { relaunch } from '@tauri-apps/plugin-process'
 import { check, type Update } from '@tauri-apps/plugin-updater'
 
 import { useI18n } from '../i18n'
-import { errorText } from '../lib/api'
+import { downloadPortable, errorText } from '../lib/api'
 import { useToast } from './Toaster'
 import { Button, ButtonGlyph, cx, Modal, Notice } from './ui'
 
@@ -73,9 +73,21 @@ export function useUpdates() {
   return { state, check: () => void run(true), dialog, openDialog: () => setDialog(true), closeDialog: () => setDialog(false) }
 }
 
-/** Окно новой версии: что нового и кнопка «Обновить и перезапустить». */
-export function UpdateDialog({ update, open, onClose }: { update: Update; open: boolean; onClose: () => void }) {
+/**
+ * Окно новой версии: что нового и кнопка «Обновить и перезапустить».
+ *
+ * Портативную версию установщик не обновит, а поставит рядом отдельную
+ * установленную копию, и старый exe так и останется старым. Поэтому ей
+ * вместо установки предлагается скачать новый файл.
+ */
+export function UpdateDialog({ update, portable, open, onClose }: {
+  update: Update
+  portable: boolean
+  open: boolean
+  onClose: () => void
+}) {
   const { t } = useI18n()
+  const toast = useToast()
   const [progress, setProgress] = useState<{ done: number; total: number | null } | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -97,6 +109,17 @@ export function UpdateDialog({ update, open, onClose }: { update: Update; open: 
     }
   }, [update])
 
+  const download = useCallback(async () => {
+    setError(null)
+    try {
+      await downloadPortable(update.version)
+      toast({ tone: 'ok', title: t('update.downloadStarted'), text: t('update.downloadStarted.text') })
+      onClose()
+    } catch (err) {
+      setError(errorText(err))
+    }
+  }, [onClose, t, toast, update.version])
+
   const busy = progress !== null
   const share = progress?.total ? Math.min(100, Math.round((progress.done / progress.total) * 100)) : null
 
@@ -110,15 +133,23 @@ export function UpdateDialog({ update, open, onClose }: { update: Update; open: 
       footer={(
         <>
           <Button variant="ghost" disabled={busy} onClick={onClose}>{t('update.later')}</Button>
-          <Button variant="primary" className="min-w-52" disabled={busy} onClick={() => void install()}>
-            <ButtonGlyph busy={busy}><ArrowCircleUp size={15} weight="bold" /></ButtonGlyph>
-            {busy ? (share !== null ? t('update.downloading', { share }) : t('update.installing')) : t('update.install')}
-          </Button>
+          {portable ? (
+            <Button variant="primary" className="min-w-52" onClick={() => void download()}>
+              <DownloadSimple size={15} weight="bold" /> {t('update.download')}
+            </Button>
+          ) : (
+            <Button variant="primary" className="min-w-52" disabled={busy} onClick={() => void install()}>
+              <ButtonGlyph busy={busy}><ArrowCircleUp size={15} weight="bold" /></ButtonGlyph>
+              {busy ? (share !== null ? t('update.downloading', { share }) : t('update.installing')) : t('update.install')}
+            </Button>
+          )}
         </>
       )}
     >
       <div className="space-y-3 text-[13px] leading-relaxed">
-        <p className="text-content-muted">{t('update.intro', { current: update.currentVersion, version: update.version })}</p>
+        <p className="text-content-muted">
+          {t(portable ? 'update.intro.portable' : 'update.intro', { current: update.currentVersion, version: update.version })}
+        </p>
         {update.body && (
           <div className="max-h-72 overflow-auto rounded-lg border border-line bg-surface-2/60 p-3 text-[12px] text-content-muted">
             <ReleaseNotes text={update.body} />

@@ -741,6 +741,10 @@ export const en = {
   'update.install': 'Update and Restart',
   'update.downloading': 'Downloading… {share}%',
   'update.installing': 'Installing…',
+  'update.intro.portable': 'You have {current}. This is the portable version: it is not installed, so it can only be updated with a new file. Download it and run it instead of the old one — connections and settings stay.',
+  'update.download': 'Download New Version',
+  'update.downloadStarted': 'The download has started in the browser',
+  'update.downloadStarted.text': 'Once the file is downloaded, close the app and run the new exe.',
   'palette.move': 'Move',
   'palette.pick': 'Open',
 

@@ -741,6 +741,10 @@ export const ru: Record<keyof typeof en, string> = {
   'update.install': 'Обновить и Перезапустить',
   'update.downloading': 'Скачиваю… {share}%',
   'update.installing': 'Устанавливаю…',
+  'update.intro.portable': 'Сейчас стоит {current}. Это портативная версия: она не устанавливается, поэтому обновить её можно только новым файлом. Скачайте его и запускайте вместо старого — подключения и настройки останутся.',
+  'update.download': 'Скачать Новую Версию',
+  'update.downloadStarted': 'Скачивание началось в браузере',
+  'update.downloadStarted.text': 'Когда файл скачается, закройте приложение и запустите новый exe.',
   'palette.move': 'Выбор',
   'palette.pick': 'Открыть',
 

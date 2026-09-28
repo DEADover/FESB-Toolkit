@@ -339,12 +339,21 @@ export function apiDomainRoutes(connection: Connection, guid: string): Promise<D
  * Репозиторий проекта.
  *
  * Единственный внешний адрес, который приложению разрешено открыть: права
- * в `capabilities/default.json` выданы ровно на него, а не на «любой https».
+ * в `capabilities/default.json` выданы ровно на него и его релизы, а не на
+ * «любой https».
  */
 export const REPOSITORY_URL = 'https://github.com/DEADover/FESB-Toolkit'
 
 export function openRepository(): Promise<void> {
   return openUrl(REPOSITORY_URL)
+}
+
+/**
+ * Портативный exe версии — прямая ссылка на файл в релизе: браузер сразу
+ * начнёт скачивание. Права выданы на релизы этого же репозитория.
+ */
+export function downloadPortable(version: string): Promise<void> {
+  return openUrl(`${REPOSITORY_URL}/releases/download/v${version}/FESB-Toolkit-${version}-x64-portable.exe`)
 }
 
 

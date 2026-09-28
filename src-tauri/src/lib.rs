@@ -60,6 +60,9 @@ pub struct AppInfo {
     version: String,
     /// Не для показа: по нему интерфейс решает, отступать ли под кнопки macOS.
     platform: String,
+    /// Портативная сборка: exe без установщика. Установщик меняет его на
+    /// свою установку, поэтому такой exe обновляется скачиванием нового файла.
+    portable: bool,
 }
 
 #[tauri::command]
@@ -67,6 +70,10 @@ fn app_info(app: AppHandle) -> AppInfo {
     AppInfo {
         version: app.package_info().version.to_string(),
         platform: std::env::consts::OS.to_string(),
+        // Сборщик записывает тип установщика в exe только на время упаковки,
+        // а исходный exe, который и выкладывается как портативный, остаётся
+        // без него.
+        portable: cfg!(windows) && tauri::utils::platform::bundle_type().is_none(),
     }
 }
 

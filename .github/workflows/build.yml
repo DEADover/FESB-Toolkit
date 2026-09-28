@@ -88,9 +88,14 @@ jobs:
           cp "src-tauri/target/release/fesb-toolkit.exe" "release/FESB-Toolkit-$version-x64-portable.exe"
           cp src-tauri/target/release/bundle/nsis/*-setup.exe "release/FESB-Toolkit-$version-x64-setup.exe"
           cp src-tauri/target/release/bundle/msi/*.msi "release/FESB-Toolkit-$version-x64.msi"
-          # Подпись установщика — для автообновления; имя то же, что у файла.
+          # Подписи установщиков — для автообновления; имя то же, что у файла.
+          # Каждая установка обновляется своим установщиком: MSI — через MSI,
+          # иначе рядом встала бы вторая копия из NSIS.
           for sig in src-tauri/target/release/bundle/nsis/*-setup.exe.sig; do
             [ -f "$sig" ] && cp "$sig" "release/FESB-Toolkit-$version-x64-setup.exe.sig"
+          done
+          for sig in src-tauri/target/release/bundle/msi/*.msi.sig; do
+            [ -f "$sig" ] && cp "$sig" "release/FESB-Toolkit-$version-x64.msi.sig"
           done
           gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 \
             || gh release create "$GITHUB_REF_NAME" --title "FESB Toolkit $version" --generate-notes
@@ -186,11 +191,15 @@ jobs:
           mkdir -p sigs && cd sigs
           gh release download "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --pattern '*.sig' || true
           win="FESB-Toolkit-$version-x64-setup.exe.sig"
+          msi="FESB-Toolkit-$version-x64.msi.sig"
           mac="FESB-Toolkit-$version-macos-arm64.app.tar.gz.sig"
           if [ ! -f "$win" ] && [ ! -f "$mac" ]; then
             echo "Подписей нет — сборка шла без ключа, манифест не нужен."
             exit 0
           fi
+          # Установка через NSIS ищет windows-x86_64-nsis, через MSI —
+          # windows-x86_64-msi; портативная версия и выпуски до 0.4.3 берут
+          # windows-x86_64.
           notes="$(gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --json body --jq .body)"
           jq -n \
             --arg version "$version" \
@@ -198,10 +207,16 @@ jobs:
             --arg date "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
             --arg winSig "$( [ -f "$win" ] && cat "$win" )" \
             --arg winUrl "$base/FESB-Toolkit-$version-x64-setup.exe" \
+            --arg msiSig "$( [ -f "$msi" ] && cat "$msi" )" \
+            --arg msiUrl "$base/FESB-Toolkit-$version-x64.msi" \
             --arg macSig "$( [ -f "$mac" ] && cat "$mac" )" \
             --arg macUrl "$base/FESB-Toolkit-$version-macos-arm64.app.tar.gz" \
             '{version: $version, notes: $notes, pub_date: $date, platforms: (
-               (if $winSig != "" then {"windows-x86_64": {signature: $winSig, url: $winUrl}} else {} end)
+               (if $winSig != "" then {
+                  "windows-x86_64": {signature: $winSig, url: $winUrl},
+                  "windows-x86_64-nsis": {signature: $winSig, url: $winUrl}
+                } else {} end)
+               + (if $msiSig != "" then {"windows-x86_64-msi": {signature: $msiSig, url: $msiUrl}} else {} end)
                + (if $macSig != "" then {"darwin-aarch64": {signature: $macSig, url: $macUrl}} else {} end)
              )}' > latest.json
           cat latest.json

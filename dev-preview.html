@@ -10,7 +10,8 @@
       const DATA = {
  "app_info": {
   "version": "__APP_VERSION__",
-  "platform": "macos"
+  "platform": "macos",
+  "portable": false
  },
  "api_broker_endpoints": [
   {
@@ -2154,7 +2155,9 @@
             return 1
           }
           // Обновлений в предпросмотре нет: иначе «1» сошла бы за найденную версию.
-          if (command === 'plugin:updater|check') return null
+          // Окно обновления смотрится подстановкой из консоли:
+          //   localStorage['preview.update'] = '{"rid":1,"currentVersion":"0.4.2","version":"0.4.3","body":"## Новое\\n- Пункт"}'
+          if (command === 'plugin:updater|check') return JSON.parse(localStorage.getItem('preview.update') || 'null')
           if (command.startsWith('plugin:')) return 1
           const key = args && args.cmd ? args.cmd : command
           // Любой ответ подменяется из консоли:

@@ -19,6 +19,9 @@
       "allow": [
         {
           "url": "https://github.com/DEADover/FESB-Toolkit"
+        },
+        {
+          "url": "https://github.com/DEADover/FESB-Toolkit/releases/*"
         }
       ]
     }

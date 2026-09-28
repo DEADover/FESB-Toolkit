@@ -613,7 +613,12 @@ export default function App() {
       </main>
 
       {updates.state.kind === 'available' && (
-        <UpdateDialog update={updates.state.update} open={updates.dialog} onClose={updates.closeDialog} />
+        <UpdateDialog
+          update={updates.state.update}
+          portable={info?.portable === true}
+          open={updates.dialog}
+          onClose={updates.closeDialog}
+        />
       )}
 
       <CommandPalette
