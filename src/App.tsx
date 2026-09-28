@@ -564,6 +564,7 @@ export default function App() {
             {...apiScreenProps}
             initialManager={queueFocus?.manager ?? null}
             initialQuery={queueFocus?.query ?? ''}
+            environment={session?.profile.environment ?? null}
           />
         ) : screen === 'api.modules' ? (
           <ModulesScreen {...apiScreenProps} />

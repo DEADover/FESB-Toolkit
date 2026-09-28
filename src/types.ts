@@ -601,10 +601,25 @@ export interface QueueMessage {
   persistent: boolean
   redelivered: boolean
   replyTo: string | null
+  /** Откуда сообщение попало в очередь ошибок — туда его вернёт переотправка. */
+  originalQueue: string | null
   properties: MessageProperty[]
   /** Тело приходит только у отдельно запрошенного сообщения. */
   body: string | null
   truncated: boolean
+}
+
+/** Что сделать с отмеченными сообщениями очереди. */
+export type MessageAction =
+  | { kind: 'retry' }
+  | { kind: 'move'; to: string }
+  | { kind: 'copy'; to: string }
+  | { kind: 'delete' }
+
+/** Сколько сообщений шина обработала из запрошенных. */
+export interface MessageActionResult {
+  requested: number
+  done: number
 }
 
 /** Сообщение, в теле которого нашёлся искомый текст. */

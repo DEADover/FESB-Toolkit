@@ -157,7 +157,9 @@ export function Checkbox({ className, ...rest }: ComponentProps<'input'>) {
         'checked:border-accent checked:bg-accent-strong',
         "checked:after:block checked:after:h-full checked:after:w-full checked:after:bg-[url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22 fill=%22white%22><path d=%22M6.2 11.9 2.9 8.6l1.3-1.3 2 2 5-5 1.3 1.3z%22/></svg>')] checked:after:bg-contain",
         'indeterminate:border-accent indeterminate:bg-accent-strong',
-        "indeterminate:after:block indeterminate:after:h-full indeterminate:after:w-full indeterminate:after:bg-[url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22 fill=%22white%22><rect x=%224%22 y=%227%22 width=%228%22 height=%222%22 rx=%221%22/></svg>')] indeterminate:after:bg-contain",
+        // Чёрточку «отмечено частично» рисует правило `.checkbox-mixed` в index.css:
+        // из класса с таким SVG Tailwind правило не собирал, и галочка была пустой.
+        'checkbox-mixed',
         'disabled:cursor-not-allowed disabled:opacity-40',
         FOCUS_RING,
         className,

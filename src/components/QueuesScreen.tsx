@@ -1,15 +1,18 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 
-import { ArrowLeft, ArrowsClockwise, Check, Copy, MagnifyingGlass } from '@phosphor-icons/react'
+import { ArrowBendUpLeft, ArrowLeft, ArrowRight, ArrowsClockwise, Check, Copy, MagnifyingGlass, Trash } from '@phosphor-icons/react'
 
 import { useI18n } from '../i18n'
 import { apiQueueManagers, apiQueueMessage, apiQueueMessages, apiQueues, apiQueueSearch, errorText, onApiProgress } from '../lib/api'
+import type { Environment } from '../lib/connection'
+import { cameFromElsewhere, isErrorQueue, retryBlock } from '../lib/deadLetters'
 import type { ApiProgress, Connection, ManagerKind, QueueManager, QueueMessage, QueueRow, ServerInfo } from '../types'
 import {
   AutoRefreshToggle, Awaiting, ErrorBar, NotConnected, Panel, RefreshButton, ScreenBody, ScreenBodyRow, TableMessage, useApiData, useAutoRefresh, useDebounced,
 } from './ApiShell'
+import { MessageActionDialog, type ActionKind } from './MessageActionDialog'
 import {
-  Badge, Button, ButtonGlyph, cx, DataTable, IconButton, Notice, rowClick, SearchInput, Spinner, Th, THead, Toggle,
+  Badge, Button, ButtonGlyph, Checkbox, cx, DataTable, IconButton, Notice, rowClick, SearchInput, Spinner, Th, THead, Toggle,
 } from './ui'
 
 interface Props {
@@ -19,6 +22,8 @@ interface Props {
   /** Менеджер, который открыть сразу, — когда пришли из палитры. */
   initialManager?: { kind: ManagerKind; id: string } | null
   initialQuery?: string
+  /** Среда стенда — на продуктиве действия с сообщениями предупреждают отдельно. */
+  environment?: Environment | null
 }
 
 /**
@@ -28,7 +33,7 @@ interface Props {
  * переводится трассировка, действительно существуют: значение `broker` в
  * `domain.xml` пишется ровно так же, как показано здесь.
  */
-export function QueuesScreen({ connection, server, onGoToConnection, initialManager = null, initialQuery = '' }: Props) {
+export function QueuesScreen({ connection, server, onGoToConnection, initialManager = null, initialQuery = '', environment = null }: Props) {
   const { t } = useI18n()
   const load = useCallback((connection: Connection) => apiQueueManagers(connection), [])
   const managers = useApiData<QueueManager[]>(connection, load)
@@ -39,6 +44,7 @@ export function QueuesScreen({ connection, server, onGoToConnection, initialMana
   const [queueError, setQueueError] = useState<string | null>(null)
   const [query, setQuery] = useState(initialQuery)
   const [hideInternal, setHideInternal] = useState(true)
+  const [onlyErrors, setOnlyErrors] = useState(false)
   const [copied, setCopied] = useState<string | null>(null)
   /** Очередь, сообщения которой сейчас смотрят. */
   const [inbox, setInbox] = useState<QueueRow | null>(null)
@@ -86,15 +92,21 @@ export function QueuesScreen({ connection, server, onGoToConnection, initialMana
   // Смена менеджера закрывает открытую очередь: сообщения были из другой.
   useEffect(() => { setInbox(null) }, [selected])
 
+  const errorQueues = useMemo(
+    () => (queues ?? []).filter((queue) => !(hideInternal && queue.internal) && isErrorQueue(queue.name)).length,
+    [queues, hideInternal],
+  )
+
   const visible = useMemo(() => {
     if (!queues) return []
     const needle = query.trim().toLowerCase()
     return queues.filter((queue) => {
       if (hideInternal && queue.internal) return false
+      if (onlyErrors && !isErrorQueue(queue.name)) return false
       if (!needle) return true
       return queue.name.toLowerCase().includes(needle) || (queue.address ?? '').toLowerCase().includes(needle)
     })
-  }, [queues, query, hideInternal])
+  }, [queues, query, hideInternal, onlyErrors])
 
   const copy = useCallback((value: string) => {
     void navigator.clipboard.writeText(value).then(() => {
@@ -168,6 +180,7 @@ export function QueuesScreen({ connection, server, onGoToConnection, initialMana
                 placeholder={t('queues.search')}
                 onChange={setQuery}
               />
+              <Toggle checked={onlyErrors} onChange={setOnlyErrors} label={t('queues.onlyErrors', { count: errorQueues })} />
               <Toggle checked={hideInternal} onChange={setHideInternal} label={t('queues.hideInternal')} />
               {selected && (
                 <IconButton
@@ -198,7 +211,10 @@ export function QueuesScreen({ connection, server, onGoToConnection, initialMana
               connection={connection}
               manager={selected}
               queue={inbox}
+              queues={queues ?? []}
+              environment={environment}
               onBack={() => setInbox(null)}
+              onChanged={() => void openQueues(selected)}
             />
           ) : (
           <Panel className="flex-1">
@@ -242,6 +258,9 @@ export function QueuesScreen({ connection, server, onGoToConnection, initialMana
                     <td className="hidden px-3 py-1.5 text-right tabular-nums text-content-subtle xl:table-cell">{queue.dequeued ?? '—'}</td>
                     <td className="px-3 py-1.5">
                       <div className="flex flex-wrap gap-1">
+                        {isErrorQueue(queue.name) && (
+                          <Badge tone="danger" title={t('queues.errorQueue.hint')}>{t('queues.errorQueue')}</Badge>
+                        )}
                         {queue.paused && <Badge tone="warn">{t('queues.paused')}</Badge>}
                         {queue.internal && <Badge>{t('queues.internal')}</Badge>}
                         {queue.durable && <Badge tone="accent">{t('queues.durable')}</Badge>}
@@ -267,14 +286,19 @@ export function QueuesScreen({ connection, server, onGoToConnection, initialMana
  * Сообщения очереди.
  *
  * Ради этого экрана всё и затевалось: трассировку настраивают на очередь,
- * а потом хотят увидеть, что в неё легло. Только чтение — удалять
- * и переотправлять сообщения этот инструмент не берётся.
+ * а потом хотят увидеть, что в неё легло. Отмеченные сообщения можно
+ * вернуть в исходную очередь, переложить, скопировать или удалить — это
+ * разбор очереди ошибок, который иначе делается по одному сообщению.
  */
-function Messages({ connection, manager, queue, onBack }: {
+function Messages({ connection, manager, queue, queues, environment, onBack, onChanged }: {
   connection: Connection
   manager: QueueManager
   queue: QueueRow
+  queues: QueueRow[]
+  environment: Environment | null
   onBack: () => void
+  /** Сообщения ушли или появились — число в списке очередей устарело. */
+  onChanged: () => void
 }) {
   const { t } = useI18n()
   const [messages, setMessages] = useState<QueueMessage[]>([])
@@ -290,12 +314,16 @@ function Messages({ connection, manager, queue, onBack }: {
   const [searching, setSearching] = useState(false)
   const [progress, setProgress] = useState<ApiProgress | null>(null)
   const query = useDebounced(search, 250)
+  const [picked, setPicked] = useState<Set<string>>(new Set())
+  const [action, setAction] = useState<ActionKind | null>(null)
+  /** Что было отмечено, когда открыли окно: список под ним может обновиться. */
+  const [acting, setActing] = useState<QueueMessage[]>([])
 
   const load = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
-      setMessages(await apiQueueMessages(connection, manager.kind, manager.id, queue.name, 200))
+      setMessages(uniqueById(await apiQueueMessages(connection, manager.kind, manager.id, queue.name, 200)))
     } catch (err) {
       setError(errorText(err))
       setMessages([])
@@ -307,6 +335,15 @@ function Messages({ connection, manager, queue, onBack }: {
   useEffect(() => { void load() }, [load])
   useAutoRefresh(auto, load)
 
+  // Отметка живёт, пока сообщение в очереди: ушедшие после обновления снимаются.
+  useEffect(() => {
+    setPicked((prev) => {
+      const present = new Set(messages.map((message) => message.id))
+      const next = new Set([...prev].filter((id) => present.has(id)))
+      return next.size === prev.size ? prev : next
+    })
+  }, [messages])
+
   /**
    * Отбор по тому, что уже есть в списке: идентификатор, корреляция, тип,
    * адрес ответа и свойства. Тела здесь нет — за ним идут отдельно.
@@ -317,6 +354,46 @@ function Messages({ connection, manager, queue, onBack }: {
     const found = hits?.needle === needle ? hits.found : null
     return messages.filter((message) => found?.has(message.id) || matchesHeader(message, needle))
   }, [messages, query, hits])
+
+  /** Колонка «Откуда» нужна, только когда сообщения пришли из других очередей. */
+  const showOrigin = useMemo(() => messages.some((message) => cameFromElsewhere(message, queue.name)), [messages, queue.name])
+  const chosen = useMemo(() => messages.filter((message) => picked.has(message.id)), [messages, picked])
+  const blocked = retryBlock(manager.kind, chosen)
+  const allShown = visible.length > 0 && visible.every((message) => picked.has(message.id))
+  const someShown = visible.some((message) => picked.has(message.id))
+
+  const toggle = useCallback((id: string) => {
+    setPicked((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }, [])
+
+  const toggleShown = useCallback(() => {
+    setPicked((prev) => {
+      const next = new Set(prev)
+      for (const message of visible) {
+        if (allShown) next.delete(message.id)
+        else next.add(message.id)
+      }
+      return next
+    })
+  }, [visible, allShown])
+
+  const openAction = useCallback((kind: ActionKind) => {
+    setActing(chosen)
+    setAction(kind)
+  }, [chosen])
+
+  const closeAction = useCallback((changed: boolean) => {
+    setAction(null)
+    if (!changed) return
+    setPicked(new Set())
+    void load()
+    onChanged()
+  }, [load, onChanged])
 
   const needle = query.trim()
   /** Ответ устарел, как только запрос изменился: искать нужно заново. */
@@ -411,19 +488,32 @@ function Messages({ connection, manager, queue, onBack }: {
       <Panel className="flex-1">
         <DataTable>
           <colgroup>
+            <col className="w-9" />
             <col className="w-44" />
             <col />
-            <col className="w-28" />
-            <col className="w-24" />
+            {/* Тип и размер уходят на узком окне: без них идентификатор
+                сообщения сжимался до пустой колонки. */}
+            <col className="hidden w-28 xl:table-column" />
+            <col className="hidden w-24 xl:table-column" />
             {/* Под «Состояние» встают метки «Постоянное» и «Повторное»,
                 и заголовок сам по себе шире, чем узкая колонка. */}
             <col className="w-32" />
           </colgroup>
           <THead>
+              <th className="px-3 py-2">
+                <Checkbox
+                  aria-label={t('queues.selectAll')}
+                  title={t('queues.selectAll')}
+                  checked={allShown}
+                  ref={(box) => { if (box) box.indeterminate = someShown && !allShown }}
+                  disabled={visible.length === 0}
+                  onChange={toggleShown}
+                />
+              </th>
               <Th>{t('logs.time')}</Th>
               <Th>{t('queues.messageId')}</Th>
-              <Th>{t('queues.messageType')}</Th>
-              <Th align="right">{t('zip.size')}</Th>
+              <Th className="hidden xl:table-cell">{t('queues.messageType')}</Th>
+              <Th align="right" className="hidden xl:table-cell">{t('zip.size')}</Th>
               <Th>{t('table.state')}</Th>
             </THead>
           <tbody>
@@ -435,13 +525,34 @@ function Messages({ connection, manager, queue, onBack }: {
                 <Fragment key={message.id}>
                   <tr
                     onClick={() => void expand(message)}
-                    className={cx('cursor-pointer align-top', shown ? 'bg-surface-2/60' : 'border-b border-line/60 hover:bg-surface-2')}
+                    className={cx(
+                      'cursor-pointer align-top',
+                      shown ? 'bg-surface-2/60' : 'border-b border-line/60 hover:bg-surface-2',
+                      picked.has(message.id) && !shown && 'bg-accent/6',
+                    )}
                   >
+                    <td className="px-3 py-1.5" onClick={(event) => event.stopPropagation()}>
+                      <Checkbox
+                        aria-label={t('queues.selectMessage')}
+                        checked={picked.has(message.id)}
+                        onChange={() => toggle(message.id)}
+                      />
+                    </td>
                     <td className="px-3 py-1.5 font-mono text-[11px] text-content-subtle">
                       {message.timestamp?.replace('T', ' ').slice(0, 23) ?? '—'}
                     </td>
                     <td className="px-3 py-1.5" title={message.id}>
                       <div className="truncate font-mono text-[11px]">{message.id}</div>
+                      {/* Откуда сообщение попало сюда — второй строкой, а не
+                          колонкой: отдельная колонка на узком окне съедала
+                          идентификатор целиком. */}
+                      {showOrigin && (
+                        <div className="truncate text-[10.5px] text-content-subtle" title={t('queues.origin.hint')}>
+                          {message.originalQueue
+                            ? t('queues.origin.value', { queue: message.originalQueue })
+                            : t('queues.origin.unknown')}
+                        </div>
+                      )}
                       {/* Вырезка из тела: видно, за что зацепился поиск,
                           и не надо раскрывать каждое сообщение подряд. */}
                       {excerpt && (
@@ -450,8 +561,8 @@ function Messages({ connection, manager, queue, onBack }: {
                         </div>
                       )}
                     </td>
-                    <td className="px-3 py-1.5 text-content-muted">{message.bodyType ?? '—'}</td>
-                    <td className="px-3 py-1.5 text-right tabular-nums">{message.size}</td>
+                    <td className="hidden px-3 py-1.5 text-content-muted xl:table-cell">{message.bodyType ?? '—'}</td>
+                    <td className="hidden px-3 py-1.5 text-right tabular-nums xl:table-cell">{message.size}</td>
                     <td className="px-3 py-1.5">
                       <div className="flex flex-wrap gap-1">
                         {message.persistent && <Badge tone="accent">{t('queues.persistent')}</Badge>}
@@ -462,7 +573,7 @@ function Messages({ connection, manager, queue, onBack }: {
 
                   {shown && (
                     <tr className="border-b border-line/60 bg-surface-2/60">
-                      <td colSpan={5} className="px-3 pb-3">
+                      <td colSpan={6} className="px-3 pb-3">
                         {loaded ? <MessageBody message={loaded} /> : (
                           <span className="flex items-center gap-2 text-[11.5px] text-content-subtle">
                             <Spinner className="size-3.5" /> {t('empty.scanning')}
@@ -475,12 +586,48 @@ function Messages({ connection, manager, queue, onBack }: {
               )
             })}
             {visible.length === 0 && (
-              <TableMessage colSpan={5} busy={loading}>{loading ? t('empty.scanning') : needle ? t('queues.noMatches') : t('queues.noMessages')}
+              <TableMessage colSpan={6} busy={loading}>{loading ? t('empty.scanning') : needle ? t('queues.noMatches') : t('queues.noMessages')}
               </TableMessage>
             )}
           </tbody>
         </DataTable>
       </Panel>
+
+      {/* Панель действий — под таблицей: появляясь над ней, она сдвигала
+          строки, и следующая отметка попадала не в ту строку. */}
+      {chosen.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-accent/30 bg-accent/8 px-3 py-2 shadow-sm">
+          <span className="text-[12px] font-medium tabular-nums">{t('queues.selected', { count: chosen.length })}</span>
+          <Button size="sm" variant="ghost" onClick={() => setPicked(new Set())}>{t('queues.clearSelection')}</Button>
+          <div className="ml-auto flex flex-wrap items-center gap-2">
+            <span title={blocked ? t(blocked === 'remote' ? 'queues.retryBlock.remote' : 'queues.retryBlock.noOrigin') : undefined}>
+              <Button size="sm" variant="primary" disabled={blocked !== null} onClick={() => openAction('retry')}>
+                <ArrowBendUpLeft size={13} weight="bold" /> {t('queues.action.retry')}
+              </Button>
+            </span>
+            <Button size="sm" onClick={() => openAction('move')}>
+              <ArrowRight size={13} weight="bold" /> {t('queues.action.move')}
+            </Button>
+            <Button size="sm" onClick={() => openAction('copy')}>
+              <Copy size={13} weight="bold" /> {t('queues.action.copy')}
+            </Button>
+            <Button size="sm" variant="danger" onClick={() => openAction('delete')}>
+              <Trash size={13} weight="bold" /> {t('queues.action.delete')}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      <MessageActionDialog
+        kind={action}
+        connection={connection}
+        manager={manager}
+        queue={queue.name}
+        messages={acting}
+        queues={queues.filter((item) => !item.internal).map((item) => ({ name: item.name, messages: item.messages }))}
+        environment={environment}
+        onClose={closeAction}
+      />
     </div>
   )
 }
@@ -521,6 +668,16 @@ function MessageBody({ message }: { message: QueueMessage }) {
       </div>
     </div>
   )
+}
+
+/**
+ * Одно сообщение — одна строка. Расширенный менеджер, пока в очередь пишут,
+ * иногда отдаёт одно и то же сообщение дважды, а по идентификатору строятся
+ * и строки таблицы, и отметки.
+ */
+function uniqueById(messages: QueueMessage[]): QueueMessage[] {
+  const seen = new Set<string>()
+  return messages.filter((message) => !seen.has(message.id) && Boolean(seen.add(message.id)))
 }
 
 /**

@@ -500,6 +500,19 @@ async fn api_queue_message(
     fesb_ops::queue_message(&connection, kind, &id, &queue, &message).await
 }
 
+/// Переотправка, перенос, копирование или удаление отмеченных сообщений.
+#[tauri::command]
+async fn api_queue_messages_action(
+    connection: Connection,
+    kind: ManagerKind,
+    id: String,
+    queue: String,
+    ids: Vec<String>,
+    action: fesb_ops::MessageAction,
+) -> Result<fesb_ops::MessageActionResult, String> {
+    fesb_ops::queue_messages_action(&connection, kind, &id, &queue, ids, action).await
+}
+
 /// Поиск текста в телах сообщений очереди.
 ///
 /// Тела в списке нет, поэтому каждое сообщение приходится забрать отдельно;
@@ -730,6 +743,7 @@ pub fn run() {
             api_queues,
             api_queue_messages,
             api_queue_message,
+            api_queue_messages_action,
             api_queue_search,
             api_properties,
             api_properties_sweep,

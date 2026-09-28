@@ -5,18 +5,15 @@ import { open, save } from '@tauri-apps/plugin-dialog'
 import { openUrl, revealItemInDir } from '@tauri-apps/plugin-opener'
 
 import type {
-  CopyPlan, CopyResult, MqConfigAudit, MqConfigKind, MqStoreOutcome,
-  ApiDomain, ApiProgress, AppInfo, ApplyProgress, ApplyReport, ApplyTarget, ArchiveProgress,
-  AccessReport, ApiEndpoint, ArchiveResult, CertificateReport, InflightExchange, ReportEntry,
-  RouteSummary, ServerUsage, StoredReport, AuditEntry, Connection, DomainAction, DomainActionResult,
-  DomainRoutes, DomainStat,
-  ExtractResult, LinkGraph, LogEntry,
-  LogFileRow, LogRequest, ManagerKind,
-  ModuleAction, ModuleRow, PropertyRow, PropertyScope, PullResult, PushResult, QueueManager,
-  QueueMatch, QueueMessage, QueueRow, RouteAction, RouteGraph, RouteState, SavePoint, ScanProgress,
-  ScanResult,
-  Comparison, ServerInfo, SnapshotEntry, SweepRow, TraceUpdate, VerifyResult,
-  BrokerEndpoint, BrokerAccessReport,
+  AccessReport, ApiDomain, ApiEndpoint, ApiProgress, AppInfo, ApplyProgress, ApplyReport,
+  ApplyTarget, ArchiveProgress, ArchiveResult, AuditEntry, BrokerAccessReport, BrokerEndpoint,
+  CertificateReport, Comparison, Connection, CopyPlan, CopyResult, DomainAction,
+  DomainActionResult, DomainRoutes, DomainStat, ExtractResult, InflightExchange, LinkGraph,
+  LogEntry, LogFileRow, LogRequest, ManagerKind, MessageAction, MessageActionResult, ModuleAction,
+  ModuleRow, MqConfigAudit, MqConfigKind, MqStoreOutcome, PropertyRow, PropertyScope, PullResult,
+  PushResult, QueueManager, QueueMatch, QueueMessage, QueueRow, ReportEntry, RouteAction,
+  RouteGraph, RouteState, RouteSummary, SavePoint, ScanProgress, ScanResult, ServerInfo,
+  ServerUsage, SnapshotEntry, StoredReport, SweepRow, TraceUpdate, VerifyResult,
 } from '../types'
 
 /** Единственная точка соприкосновения интерфейса с бэкендом на Rust. */
@@ -413,6 +410,18 @@ export function apiQueueMessage(
   message: string,
 ): Promise<QueueMessage> {
   return invoke<QueueMessage>('api_queue_message', { connection, kind, id, queue, message })
+}
+
+/** Переотправка, перенос, копирование или удаление отмеченных сообщений одним запросом. */
+export function apiQueueMessagesAction(
+  connection: Connection,
+  kind: ManagerKind,
+  id: string,
+  queue: string,
+  ids: string[],
+  action: MessageAction,
+): Promise<MessageActionResult> {
+  return invoke<MessageActionResult>('api_queue_messages_action', { connection, kind, id, queue, ids, action })
 }
 
 /**

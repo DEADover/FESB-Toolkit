@@ -1016,6 +1016,9 @@ pub struct QueueMessage {
     pub persistent: bool,
     pub redelivered: bool,
     pub reply_to: Option<String>,
+    /// Откуда сообщение попало в эту очередь — у сообщений в очереди ошибок.
+    /// Туда его и возвращает переотправка.
+    pub original_queue: Option<String>,
     pub properties: Vec<MessageProperty>,
     /// Тело, если шина его отдала: она присылает его в base64.
     pub body: Option<String>,
@@ -1098,10 +1101,122 @@ fn message_from(item: &Value) -> Option<QueueMessage> {
         persistent: flag(item, "persistent") || flag(item, "durable"),
         redelivered: flag(item, "redelivered"),
         reply_to: text(item, "replyTo"),
+        original_queue: original_queue(item),
         properties,
         body: decode_body(item.get("bodyView").and_then(Value::as_str)),
         truncated: flag(item, "truncatedBody"),
     })
+}
+
+/// Исходная очередь сообщения, попавшего в очередь ошибок.
+///
+/// Мультименеджер называет её `originalQueue`. Расширенный менеджер отдаёт
+/// и `originalQueue`, и `originalAddress`, но переотправляет на адрес, и
+/// очередь там бывает служебной копией — поэтому у него берётся адрес.
+fn original_queue(item: &Value) -> Option<String> {
+    let property = |name: &str| {
+        item.get("properties")
+            .and_then(|properties| properties.get(name))
+            .and_then(Value::as_str)
+            .map(String::from)
+    };
+    text(item, "originalAddress")
+        .or_else(|| property("_AMQ_ORIG_ADDRESS"))
+        .or_else(|| text(item, "originalQueue"))
+        .filter(|name| !name.is_empty())
+}
+
+/// Что сделать с отмеченными сообщениями очереди.
+#[derive(Debug, Clone, Deserialize, PartialEq)]
+#[serde(tag = "kind", rename_all = "camelCase")]
+pub enum MessageAction {
+    /// Вернуть туда, откуда сообщение попало в очередь ошибок.
+    Retry,
+    /// Переложить в другую очередь того же менеджера.
+    Move { to: String },
+    /// Положить копию в другую очередь, оставив сообщение на месте.
+    Copy { to: String },
+    Delete,
+}
+
+/// Сколько сообщений шина обработала — из тех, что просили.
+#[derive(Debug, Clone, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct MessageActionResult {
+    pub requested: usize,
+    pub done: usize,
+}
+
+/// Путь и метод действия. Удалённый менеджер переотправлять не умеет.
+fn action_request(kind: ManagerKind, id: &str, queue: &str, action: &MessageAction) -> Result<(reqwest::Method, String), String> {
+    let base = match kind {
+        ManagerKind::Qms => format!("/api/qms/brokers/{id}/queues/{}/messages", encode_segment(queue)),
+        ManagerKind::Qme => format!("/api/qme/servers/{id}/queues/{}/messages", encode_segment(queue)),
+        ManagerKind::Rqms => format!("/api/rqms/brokers/{id}/queues/{}/messages", encode_segment(queue)),
+    };
+    Ok(match (kind, action) {
+        (ManagerKind::Rqms, MessageAction::Retry) => {
+            return Err("A remote queue manager cannot resend messages — move them instead".into())
+        }
+        (_, MessageAction::Retry) => (reqwest::Method::PUT, format!("{base}/retry")),
+        (_, MessageAction::Move { to }) => (reqwest::Method::PUT, format!("{base}/move/{}", encode_segment(to))),
+        (_, MessageAction::Copy { to }) => (reqwest::Method::PUT, format!("{base}/copy/{}", encode_segment(to))),
+        (ManagerKind::Qme, MessageAction::Delete) => (reqwest::Method::POST, format!("{base}/delete")),
+        (_, MessageAction::Delete) => (reqwest::Method::POST, base),
+    })
+}
+
+/// Идентификаторы в теле запроса: у расширенного менеджера — числа.
+fn action_body(kind: ManagerKind, ids: &[String]) -> Result<Value, String> {
+    if kind == ManagerKind::Qme {
+        let numbers = ids
+            .iter()
+            .map(|id| id.parse::<i64>().map_err(|_| format!("Unexpected message id: {id}")))
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(Value::from(numbers))
+    } else {
+        Ok(Value::from(ids.to_vec()))
+    }
+}
+
+/// Переотправка, перенос, копирование или удаление отмеченных сообщений — одним запросом.
+///
+/// Шина отвечает числом обработанных. Оно бывает меньше запрошенного: очередь
+/// живая, и часть сообщений могли забрать, пока на них смотрели. Удаление
+/// у мультименеджера числа не возвращает — тогда считаем, что удалено всё.
+pub async fn queue_messages_action(
+    connection: &Connection,
+    kind: ManagerKind,
+    id: &str,
+    queue: &str,
+    ids: Vec<String>,
+    action: MessageAction,
+) -> Result<MessageActionResult, String> {
+    if ids.is_empty() {
+        return Ok(MessageActionResult { requested: 0, done: 0 });
+    }
+    if let MessageAction::Move { to } | MessageAction::Copy { to } = &action {
+        if to == queue {
+            return Err("The target queue is the same as the source".into());
+        }
+    }
+    let client = connection.client()?;
+    let (method, path) = action_request(kind, id, queue, &action)?;
+    let body = action_body(kind, &ids)?;
+    let request = if method == reqwest::Method::PUT { connection.put(&client, &path) } else { connection.post(&client, &path) };
+    let response = request
+        .timeout(Duration::from_secs(300))
+        .json(&body)
+        .send()
+        .await
+        .map_err(transport_error)?;
+    let text = ensure_ok(response, "The bus did not process the messages")
+        .await?
+        .text()
+        .await
+        .map_err(|err| format!("Unexpected answer: {err}"))?;
+    let done = text.trim().parse::<usize>().unwrap_or(ids.len()).min(ids.len());
+    Ok(MessageActionResult { requested: ids.len(), done })
 }
 
 /// Часть пути может содержать что угодно — от точек до двоеточий в id.
@@ -1321,6 +1436,51 @@ fn excerpt_around(body: &str, needle: &str) -> Option<String> {
 /// Для поиска довольно первого символа развёртки.
 fn fold(value: &str) -> Vec<char> {
     value.chars().map(|symbol| symbol.to_lowercase().next().unwrap_or(symbol)).collect()
+}
+
+#[cfg(test)]
+mod message_action_tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn each_manager_gets_its_own_path() {
+        let (method, path) = action_request(ManagerKind::Qms, "QM", "DLQ.Invoices.In", &MessageAction::Retry).unwrap();
+        assert_eq!((method, path.as_str()), (reqwest::Method::PUT, "/api/qms/brokers/QM/queues/DLQ.Invoices.In/messages/retry"));
+        let (_, path) = action_request(ManagerKind::Qme, "EQM", "Orders.Audit", &MessageAction::Move { to: "Orders In".into() }).unwrap();
+        assert_eq!(path, "/api/qme/servers/EQM/queues/Orders.Audit/messages/move/Orders%20In");
+        let (method, path) = action_request(ManagerKind::Qme, "EQM", "Orders.Audit", &MessageAction::Delete).unwrap();
+        assert_eq!((method, path.as_str()), (reqwest::Method::POST, "/api/qme/servers/EQM/queues/Orders.Audit/messages/delete"));
+        let (method, path) = action_request(ManagerKind::Qms, "QM", "DLQ", &MessageAction::Delete).unwrap();
+        assert_eq!((method, path.as_str()), (reqwest::Method::POST, "/api/qms/brokers/QM/queues/DLQ/messages"));
+        assert!(action_request(ManagerKind::Rqms, "R", "DLQ", &MessageAction::Retry).is_err());
+    }
+
+    #[test]
+    fn the_extended_manager_takes_numeric_ids() {
+        assert_eq!(action_body(ManagerKind::Qme, &["3949".into(), "3951".into()]).unwrap(), json!([3949, 3951]));
+        assert_eq!(action_body(ManagerKind::Qms, &["ID:a:1".into()]).unwrap(), json!(["ID:a:1"]));
+        assert!(action_body(ManagerKind::Qme, &["ID:a:1".into()]).is_err());
+    }
+
+    #[test]
+    fn the_original_queue_is_read_from_both_managers() {
+        let qms = json!({"messageId": "ID:1", "originalQueue": "Invoices.In", "originalDestination": "queue://Invoices.In"});
+        assert_eq!(original_queue(&qms).as_deref(), Some("Invoices.In"));
+        let qme = json!({"messageId": "3949", "originalAddress": "Orders.In", "originalQueue": "Orders.Copy"});
+        assert_eq!(original_queue(&qme).as_deref(), Some("Orders.In"));
+        let by_property = json!({"messageId": "7", "properties": {"_AMQ_ORIG_ADDRESS": "Orders.In"}});
+        assert_eq!(original_queue(&by_property).as_deref(), Some("Orders.In"));
+        assert_eq!(original_queue(&json!({"messageId": "8", "originalQueue": ""})), None);
+    }
+
+    #[test]
+    fn actions_come_from_the_interface_as_tagged_objects() {
+        let action: MessageAction = serde_json::from_value(json!({"kind": "move", "to": "Orders.In"})).unwrap();
+        assert_eq!(action, MessageAction::Move { to: "Orders.In".into() });
+        let action: MessageAction = serde_json::from_value(json!({"kind": "retry"})).unwrap();
+        assert_eq!(action, MessageAction::Retry);
+    }
 }
 
 #[cfg(test)]
