@@ -884,7 +884,7 @@ fn a_business_key_is_traced_across_the_stand() {
     };
     let key = std::env::var("FESB_KEY").unwrap_or_else(|_| "INV-4815162342".into());
     let started = std::time::Instant::now();
-    let trace = block(find_key(&connection, &key, |_| {})).expect("поиск должен пройти");
+    let trace = block(find_key(&connection, &key, u64::MAX, |_| {})).expect("поиск должен пройти");
     println!(
         "{key}: журнал {} строк{}, обменов {}, незавершённых {}, в очередях {} (очередей {}, сообщений {}, тел не прочитано {}) — за {:?}",
         trace.logs.len(), if trace.logs_limited { " (предел)" } else { "" }, trace.exchange_ids.len(), trace.inflight.len(),

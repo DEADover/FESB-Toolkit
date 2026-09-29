@@ -178,4 +178,5 @@ const API_LABEL: Record<ApiProgress['phase'], MessageKey> = {
   logs: 'job.api.keySearch',
   inflight: 'job.api.keySearch',
   queues: 'job.api.keySearch',
+  download: 'job.api.download',
 }

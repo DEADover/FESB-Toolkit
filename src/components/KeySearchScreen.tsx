@@ -67,7 +67,8 @@ export function KeySearchScreen({ connection, server, onGoToConnection, onOpenRo
   const needle = key.trim()
   const tooShort = needle.length > 0 && needle.length < 3
 
-  const search = useCallback(async (event?: FormEvent) => {
+  /** `full` — дочитать очереди целиком, даже большие выгрузки. */
+  const search = useCallback(async (event?: FormEvent, full = false) => {
     event?.preventDefault()
     if (!connection || needle.length < 3 || busy) return
     setBusy(true)
@@ -78,7 +79,7 @@ export function KeySearchScreen({ connection, server, onGoToConnection, onOpenRo
     setTrace(null)
     const stop = await onApiProgress(setProgress)
     try {
-      setTrace(await apiFindKey(connection, needle))
+      setTrace(await apiFindKey(connection, needle, full))
     } catch (err) {
       setError(errorText(err))
     } finally {
@@ -124,6 +125,7 @@ export function KeySearchScreen({ connection, server, onGoToConnection, onOpenRo
           onOpenQueue={onOpenQueue}
           onOpenLog={onOpenLog}
           onOpenInflight={onOpenInflight}
+          onReadAll={() => void search(undefined, true)}
         />
       ) : !busy && (
         <EmptyState icon={Footprints} title={t('keySearch.intro.title')} text={t('keySearch.intro.text')} />
@@ -132,12 +134,14 @@ export function KeySearchScreen({ connection, server, onGoToConnection, onOpenRo
   )
 }
 
-function Result({ trace, onOpenRoute, onOpenQueue, onOpenLog, onOpenInflight }: {
+function Result({ trace, onOpenRoute, onOpenQueue, onOpenLog, onOpenInflight, onReadAll }: {
   trace: KeyTrace
   onOpenRoute: Props['onOpenRoute']
   onOpenQueue: Props['onOpenQueue']
   onOpenLog: Props['onOpenLog']
   onOpenInflight: Props['onOpenInflight']
+  /** Повторить поиск, дочитав большие очереди целиком. */
+  onReadAll: () => void
 }) {
   const { t } = useI18n()
   const outcome = outcomeOf(trace)
@@ -151,8 +155,13 @@ function Result({ trace, onOpenRoute, onOpenQueue, onOpenLog, onOpenInflight }: 
       <p className="text-[11.5px] text-content-subtle">
         {t('keySearch.checked', { queues: trace.queuesChecked, messages: trace.messagesChecked })}
         {trace.bodiesSkipped > 0 && ` ${t('keySearch.bodiesSkipped', { count: trace.bodiesSkipped })}`}
-        {trace.queuesTruncated.length > 0 && ` ${t('keySearch.truncated', { queues: trace.queuesTruncated.join(', ') })}`}
       </p>
+      {trace.queuesTruncated.length > 0 && (
+        <Notice tone="warn" small>
+          <span className="mr-2">{t('keySearch.truncated', { queues: trace.queuesTruncated.join(', ') })}</span>
+          <Button size="sm" onClick={onReadAll}>{t('keySearch.readAll')}</Button>
+        </Notice>
+      )}
       {trace.problems.length > 0 && (
         <Notice tone="warn" small>
           {t('keySearch.problems')}

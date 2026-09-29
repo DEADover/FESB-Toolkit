@@ -23,6 +23,9 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
 zip = { version = "2", default-features = false, features = ["deflate"] }
+# Разбор выгрузки очереди по ходу скачивания: zip читает архив только целиком,
+# с каталогом в конце, а обрезанная по пределу выгрузка его не содержит.
+flate2 = "1"
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "multipart", "json", "charset", "http2"] }
 
 # ── AMQPush: клиент брокеров AMQP 1.0 ───────────────────────────────────────

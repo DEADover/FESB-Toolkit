@@ -3,7 +3,8 @@ import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'rea
 import { ArrowBendUpLeft, ArrowLeft, ArrowRight, ArrowsClockwise, Check, Copy, MagnifyingGlass, Trash } from '@phosphor-icons/react'
 
 import { useI18n, type MessageKey } from '../i18n'
-import { apiQueueManagers, apiQueueMessage, apiQueueMessages, apiQueues, apiQueueSearch, errorText, onApiProgress } from '../lib/api'
+import { apiQueueManagers, apiQueueMessage, apiQueueMessages, apiQueues, apiQueueScan, apiQueueSearch, errorText, onApiProgress } from '../lib/api'
+import { formatBytes } from '../lib/format'
 import type { Environment } from '../lib/connection'
 import { cameFromElsewhere, isErrorQueue, retryBlock, type RetryBlock } from '../lib/deadLetters'
 import type { ApiProgress, Connection, ManagerKind, QueueManager, QueueMessage, QueueRow, ServerInfo } from '../types'
@@ -293,6 +294,23 @@ export function QueuesScreen({ connection, server, onGoToConnection, initialMana
   )
 }
 
+/** Сколько выгрузки очереди читается без отдельной просьбы — столько же, сколько в Rust. */
+const SCAN_LIMIT = 200 * 1024 * 1024
+
+/** Что нашлось во всей очереди — и по какому запросу. */
+interface Hits {
+  needle: string
+  /** Сообщение → кусок вокруг найденного. */
+  found: Map<string, string>
+  /** Найденные сообщения, которых нет в списке первых двухсот. */
+  extra: QueueMessage[]
+  scanned: number
+  bytes: number
+  truncated: boolean
+  /** Выгрузка недоступна — искали по списку, по одному сообщению. */
+  fallback: boolean
+}
+
 const RETRY_BLOCK: Record<RetryBlock, MessageKey> = {
   remote: 'queues.retryBlock.remote',
   noOrigin: 'queues.retryBlock.noOrigin',
@@ -327,7 +345,7 @@ function Messages({ connection, manager, queue, queues, environment, onBack, onC
 
   const [search, setSearch] = useState('')
   /** Что нашлось в телах и по какому запросу: чужой ответ показывать нельзя. */
-  const [hits, setHits] = useState<{ needle: string; found: Map<string, string> } | null>(null)
+  const [hits, setHits] = useState<Hits | null>(null)
   const [searching, setSearching] = useState(false)
   const [progress, setProgress] = useState<ApiProgress | null>(null)
   const query = useDebounced(search, 250)
@@ -355,26 +373,32 @@ function Messages({ connection, manager, queue, queues, environment, onBack, onC
   // Отметка живёт, пока сообщение в очереди: ушедшие после обновления снимаются.
   useEffect(() => {
     setPicked((prev) => {
-      const present = new Set(messages.map((message) => message.id))
+      const present = new Set([...messages, ...(hits?.extra ?? [])].map((message) => message.id))
       const next = new Set([...prev].filter((id) => present.has(id)))
       return next.size === prev.size ? prev : next
     })
-  }, [messages])
+  }, [messages, hits])
 
   /**
    * Отбор по тому, что уже есть в списке: идентификатор, корреляция, тип,
    * адрес ответа и свойства. Тела здесь нет — за ним идут отдельно.
    */
+  /**
+   * Список плюс то, что поиск по всей очереди нашёл за его пределами: в
+   * списке первые двести сообщений, а выгрузка смотрит все.
+   */
+  const current = hits !== null && hits.needle === query.trim().toLowerCase() ? hits : null
+  const pool = useMemo(() => (current ? uniqueById([...messages, ...current.extra]) : messages), [messages, current])
+
   const visible = useMemo(() => {
     const needle = query.trim().toLowerCase()
-    if (!needle) return messages
-    const found = hits?.needle === needle ? hits.found : null
-    return messages.filter((message) => found?.has(message.id) || matchesHeader(message, needle))
-  }, [messages, query, hits])
+    if (!needle) return pool
+    return pool.filter((message) => current?.found.has(message.id) || matchesHeader(message, needle))
+  }, [pool, query, current])
 
   /** Колонка «Откуда» нужна, только когда сообщения пришли из других очередей. */
-  const showOrigin = useMemo(() => messages.some((message) => cameFromElsewhere(message, queue.name)), [messages, queue.name])
-  const chosen = useMemo(() => messages.filter((message) => picked.has(message.id)), [messages, picked])
+  const showOrigin = useMemo(() => pool.some((message) => cameFromElsewhere(message, queue.name)), [pool, queue.name])
+  const chosen = useMemo(() => pool.filter((message) => picked.has(message.id)), [pool, picked])
   const blocked = retryBlock(manager.kind, chosen)
   const allShown = visible.length > 0 && visible.every((message) => picked.has(message.id))
   const someShown = visible.some((message) => picked.has(message.id))
@@ -416,20 +440,47 @@ function Messages({ connection, manager, queue, queues, environment, onBack, onC
   /** Ответ устарел, как только запрос изменился: искать нужно заново. */
   const searched = hits !== null && hits.needle === needle.toLowerCase()
 
-  const searchBodies = useCallback(async () => {
+  /**
+   * Поиск по всей очереди — через её выгрузку, одним запросом. Если выгрузка
+   * закрыта или её нет в этой версии шины, тела сообщений списка читаются
+   * по одному, как раньше.
+   */
+  const searchBodies = useCallback(async (full = false) => {
     if (!needle) return
     setSearching(true)
     setError(null)
     setProgress(null)
     const stop = await onApiProgress(setProgress)
+    const listed = new Set(messages.map((message) => message.id))
     try {
-      const matches = await apiQueueSearch(
-        connection, manager.kind, manager.id, queue.name,
-        messages.map((message) => message.id), needle,
-      )
-      setHits({ needle: needle.toLowerCase(), found: new Map(matches.map((m) => [m.id, m.excerpt])) })
-    } catch (err) {
-      setError(errorText(err))
+      const scan = await apiQueueScan(connection, manager.kind, manager.id, queue.name, needle, full)
+      setHits({
+        needle: needle.toLowerCase(),
+        found: new Map(scan.matches.map((match) => [match.message.id, match.excerpt])),
+        extra: scan.matches.map((match) => match.message).filter((message) => !listed.has(message.id)),
+        scanned: scan.messages,
+        bytes: scan.bytes,
+        truncated: scan.truncated,
+        fallback: false,
+      })
+    } catch {
+      try {
+        const matches = await apiQueueSearch(
+          connection, manager.kind, manager.id, queue.name,
+          messages.map((message) => message.id), needle,
+        )
+        setHits({
+          needle: needle.toLowerCase(),
+          found: new Map(matches.map((m) => [m.id, m.excerpt])),
+          extra: [],
+          scanned: messages.length,
+          bytes: 0,
+          truncated: false,
+          fallback: true,
+        })
+      } catch (err) {
+        setError(errorText(err))
+      }
     } finally {
       void stop()
       setSearching(false)
@@ -460,8 +511,8 @@ function Messages({ connection, manager, queue, queues, environment, onBack, onC
         <span className="min-w-0 truncate font-mono text-[12.5px] font-semibold">{queue.name}</span>
         <span className="text-[11.5px] tabular-nums text-content-subtle">
           {needle
-            ? t('queues.messagesShown', { visible: visible.length, total: messages.length })
-            : t('queues.messagesCount', { count: messages.length })}
+            ? t('queues.messagesShown', { visible: visible.length, total: Math.max(queue.messages, pool.length) })
+            : t('queues.messagesCount', { count: Math.max(queue.messages, messages.length) })}
         </span>
         <div className="ml-auto flex items-center gap-2">
           <AutoRefreshToggle checked={auto} onChange={setAuto} />
@@ -477,10 +528,10 @@ function Messages({ connection, manager, queue, queues, environment, onBack, onC
           onChange={setSearch}
           clearLabel={t('action.clearSearch')}
         />
-        {/* Поиск по телам — отдельная кнопка, а не то же поле: тела в списке
-            нет, и за каждым приходится идти на сервер. Делать это на каждое
-            нажатие клавиши нельзя, а молча не делать — значит соврать, что
-            в очереди ничего не нашлось. */}
+        {/* Поиск по всей очереди — отдельная кнопка, а не то же поле: тел в
+            списке нет, и за ними очередь выгружается целиком. Делать это на
+            каждое нажатие клавиши нельзя, а молча не делать — значит соврать,
+            что в очереди ничего не нашлось. */}
         <Button
           className="min-w-52"
           disabled={!needle || searching || searched || messages.length === 0}
@@ -490,14 +541,31 @@ function Messages({ connection, manager, queue, queues, environment, onBack, onC
           <ButtonGlyph busy={searching}><MagnifyingGlass size={14} weight="bold" /></ButtonGlyph>
           {searched
             ? t('queues.searchBodies.done', { count: hits?.found.size ?? 0 })
-            : t('queues.searchBodies', { count: messages.length })}
+            : t('queues.searchBodies')}
         </Button>
       </div>
 
       {searching && progress && (
         <p className="text-[11.5px] tabular-nums text-content-subtle">
-          {t('queues.searchProgress', { current: progress.current, total: progress.total })}
+          {progress.phase === 'download'
+            ? progress.total > 0
+              ? t('queues.downloadProgressOf', { done: formatBytes(progress.current), total: formatBytes(progress.total) })
+              : t('queues.downloadProgress', { done: formatBytes(progress.current) })
+            : t('queues.searchProgress', { current: progress.current, total: progress.total })}
         </p>
+      )}
+
+      {current && !searching && (
+        current.fallback ? (
+          <Notice tone="warn" small>{t('queues.scanFallback')}</Notice>
+        ) : current.truncated ? (
+          <Notice tone="warn" small>
+            <span className="mr-2">{t('queues.scanTruncated', { limit: formatBytes(SCAN_LIMIT), done: formatBytes(current.bytes) })}</span>
+            <Button size="sm" onClick={() => void searchBodies(true)}>{t('queues.readAll')}</Button>
+          </Notice>
+        ) : (
+          <p className="text-[11.5px] tabular-nums text-content-subtle">{t('queues.scanned', { count: current.scanned })}</p>
+        )
       )}
 
       <ErrorBar error={error} />

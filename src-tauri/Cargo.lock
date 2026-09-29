@@ -1157,6 +1157,7 @@ dependencies = [
  "fe2o3-amqp",
  "fe2o3-amqp-types",
  "fe2o3-amqp-ws",
+ "flate2",
  "native-tls",
  "reqwest 0.12.28",
  "serde",

@@ -8,12 +8,13 @@ import type {
   AccessReport, ApiDomain, ApiEndpoint, ApiProgress, AppInfo, ApplyProgress, ApplyReport,
   ApplyTarget, ArchiveProgress, ArchiveResult, AuditEntry, BrokerAccessReport, BrokerEndpoint,
   CertificateReport, Comparison, Connection, CopyPlan, CopyResult, DomainAction,
-  DomainActionResult, DomainRoutes, DomainStat, ExtractResult, InflightExchange, KeyTrace,
-  LinkGraph, LogEntry, LogFileRow, LogRequest, ManagerKind, MessageAction, MessageActionResult,
-  ModuleAction, ModuleRow, MqConfigAudit, MqConfigKind, MqStoreOutcome, PropertyRow, PropertyScope,
-  PullResult, PushResult, QueueManager, QueueMatch, QueueMessage, QueueRow, ReportEntry,
-  RouteAction, RouteGraph, RouteState, RouteSummary, SavePoint, ScanProgress, ScanResult,
-  ServerInfo, ServerUsage, SnapshotEntry, StoredReport, SweepRow, TraceUpdate, VerifyResult,
+  DomainActionResult, DomainRoutes, DomainStat, DumpScan, ExtractResult, InflightExchange,
+  KeyTrace, LinkGraph, LogEntry, LogFileRow, LogRequest, ManagerKind, MessageAction,
+  MessageActionResult, ModuleAction, ModuleRow, MqConfigAudit, MqConfigKind, MqStoreOutcome,
+  PropertyRow, PropertyScope, PullResult, PushResult, QueueManager, QueueMatch, QueueMessage,
+  QueueRow, ReportEntry, RouteAction, RouteGraph, RouteState, RouteSummary, SavePoint,
+  ScanProgress, ScanResult, ServerInfo, ServerUsage, SnapshotEntry, StoredReport, SweepRow,
+  TraceUpdate, VerifyResult,
 } from '../types'
 
 /** Единственная точка соприкосновения интерфейса с бэкендом на Rust. */
@@ -416,8 +417,24 @@ export function apiQueueMessage(
  * Поиск обмена по бизнес-ключу: журналы, незавершённые обмены и все очереди.
  * Ход поиска приходит теми же событиями, что у выгрузки.
  */
-export function apiFindKey(connection: Connection, key: string): Promise<KeyTrace> {
-  return invoke<KeyTrace>('api_find_key', { connection, key })
+export function apiFindKey(connection: Connection, key: string, full = false): Promise<KeyTrace> {
+  return invoke<KeyTrace>('api_find_key', { connection, key, full })
+}
+
+/**
+ * Поиск по всем сообщениям очереди одним запросом — через её выгрузку.
+ * `full` — дочитать очередь целиком, даже если выгрузка больше обычного предела.
+ * Ход приходит скачанными байтами.
+ */
+export function apiQueueScan(
+  connection: Connection,
+  kind: ManagerKind,
+  id: string,
+  queue: string,
+  needle: string,
+  full = false,
+): Promise<DumpScan> {
+  return invoke<DumpScan>('api_queue_scan', { connection, kind, id, queue, needle, full })
 }
 
 /** Переотправка, перенос, копирование или удаление отмеченных сообщений одним запросом. */

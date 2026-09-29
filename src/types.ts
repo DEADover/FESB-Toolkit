@@ -324,7 +324,7 @@ export interface CopyResult {
 
 export interface ApiProgress {
   /** `domains` при выгрузке, `pack` и `upload` при отправке, `verify` при сверке, `messages` при поиске в очереди, остальные — при поиске по ключу. */
-  phase: 'domains' | 'pack' | 'upload' | 'verify' | 'messages' | 'logs' | 'inflight' | 'queues'
+  phase: 'domains' | 'pack' | 'upload' | 'verify' | 'messages' | 'logs' | 'inflight' | 'queues' | 'download'
   current: number
   total: number
 }
@@ -986,4 +986,14 @@ export interface KeyTrace {
   bodiesSkipped: number
   queuesTruncated: string[]
   problems: string[]
+}
+
+/** Что нашлось во всей очереди через её выгрузку. */
+export interface DumpScan {
+  matches: Array<{ message: QueueMessage; excerpt: string; inBody: boolean }>
+  /** Сколько сообщений прочитано. */
+  messages: number
+  bytes: number
+  /** Выгрузка больше предела — прочитана не вся очередь. */
+  truncated: boolean
 }

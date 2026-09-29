@@ -16,6 +16,7 @@ use serde::Serialize;
 use crate::analytics::{self, InflightExchange};
 use crate::fesb_api::{self, ApiProgress, Connection};
 use crate::fesb_ops::{self, LogEntry, LogRequest, ManagerKind, QueueMessage};
+use crate::queue_dump::{self, header_match};
 
 /// Короче ключ не ищем: по двум знакам находится весь журнал.
 pub const MIN_KEY: usize = 3;
@@ -23,10 +24,10 @@ pub const MIN_KEY: usize = 3;
 const LOG_LIMIT: u32 = 1000;
 /// Сколько найденных обменов дочитывать по их идентификатору.
 const FOLLOW_EXCHANGES: usize = 5;
-/// Сколько сообщений смотреть в одной очереди — столько же, сколько экран очередей.
+/// Если выгрузка очереди недоступна, сообщения читаются по старинке: первая
+/// страница списка и тела по одному запросу, не больше общего бюджета —
+/// иначе на стенде с тысячами сообщений поиск шёл бы минутами.
 const MESSAGES_PER_QUEUE: u32 = 200;
-/// Сколько тел прочитать за весь поиск. Тело — отдельный запрос на сообщение,
-/// и на стенде с тысячами сообщений в очередях без предела поиск шёл бы минутами.
 const BODY_BUDGET: usize = 3000;
 /// Хвост имени потока, который пишет журнал: `%-20.20thread`.
 const LOG_THREAD_WIDTH: usize = 20;
@@ -83,13 +84,15 @@ pub struct KeyTrace {
     pub messages_checked: usize,
     /// Сколько тел не прочитано: кончился общий предел.
     pub bodies_skipped: usize,
-    /// Очереди, в которых сообщений больше, чем смотрится за раз.
+    /// Очереди, прочитанные не целиком: выгрузка больше предела или, без
+    /// выгрузки, сообщений больше первой страницы.
     pub queues_truncated: Vec<String>,
     /// Что не удалось прочитать: поиск идёт дальше, но об этом надо сказать.
     pub problems: Vec<String>,
 }
 
-pub async fn find_key<F: FnMut(ApiProgress)>(connection: &Connection, key: &str, mut on_progress: F) -> Result<KeyTrace, String> {
+/// `limit` — сколько байт выгрузки читать с одной очереди; `u64::MAX` — всё.
+pub async fn find_key<F: FnMut(ApiProgress)>(connection: &Connection, key: &str, limit: u64, mut on_progress: F) -> Result<KeyTrace, String> {
     let key = key.trim();
     if key.chars().count() < MIN_KEY {
         return Err(format!("The key is too short: at least {MIN_KEY} characters"));
@@ -112,7 +115,7 @@ pub async fn find_key<F: FnMut(ApiProgress)>(connection: &Connection, key: &str,
         Err(error) => trace.problems.push(format!("in flight: {error}")),
     }
 
-    search_queues(connection, &mut trace, &mut on_progress).await;
+    search_queues(connection, &mut trace, limit, &mut on_progress).await;
     Ok(trace)
 }
 
@@ -268,7 +271,7 @@ fn thread_tail(thread: &str) -> String {
     chars[start..].iter().collect::<String>().trim().to_string()
 }
 
-async fn search_queues<F: FnMut(ApiProgress)>(connection: &Connection, trace: &mut KeyTrace, on_progress: &mut F) {
+async fn search_queues<F: FnMut(ApiProgress)>(connection: &Connection, trace: &mut KeyTrace, limit: u64, on_progress: &mut F) {
     let managers = match fesb_ops::queue_managers(connection).await {
         Ok(managers) => managers.into_iter().filter(|manager| manager.running).collect::<Vec<_>>(),
         Err(error) => {
@@ -295,6 +298,36 @@ async fn search_queues<F: FnMut(ApiProgress)>(connection: &Connection, trace: &m
     let mut budget = BODY_BUDGET;
     for (index, (manager, queue)) in targets.into_iter().enumerate() {
         on_progress(ApiProgress { phase: "queues", current: index as u64, total });
+        let hit = |message: QueueMessage, excerpt: String, in_body: bool| QueueHit {
+            kind: manager.kind,
+            manager: manager.id.clone(),
+            broker: manager.broker.clone(),
+            queue: queue.name.clone(),
+            message_id: message.id.clone(),
+            timestamp: message.timestamp.clone(),
+            original_queue: message.original_queue.clone(),
+            excerpt,
+            in_body,
+        };
+
+        // Главный путь — выгрузка очереди целиком одним запросом.
+        match queue_dump::scan_queue(connection, manager.kind, &manager.id, &queue.name, &trace.key, limit, |_, _| {}).await {
+            Ok(scan) => {
+                trace.queues_checked += 1;
+                trace.messages_checked += scan.messages;
+                if scan.truncated {
+                    trace.queues_truncated.push(format!("{} / {}", manager.broker, queue.name));
+                }
+                for found in scan.matches {
+                    trace.queues.push(hit(found.message, found.excerpt, found.in_body));
+                }
+                continue;
+            }
+            Err(error) => trace.problems.push(format!("{} / {} (export): {error}", manager.broker, queue.name)),
+        }
+
+        // Выгрузка закрыта правами или её нет в этой версии шины — тогда по
+        // старинке: первая страница списка и тела по одному, в пределах бюджета.
         let messages = match fesb_ops::queue_messages(connection, manager.kind, &manager.id, &queue.name, MESSAGES_PER_QUEUE).await {
             Ok(messages) => messages,
             Err(error) => {
@@ -308,23 +341,11 @@ async fn search_queues<F: FnMut(ApiProgress)>(connection: &Connection, trace: &m
             trace.queues_truncated.push(format!("{} / {}", manager.broker, queue.name));
         }
 
-        let hit = |message: &QueueMessage, excerpt: String, in_body: bool| QueueHit {
-            kind: manager.kind,
-            manager: manager.id.clone(),
-            broker: manager.broker.clone(),
-            queue: queue.name.clone(),
-            message_id: message.id.clone(),
-            timestamp: message.timestamp.clone(),
-            original_queue: message.original_queue.clone(),
-            excerpt,
-            in_body,
-        };
-
         // Заголовки и свойства уже в списке — они проверяются без лишних запросов.
         let mut rest = Vec::new();
         for message in &messages {
             match header_match(message, &needle) {
-                Some(excerpt) => trace.queues.push(hit(message, excerpt, false)),
+                Some(excerpt) => trace.queues.push(hit(message.clone(), excerpt, false)),
                 None => rest.push(message),
             }
         }
@@ -341,7 +362,7 @@ async fn search_queues<F: FnMut(ApiProgress)>(connection: &Connection, trace: &m
                 let by_id: HashMap<&str, &QueueMessage> = rest.iter().map(|message| (message.id.as_str(), *message)).collect();
                 for found in matches {
                     if let Some(message) = by_id.get(found.id.as_str()) {
-                        trace.queues.push(hit(message, found.excerpt, true));
+                        trace.queues.push(hit((*message).clone(), found.excerpt, true));
                     }
                 }
             }
@@ -349,22 +370,6 @@ async fn search_queues<F: FnMut(ApiProgress)>(connection: &Connection, trace: &m
         }
     }
     on_progress(ApiProgress { phase: "queues", current: total, total });
-}
-
-/// Совпадение в заголовках и свойствах: `orderNumber = INV-4815162342`.
-fn header_match(message: &QueueMessage, needle: &str) -> Option<String> {
-    let contains = |value: &str| value.to_lowercase().contains(needle);
-    if contains(&message.id) {
-        return Some(format!("id = {}", message.id));
-    }
-    if let Some(correlation) = message.correlation_id.as_deref().filter(|value| contains(value)) {
-        return Some(format!("correlationId = {correlation}"));
-    }
-    message
-        .properties
-        .iter()
-        .find(|property| contains(&property.value) || contains(&property.name))
-        .map(|property| format!("{} = {}", property.name, property.value))
 }
 
 #[cfg(test)]
@@ -432,6 +437,7 @@ mod tests {
             body: None, truncated: false,
         };
         assert_eq!(header_match(&message, "inv-4815162342").as_deref(), Some("orderNumber = INV-4815162342"));
+        assert!(header_match(&message, "7707083893").is_none());
         assert_eq!(header_match(&message, "7707083893"), None);
     }
 }

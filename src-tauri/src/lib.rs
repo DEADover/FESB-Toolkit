@@ -17,6 +17,7 @@ mod fesb_api;
 mod fesb_ops;
 mod key_trace;
 mod properties;
+mod queue_dump;
 mod mq_config;
 mod report_store;
 mod route_graph;
@@ -38,7 +39,7 @@ use tauri::{AppHandle, Emitter, Manager};
 use applier::{apply_trace_change, ApplyReport, ApplyRequest};
 use archive::{create_archive, extract_archive, ArchiveResult, ExtractResult};
 use fesb_api::{
-    ApiDomain, Connection, DomainRoutes, PullResult, PushResult, ServerInfo,
+    ApiDomain, ApiProgress, Connection, DomainRoutes, PullResult, PushResult, ServerInfo,
     VerifyResult,
 };
 use fesb_ops::{
@@ -516,9 +517,37 @@ async fn api_queue_messages_action(
 
 /// Поиск обмена по бизнес-ключу: журналы, незавершённые обмены и очереди.
 #[tauri::command]
-async fn api_find_key(app: AppHandle, connection: Connection, key: String) -> Result<key_trace::KeyTrace, String> {
-    key_trace::find_key(&connection, &key, |progress| {
+async fn api_find_key(app: AppHandle, connection: Connection, key: String, full: bool) -> Result<key_trace::KeyTrace, String> {
+    // `full` — дочитать очереди целиком, даже большие: человек сам решил ждать.
+    let limit = if full { u64::MAX } else { queue_dump::DEFAULT_LIMIT };
+    key_trace::find_key(&connection, &key, limit, |progress| {
         let _ = app.emit(API_PROGRESS_EVENT, progress);
+    })
+    .await
+}
+
+/// Поиск по всем сообщениям очереди через её выгрузку — одним запросом.
+///
+/// Ход приходит скачанными байтами; событие — не на каждый кусок сети, а раз
+/// в четверть мегабайта, иначе их были бы тысячи.
+#[tauri::command]
+async fn api_queue_scan(
+    app: AppHandle,
+    connection: Connection,
+    kind: ManagerKind,
+    id: String,
+    queue: String,
+    needle: String,
+    full: bool,
+) -> Result<queue_dump::DumpScan, String> {
+    const STEP: u64 = 256 * 1024;
+    let limit = if full { u64::MAX } else { queue_dump::DEFAULT_LIMIT };
+    let mut reported = 0u64;
+    queue_dump::scan_queue(&connection, kind, &id, &queue, &needle, limit, |done, total| {
+        if done >= reported + STEP || Some(done) == total {
+            reported = done;
+            let _ = app.emit(API_PROGRESS_EVENT, ApiProgress { phase: "download", current: done, total: total.unwrap_or(0) });
+        }
     })
     .await
 }
@@ -755,6 +784,7 @@ pub fn run() {
             api_queue_message,
             api_queue_messages_action,
             api_find_key,
+            api_queue_scan,
             api_queue_search,
             api_properties,
             api_properties_sweep,

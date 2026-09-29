@@ -1076,7 +1076,7 @@ fn decode_base64(input: &str) -> Option<Vec<u8>> {
     Some(out)
 }
 
-fn message_from(item: &Value) -> Option<QueueMessage> {
+pub(crate) fn message_from(item: &Value) -> Option<QueueMessage> {
     let properties = item
         .get("properties")
         .and_then(Value::as_object)
@@ -1391,7 +1391,7 @@ pub async fn queue_search<F: FnMut(ApiProgress)>(
 /// посреди буквы уронил бы поиск целиком. Регистр снимается посимвольно —
 /// так строка и её версия в нижнем регистре остаются одной длины, и позиция,
 /// найденная в одной, годится для другой.
-fn excerpt_around(body: &str, needle: &str) -> Option<String> {
+pub(crate) fn excerpt_around(body: &str, needle: &str) -> Option<String> {
     let needle = fold(needle);
     if needle.is_empty() {
         return None;
