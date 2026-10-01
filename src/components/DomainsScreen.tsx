@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
-import { ArrowsClockwise, CaretDown, Copy, Play, Stop } from '@phosphor-icons/react'
+import { ArrowsClockwise, CaretDown, Copy, Play, Stop, X } from '@phosphor-icons/react'
 
 import { useI18n, useRichText } from '../i18n'
 import { apiDomainAction, apiDomains, apiDomainStatistics, errorText } from '../lib/api'
@@ -435,16 +435,27 @@ export function DomainsScreen({ connection, server, pulling, progress, error: pu
         </DataTable>
       </div>
 
-      {/* На узком окне панель переносится: правая группа уходит на вторую
-          строку и прижимается вправо, а не вылезает за край окна. */}
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-line bg-surface px-5 py-3">
-        <span className="whitespace-nowrap text-[11.5px] text-content-subtle">
-          {t('api.domains.shown', { visible: visible.length, total: domains?.length ?? 0 })}
-        </span>
+      {/* Две строки — две разные вещи. Сверху, пока что-то отмечено, —
+          действия над отмеченными доменами; снизу всегда — сколько видно
+          и выгрузка. Кнопки одного размера, группы не перемешиваются
+          при любой ширине окна. */}
+      <div className="rounded-xl border border-line bg-surface">
         {selected.size > 0 && (
-          <>
-            <Badge tone="accent" className="whitespace-nowrap">{t('api.domains.selected', { count: selected.size })}</Badge>
-            <Button variant="ghost" size="sm" onClick={() => setSelected(new Set())}>{t('action.deselect')}</Button>
+          <div className="flex flex-wrap items-center gap-2 border-b border-line px-5 py-2.5">
+            {/* Счётчик и сброс — одна плашка: крестик снимает выделение. */}
+            <button
+              type="button"
+              onClick={() => setSelected(new Set())}
+              title={t('action.deselect')}
+              aria-label={t('action.deselect')}
+              className={cx(
+                'inline-flex h-7 items-center gap-1.5 whitespace-nowrap rounded-md border border-accent/35 bg-accent/10 pr-1.5 pl-2.5 text-[12px] font-medium text-accent-content transition hover:bg-accent/20',
+                FOCUS_RING,
+              )}
+            >
+              {t('api.domains.selected', { count: selected.size })}
+              <X size={11} weight="bold" />
+            </button>
             <span className="mx-1 h-5 w-px bg-line" />
             <Button size="sm" disabled={bulk !== null || pulling} onClick={() => void runBulk('start')}>
               {t('modules.start')}
@@ -459,29 +470,36 @@ export function DomainsScreen({ connection, server, pulling, progress, error: pu
               <Copy size={13} weight="bold" />
               {t('copy.action')}
             </Button>
-          </>
+          </div>
         )}
 
-        <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
-          {pulling && (
-            <span className="text-[11.5px] text-content-subtle" title={t('api.pull.hint')}>
-              {t('api.pull.progress', { current: progress?.current ?? 0, total: progress?.total ?? selected.size })}
-            </span>
-          )}
-          <Button className="min-w-40" onClick={() => setAsking(null)} disabled={pulling} title={t('api.pull.allHint')}>
-            {t('api.pull.all', { count: domains?.length ?? 0 })}
-          </Button>
-          <Button
-            variant="primary"
-            // Выбраны все домены — это и есть «забрать всё»: перечислять их незачем.
-            onClick={() => setAsking(selected.size === domains?.length ? null : [...selected])}
-            className="min-w-52"
-            disabled={pulling || selected.size === 0}
-          >
-            {pulling
-              ? <><Spinner className="size-4" /> {t('api.pull.running')}</>
-              : t('api.pull.selected', { count: selected.size })}
-          </Button>
+        <div className="flex flex-wrap items-center gap-2 px-5 py-2.5">
+          <span className="whitespace-nowrap text-[11.5px] text-content-subtle">
+            {t('api.domains.shown', { visible: visible.length, total: domains?.length ?? 0 })}
+          </span>
+          <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
+            {pulling && (
+              <span className="text-[11.5px] text-content-subtle" title={t('api.pull.hint')}>
+                {t('api.pull.progress', { current: progress?.current ?? 0, total: progress?.total ?? selected.size })}
+              </span>
+            )}
+            <Button size="sm" onClick={() => setAsking(null)} disabled={pulling} title={t('api.pull.allHint')}>
+              {t('api.pull.all', { count: domains?.length ?? 0 })}
+            </Button>
+            <Button
+              size="sm"
+              variant="primary"
+              // Выбраны все домены — это и есть «забрать всё»: перечислять их незачем.
+              onClick={() => setAsking(selected.size === domains?.length ? null : [...selected])}
+              // Ширина держится и под надписью о ходе выгрузки — кнопка не прыгает.
+              className="min-w-44"
+              disabled={pulling || selected.size === 0}
+            >
+              {pulling
+                ? <><Spinner className="size-3.5" /> {t('api.pull.running')}</>
+                : t('api.pull.selected', { count: selected.size })}
+            </Button>
+          </div>
         </div>
       </div>
       {connection && server && (
