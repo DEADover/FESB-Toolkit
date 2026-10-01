@@ -354,6 +354,21 @@ const TIP_FILL = 'bg-[color-mix(in_oklab,var(--color-accent)_14%,var(--color-sur
  * в светлом оформлении — на тёмной теме это выглядело чужой заплатой,
  * да и рядом с `MultiSelect` два разных списка бросались в глаза.
  */
+/**
+ * Куда раскрывать список: вниз, если под кнопкой хватает места, иначе вверх.
+ *
+ * Панели правки прижаты к низу окна, и список, открытый вниз, уходил
+ * за край: последние значения было не выбрать. Высота оценивается
+ * по числу строк и не больше `max-h-72` самого списка.
+ */
+function dropsUp(holder: HTMLElement | null, rows: number): boolean {
+  const box = holder?.getBoundingClientRect()
+  if (!box) return false
+  const height = Math.min(288, rows * 30 + 16)
+  const below = window.innerHeight - box.bottom
+  return below < height && box.top > below
+}
+
 export function Select<T extends string | number>({ value, options, onChange, ariaLabel, label, className = 'w-44' }: {
   value: T
   /** `hint` — приписка справа в списке: обычно сколько строк под этим значением. */
@@ -365,6 +380,7 @@ export function Select<T extends string | number>({ value, options, onChange, ar
   className?: string
 }) {
   const [open, setOpen] = useState(false)
+  const [up, setUp] = useState(false)
   const holder = useRef<HTMLDivElement>(null)
   useClickAway(holder, () => setOpen(false))
 
@@ -380,7 +396,10 @@ export function Select<T extends string | number>({ value, options, onChange, ar
         aria-label={ariaLabel}
         aria-haspopup="listbox"
         aria-expanded={open}
-        onClick={() => setOpen((shown) => !shown)}
+        onClick={() => {
+          if (!open) setUp(dropsUp(holder.current, options.length))
+          setOpen((shown) => !shown)
+        }}
         className={cx(
           CONTROL_HEIGHT,
           'flex w-full items-center gap-2 rounded-lg border border-line-strong bg-surface px-3 text-[12.5px] transition',
@@ -398,7 +417,10 @@ export function Select<T extends string | number>({ value, options, onChange, ar
       {open && (
         <div
           role="listbox"
-          className="absolute left-0 top-full z-40 mt-1 max-h-72 w-full min-w-40 overflow-y-auto rounded-xl border border-line-strong bg-surface p-1.5 shadow-2xl"
+          className={cx(
+            'absolute left-0 z-40 max-h-72 w-full min-w-40 overflow-y-auto rounded-xl border border-line-strong bg-surface p-1.5 shadow-2xl',
+            up ? 'bottom-full mb-1' : 'top-full mt-1',
+          )}
         >
           {options.map((option) => (
             <button
@@ -440,6 +462,7 @@ export function MultiSelect({ label, options, selected, onChange, className = 'w
   emptyLabel: string
 }) {
   const [open, setOpen] = useState(false)
+  const [up, setUp] = useState(false)
   const holder = useRef<HTMLDivElement>(null)
   useClickAway(holder, () => setOpen(false))
 
@@ -464,7 +487,10 @@ export function MultiSelect({ label, options, selected, onChange, className = 'w
     <div ref={holder} className={cx('relative shrink-0', open && 'z-30', className)}>
       <button
         type="button"
-        onClick={() => setOpen((value) => !value)}
+        onClick={() => {
+          if (!open) setUp(dropsUp(holder.current, options.length))
+          setOpen((value) => !value)
+        }}
         title={label}
         className={cx(
           CONTROL_HEIGHT,
@@ -482,7 +508,10 @@ export function MultiSelect({ label, options, selected, onChange, className = 'w
       {/* Список по ширине кнопки: он её продолжение, а не отдельное окно.
           `min-w-52` — на случай совсем узкой кнопки. */}
       {open && (
-        <div className="absolute left-0 top-full z-40 mt-1 max-h-72 w-full min-w-52 overflow-y-auto rounded-xl border border-line-strong bg-surface p-1.5 shadow-2xl">
+        <div className={cx(
+          'absolute left-0 z-40 max-h-72 w-full min-w-52 overflow-y-auto rounded-xl border border-line-strong bg-surface p-1.5 shadow-2xl',
+          up ? 'bottom-full mb-1' : 'top-full mt-1',
+        )}>
           {options.map((option) => (
             <label
               key={option.id}
