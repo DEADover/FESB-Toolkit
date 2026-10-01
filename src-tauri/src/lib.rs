@@ -22,6 +22,7 @@ mod mq_config;
 mod report_store;
 mod route_graph;
 mod route_links;
+mod route_trace;
 mod route_xml;
 mod routes_overview;
 mod scanner;
@@ -430,6 +431,26 @@ async fn api_route_action(
     fesb_ops::route_action(&connection, &domain, &route, &action).await
 }
 
+/// Трассировка одного СОПС. Приложение зовёт по одному СОПС за раз:
+/// так видно движение и можно остановиться посередине.
+#[tauri::command]
+async fn api_route_trace(
+    connection: Connection,
+    domain: String,
+    route: String,
+    change: route_trace::RouteTraceChange,
+) -> Result<route_trace::RouteTraceResult, String> {
+    route_trace::set_route_trace(&connection, &domain, &route, &change).await
+}
+
+#[tauri::command]
+async fn api_domain_trace_beans(
+    connection: Connection,
+    guids: Vec<String>,
+) -> Result<Vec<fesb_api::DomainTraceBeans>, String> {
+    fesb_api::domain_trace_beans(&connection, &guids).await
+}
+
 #[tauri::command]
 async fn api_save_points(connection: Connection) -> Result<Vec<SavePoint>, String> {
     fesb_ops::save_points(&connection).await
@@ -773,6 +794,8 @@ pub fn run() {
             delete_report_history,
             api_route_state,
             api_route_action,
+            api_route_trace,
+            api_domain_trace_beans,
             api_save_points,
             api_create_save_point,
             api_delete_save_point,
@@ -857,6 +880,8 @@ pub mod testing {
     pub use crate::api_report::{endpoints_of_domain, listening_ports, server_queue_manager};
     pub use crate::security::access;
     pub use crate::routes_overview::routes_overview;
+    pub use crate::route_trace::{set_route_trace, RouteTraceChange};
+    pub use crate::fesb_api::domain_trace_beans;
     pub use crate::fesb_ops::{
         delete_property, domain_statistics, log_entries, log_files, modules, properties,
         audit, queue_managers, queue_message, queue_messages, queue_search, queues, route_state,

@@ -849,6 +849,22 @@ pub async fn endpoint_report<F: FnMut(ApiProgress)>(
 /// одной волны. Этим живут и указатель имён СОПС, и отчёт по точкам входа.
 async fn walk_domains<T, F, R>(
     connection: &Connection,
+    on_progress: F,
+    read: R,
+) -> Result<Vec<T>, String>
+where
+    F: FnMut(ApiProgress),
+    R: FnMut(&Path, &ManifestDomain) -> T,
+{
+    let names = domains(connection).await?;
+    let guids: Vec<String> = names.iter().map(|item| item.guid.clone()).collect();
+    walk_selected(connection, &guids, on_progress, read).await
+}
+
+/// То же для выбранных доменов.
+async fn walk_selected<T, F, R>(
+    connection: &Connection,
+    guids: &[String],
     mut on_progress: F,
     mut read: R,
 ) -> Result<Vec<T>, String>
@@ -856,11 +872,9 @@ where
     F: FnMut(ApiProgress),
     R: FnMut(&Path, &ManifestDomain) -> T,
 {
-    let names = domains(connection).await?;
-    if names.is_empty() {
+    if guids.is_empty() {
         return Ok(Vec::new());
     }
-    let guids: Vec<String> = names.iter().map(|item| item.guid.clone()).collect();
 
     let client = connection.client()?;
     let scratch = routes_cache().join(format!("walk-{}", stamp()));
@@ -919,6 +933,44 @@ where
     outcome
 }
 
+
+// ───────────────────── объекты трассировки доменов ─────────────────────
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DomainTraceBean {
+    pub name: String,
+    /// `queue`, `memory` или `other` — как в разборе выгрузки.
+    pub kind: &'static str,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DomainTraceBeans {
+    pub guid: String,
+    pub beans: Vec<DomainTraceBean>,
+}
+
+/// Какие объекты трассировки заведены в доменах.
+///
+/// Списка бинов в API нет — он берётся из выгрузки домена. Нужен, чтобы
+/// не назначить СОПС объект, которого в его домене нет: такой домен
+/// не поднимется при следующем запуске.
+pub async fn domain_trace_beans(connection: &Connection, guids: &[String]) -> Result<Vec<DomainTraceBeans>, String> {
+    walk_selected(connection, guids, |_| {}, |dir, domain| {
+        let beans = fs::read_to_string(dir.join("domain.xml"))
+            .map(|xml| crate::domain_xml::parse_domain_xml(&xml).traces)
+            .unwrap_or_default()
+            .into_iter()
+            .filter_map(|trace| {
+                let kind = crate::scanner::trace_kind(trace.bean_class.as_deref());
+                trace.bean_id.or(trace.bean_name).map(|name| DomainTraceBean { name, kind })
+            })
+            .collect();
+        DomainTraceBeans { guid: domain.guid.clone(), beans }
+    })
+    .await
+}
 
 // ───────────────────────── СОПС одного домена ─────────────────────────
 

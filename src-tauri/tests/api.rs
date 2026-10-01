@@ -979,3 +979,48 @@ fn trace_options_reach_the_bus() {
         println!("{:?}: {:?}", trace.bean_id, trace.options);
     }
 }
+
+/// Трассировка СОПС переключается через сохранение СОПС, как в редакторе шины.
+///
+/// Нужен тестовый домен с объектами трассировки и СОПС (`TOOLKIT.TRACE`):
+///
+/// ```sh
+/// FESB_URL=http://localhost:8181/manager FESB_TRACE_DOMAIN=domain-… FESB_TRACE_ROUTE=route-… \
+///   cargo test --test api route_trace -- --ignored --nocapture
+/// ```
+#[test]
+#[ignore]
+fn route_trace_switches_and_reads_back() {
+    use fesb_toolkit_lib::testing::{domain_trace_beans, set_route_trace, RouteTraceChange};
+
+    let (Some(connection), Ok(domain), Ok(route)) =
+        (connection(), std::env::var("FESB_TRACE_DOMAIN"), std::env::var("FESB_TRACE_ROUTE"))
+    else {
+        eprintln!("FESB_URL, FESB_TRACE_DOMAIN или FESB_TRACE_ROUTE не заданы — пропускаем");
+        return;
+    };
+
+    let beans = block(domain_trace_beans(&connection, &[domain.clone()])).expect("объекты трассировки");
+    let names: Vec<&str> = beans[0].beans.iter().map(|bean| bean.name.as_str()).collect();
+    println!("объекты домена: {names:?}");
+    assert!(names.contains(&"TraceToQueue"));
+
+    let step = |change: RouteTraceChange| block(set_route_trace(&connection, &domain, &route, &change)).expect("сохранение СОПС");
+    let off = step(RouteTraceChange { enabled: Some(false), config: Some("TraceToQueue".into()) });
+    println!("{:?} → {:?}", off.before, off.after);
+    assert!(!off.after.trace);
+    // Повтор ничего не сохраняет.
+    assert_eq!(step(RouteTraceChange { enabled: Some(false), config: None }).status, "unchanged");
+
+    let on = step(RouteTraceChange { enabled: Some(true), config: Some("TraceToQueue,TraceToMemory".into()) });
+    assert_eq!(on.after.config.as_deref(), Some("TraceToQueue,TraceToMemory"));
+
+    // Список СОПС сервера видит то же, что сохранили.
+    let rows = block(routes_overview(&connection)).expect("список СОПС");
+    let row = rows.iter().find(|row| row.id == route).expect("СОПС в списке");
+    assert!(row.trace);
+    assert_eq!(row.trace_beans, vec!["TraceToQueue", "TraceToMemory"]);
+
+    let back = step(RouteTraceChange { enabled: Some(true), config: Some("TraceToQueue".into()) });
+    println!("{:?} → {:?}", back.before, back.after);
+}

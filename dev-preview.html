@@ -2277,6 +2277,19 @@
             }
           }
           if (key === 'apply_trace') return window.previewApply(args.request)
+          // Объекты трассировки доменов: у каждого второго домена есть ещё MC.TRACE.
+          if (key === 'api_domain_trace_beans') return args.guids.map((guid, i) => ({
+            guid,
+            beans: [{ name: 'TraceToQueue', kind: 'queue' }, ...(i % 2 ? [] : [{ name: 'MC.TRACE', kind: 'queue' }])],
+          }))
+          if (key === 'api_route_trace') {
+            await new Promise((resolve) => setTimeout(resolve, 120))
+            const row = DATA.api_routes_overview.find((item) => item.id === args.route)
+            const before = { trace: row.trace, config: row.traceBeans.join(',') || null }
+            if (args.change.enabled !== null) row.trace = args.change.enabled
+            if (args.change.config !== null) row.traceBeans = args.change.config ? args.change.config.split(',') : []
+            return { status: 'changed', before, after: { trace: row.trace, config: row.traceBeans.join(',') || null } }
+          }
           if (key in DATA) return DATA[key]
           return []
         },

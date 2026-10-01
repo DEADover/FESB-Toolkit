@@ -711,6 +711,29 @@ export interface RouteSummary {
   tags: string[]
 }
 
+/** Что поменять в трассировке СОПС. Пустое поле — не трогать. */
+export interface RouteTraceChange {
+  enabled: boolean | null
+  /** Объекты через запятую; пустая строка — по умолчанию домена. */
+  config: string | null
+}
+
+export interface RouteTraceState {
+  trace: boolean
+  config: string | null
+}
+
+export interface RouteTraceResult {
+  status: 'changed' | 'unchanged'
+  before: RouteTraceState
+  after: RouteTraceState
+}
+
+export interface DomainTraceBeans {
+  guid: string
+  beans: Array<{ name: string; kind: 'queue' | 'memory' | 'other' }>
+}
+
 export interface DomainRouteNames {
   guid: string
   name: string

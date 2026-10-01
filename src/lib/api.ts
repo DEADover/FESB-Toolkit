@@ -8,11 +8,12 @@ import type {
   AccessReport, ApiDomain, ApiEndpoint, ApiProgress, AppInfo, ApplyProgress, ApplyReport,
   ApplyTarget, ArchiveProgress, ArchiveResult, AuditEntry, BrokerAccessReport, BrokerEndpoint,
   CertificateReport, Comparison, Connection, CopyPlan, CopyResult, DomainAction,
-  DomainActionResult, DomainRoutes, DomainStat, DumpScan, ExtractResult, InflightExchange,
+  DomainActionResult, DomainRoutes, DomainStat, DomainTraceBeans, DumpScan, ExtractResult, InflightExchange,
   KeyTrace, LinkGraph, LogEntry, LogFileRow, LogRequest, ManagerKind, MessageAction,
   MessageActionResult, ModuleAction, ModuleRow, MqConfigAudit, MqConfigKind, MqStoreOutcome,
   PropertyRow, PropertyScope, PullResult, PushResult, QueueManager, QueueMatch, QueueMessage,
-  QueueRow, ReportEntry, RouteAction, RouteGraph, RouteState, RouteSummary, SavePoint,
+  QueueRow, ReportEntry, RouteAction, RouteGraph, RouteState, RouteSummary, RouteTraceChange,
+  RouteTraceResult, SavePoint,
   ScanProgress, ScanResult, ServerInfo, ServerUsage, SnapshotEntry, StoredReport, SweepRow,
   TraceUpdate, VerifyResult,
 } from '../types'
@@ -357,6 +358,21 @@ export function downloadPortable(version: string): Promise<void> {
 
 export function apiRouteState(connection: Connection, domain: string, route: string): Promise<RouteState> {
   return invoke<RouteState>('api_route_state', { connection, domain, route })
+}
+
+/** Трассировка одного СОПС — сохраняется так же, как из редактора шины. */
+export function apiRouteTrace(
+  connection: Connection,
+  domain: string,
+  route: string,
+  change: RouteTraceChange,
+): Promise<RouteTraceResult> {
+  return invoke<RouteTraceResult>('api_route_trace', { connection, domain, route, change })
+}
+
+/** Объекты трассировки, заведённые в доменах: списка в API нет, он берётся из выгрузки. */
+export function apiDomainTraceBeans(connection: Connection, guids: string[]): Promise<DomainTraceBeans[]> {
+  return invoke<DomainTraceBeans[]>('api_domain_trace_beans', { connection, guids })
 }
 
 export function apiRouteAction(

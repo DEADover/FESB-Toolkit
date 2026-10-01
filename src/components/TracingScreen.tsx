@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
-import { ArrowCounterClockwise, DownloadSimple, Play, Stop } from '@phosphor-icons/react'
+import { ArrowCounterClockwise, DownloadSimple, Play, Pulse, Stop } from '@phosphor-icons/react'
 
 import { useI18n, type MessageKey, type Translate } from '../i18n'
-import { apiRouteAction, apiRoutesOverview, errorText, revealPath, saveReport, saveXlsxAs } from '../lib/api'
+import { apiRouteAction, apiRoutesOverview, apiRouteTrace, errorText, revealPath, saveReport, saveXlsxAs } from '../lib/api'
+import type { RoutePlan } from '../lib/routeTrace'
 import { localStamp } from '../lib/paths'
-import type { Connection, RouteAction, RouteSummary, ServerInfo } from '../types'
+import type { Connection, RouteAction, RouteSummary, RouteTraceChange, ServerInfo } from '../types'
+import { RouteTraceDialog } from './RouteTraceDialog'
 import {
   ErrorBar, NotConnected, Panel, RefreshButton, ScreenBody, StatsBar, TableMessage, useApiData,
   useDebounced,
@@ -93,8 +95,11 @@ export function TracingScreen({ connection, server, onGoToConnection, onOpenRout
     done: number
     total: number
     failures: Array<{ row: RouteSummary; error: string }>
+    /** Что не отправлялось вовсе: правка трассировки знает это заранее. */
+    skipped?: Array<{ row: RouteSummary; reason: string }>
     finished: boolean
   } | null>(null)
+  const [tracing, setTracing] = useState(false)
   const query = useDebounced(search, 250)
 
   const all = useMemo(() => data ?? [], [data])
@@ -170,6 +175,39 @@ export function TracingScreen({ connection, server, onGoToConnection, onOpenRout
     setBulk({ done, total: targets.length, failures, finished: true })
     await reload()
   }, [connection, chosen, reload])
+
+  /**
+   * Трассировка отмеченных СОПС.
+   *
+   * Тоже по одному запросу: каждое сохранение СОПС шина применяет сразу,
+   * и сотня одновременных перезапусков СОПС ей ни к чему. В шину уходят
+   * только те, что действительно меняются; пропущенные видны в итоге.
+   */
+  const runTrace = useCallback(async (change: RouteTraceChange, plan: RoutePlan[]) => {
+    if (!connection) return
+    setTracing(false)
+    const targets = plan.filter((item) => item.kind === 'change').map((item) => item.row)
+    const skipped = plan.flatMap((item) => item.kind === 'missing'
+      ? [{ row: item.row, reason: t('routeTrace.missing', { names: item.missing.join(', ') }) }]
+      : [])
+    setBulk({ done: 0, total: targets.length, failures: [], skipped, finished: false })
+    cancelled.current = false
+
+    const failures: Array<{ row: RouteSummary; error: string }> = []
+    let done = 0
+    for (const row of targets) {
+      if (cancelled.current) break
+      try {
+        await apiRouteTrace(connection, row.domainGuid, row.id, change)
+        done += 1
+      } catch (err) {
+        failures.push({ row, error: errorText(err) })
+      }
+      setBulk({ done: done + failures.length, total: targets.length, failures, skipped, finished: false })
+    }
+    setBulk({ done, total: targets.length, failures, skipped, finished: true })
+    await reload()
+  }, [connection, reload, t])
 
   /** В файл уходит то, что видно на экране: фильтры — часть списка. */
   const exportXlsx = useCallback(async () => {
@@ -367,6 +405,10 @@ export function TracingScreen({ connection, server, onGoToConnection, onOpenRout
               <ButtonGlyph><ArrowCounterClockwise size={13} weight="bold" /></ButtonGlyph>
               {t('routes.reset')}
             </Button>
+            <Button size="sm" disabled={bulk !== null} onClick={() => setTracing(true)}>
+              <ButtonGlyph><Pulse size={13} weight="bold" /></ButtonGlyph>
+              {t('routeTrace.open')}
+            </Button>
           </>
         ) : (
           <span className="text-[11.5px] text-content-subtle">{t('tracing.bulk.hint')}</span>
@@ -397,6 +439,14 @@ export function TracingScreen({ connection, server, onGoToConnection, onOpenRout
         </div>
       </Modal>
 
+      <RouteTraceDialog
+        open={tracing}
+        connection={connection}
+        rows={chosen}
+        onClose={() => setTracing(false)}
+        onApply={(change, plan) => void runTrace(change, plan)}
+      />
+
       <Modal
         open={bulk !== null}
         onClose={() => { if (bulk?.finished) { setBulk(null); setSelected(new Set()) } }}
@@ -424,6 +474,22 @@ export function TracingScreen({ connection, server, onGoToConnection, onOpenRout
               <div className="flex items-center gap-2 text-[12px] text-content-muted">
                 <Spinner className="size-4" />
                 {t('tracing.bulk.running', { current: bulk.done, total: bulk.total })}
+              </div>
+            )}
+            {bulk.skipped && bulk.skipped.length > 0 && (
+              <div className="max-h-48 overflow-y-auto rounded-lg border border-line">
+                <div className="border-b border-line bg-surface-2 px-2.5 py-1.5 text-[11.5px] text-caution">
+                  {t('routeTrace.result.skipped', { count: bulk.skipped.length })}
+                </div>
+                {bulk.skipped.map((item) => (
+                  <div key={item.row.id} className="border-b border-line/60 px-2.5 py-1.5 last:border-b-0">
+                    <div className="flex items-baseline gap-2 text-[11px] text-content-subtle">
+                      <span className="truncate">{item.row.domain}</span>
+                      <span className="truncate font-medium text-content">{item.row.name}</span>
+                    </div>
+                    <div className="mt-0.5 text-[11.5px] text-caution">{item.reason}</div>
+                  </div>
+                ))}
               </div>
             )}
             {bulk.failures.length > 0 && (
