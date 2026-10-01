@@ -1,13 +1,17 @@
 //! Разбор `domain.xml`: bean-ы трассировки и точные смещения их значений.
 //!
 //! Задача — не построить полноценное DOM-дерево, а найти bean-ы трассировки
-//! (`factor:type="TRACE"`) и точные смещения значений `broker` и `queue`.
+//! (`factor:type="TRACE"`) и точные смещения значений их параметров:
+//! менеджера, очереди, режима и остальных из [`crate::trace_options`].
 //! Работа со смещениями позволяет заменять значение хирургически: остальной файл
 //! (форматирование, порядок атрибутов, переводы строк, BOM) остаётся байт-в-байт
 //! прежним, а это критично — файл потом заливается обратно в шину.
 
+use std::collections::BTreeMap;
+
 use serde::{Deserialize, Serialize};
 
+use crate::trace_options::{self, OptionKind, EVENT_PREFIX, TRACE_EVENTS};
 use crate::xml::{attr_value, decode_xml, encode_xml_attr, encode_xml_text, line_at, local_name, parse_attributes, scan_tags, Attr, Tag};
 
 const TRACE_CLASS_SUFFIX: &str = ".TraceQueueConfig";
@@ -50,6 +54,40 @@ pub struct TraceBean {
     /// признак есть: в редакторе шины он и стоит на месте очереди —
     /// «Блокирующая» или «Неблокирующая».
     pub block_on_full_queue: Option<bool>,
+    /// Текущие значения параметров из [`trace_options::TRACE_OPTIONS`].
+    ///
+    /// Свойства нет или в нём нечего показать — ключа нет. События лежат
+    /// поштучно: `events.TRACE_ENDPOINT` → `true` / `false`, и только если
+    /// список событий в объекте вообще записан.
+    pub options: BTreeMap<String, String>,
+    #[serde(skip)]
+    pub option_locations: BTreeMap<String, ValueLocation>,
+    #[serde(skip)]
+    pub events: Option<EventsSpan>,
+    #[serde(skip)]
+    pub insert_at: Option<InsertPoint>,
+}
+
+/// Где в файле лежит список событий: свойство целиком, от `<property` до `</property>`.
+#[derive(Debug, Clone)]
+pub struct EventsSpan {
+    pub start: usize,
+    pub end: usize,
+    pub line: usize,
+    /// Отступ строки, с которой начинается свойство.
+    pub indent: String,
+    pub values: Vec<String>,
+}
+
+/// Куда дописать свойство, которого в объекте нет: перед `</bean>`.
+#[derive(Debug, Clone)]
+pub struct InsertPoint {
+    pub at: usize,
+    pub line: usize,
+    /// `</bean>` стоит на своей строке — новое свойство тоже встаёт на свою.
+    pub own_line: bool,
+    pub indent: String,
+    pub newline: &'static str,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -161,6 +199,113 @@ fn find_property(xml: &str, tags: &[Tag], from: usize, to: usize, prop_name: &st
     }
     None
 }
+/// Начало строки, в которой стоит `offset`, и её отступ — если до `offset`
+/// в этой строке одни пробелы.
+fn line_indent(xml: &str, offset: usize) -> (usize, Option<String>) {
+    let start = xml[..offset].rfind('\n').map(|i| i + 1).unwrap_or(0);
+    let lead = &xml[start..offset];
+    let indent = lead.chars().all(|ch| ch == ' ' || ch == '\t').then(|| lead.to_string());
+    (start, indent)
+}
+
+type Options = (BTreeMap<String, String>, BTreeMap<String, ValueLocation>, Option<EventsSpan>);
+
+/// Текущие значения параметров объекта трассировки и их места в файле.
+fn read_options(xml: &str, tags: &[Tag], from: usize, to: usize) -> Options {
+    let mut values = BTreeMap::new();
+    let mut locations = BTreeMap::new();
+    for option in trace_options::properties() {
+        if let Some(found) = find_property(xml, tags, from, to, option.key) {
+            if let Some(value) = meaningful(&found.value) {
+                values.insert(option.key.to_string(), value);
+            }
+            locations.insert(option.key.to_string(), found.location);
+        }
+    }
+    let events = find_events(xml, tags, from, to);
+    if let Some(span) = &events {
+        for event in TRACE_EVENTS {
+            let on = span.values.iter().any(|value| value == event);
+            values.insert(format!("{EVENT_PREFIX}{event}"), on.to_string());
+        }
+    }
+    (values, locations, events)
+}
+
+/// Свойство `events` целиком и перечисленные в нём события.
+fn find_events(xml: &str, tags: &[Tag], from: usize, to: usize) -> Option<EventsSpan> {
+    let (k, open) = tags.iter().enumerate().find(|(_, tag)| {
+        tag.start >= from
+            && tag.start < to
+            && !tag.is_end
+            && local_name(&tag.name) == "property"
+            && attr_value(&parse_attributes(xml, tag.attrs_from, tag.attrs_to), "name").as_deref() == Some("events")
+    })?;
+    let (_, indent) = line_indent(xml, open.start);
+    let indent = indent.unwrap_or_default();
+    let line = line_at(xml, open.start);
+    if open.is_self_close {
+        return Some(EventsSpan { start: open.start, end: open.end, line, indent, values: Vec::new() });
+    }
+
+    let mut values = Vec::new();
+    let mut end = None;
+    for (n, inner) in tags.iter().enumerate().skip(k + 1) {
+        if inner.start >= to {
+            break;
+        }
+        if inner.is_end && local_name(&inner.name) == "property" {
+            end = Some(inner.end);
+            break;
+        }
+        if !inner.is_end && !inner.is_self_close && local_name(&inner.name) == "value" {
+            if let Some(close) = tags[n + 1..].iter().find(|t| t.is_end && local_name(&t.name) == "value") {
+                values.push(decode_xml(&xml[inner.end..close.start]).trim().to_string());
+            }
+        }
+    }
+    Some(EventsSpan { start: open.start, end: end?, line, indent, values })
+}
+
+/// Место для нового свойства — перед закрывающим `</bean>`, с отступом
+/// соседних свойств, чтобы файл после правки читался как написанный шиной.
+fn insert_point(xml: &str, tags: &[Tag], from: usize, to: usize) -> Option<InsertPoint> {
+    if to <= from {
+        return None;
+    }
+    let (line_start, close_indent) = line_indent(xml, to);
+    let property_indent = tags
+        .iter()
+        .find(|tag| tag.start >= from && tag.start < to && !tag.is_end && local_name(&tag.name) == "property")
+        .and_then(|tag| line_indent(xml, tag.start).1);
+    let newline = if xml[..line_start].ends_with("\r\n") { "\r\n" } else { "\n" };
+    let own_line = close_indent.is_some() && line_start > from;
+    let indent = property_indent
+        .or_else(|| close_indent.clone().map(|indent| format!("{indent}    ")))
+        .unwrap_or_default();
+    Some(InsertPoint {
+        at: if own_line { line_start } else { to },
+        line: line_at(xml, to),
+        own_line,
+        indent,
+        newline,
+    })
+}
+
+/// Список событий в том виде, в котором его пишет редактор шины.
+fn events_block(span: &EventsSpan, events: &[&str], newline: &str) -> String {
+    let indent = &span.indent;
+    if events.is_empty() {
+        return format!("<property name=\"events\">{newline}{indent}    <list/>{newline}{indent}</property>");
+    }
+    let mut text = format!("<property name=\"events\">{newline}{indent}    <list>{newline}");
+    for event in events {
+        text.push_str(&format!("{indent}        <value>{event}</value>{newline}"));
+    }
+    text.push_str(&format!("{indent}    </list>{newline}{indent}</property>"));
+    text
+}
+
 /// Извлекает из `domain.xml` все bean-ы трассировки.
 pub fn parse_domain_xml(xml: &str) -> DomainXml {
     let tags = scan_tags(xml);
@@ -203,6 +348,8 @@ pub fn parse_domain_xml(xml: &str) -> DomainXml {
         }
 
         let to = tag.start;
+        let (options, option_locations, events) = read_options(xml, &tags, body_start, to);
+        let insert_at = insert_point(xml, &tags, body_start, to);
         let broker = find_property(xml, &tags, body_start, to, "broker");
         let queue = find_property(xml, &tags, body_start, to, "queue");
         let trace_mode = find_property(xml, &tags, body_start, to, "traceMode");
@@ -222,31 +369,17 @@ pub fn parse_domain_xml(xml: &str) -> DomainXml {
                 .and_then(|value| value.parse().ok()),
             trace_mode: trace_mode.as_ref().and_then(|m| meaningful(&m.value)),
             trace_mode_location: trace_mode.map(|m| m.location),
+            options,
+            option_locations,
+            events,
+            insert_at,
         });
     }
 
     DomainXml { camel_context_id, traces }
 }
 
-/// Поля bean-а трассировки, которые умеет править приложение.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum TraceField {
-    Broker,
-    Queue,
-    TraceMode,
-}
-
-impl TraceField {
-    pub fn key(self) -> &'static str {
-        match self {
-            TraceField::Broker => "broker",
-            TraceField::Queue => "queue",
-            TraceField::TraceMode => "traceMode",
-        }
-    }
-}
-
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Default, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BeanTarget {
     pub bean_id: Option<String>,
@@ -259,9 +392,29 @@ pub struct BeanTarget {
     pub expected_queue: Option<String>,
     #[serde(default)]
     pub expected_trace_mode: Option<String>,
+    /// То же для остальных параметров. Ключ есть — значение проверяется,
+    /// и `null` значит «свойства не было».
+    #[serde(default)]
+    pub expected_options: BTreeMap<String, Option<String>>,
 }
 
-/// Что именно менять. `None` означает «поле не трогать».
+impl BeanTarget {
+    /// Какое значение ждём у параметра. `None` — не проверяем.
+    fn expected(&self, key: &str) -> Option<Option<String>> {
+        let legacy = match key {
+            "broker" => &self.expected_broker,
+            "queue" => &self.expected_queue,
+            "traceMode" => &self.expected_trace_mode,
+            _ => &None,
+        };
+        match legacy {
+            Some(value) => Some(Some(value.clone())),
+            None => self.expected_options.get(key).cloned(),
+        }
+    }
+}
+
+/// Что именно менять. `None` и отсутствующий ключ означают «не трогать».
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TraceUpdate {
@@ -271,19 +424,26 @@ pub struct TraceUpdate {
     pub queue: Option<String>,
     #[serde(default)]
     pub trace_mode: Option<String>,
+    /// Остальные параметры: ключ из [`trace_options::TRACE_OPTIONS`] → новое значение.
+    #[serde(default)]
+    pub options: BTreeMap<String, String>,
 }
 
 impl TraceUpdate {
-    pub fn fields(&self) -> Vec<(TraceField, &str)> {
+    /// Все правки в порядке формы редактора шины. Менеджер, очередь и режим,
+    /// заданные своими полями, важнее одноимённых ключей в `options`.
+    pub fn fields(&self) -> Vec<(&'static str, &str)> {
         let mut out = Vec::new();
-        if let Some(value) = &self.broker {
-            out.push((TraceField::Broker, value.as_str()));
-        }
-        if let Some(value) = &self.queue {
-            out.push((TraceField::Queue, value.as_str()));
-        }
-        if let Some(value) = &self.trace_mode {
-            out.push((TraceField::TraceMode, value.as_str()));
+        for option in trace_options::TRACE_OPTIONS {
+            let own = match option.key {
+                "broker" => self.broker.as_deref(),
+                "queue" => self.queue.as_deref(),
+                "traceMode" => self.trace_mode.as_deref(),
+                _ => None,
+            };
+            if let Some(value) = own.or_else(|| self.options.get(option.key).map(String::as_str)) {
+                out.push((option.key, value));
+            }
         }
         out
     }
@@ -327,12 +487,19 @@ pub struct ReplaceOutcome {
     pub missed: Vec<SkippedChange>,
 }
 
-/// Возвращает новый текст файла с заменёнными значениями `broker` и/или `queue`.
+/// Возвращает новый текст файла с заменёнными значениями параметров трассировки.
+///
+/// Свойство есть — меняется только его значение, байт в байт на месте.
+/// Свойства нет — оно дописывается перед `</bean>`: у многих объектов
+/// в выгрузке нет, например, префиксов, и «нечего менять» на них было бы
+/// неправдой. Исключение — список событий: чем шина считает его
+/// отсутствие, по файлу не понять, поэтому из ничего он не создаётся.
 pub fn replace_trace_values(xml: &str, targets: &[BeanTarget], update: &TraceUpdate) -> ReplaceOutcome {
     let parsed = parse_domain_xml(xml);
     let mut changes: Vec<AppliedChange> = Vec::new();
     let mut missed: Vec<SkippedChange> = Vec::new();
-    let mut edits: Vec<(ValueLocation, String)> = Vec::new();
+    // Правка — диапазон и то, что встаёт на его место; пустой диапазон — вставка.
+    let mut edits: Vec<(usize, usize, String)> = Vec::new();
 
     for target in targets {
         let trace = parsed.traces.iter().find(|t| match (&target.bean_id, &target.bean_name) {
@@ -351,31 +518,32 @@ pub fn replace_trace_values(xml: &str, targets: &[BeanTarget], update: &TraceUpd
             });
             continue;
         };
+        let in_memory = crate::scanner::trace_kind(trace.bean_class.as_deref()) == "memory";
 
         let mut applied = Vec::new();
-        for (field, new_value) in update.fields() {
-            let (current, location, expected) = match field {
-                TraceField::Broker => (&trace.broker, &trace.broker_location, &target.expected_broker),
-                TraceField::Queue => (&trace.queue, &trace.queue_location, &target.expected_queue),
-                TraceField::TraceMode => (&trace.trace_mode, &trace.trace_mode_location, &target.expected_trace_mode),
-            };
+        let mut inserts: Vec<String> = Vec::new();
+        let mut events: Vec<(&str, bool)> = Vec::new();
+
+        for (key, new_value) in update.fields() {
+            let Some(option) = trace_options::find(key) else { continue };
+            let current = trace.options.get(key).cloned();
 
             let mut skip = |reason: &str, actual: Option<String>| {
                 missed.push(SkippedChange {
                     bean_id: trace.bean_id.clone(),
                     bean_name: trace.bean_name.clone(),
-                    field: Some(field.key().into()),
+                    field: Some(key.into()),
                     reason: reason.into(),
                     actual,
                 })
             };
 
-            let Some(location) = location else {
-                skip("property-not-found", None);
+            if option.queue_only && in_memory {
+                skip("not-applicable", None);
                 continue;
-            };
-            if let Some(expected) = expected {
-                if current.as_ref() != Some(expected) {
+            }
+            if let Some(expected) = target.expected(key) {
+                if current != expected {
                     skip("value-changed", current.clone());
                     continue;
                 }
@@ -385,13 +553,55 @@ pub fn replace_trace_values(xml: &str, targets: &[BeanTarget], update: &TraceUpd
                 continue;
             }
 
+            let line = if option.kind == OptionKind::Event {
+                let Some(span) = &trace.events else {
+                    skip("property-not-found", None);
+                    continue;
+                };
+                events.push((&key[EVENT_PREFIX.len()..], new_value == "true"));
+                span.line
+            } else if let Some(location) = trace.option_locations.get(key) {
+                let encoded = match location.kind {
+                    ValueKind::Attr => encode_xml_attr(new_value),
+                    ValueKind::Text => encode_xml_text(new_value),
+                };
+                edits.push((location.start, location.end, encoded));
+                location.line
+            } else if let Some(point) = &trace.insert_at {
+                inserts.push(format!(r#"<property name="{key}" value="{}"/>"#, encode_xml_attr(new_value)));
+                point.line
+            } else {
+                skip("property-not-found", None);
+                continue;
+            };
+
             applied.push(FieldChange {
-                field: field.key().into(),
-                from: current.clone(),
+                field: key.into(),
+                from: current,
                 to: new_value.to_string(),
-                line: location.line,
+                line,
             });
-            edits.push((location.clone(), new_value.to_string()));
+        }
+
+        if let (false, Some(point)) = (inserts.is_empty(), &trace.insert_at) {
+            let text = if point.own_line {
+                inserts.iter().map(|item| format!("{}{item}{}", point.indent, point.newline)).collect()
+            } else {
+                inserts.concat()
+            };
+            edits.push((point.at, point.at, text));
+        }
+        if let (false, Some(span)) = (events.is_empty(), &trace.events) {
+            let wanted: Vec<&str> = TRACE_EVENTS
+                .iter()
+                .copied()
+                .filter(|event| match events.iter().find(|(name, _)| name == event) {
+                    Some((_, on)) => *on,
+                    None => span.values.iter().any(|value| value == event),
+                })
+                .collect();
+            let newline = trace.insert_at.as_ref().map(|point| point.newline).unwrap_or("\n");
+            edits.push((span.start, span.end, events_block(span, &wanted, newline)));
         }
 
         if !applied.is_empty() {
@@ -407,15 +617,11 @@ pub fn replace_trace_values(xml: &str, targets: &[BeanTarget], update: &TraceUpd
     // Одно место правится один раз: две цели на один bean (одинаковые `id`
     // в файле) давали две правки одного диапазона, и вторая ложилась
     // уже на сдвинутый текст, съедая кавычки и следующую строку.
-    edits.sort_by(|a, b| b.0.start.cmp(&a.0.start));
-    edits.dedup_by(|a, b| a.0.start == b.0.start && a.0.end == b.0.end);
+    edits.sort_by(|a, b| b.0.cmp(&a.0).then(b.1.cmp(&a.1)));
+    edits.dedup_by(|a, b| a.0 == b.0 && a.1 == b.1);
     let mut text = xml.to_string();
-    for (location, new_value) in edits {
-        let encoded = match location.kind {
-            ValueKind::Attr => encode_xml_attr(&new_value),
-            ValueKind::Text => encode_xml_text(&new_value),
-        };
-        text.replace_range(location.start..location.end, &encoded);
+    for (start, end, replacement) in edits {
+        text.replace_range(start..end, &replacement);
     }
 
     ReplaceOutcome { text, changes, missed }
@@ -454,7 +660,7 @@ mod tests {
 "#;
 
     fn broker_only(value: &str) -> TraceUpdate {
-        TraceUpdate { broker: Some(value.into()), queue: None, trace_mode: None }
+        TraceUpdate { broker: Some(value.into()), queue: None, trace_mode: None, ..Default::default() }
     }
 
     /// Две цели на один и тот же bean — так бывает, когда в файле два объекта
@@ -476,6 +682,7 @@ mod tests {
             expected_broker: None,
             expected_queue: None,
             expected_trace_mode: None,
+            expected_options: Default::default(),
         }
     }
 
@@ -520,6 +727,7 @@ mod tests {
             broker: Some("QMS:QM".into()),
             queue: Some("Mon.Trace.New".into()),
             trace_mode: Some("SYNC".into()),
+            ..Default::default()
         };
         let outcome = replace_trace_values(SAMPLE, &targets, &update);
 
@@ -541,14 +749,96 @@ mod tests {
         assert_eq!(outcome.text, SAMPLE);
     }
 
+    /// Свойства нет — оно дописывается перед `</bean>` с отступом соседей.
     #[test]
-    fn reports_missing_property_per_field() {
+    fn adds_missing_property_before_the_end_of_the_bean() {
         let targets = vec![target("TraceToMemory")];
-        let update = TraceUpdate { broker: Some("QMS:QM".into()), queue: Some("Mon.Trace".into()), trace_mode: None };
+        let update = TraceUpdate { broker: Some("QMS:QM".into()), ..Default::default() };
         let outcome = replace_trace_values(SAMPLE, &targets, &update);
-        assert!(outcome.changes.is_empty());
-        assert_eq!(outcome.missed.len(), 2);
-        assert!(outcome.missed.iter().all(|m| m.reason == "property-not-found"));
+        assert!(outcome.missed.is_empty(), "{:?}", outcome.missed);
+        assert!(
+            outcome.text.contains(concat!(
+                "        <property name=\"traceMode\" value=\"SYNC\"/>\n",
+                "        <property name=\"broker\" value=\"QMS:QM\"/>\n",
+                "    </bean>",
+            )),
+            "{}",
+            outcome.text
+        );
+        assert_eq!(outcome.changes[0].fields[0].from, None);
+        assert_eq!(parse_domain_xml(&outcome.text).traces[1].broker.as_deref(), Some("QMS:QM"));
+    }
+
+    fn options(pairs: &[(&str, &str)]) -> TraceUpdate {
+        TraceUpdate {
+            options: pairs.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect(),
+            ..Default::default()
+        }
+    }
+
+    const FULL: &str = "<beans>\r\n    <bean class=\"ru.factorts.module.broker.trace.config.TraceMemoryConfig\"\r\n        factor:type=\"TRACE\" id=\"Mem\">\r\n        <property name=\"expressions\">\r\n            <list/>\r\n        </property>\r\n        <property name=\"addBody\" value=\"true\"/>\r\n        <property name=\"queueSize\" value=\"200\"/>\r\n        <property name=\"events\">\r\n            <list>\r\n                <value>TRACE_BEFORE_ROUTE</value>\r\n                <value>TRACE_ENDPOINT</value>\r\n                <value>TRACE_AFTER_ROUTE</value>\r\n            </list>\r\n        </property>\r\n    </bean>\r\n</beans>\r\n";
+
+    #[test]
+    fn reads_options_and_events() {
+        let trace = &parse_domain_xml(FULL).traces[0];
+        assert_eq!(trace.options.get("addBody").map(String::as_str), Some("true"));
+        assert_eq!(trace.options.get("queueSize").map(String::as_str), Some("200"));
+        assert_eq!(trace.options.get("events.TRACE_ENDPOINT").map(String::as_str), Some("true"));
+        assert!(!trace.options.contains_key("headerPrefix"));
+    }
+
+    /// Флаг меняется на месте, префикс дописывается, событие убирается
+    /// из списка, а остальные события остаются — и переводы строк файла тоже.
+    #[test]
+    fn changes_flags_adds_prefixes_and_toggles_one_event() {
+        let update = options(&[
+            ("addBody", "false"),
+            ("headerPrefix", "mch_"),
+            ("events.TRACE_ENDPOINT", "false"),
+        ]);
+        let outcome = replace_trace_values(FULL, &[target("Mem")], &update);
+        assert!(outcome.missed.is_empty(), "{:?}", outcome.missed);
+        let text = &outcome.text;
+        assert!(text.contains(r#"<property name="addBody" value="false"/>"#));
+        assert!(text.contains("        <property name=\"headerPrefix\" value=\"mch_\"/>\r\n    </bean>"), "{text}");
+        assert!(text.contains("                <value>TRACE_BEFORE_ROUTE</value>\r\n                <value>TRACE_AFTER_ROUTE</value>\r\n            </list>"), "{text}");
+        assert!(!text.contains("TRACE_ENDPOINT"));
+        assert!(!text.replace("\r\n", "").contains('\n'), "переводы строк смешались");
+
+        let trace = &parse_domain_xml(text).traces[0];
+        assert_eq!(trace.options.get("events.TRACE_ENDPOINT").map(String::as_str), Some("false"));
+        assert_eq!(trace.options.get("headerPrefix").map(String::as_str), Some("mch_"));
+
+        // Вернуть событие — оно встаёт на своё место в порядке редактора шины.
+        let back = replace_trace_values(text, &[target("Mem")], &options(&[("events.TRACE_ENDPOINT", "true")]));
+        assert!(back.text.contains("<value>TRACE_BEFORE_ROUTE</value>\r\n                <value>TRACE_ENDPOINT</value>\r\n                <value>TRACE_AFTER_ROUTE</value>"), "{}", back.text);
+    }
+
+    /// У объекта, который пишет в память, нет менеджера, очереди и потоков.
+    #[test]
+    fn queue_options_do_not_apply_to_a_memory_bean() {
+        let update = TraceUpdate { broker: Some("QMS:QM".into()), ..options(&[("threads", "2"), ("queueSize", "500")]) };
+        let outcome = replace_trace_values(FULL, &[target("Mem")], &update);
+        let skipped: Vec<_> = outcome.missed.iter().map(|m| (m.field.as_deref().unwrap(), m.reason.as_str())).collect();
+        assert_eq!(skipped, vec![("broker", "not-applicable"), ("threads", "not-applicable")]);
+        assert!(outcome.text.contains(r#"<property name="queueSize" value="500"/>"#));
+    }
+
+    /// Чем шина считает отсутствие списка событий, по файлу не понять — из ничего он не создаётся.
+    #[test]
+    fn a_missing_event_list_is_not_invented() {
+        let outcome = replace_trace_values(SAMPLE, &[target("TraceToQueue")], &options(&[("events.TRACE_ENDPOINT", "false")]));
+        assert_eq!(outcome.missed[0].reason, "property-not-found");
+        assert_eq!(outcome.text, SAMPLE);
+    }
+
+    #[test]
+    fn an_option_changed_since_the_scan_is_left_alone() {
+        let mut stale = target("Mem");
+        stale.expected_options.insert("addBody".into(), Some("false".into()));
+        let outcome = replace_trace_values(FULL, &[stale], &options(&[("addBody", "false")]));
+        assert_eq!(outcome.missed[0].reason, "value-changed");
+        assert_eq!(outcome.text, FULL);
     }
 
     #[test]

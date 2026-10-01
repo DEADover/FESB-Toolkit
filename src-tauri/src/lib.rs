@@ -28,6 +28,7 @@ mod scanner;
 mod snapshot_store;
 mod security;
 mod settings_store;
+mod trace_options;
 mod xlsx;
 mod xml;
 

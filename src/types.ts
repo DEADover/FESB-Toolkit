@@ -22,10 +22,16 @@ export interface TraceBean {
    */
   blocking: boolean | null
   line: number
-  /** У bean-а есть соответствующий property — значит значение можно заменить. */
+  /** Значение можно задать: свойство есть или его можно дописать. */
   brokerEditable: boolean
   queueEditable: boolean
   traceModeEditable: boolean
+  /**
+   * Текущие значения параметров, которые правятся массово
+   * (`addBody`, `queueSize`, `events.TRACE_ENDPOINT`…). Нет ключа —
+   * свойства нет в файле или в нём пусто.
+   */
+  options: Record<string, string>
 }
 
 /** СОПС — схема обработки потоков сообщений, она же route Apache Camel. */
@@ -65,13 +71,14 @@ export interface ScanResult {
   domains: DomainRecord[]
 }
 
-export type TraceField = 'broker' | 'queue' | 'traceMode'
 
 /** Пустое поле означает «не трогать». */
 export interface TraceUpdate {
   broker: string | null
   queue: string | null
   traceMode: string | null
+  /** Остальные параметры: ключ → новое значение. Нет ключа — не трогать. */
+  options: Record<string, string>
 }
 
 export interface ApplyTargetBean {
@@ -80,6 +87,8 @@ export interface ApplyTargetBean {
   expectedBroker: string | null
   expectedQueue: string | null
   expectedTraceMode: string | null
+  /** Ключ есть — значение сверяется перед правкой; `null` — свойства не было. */
+  expectedOptions: Record<string, string | null>
 }
 
 export interface ApplyTarget {
@@ -89,7 +98,8 @@ export interface ApplyTarget {
 }
 
 export interface FieldChange {
-  field: TraceField
+  /** Ключ параметра: `broker`, `addBody`, `events.TRACE_ENDPOINT`… */
+  field: string
   from: string | null
   to: string
   line: number
@@ -101,12 +111,12 @@ export interface ApplyChange {
   fields: FieldChange[]
 }
 
-export type SkipReason = 'bean-not-found' | 'property-not-found' | 'value-changed' | 'already-set'
+export type SkipReason = 'bean-not-found' | 'property-not-found' | 'value-changed' | 'already-set' | 'not-applicable'
 
 export interface ApplySkip {
   beanId: string | null
   beanName: string | null
-  field: TraceField | null
+  field: string | null
   reason: SkipReason
   actual: string | null
 }
@@ -126,6 +136,7 @@ export interface ApplyReport {
     broker: string | null
     queue: string | null
     traceMode: string | null
+    options: Record<string, string>
     dryRun: boolean
     total: number
     ok: number

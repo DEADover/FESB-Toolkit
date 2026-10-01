@@ -154,6 +154,7 @@ fn applies_change_to_real_files() {
                     expected_broker: t.broker.clone(),
                     expected_queue: None,
                     expected_trace_mode: None,
+                    expected_options: Default::default(),
                 })
                 .collect(),
         })
@@ -166,7 +167,7 @@ fn applies_change_to_real_files() {
         .collect();
 
     let request = ApplyRequest {
-        update: TraceUpdate { broker: Some("QMS:QM.SANDBOX".into()), queue: None, trace_mode: None },
+        update: TraceUpdate { broker: Some("QMS:QM.SANDBOX".into()), queue: None, trace_mode: None, ..Default::default() },
         targets,
         make_backup: true,
         dry_run: false,
@@ -198,6 +199,101 @@ fn applies_change_to_real_files() {
 
     println!("проверено файлов: {}", originals.len());
     std::fs::remove_dir_all(&sandbox).unwrap();
+}
+
+/// Все массово правимые параметры разом на копии всей выгрузки: каждый
+/// объект трассировки получает новые значения, а повторное сканирование
+/// видит их там, где их ждёт редактор шины.
+#[test]
+#[ignore]
+fn applies_every_option_to_real_files() {
+    use fesb_toolkit_lib::testing::{apply_trace_change, ApplyRequest, ApplyTarget, BeanTarget, TraceUpdate};
+
+    let Ok(corpus) = std::env::var("FESB_CORPUS") else {
+        eprintln!("FESB_CORPUS не задан — пропускаем");
+        return;
+    };
+    let sandbox = std::env::temp_dir().join(format!(
+        "fesb-options-{}",
+        std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()
+    ));
+    for entry in std::fs::read_dir(&corpus).unwrap().flatten() {
+        let src = entry.path().join("domain.xml");
+        if !src.is_file() {
+            continue;
+        }
+        let dst = sandbox.join(entry.file_name());
+        std::fs::create_dir_all(&dst).unwrap();
+        std::fs::copy(&src, dst.join("domain.xml")).unwrap();
+    }
+
+    let wanted: Vec<(&str, &str)> = vec![
+        ("traceMode", "ASYNC_NEW"),
+        ("clientType", "ENDPOINT"),
+        ("events.TRACE_ENDPOINT", "false"),
+        ("queueType", "UNLIMITED"),
+        ("queueSize", "5000"),
+        ("threads", "2"),
+        ("schedulerPeriod", "500"),
+        ("handleErrors", "true"),
+        ("addBody", "false"),
+        ("addAllHeaders", "true"),
+        ("convertValues", "true"),
+        ("generateTraceStepId", "true"),
+        ("headerPrefix", "h_"),
+        ("propertyPrefix", "p_"),
+    ];
+    let queue_only = ["traceMode", "clientType", "threads", "schedulerPeriod"];
+
+    let before = scan_root(&sandbox, |_| {});
+    let targets: Vec<ApplyTarget> = before
+        .domains
+        .iter()
+        .filter(|d| !d.traces.is_empty())
+        .map(|d| ApplyTarget {
+            domain_xml_path: d.domain_xml_path.clone(),
+            domain_name: Some(d.domain_name.clone()),
+            beans: d
+                .traces
+                .iter()
+                .map(|t| BeanTarget { bean_id: t.bean_id.clone(), bean_name: t.bean_name.clone(), ..Default::default() })
+                .collect(),
+        })
+        .collect();
+    let request = ApplyRequest {
+        update: TraceUpdate {
+            options: wanted.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect(),
+            ..Default::default()
+        },
+        targets,
+        make_backup: false,
+        dry_run: false,
+    };
+    let report = apply_trace_change(&request, |_| {}).unwrap();
+    assert_eq!(report.summary.failed, 0, "{:?}", report.results.iter().filter(|r| r.status == "error").collect::<Vec<_>>());
+
+    let after = scan_root(&sandbox, |_| {});
+    let mut beans = 0;
+    for domain in &after.domains {
+        assert!(!domain.errors.iter().any(|e| e.starts_with("domain.xml")), "{}: {:?}", domain.domain_name, domain.errors);
+        for trace in &domain.traces {
+            beans += 1;
+            for (key, value) in &wanted {
+                if trace.kind == "memory" && queue_only.contains(key) {
+                    assert_ne!(trace.options.get(*key).map(String::as_str), Some(*value), "{key} у объекта в памяти");
+                    continue;
+                }
+                assert_eq!(trace.options.get(*key).map(String::as_str), Some(*value), "{} {:?}: {key}", domain.domain_name, trace.bean_id);
+            }
+            // Остальные события на месте.
+            assert_eq!(trace.options.get("events.TRACE_BEFORE_ROUTE").map(String::as_str), Some("true"));
+            assert_eq!(trace.options.get("events.TRACE_AFTER_ROUTE").map(String::as_str), Some("true"));
+        }
+    }
+    println!("объектов трассировки: {beans}, значений изменено: {}, папка: {}", report.summary.values_changed, sandbox.display());
+    if std::env::var("FESB_KEEP").is_err() {
+        std::fs::remove_dir_all(&sandbox).unwrap();
+    }
 }
 
 /// Сборка архива на настоящей выгрузке: структура и полнота содержимого.

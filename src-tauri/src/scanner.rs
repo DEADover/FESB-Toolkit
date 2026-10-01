@@ -34,10 +34,12 @@ pub struct TraceRow {
     /// который пишет в память, это и есть «тип очереди» из редактора шины.
     pub blocking: Option<bool>,
     pub line: usize,
-    /// У bean-а есть соответствующий property — значит значение можно заменить.
+    /// Значение можно задать: свойство есть или его можно дописать.
     pub broker_editable: bool,
     pub queue_editable: bool,
     pub trace_mode_editable: bool,
+    /// Текущие значения параметров, которые правятся массово.
+    pub options: std::collections::BTreeMap<String, String>,
 }
 
 /// Куда объект трассировки пишет — по классу bean-а.
@@ -203,19 +205,27 @@ pub fn read_domain(dir: &Path, root: &Path) -> DomainRecord {
             record.traces = parsed
                 .traces
                 .into_iter()
-                .map(|t| TraceRow {
-                    kind: trace_kind(t.bean_class.as_deref()),
+                .map(|t| {
+                    let kind = trace_kind(t.bean_class.as_deref());
+                    // Можно задать — значит свойство есть или его можно дописать,
+                    // и оно вообще бывает у такого объекта: менеджера, очереди
+                    // и режима у объекта, который пишет в память, нет.
+                    let settable = |location: &Option<_>| kind != "memory" && (location.is_some() || t.insert_at.is_some());
+                    TraceRow {
+                    kind,
                     blocking: t.block_on_full_queue,
                     line: t.broker_location.as_ref().map(|l| l.line).unwrap_or(t.bean_line),
-                    broker_editable: t.broker_location.is_some(),
-                    queue_editable: t.queue_location.is_some(),
-                    trace_mode_editable: t.trace_mode_location.is_some(),
+                    broker_editable: settable(&t.broker_location),
+                    queue_editable: settable(&t.queue_location),
+                    trace_mode_editable: settable(&t.trace_mode_location),
                     bean_id: t.bean_id,
                     bean_name: t.bean_name,
                     broker: t.broker,
                     queue: t.queue,
                     client_type: t.client_type,
                     trace_mode: t.trace_mode,
+                    options: t.options,
+                    }
                 })
                 .collect();
         }

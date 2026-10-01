@@ -2125,6 +2125,60 @@
   ]
  }
 }
+      // Дополнительные параметры объектов трассировки — как в настоящей
+      // выгрузке: у большинства всё по умолчанию, у части включены
+      // заголовки и переменные, префиксы есть у немногих.
+      DATA.scan_directory.domains.forEach((domain, d) => domain.traces.forEach((trace, i) => {
+        if (trace.options) return
+        const n = d * 3 + i
+        const memory = trace.kind === 'memory'
+        trace.options = {
+          ...(memory ? {} : { broker: trace.broker, queue: trace.queue, traceMode: trace.traceMode, clientType: trace.clientType, threads: '1', schedulerPeriod: '1000' }),
+          'events.TRACE_BEFORE_ROUTE': 'true', 'events.TRACE_ENDPOINT': n % 5 === 0 ? 'false' : 'true', 'events.TRACE_AFTER_ROUTE': 'true',
+          queueType: memory ? 'UNLIMITED' : 'LIMITED', queueSize: memory ? '200' : '100000',
+          handleErrors: 'false', captureOriginalEvent: 'false', addBody: 'true', convertBodyToString: n % 4 === 0 ? 'true' : 'false',
+          convertSteamToString: 'true', addAllHeaders: n % 3 === 0 ? 'true' : 'false', addAllProperties: n % 4 === 0 ? 'true' : 'false',
+          convertValues: n % 3 === 0 ? 'true' : 'false', convertDateToUnix: 'true',
+          saveBreadcrumbToProperties: 'false', generateTraceStepId: 'false',
+          ...(n % 4 === 0 ? { headerPrefix: 'mch_', propertyPrefix: 'mcp_' } : {}),
+        }
+        for (const key of Object.keys(trace.options)) if (trace.options[key] == null) delete trace.options[key]
+      }))
+      // Применение в предпросмотре ничего не пишет: отчёт собирается из запроса.
+      window.previewApply = ({ update, targets, dryRun }) => {
+        const wanted = Object.entries({ broker: update.broker, queue: update.queue, traceMode: update.traceMode, ...update.options })
+          .filter(([, value]) => value != null)
+        const traceOf = (path, bean) => DATA.scan_directory.domains.find((item) => item.domainXmlPath === path)
+          ?.traces.find((item) => item.beanId === bean.beanId)
+        const results = targets.map((target) => {
+          const changed = [], skipped = []
+          for (const bean of target.beans) {
+            const trace = traceOf(target.domainXmlPath, bean) ?? { options: {}, kind: 'queue' }
+            const fields = []
+            for (const [field, to] of wanted) {
+              const from = trace.options[field] ?? null
+              if (trace.kind === 'memory' && ['broker', 'queue', 'traceMode', 'clientType', 'threads', 'schedulerPeriod'].includes(field)) {
+                skipped.push({ beanId: bean.beanId, beanName: bean.beanName, field, reason: 'not-applicable', actual: null })
+              } else if (from === to) {
+                skipped.push({ beanId: bean.beanId, beanName: bean.beanName, field, reason: 'already-set', actual: from })
+              } else fields.push({ field, from, to, line: trace.line ?? 1 })
+            }
+            if (fields.length) changed.push({ beanId: bean.beanId, beanName: bean.beanName, fields })
+          }
+          return { domainXmlPath: target.domainXmlPath, domainName: target.domainName, status: changed.length ? 'ok' : 'skipped', changed, skipped, backupPath: null, error: null }
+        })
+        return {
+          summary: {
+            broker: update.broker, queue: update.queue, traceMode: update.traceMode, options: update.options, dryRun,
+            total: results.length, ok: results.filter((r) => r.status === 'ok').length,
+            skipped: results.filter((r) => r.status === 'skipped').length, failed: 0,
+            beansChanged: results.reduce((n, r) => n + r.changed.length, 0),
+            valuesChanged: results.reduce((n, r) => n + r.changed.reduce((m, c) => m + c.fields.length, 0), 0),
+            finishedAt: new Date().toISOString(),
+          },
+          results,
+        }
+      }
       // Отписка от событий идёт мимо __TAURI_INTERNALS__ — без этой заглушки
       // консоль забивается ошибками, которых в самом приложении нет.
       window.__TAURI_EVENT_PLUGIN_INTERNALS__ = { unregisterListener: () => {} }
@@ -2222,6 +2276,7 @@
               securedSkipped: 12,
             }
           }
+          if (key === 'apply_trace') return window.previewApply(args.request)
           if (key in DATA) return DATA[key]
           return []
         },

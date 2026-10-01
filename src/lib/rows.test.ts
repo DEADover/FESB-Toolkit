@@ -12,6 +12,7 @@ function bean(id: string, broker: string | null, kind: TraceBean['kind'] = 'queu
     beanId: id, beanName: id, broker, queue: broker === null ? null : 'Mon.Trace',
     clientType: null, traceMode: 'ASYNC', kind, blocking: null, line: 1,
     brokerEditable: broker !== null, queueEditable: broker !== null, traceModeEditable: true,
+    options: {},
   }
 }
 

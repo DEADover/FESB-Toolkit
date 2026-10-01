@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent, type ReactNode } from 'react'
 
-import { ArrowsIn, ArrowsLeftRight, ArrowsOut, Check } from '@phosphor-icons/react'
+import { ArrowsIn, ArrowsLeftRight, ArrowsOut, Check, SlidersHorizontal, X } from '@phosphor-icons/react'
 
 import { useI18n } from '../i18n'
 import { formatBytes } from '../lib/format'
@@ -12,7 +12,7 @@ import {
 import { neighboursOf } from '../lib/links'
 import {
   brokerStats, buildGroups, domainSummary, filterGroups, queueValues,
-  selectableKeys, sortGroups, traceModeValues, withoutBroker, inMemory,
+  selectableKeys, sortGroups, withoutBroker, inMemory,
   type DomainGroup, type Filters, type RouteFilter, type SortDir, type SortKey,
 } from '../lib/rows'
 import type {
@@ -20,7 +20,11 @@ import type {
   Connection, LinkGraph, PushResult, QueueManager, ScanResult, ServerInfo, TraceUpdate,
   VerifyResult,
 } from '../types'
+import {
+  changesFor, expectedOptions, hasChanges, optionLabel, optionValueLabel, TRACE_MODES, updateEntries,
+} from '../lib/traceOptions'
 import { ReportDialog } from './ReportDialog'
+import { TraceOptionsDialog } from './TraceOptionsDialog'
 import { RouteViewer } from './RouteViewer'
 import { TraceTable } from './TraceTable'
 import { HeaderActions, ScreenBody, StatsBar } from './ApiShell'
@@ -63,6 +67,9 @@ export function TraceScreen({ scan, isMac, sourcePath, server, onRescan, onGoToC
   const [newBroker, setNewBroker] = useState('')
   const [newQueue, setNewQueue] = useState('')
   const [newTraceMode, setNewTraceMode] = useState('')
+  /** Дополнительные параметры: ключ → новое значение. Нет ключа — не менять. */
+  const [newOptions, setNewOptions] = useState<Record<string, string>>({})
+  const [optionsOpen, setOptionsOpen] = useState(false)
   const [makeBackup, setMakeBackup] = useState(true)
 
   const [confirmOpen, setConfirmOpen] = useState(false)
@@ -211,7 +218,6 @@ export function TraceScreen({ scan, isMac, sourcePath, server, onRescan, onGoToC
   }, [filters.onlyEditable, filters.onlyChanged])
   const brokerValues = useMemo(() => stats.map((item) => item.value), [stats])
   const queues = useMemo(() => queueValues(groups), [groups])
-  const modes = useMemo(() => traceModeValues(groups), [groups])
   const summary = useMemo(() => domainSummary(scan.domains), [scan])
   const visible = useMemo(
     () => sortGroups(filterGroups(groups, filters, changedBeans), sortKey, sortDir),
@@ -257,7 +263,8 @@ export function TraceScreen({ scan, isMac, sourcePath, server, onRescan, onGoToC
     broker: newBroker.trim() || null,
     queue: newQueue.trim() || null,
     traceMode: newTraceMode.trim() || null,
-  }), [newBroker, newQueue, newTraceMode])
+    options: newOptions,
+  }), [newBroker, newQueue, newTraceMode, newOptions])
 
   const targets = useMemo<ApplyTarget[]>(() => {
     const byFile = new Map<string, ApplyTarget>()
@@ -269,6 +276,7 @@ export function TraceScreen({ scan, isMac, sourcePath, server, onRescan, onGoToC
         expectedBroker: entry.trace.broker,
         expectedQueue: entry.trace.queue,
         expectedTraceMode: entry.trace.traceMode,
+        expectedOptions: expectedOptions(entry.trace, update),
       }
       const existing = byFile.get(group.domain.domainXmlPath)
       if (existing) existing.beans.push(bean)
@@ -279,15 +287,11 @@ export function TraceScreen({ scan, isMac, sourcePath, server, onRescan, onGoToC
       })
     }
     return [...byFile.values()]
-  }, [selectedEntries])
+  }, [selectedEntries, update])
 
   const valuesToChange = useMemo(() => {
     let count = 0
-    for (const { entry } of selectedEntries) {
-      if (update.broker && entry.trace.brokerEditable && entry.trace.broker !== update.broker) count++
-      if (update.queue && entry.trace.queueEditable && entry.trace.queue !== update.queue) count++
-      if (update.traceMode && entry.trace.traceModeEditable && entry.trace.traceMode !== update.traceMode) count++
-    }
+    for (const { entry } of selectedEntries) count += changesFor(entry.trace, update)
     return count
   }, [selectedEntries, update])
 
@@ -305,7 +309,12 @@ export function TraceScreen({ scan, isMac, sourcePath, server, onRescan, onGoToC
     update.broker && managers.length > 0 && !managers.some((manager) => manager.broker === update.broker),
   )
 
-  const hasUpdate = update.broker !== null || update.queue !== null || update.traceMode !== null
+  const hasUpdate = hasChanges(update)
+  const selectedTraces = useMemo(() => selectedEntries.map(({ entry }) => entry.trace), [selectedEntries])
+  const optionEntries = useMemo(
+    () => updateEntries({ broker: null, queue: null, traceMode: null, options: newOptions }),
+    [newOptions],
+  )
   const canApply = targets.length > 0 && hasUpdate && !applying
 
   const toggleEntry = useCallback((key: string, event: MouseEvent) => {
@@ -744,17 +753,52 @@ export function TraceScreen({ scan, isMac, sourcePath, server, onRescan, onGoToC
           </Field>
 
           <Field label={t('apply.newTraceMode')} htmlFor="mode-input">
-            <SuggestInput
-              id="mode-input"
+            <Select
+              ariaLabel={t('apply.newTraceMode')}
+              className="w-full"
               value={newTraceMode}
-              options={modes}
-              placeholder={t('apply.traceModePlaceholder')}
-              emptyLabel={t('apply.noSuggestions')}
+              options={[
+                { id: '', label: t('opt.keep') },
+                ...TRACE_MODES.map((mode) => ({ id: mode, label: optionValueLabel('traceMode', mode, t) })),
+              ]}
               onChange={setNewTraceMode}
             />
           </Field>
 
+          {/* Остальное из формы объекта трассировки — в отдельном окне: на
+              панели оно заняло бы весь экран, а нужно реже трёх полей рядом. */}
+          <Button className="shrink-0" onClick={() => setOptionsOpen(true)}>
+            <SlidersHorizontal size={15} />
+            {t('opt.open')}
+            {optionEntries.length > 0 && <Badge tone="accent">{optionEntries.length}</Badge>}
+          </Button>
         </div>
+
+        {optionEntries.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 px-5 pt-2.5">
+            {optionEntries.map(([key, value]) => (
+              <span
+                key={key}
+                className="inline-flex items-center gap-1 rounded-md border border-accent/35 bg-accent/10 py-0.5 pr-1 pl-2 text-[11.5px] text-accent-content"
+              >
+                {optionLabel(key, t)}: <b className="font-semibold">{optionValueLabel(key, value, t)}</b>
+                <button
+                  type="button"
+                  aria-label={t('opt.remove')}
+                  title={t('opt.remove')}
+                  onClick={() => setNewOptions((prev) => {
+                    const next = { ...prev }
+                    delete next[key]
+                    return next
+                  })}
+                  className={cx('grid size-4 place-items-center rounded hover:bg-accent/20', FOCUS_RING)}
+                >
+                  <X size={10} weight="bold" />
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
 
         <p className="px-5 pt-1.5 text-[11.5px] text-content-subtle">{t('apply.hint')}</p>
         {update.broker && !update.broker.includes(':') && (
@@ -878,9 +922,15 @@ export function TraceScreen({ scan, isMac, sourcePath, server, onRescan, onGoToC
       >
         <div className="space-y-3 text-[13px] leading-relaxed">
           <div className="flex flex-col gap-1">
-            {update.broker && <ConfirmValue text={t('confirm.broker', { value: update.broker })} />}
-            {update.queue && <ConfirmValue text={t('confirm.queue', { value: update.queue })} />}
-            {update.traceMode && <ConfirmValue text={t('confirm.traceMode', { value: update.traceMode })} />}
+            {updateEntries(update).map(([key, value]) => (
+              <ConfirmValue
+                key={key}
+                text={t('confirm.option', {
+                  label: optionLabel(key, t),
+                  value: key === 'broker' || key === 'queue' ? value : optionValueLabel(key, value, t),
+                })}
+              />
+            ))}
           </div>
           <ul className="list-disc space-y-1 pl-4 text-content-muted marker:text-content-subtle">
             <li>{t('confirm.domains', { count: targets.length })}</li>
@@ -892,6 +942,14 @@ export function TraceScreen({ scan, isMac, sourcePath, server, onRescan, onGoToC
           </Notice>
         </div>
       </Modal>
+
+      <TraceOptionsDialog
+        open={optionsOpen}
+        value={newOptions}
+        traces={selectedTraces}
+        onChange={setNewOptions}
+        onClose={() => setOptionsOpen(false)}
+      />
 
       <ReportDialog
         report={report}
@@ -1149,7 +1207,7 @@ function VerifyReport({ result }: { result: VerifyResult }) {
                     <td className="truncate px-2 py-1.5 font-mono text-[11px]" title={item.bean ?? ''}>
                       {item.bean ?? '—'}
                     </td>
-                    <td className="px-2 py-1.5 font-mono text-[11px]">{item.field}</td>
+                    <td className="truncate px-2 py-1.5 text-[11.5px]" title={item.field}>{item.field === 'bean' ? item.field : optionLabel(item.field, t)}</td>
                     <td className="truncate px-2 py-1.5 font-mono text-[11px] text-accent-content" title={item.expected ?? ''}>
                       {item.field === 'bean' ? t('verify.beanMissing') : item.expected ?? '—'}
                     </td>

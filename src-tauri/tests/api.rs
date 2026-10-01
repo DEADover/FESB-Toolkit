@@ -101,6 +101,7 @@ fn round_trip_changes_the_broker_and_puts_it_back() {
                 broker: Some(value.to_string()),
                 queue: None,
                 trace_mode: None,
+                ..Default::default()
             },
             targets: vec![ApplyTarget {
                 domain_xml_path: domain.domain_xml_path.clone(),
@@ -111,6 +112,7 @@ fn round_trip_changes_the_broker_and_puts_it_back() {
                     expected_broker: Some(expected.to_string()),
                     expected_queue: None,
                     expected_trace_mode: None,
+                    expected_options: Default::default(),
                 }],
             }],
             make_backup: false,
@@ -146,6 +148,7 @@ fn round_trip_changes_the_broker_and_puts_it_back() {
             broker: Some(original.clone()),
             queue: None,
             trace_mode: None,
+            ..Default::default()
         },
         targets: vec![ApplyTarget {
             domain_xml_path: restore_domain.domain_xml_path.clone(),
@@ -156,6 +159,7 @@ fn round_trip_changes_the_broker_and_puts_it_back() {
                 expected_broker: Some(probe.clone()),
                 expected_queue: None,
                 expected_trace_mode: None,
+                expected_options: Default::default(),
             }],
         }],
         make_backup: false,
@@ -361,6 +365,7 @@ fn verification_notices_what_was_not_sent() {
             broker: Some(format!("{original}.NOTSENT")),
             queue: None,
             trace_mode: None,
+            ..Default::default()
         },
         targets: vec![ApplyTarget {
             domain_xml_path: domain.domain_xml_path.clone(),
@@ -371,6 +376,7 @@ fn verification_notices_what_was_not_sent() {
                 expected_broker: Some(original.clone()),
                 expected_queue: None,
                 expected_trace_mode: None,
+                expected_options: Default::default(),
             }],
         }],
         make_backup: false,
@@ -900,4 +906,76 @@ fn a_business_key_is_traced_across_the_stand() {
         println!("  не прочитано: {problem}");
     }
     assert_eq!(trace.key, key);
+}
+
+/// Дополнительные параметры трассировки доходят до шины и остаются в ней.
+///
+/// Нужен свой тестовый домен с объектами трассировки (на стенде разработки
+/// это `TOOLKIT.TRACE`): тест меняет его параметры и оставляет изменёнными.
+///
+/// ```sh
+/// FESB_URL=http://localhost:8181/manager FESB_TRACE_DOMAIN=domain-… \
+///   cargo test --test api trace_options -- --ignored --nocapture
+/// ```
+#[test]
+#[ignore]
+fn trace_options_reach_the_bus() {
+    let (Some(connection), Ok(guid)) = (connection(), std::env::var("FESB_TRACE_DOMAIN")) else {
+        eprintln!("FESB_URL или FESB_TRACE_DOMAIN не заданы — пропускаем");
+        return;
+    };
+    let guids = vec![guid];
+    let pulled = block(pull(&connection, Some(&guids), |_| {})).expect("выгрузка домена");
+    let root = PathBuf::from(&pulled.root);
+    let scan = fesb_toolkit_lib::testing::scan_root(&root, |_| {});
+    let domain = scan.domains.first().expect("домен выгружен").clone();
+    assert!(!domain.traces.is_empty(), "в домене нет объектов трассировки");
+
+    let wanted = [
+        ("addAllProperties", "true"),
+        ("generateTraceStepId", "true"),
+        ("queueSize", "5000"),
+        ("threads", "2"),
+        ("headerPrefix", "mch_"),
+        ("propertyPrefix", "mcp_"),
+        ("events.TRACE_ENDPOINT", "false"),
+    ];
+    let request = ApplyRequest {
+        update: TraceUpdate {
+            options: wanted.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect(),
+            ..Default::default()
+        },
+        targets: vec![ApplyTarget {
+            domain_xml_path: domain.domain_xml_path.clone(),
+            domain_name: Some(domain.domain_name.clone()),
+            beans: domain
+                .traces
+                .iter()
+                .map(|t| BeanTarget { bean_id: t.bean_id.clone(), bean_name: t.bean_name.clone(), ..Default::default() })
+                .collect(),
+        }],
+        make_backup: false,
+        dry_run: false,
+    };
+    let report = apply_trace_change(&request, |_| {}).expect("правка файлов");
+    println!("изменено значений: {}, пропущено: {:?}", report.summary.values_changed,
+        report.results[0].skipped.iter().map(|s| format!("{} {:?} {}", s.bean_id.clone().unwrap_or_default(), s.field, s.reason)).collect::<Vec<_>>());
+
+    block(push(&connection, &root, &guids, true, |_| {})).expect("отправка");
+    let check = block(verify(&connection, &root, &guids, |_| {})).expect("сверка");
+    println!("сверено значений: {}, расхождений: {}", check.values, check.mismatches.len());
+    assert!(check.mismatches.is_empty(), "{:?}", check.mismatches);
+
+    // И то, что шина отдаёт заново, — с новыми значениями.
+    let again = block(pull(&connection, Some(&guids), |_| {})).expect("повторная выгрузка");
+    let fresh = fesb_toolkit_lib::testing::scan_root(&PathBuf::from(&again.root), |_| {});
+    for trace in &fresh.domains[0].traces {
+        for (key, value) in wanted {
+            if trace.kind == "memory" && key == "threads" {
+                continue;
+            }
+            assert_eq!(trace.options.get(key).map(String::as_str), Some(value), "{:?} {key}", trace.bean_id);
+        }
+        println!("{:?}: {:?}", trace.bean_id, trace.options);
+    }
 }

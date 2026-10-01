@@ -1010,7 +1010,8 @@ pub async fn fetch_domain_routes(connection: &Connection, guid: &str) -> Result<
 pub struct VerifyMismatch {
     pub domain: String,
     pub bean: Option<String>,
-    /// `broker`, `queue`, `traceMode` или `bean` — последнее означает,
+    /// Ключ параметра (`broker`, `queue`, `addBody`, `events.TRACE_ENDPOINT`…)
+    /// или `bean` — последнее означает,
     /// что объекта трассировки на сервере вовсе нет.
     pub field: String,
     pub expected: Option<String>,
@@ -1117,23 +1118,19 @@ pub async fn verify<F: FnMut(ApiProgress)>(
                     continue;
                 };
 
-                for (field, expected, actual) in [
-                    ("broker", &bean.broker, &found.broker),
-                    ("queue", &bean.queue, &found.queue),
-                    ("traceMode", &bean.trace_mode, &found.trace_mode),
-                ] {
-                    if expected.is_none() {
-                        continue;
-                    }
-                    if expected == actual {
+                // Сверяется всё, что правится массово: менеджер, очередь, режим
+                // и остальные параметры. Чего нет в локальном файле, то и не ждём.
+                for (field, expected) in &bean.options {
+                    let actual = found.options.get(field);
+                    if actual == Some(expected) {
                         values += 1;
                     } else {
                         mismatches.push(VerifyMismatch {
                             domain: domain.clone(),
                             bean: key.clone(),
-                            field: field.into(),
-                            expected: expected.clone(),
-                            actual: actual.clone(),
+                            field: field.clone(),
+                            expected: Some(expected.clone()),
+                            actual: actual.cloned(),
                         });
                     }
                 }

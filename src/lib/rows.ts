@@ -22,7 +22,10 @@ export function buildGroups(scan: ScanResult | null): DomainGroup[] {
       key: `${domain.id}::${index}`,
       trace,
       index,
-      editable: trace.brokerEditable || trace.queueEditable || trace.traceModeEditable,
+      // Правится всё, у чего есть хоть один параметр: менеджер, очередь,
+      // режим или любой из дополнительных.
+      editable: trace.brokerEditable || trace.queueEditable || trace.traceModeEditable
+        || Object.keys(trace.options ?? {}).length > 0,
     })),
   }))
 }
@@ -242,7 +245,6 @@ export function inMemory(groups: DomainGroup[]): number {
 }
 
 export const queueValues = (groups: DomainGroup[]) => distinct(groups, (trace) => trace.queue)
-export const traceModeValues = (groups: DomainGroup[]) => distinct(groups, (trace) => trace.traceMode)
 
 export function domainSummary(domains: DomainRecord[]) {
   return {

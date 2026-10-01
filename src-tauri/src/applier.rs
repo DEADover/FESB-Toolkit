@@ -1,4 +1,4 @@
-//! Применение новых значений `broker` / `queue` к набору файлов `domain.xml`.
+//! Применение новых значений параметров трассировки к набору файлов `domain.xml`.
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -51,6 +51,8 @@ pub struct ApplySummary {
     pub broker: Option<String>,
     pub queue: Option<String>,
     pub trace_mode: Option<String>,
+    /// Остальные параметры, которые меняли, — в том виде, в каком легли в файлы.
+    pub options: std::collections::BTreeMap<String, String>,
     pub dry_run: bool,
     pub total: usize,
     pub ok: usize,
@@ -138,15 +140,31 @@ fn normalize(value: &Option<String>) -> Option<String> {
     value.as_ref().map(|v| v.trim().to_string()).filter(|v| !v.is_empty())
 }
 
+/// Пустые значения — «не менять», остальные проверяются так же, как их
+/// проверяет редактор шины: неверное значение не должно доехать до файла.
+fn normalize_update(update: &TraceUpdate) -> Result<TraceUpdate, String> {
+    let checked = |key: &str, value: &Option<String>| -> Result<Option<String>, String> {
+        normalize(value).map(|value| crate::trace_options::normalize(key, &value)).transpose()
+    };
+    let mut options = std::collections::BTreeMap::new();
+    for (key, value) in &update.options {
+        if let Some(value) = checked(key, &Some(value.clone()))? {
+            options.insert(key.clone(), value);
+        }
+    }
+    Ok(TraceUpdate {
+        broker: checked("broker", &update.broker)?,
+        queue: checked("queue", &update.queue)?,
+        trace_mode: checked("traceMode", &update.trace_mode)?,
+        options,
+    })
+}
+
 pub fn apply_trace_change<F: FnMut(ApplyProgress)>(
     request: &ApplyRequest,
     mut on_progress: F,
 ) -> Result<ApplyReport, String> {
-    let update = TraceUpdate {
-        broker: normalize(&request.update.broker),
-        queue: normalize(&request.update.queue),
-        trace_mode: normalize(&request.update.trace_mode),
-    };
+    let update = normalize_update(&request.update)?;
     if update.is_empty() {
         return Err("No new value was provided".into());
     }
@@ -218,9 +236,10 @@ pub fn apply_trace_change<F: FnMut(ApplyProgress)>(
     }
 
     let summary = ApplySummary {
-        broker: update.broker,
-        queue: update.queue,
-        trace_mode: update.trace_mode,
+        broker: update.broker.clone(),
+        queue: update.queue.clone(),
+        trace_mode: update.trace_mode.clone(),
+        options: update.options.clone(),
         dry_run: request.dry_run,
         total: results.len(),
         ok: results.iter().filter(|r| r.status == "ok").count(),
@@ -283,13 +302,14 @@ mod tests {
                     expected_broker: expected_broker.map(str::to_string),
                     expected_queue: None,
                     expected_trace_mode: None,
+                    expected_options: Default::default(),
                 }],
             }],
         }
     }
 
     fn broker(value: &str) -> TraceUpdate {
-        TraceUpdate { broker: Some(value.into()), queue: None, trace_mode: None }
+        TraceUpdate { broker: Some(value.into()), ..Default::default() }
     }
 
     #[test]
@@ -328,6 +348,7 @@ mod tests {
             broker: Some("QMS:QM".into()),
             queue: Some("Mon.Trace.V2".into()),
             trace_mode: Some("SYNC".into()),
+            ..Default::default()
         };
         let report = apply_trace_change(&request(&file, update, None, false, true), |_| {}).unwrap();
         assert_eq!(report.summary.values_changed, 3);
@@ -368,7 +389,7 @@ mod tests {
         let dir = TempDir::new("empty");
         let file = dir.0.join("domain.xml");
         fs::write(&file, XML).unwrap();
-        let empty = TraceUpdate { broker: Some("  ".into()), queue: None, trace_mode: None };
+        let empty = TraceUpdate { broker: Some("  ".into()), ..Default::default() };
         assert!(apply_trace_change(&request(&file, empty, None, false, true), |_| {}).is_err());
     }
 }

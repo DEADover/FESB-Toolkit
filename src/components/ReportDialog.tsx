@@ -5,6 +5,7 @@ import { ArrowRight, Check } from '@phosphor-icons/react'
 import { useI18n, type MessageKey } from '../i18n'
 import { revealPath } from '../lib/api'
 import { routeSummary, routesUsingBean } from '../lib/rows'
+import { optionLabel, optionValueLabel, updateEntries } from '../lib/traceOptions'
 import type { ApplyReport, DomainRecord, ScanResult } from '../types'
 import { Badge, Button, cx, Modal, Spinner, Stat, Th } from './ui'
 
@@ -26,6 +27,10 @@ export function ReportDialog({ report, scan, archiving, onBuildArchive, onClose 
     for (const domain of scan?.domains ?? []) map.set(domain.domainXmlPath, domain)
     return map
   }, [scan])
+
+  /** Имена менеджера и очереди показываются как есть, остальное — подписью. */
+  const shown = (key: string, value: string | null) =>
+    key === 'broker' || key === 'queue' ? value ?? '' : value === null ? '' : optionValueLabel(key, value, t)
 
   if (!report) return null
   const { summary, results } = report
@@ -56,9 +61,9 @@ export function ReportDialog({ report, scan, archiving, onBuildArchive, onClose 
         <Stat label={t('report.failed')} value={summary.failed} tone={summary.failed ? 'danger' : undefined} />
         <div className="ml-auto text-right">
           <div className="text-[11px] tracking-wide text-content-subtle">{t('report.newValues')}</div>
-          {summary.broker && <NewValue label={t('table.broker')} value={summary.broker} />}
-          {summary.queue && <NewValue label={t('table.queue')} value={summary.queue} />}
-          {summary.traceMode && <NewValue label={t('table.traceMode')} value={summary.traceMode} />}
+          {updateEntries({ ...summary, options: summary.options ?? {} }).map(([key, value]) => (
+            <NewValue key={key} label={optionLabel(key, t)} value={shown(key, value)} />
+          ))}
         </div>
       </div>
 
@@ -110,10 +115,10 @@ export function ReportDialog({ report, scan, archiving, onBuildArchive, onClose 
                           )}
                         </div>
                         {change.fields.map((field) => (
-                          <div key={field.field} className="flex flex-wrap items-center gap-1.5 pl-3 font-mono text-[11.5px]">
-                            <span className="text-content-subtle">{field.field}</span>
-                            <span className="text-content-subtle line-through">{field.from}</span>
-                            <span className="inline-flex items-center gap-1 text-accent-content"><ArrowRight size={11} weight="bold" /> {field.to}</span>
+                          <div key={field.field} className="flex flex-wrap items-center gap-1.5 pl-3 text-[11.5px]">
+                            <span className="text-content-subtle" title={field.field}>{optionLabel(field.field, t)}</span>
+                            <span className="font-mono text-content-subtle line-through">{shown(field.field, field.from)}</span>
+                            <span className="inline-flex items-center gap-1 font-mono text-accent-content"><ArrowRight size={11} weight="bold" /> {shown(field.field, field.to)}</span>
                           </div>
                         ))}
                       </div>
@@ -121,8 +126,8 @@ export function ReportDialog({ report, scan, archiving, onBuildArchive, onClose 
                     {result.skipped.map((skip, index) => (
                       <div key={`${skip.beanId}-${skip.field}-${index}`} className="text-[11.5px] text-caution">
                         <span className="font-mono">{skip.beanId ?? '—'}</span>
-                        {skip.field ? ` · ${skip.field}` : ''}: {t(`skip.${skip.reason}` as MessageKey)}
-                        {skip.actual ? ` (${skip.actual})` : ''}
+                        {skip.field ? ` · ${optionLabel(skip.field, t)}` : ''}: {t(`skip.${skip.reason}` as MessageKey)}
+                        {skip.actual ? ` (${skip.field ? shown(skip.field, skip.actual) : skip.actual})` : ''}
                       </div>
                     ))}
                   </td>
