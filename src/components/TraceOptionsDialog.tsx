@@ -109,6 +109,9 @@ function OptionRow({ item, value, traces, showQueueOnly, onChange }: {
   const now = useMemo(() => currentValues(traces, item.key), [traces, item.key])
   const id = `trace-option-${item.key}`
   const bad = item.kind === 'count' && value !== null && !validCount(value)
+  const total = now.reduce((sum, entry) => sum + entry.count, 0)
+  /** Выбранное значение уже стоит у всех: правка по этому параметру ничего не сделает. */
+  const settled = value !== null && now.length === 1 && now[0].value === value.trim()
 
   return (
     <div className="flex items-center gap-4 py-2.5">
@@ -119,11 +122,17 @@ function OptionRow({ item, value, traces, showQueueOnly, onChange }: {
           : <div className="text-[13px] leading-snug">{t(item.label)}</div>}
         {now.length > 0 && (
           <div className="mt-0.5 text-[11.5px] text-content-subtle">
-            {t('opt.now', {
-              values: now.map((entry) => `${optionValueLabel(item.key, entry.value, t)} — ${entry.count}`).join(' · '),
-            })}
+            {/* Одно значение у всех — так и сказано; разные — каждое «у N из M». */}
+            {now.length === 1
+              ? t('opt.nowSame', { total, value: optionValueLabel(item.key, now[0].value, t) })
+              : t('opt.now', {
+                values: now
+                  .map((entry) => t('opt.nowPart', { value: optionValueLabel(item.key, entry.value, t), count: entry.count, total }))
+                  .join(', '),
+              })}
           </div>
         )}
+        {settled && <div className="mt-0.5 text-[11.5px] text-caution">{t('opt.nothingToChange')}</div>}
         {showQueueOnly && <div className="mt-0.5 text-[11.5px] text-content-subtle">{t('opt.queueOnly')}</div>}
         {bad && <div className="mt-0.5 text-[11.5px] text-negative">{t('opt.countHint')}</div>}
       </div>
