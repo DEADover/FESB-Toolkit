@@ -435,13 +435,15 @@ export function DomainsScreen({ connection, server, pulling, progress, error: pu
         </DataTable>
       </div>
 
-      <div className="flex items-center gap-3 rounded-xl border border-line bg-surface px-5 py-3">
-        <span className="text-[11.5px] text-content-subtle">
+      {/* На узком окне панель переносится: правая группа уходит на вторую
+          строку и прижимается вправо, а не вылезает за край окна. */}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-line bg-surface px-5 py-3">
+        <span className="whitespace-nowrap text-[11.5px] text-content-subtle">
           {t('api.domains.shown', { visible: visible.length, total: domains?.length ?? 0 })}
         </span>
         {selected.size > 0 && (
           <>
-            <Badge tone="accent">{t('api.domains.selected', { count: selected.size })}</Badge>
+            <Badge tone="accent" className="whitespace-nowrap">{t('api.domains.selected', { count: selected.size })}</Badge>
             <Button variant="ghost" size="sm" onClick={() => setSelected(new Set())}>{t('action.deselect')}</Button>
             <span className="mx-1 h-5 w-px bg-line" />
             <Button size="sm" disabled={bulk !== null || pulling} onClick={() => void runBulk('start')}>
@@ -453,7 +455,6 @@ export function DomainsScreen({ connection, server, pulling, progress, error: pu
             <Button size="sm" disabled={bulk !== null || pulling} onClick={() => setConfirmBulk('restart')}>
               {t('modules.restart')}
             </Button>
-            <span className="mx-1 h-5 w-px bg-line" />
             <Button size="sm" disabled={bulk !== null || pulling} onClick={() => setCopying(true)}>
               <Copy size={13} weight="bold" />
               {t('copy.action')}
@@ -461,7 +462,7 @@ export function DomainsScreen({ connection, server, pulling, progress, error: pu
           </>
         )}
 
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
           {pulling && (
             <span className="text-[11.5px] text-content-subtle" title={t('api.pull.hint')}>
               {t('api.pull.progress', { current: progress?.current ?? 0, total: progress?.total ?? selected.size })}
