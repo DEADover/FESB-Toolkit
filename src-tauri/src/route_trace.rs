@@ -99,18 +99,52 @@ pub async fn set_route_trace(
     change: &RouteTraceChange,
     comment: Option<&str>,
 ) -> Result<RouteTraceResult, String> {
-    if change.enabled.is_none() && change.config.is_none() {
-        return Err("Nothing to change".into());
+    set_route_trace_tracked(connection, domain, route, change, comment).await.map_err(|failure| failure.message)
+}
+
+/// Отказ сохранения вместе с тем, что о СОПС успели узнать.
+///
+/// Ошибка после отправки не значит, что шина ничего не сохранила: модель
+/// могла записаться, а ответ — не разобраться или разойтись с запросом.
+/// Журналу нужно знать, каким СОПС был до попытки, чтобы такую правку
+/// всё равно можно было отменить.
+#[derive(Debug)]
+pub struct TraceFailure {
+    pub message: String,
+    /// Состояние до правки — если модель успели прочитать.
+    pub before: Option<TraceState>,
+    /// Запрос на сохранение ушёл в шину.
+    pub sent: bool,
+}
+
+impl TraceFailure {
+    fn early(message: String) -> Self {
+        TraceFailure { message, before: None, sent: false }
     }
-    let client = connection.client()?;
-    let mut model = get_json(connection, &client, &format!("/api/broker/domain/{domain}/route/{route}")).await?;
+}
+
+pub async fn set_route_trace_tracked(
+    connection: &Connection,
+    domain: &str,
+    route: &str,
+    change: &RouteTraceChange,
+    comment: Option<&str>,
+) -> Result<RouteTraceResult, TraceFailure> {
+    if change.enabled.is_none() && change.config.is_none() {
+        return Err(TraceFailure::early("Nothing to change".into()));
+    }
+    let client = connection.client().map_err(TraceFailure::early)?;
+    let mut model = get_json(connection, &client, &format!("/api/broker/domain/{domain}/route/{route}"))
+        .await
+        .map_err(TraceFailure::early)?;
     let before = state_of(&model);
     let after = apply(&before, change);
     if after == before {
         return Ok(RouteTraceResult { status: "unchanged", before, after });
     }
+    let fail = |message: String, sent: bool| TraceFailure { message, before: Some(before.clone()), sent };
 
-    let object = model.as_object_mut().ok_or("Unexpected route model")?;
+    let object = model.as_object_mut().ok_or_else(|| fail("Unexpected route model".into(), false))?;
     object.insert("trace".into(), Value::Bool(after.trace));
     object.insert("traceConfig".into(), after.config.clone().map(Value::String).unwrap_or(Value::Null));
 
@@ -122,23 +156,25 @@ pub async fn set_route_trace(
         .json(&body)
         .send()
         .await
-        .map_err(transport_error)?;
+        // Обрыв на передаче — запрос мог и дойти.
+        .map_err(|err| fail(transport_error(err), true))?;
     let saved: Value = ensure_ok(response, "Cannot save the route")
-        .await?
+        .await
+        .map_err(|err| fail(err, true))?
         .json()
         .await
-        .map_err(|err| format!("Unexpected answer: {err}"))?;
+        .map_err(|err| fail(format!("Unexpected answer: {err}"), true))?;
 
     // Шина отвечает сохранённой моделью — сверяемся с ней, а не с запросом.
     let stored = state_of(&saved);
     if stored != after {
-        return Err(format!(
+        return Err(fail(format!(
             "The bus stored trace={} config={} instead of trace={} config={}",
             stored.trace,
             stored.config.as_deref().unwrap_or("—"),
             after.trace,
             after.config.as_deref().unwrap_or("—"),
-        ));
+        ), true));
     }
     Ok(RouteTraceResult { status: "changed", before, after })
 }

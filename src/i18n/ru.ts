@@ -1638,4 +1638,8 @@ export const ru: Record<keyof typeof en, string> = {
   'routeState.started': 'Работает',
   'routeState.stopped': 'Остановлен',
   'routeState.suspended': 'Приостановлен',
+  'journal.expand': 'Раскрыть запись',
+  'journal.collapse': 'Свернуть запись',
+  'journal.badge.partly': 'Отменено {done} из {total}',
+  'journal.undo.reason.uncertain': 'Загрузка закончилась ошибкой, но могла пройти — домен вернётся из копии',
 }

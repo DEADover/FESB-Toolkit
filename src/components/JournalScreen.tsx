@@ -13,7 +13,7 @@ import type {
 } from '../types'
 import { ErrorBar, NotConnected, Panel, RefreshButton, ScreenBody, StatsBar, TableMessage, useApiData, useDebounced } from './ApiShell'
 import {
-  Badge, Button, ButtonGlyph, Checkbox, cx, DataTable, EmptyState, Modal, Notice, Readout, rowClick, SearchInput,
+  Badge, Button, ButtonGlyph, Checkbox, cx, DataTable, EmptyState, FOCUS_RING, Modal, Notice, Readout, rowClick, SearchInput,
   Segmented, Spinner, Th, THead, type Tone,
 } from './ui'
 
@@ -55,7 +55,7 @@ export function JournalScreen({ connection, server, onGoToConnection, prod }: Pr
       if (show === 'actions' && entry.changes > 0) return false
       if (!needle) return true
       return (
-        entry.targets.some((target) => target.toLowerCase().includes(needle)) ||
+        entry.objects.some((target) => target.toLowerCase().includes(needle)) ||
         entry.user.toLowerCase().includes(needle) ||
         originLabel(entry.origin, t).toLowerCase().includes(needle)
       )
@@ -65,7 +65,7 @@ export function JournalScreen({ connection, server, onGoToConnection, prod }: Pr
   const totals = useMemo(() => ({
     entries: all.length,
     changes: all.reduce((sum, entry) => sum + entry.changes, 0),
-    undone: all.filter((entry) => (entry.undoneBy?.length ?? 0) > 0).length,
+    undone: all.filter((entry) => entry.undone > 0).length,
   }), [all])
 
   if (!connection || !server) return <NotConnected onGoToConnection={onGoToConnection} />
@@ -177,22 +177,35 @@ function EntryRows({ entry, open, onToggle, onUndo }: {
   onUndo: () => void
 }) {
   const { t } = useI18n()
-  const undone = (entry.undoneBy?.length ?? 0) > 0
+  // Отменить можно и часть записи: «Отменено» — только когда вернули всё.
+  const undone = entry.undone > 0 && entry.undone >= entry.changes
+  const partly = entry.undone > 0 && !undone
   return (
     <>
       <tr
         onClick={rowClick(onToggle)}
-        aria-expanded={open}
         className="cursor-pointer border-b border-line/60 align-top hover:bg-surface-2"
       >
-        <td className="py-1.5 pl-3 text-content-subtle">
-          {open ? <CaretDown size={12} weight="bold" /> : <CaretRight size={12} weight="bold" />}
+        <td className="py-1 pl-2 text-content-subtle">
+          {/* Кнопка, а не только щелчок по строке: так запись раскрывается и с клавиатуры. */}
+          <button
+            type="button"
+            onClick={onToggle}
+            aria-expanded={open}
+            aria-label={t(open ? 'journal.collapse' : 'journal.expand')}
+            className={cx('rounded p-1 transition hover:bg-surface-3', FOCUS_RING)}
+          >
+            {open ? <CaretDown size={12} weight="bold" /> : <CaretRight size={12} weight="bold" />}
+          </button>
         </td>
         <td className="whitespace-nowrap px-3 py-1.5 tabular-nums text-content-muted">{formatStamp(entry.startedAt)}</td>
         <td className="px-3 py-1.5">
           <span className="flex flex-wrap items-center gap-1.5">
             <span className="font-medium">{originLabel(entry.origin, t)}</span>
             {undone && <Badge tone="warn">{t('journal.badge.undone')}</Badge>}
+            {partly && (
+              <Badge tone="warn">{t('journal.badge.partly', { done: entry.undone, total: entry.changes })}</Badge>
+            )}
           </span>
         </td>
         <td className="truncate px-3 py-1.5" title={entry.targets.join('\n')}>{entryTargets(entry, t)}</td>
@@ -316,6 +329,8 @@ function UndoDialog({ connection, entry, prod, onClose }: {
   const [chosen, setChosen] = useState<Set<number>>(new Set())
   const [running, setRunning] = useState(false)
   const [result, setResult] = useState<UndoResult | null>(null)
+  /** Отмену запускали: даже если она закончилась ошибкой, часть могла пройти. */
+  const [attempted, setAttempted] = useState(false)
 
   useEffect(() => {
     let alive = true
@@ -349,6 +364,7 @@ function UndoDialog({ connection, entry, prod, onClose }: {
 
   const run = async () => {
     setRunning(true)
+    setAttempted(true)
     setError(null)
     try {
       setResult(await journalUndoRun(connection, entry.id, [...chosen].sort((a, b) => a - b)))
@@ -367,7 +383,7 @@ function UndoDialog({ connection, entry, prod, onClose }: {
     <Button variant="primary" onClick={() => onClose(true)}>{t('action.close')}</Button>
   ) : (
     <>
-      <Button variant="ghost" disabled={running} onClick={() => onClose(false)}>{t('action.cancel')}</Button>
+      <Button variant="ghost" disabled={running} onClick={() => onClose(attempted)}>{t('action.cancel')}</Button>
       <Button
         variant={prod ? 'danger' : 'primary'}
         className="min-w-48"
@@ -384,7 +400,7 @@ function UndoDialog({ connection, entry, prod, onClose }: {
     <Modal
       open
       width="wide"
-      onClose={() => !running && onClose(result !== null)}
+      onClose={() => !running && onClose(result !== null || attempted)}
       closeLabel={t('action.close')}
       title={t('journal.undo.title', { operation: originLabel(entry.origin, t), when: formatStamp(entry.startedAt) })}
       footer={footer}
@@ -516,7 +532,7 @@ function UndoTable({ rows, chosen, allChosen, onToggle, onToggleAll }: {
                 <td className="break-words px-2.5 py-1.5">{ready ? undoTarget(row, t) : '—'}</td>
                 <td className="px-2.5 py-1.5">
                   <Badge tone={STATE_TONE[row.state]}>{reasonText(row.state, t)}</Badge>
-                  {row.reason && row.state !== 'ready' && (
+                  {row.reason && (
                     <div className="mt-0.5 text-[11px] text-content-subtle">{reasonText(row.reason, t)}</div>
                   )}
                 </td>

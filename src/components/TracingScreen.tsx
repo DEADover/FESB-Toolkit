@@ -33,6 +33,18 @@ interface Props {
 type State = 'all' | 'started' | 'stopped'
 
 /**
+ * Ключ СОПС на сервере: домен и идентификатор вместе.
+ *
+ * Идентификатор СОПС уникален только внутри домена: скопированный домен
+ * приносит те же `route-…`, и на стенде из двухсот шестидесяти доменов таких
+ * повторов восемьдесят. По одному идентификатору отметка СОПС отмечала и его
+ * двойника в соседнем домене, и массовая правка уходила в оба.
+ */
+function routeKey(row: RouteSummary): string {
+  return `${row.domainGuid}|${row.id}`
+}
+
+/**
  * Колонки: один список на таблицу и на файл.
  *
  * Имя СОПС берёт остаток ширины — ради него экран и открывают. Счётчики
@@ -147,8 +159,8 @@ export function TracingScreen({ connection, server, onGoToConnection, onOpenRout
     beans: beanOptions.length,
   }), [all, beanOptions])
 
-  const chosen = useMemo(() => visible.filter((row) => selected.has(row.id)), [visible, selected])
-  const allVisibleSelected = visible.length > 0 && visible.every((row) => selected.has(row.id))
+  const chosen = useMemo(() => visible.filter((row) => selected.has(routeKey(row))), [visible, selected])
+  const allVisibleSelected = visible.length > 0 && visible.every((row) => selected.has(routeKey(row)))
 
   // Обновили список — прежние отметки указывают на строки, которых
   // на экране может уже не быть.
@@ -325,7 +337,7 @@ export function TracingScreen({ connection, server, onGoToConnection, onOpenRout
                 checked={allVisibleSelected}
                 title={t('tracing.selectAll')}
                 onChange={(event) => setSelected(event.target.checked
-                  ? new Set(visible.map((row) => row.id))
+                  ? new Set(visible.map(routeKey))
                   : new Set())}
               />
             </Th>
@@ -342,21 +354,21 @@ export function TracingScreen({ connection, server, onGoToConnection, onOpenRout
           <tbody>
             {visible.map((row) => (
               <tr
-                key={row.id}
+                key={routeKey(row)}
                 onClick={rowClick(() => { if (row.domainGuid) onOpenRoutes(row.domainGuid) })}
                 title={t('tracing.openDomain')}
                 className={cx(
                   'cursor-pointer border-b border-line/60',
-                  selected.has(row.id) ? 'bg-accent/8' : 'hover:bg-surface-2',
+                  selected.has(routeKey(row)) ? 'bg-accent/8' : 'hover:bg-surface-2',
                 )}
               >
                 <td className="px-3 py-1.5">
                   <Checkbox
-                    checked={selected.has(row.id)}
+                    checked={selected.has(routeKey(row))}
                     onChange={(event) => setSelected((prev) => {
                       const next = new Set(prev)
-                      if (event.target.checked) next.add(row.id)
-                      else next.delete(row.id)
+                      if (event.target.checked) next.add(routeKey(row))
+                      else next.delete(routeKey(row))
                       return next
                     })}
                   />
@@ -496,7 +508,7 @@ export function TracingScreen({ connection, server, onGoToConnection, onOpenRout
                   {t('routeTrace.result.skipped', { count: bulk.skipped.length })}
                 </div>
                 {bulk.skipped.map((item) => (
-                  <div key={item.row.id} className="border-b border-line/60 px-2.5 py-1.5 last:border-b-0">
+                  <div key={routeKey(item.row)} className="border-b border-line/60 px-2.5 py-1.5 last:border-b-0">
                     <div className="flex items-baseline gap-2 text-[11px] text-content-subtle">
                       <span className="truncate">{item.row.domain}</span>
                       <span className="truncate font-medium text-content">{item.row.name}</span>
@@ -509,7 +521,7 @@ export function TracingScreen({ connection, server, onGoToConnection, onOpenRout
             {bulk.failures.length > 0 && (
               <div className="max-h-64 overflow-y-auto rounded-lg border border-line">
                 {bulk.failures.map((failure) => (
-                  <div key={failure.row.id} className="border-b border-line/60 px-2.5 py-1.5 last:border-b-0">
+                  <div key={routeKey(failure.row)} className="border-b border-line/60 px-2.5 py-1.5 last:border-b-0">
                     <div className="flex items-baseline gap-2 text-[11px] text-content-subtle">
                       <span className="truncate">{failure.row.domain}</span>
                       <span className="truncate font-medium text-content">{failure.row.name}</span>

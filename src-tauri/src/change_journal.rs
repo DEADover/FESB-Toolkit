@@ -28,13 +28,25 @@ use serde::{Deserialize, Serialize};
 use crate::fesb_ops::PropertyRow;
 use crate::route_trace::TraceState;
 
-/// Сколько записей держится по одному серверу. Запись — это несколько
-/// килобайт, если в ней нет копий доменов; с копиями — мегабайты, и старше
-/// пары сотен операций они уже никому не нужны.
+/// Сколько записей с правками держится по одному серверу. Запись — это
+/// несколько килобайт, если в ней нет копий доменов; с копиями — мегабайты,
+/// и старше пары сотен операций они уже никому не нужны.
 const KEEP_PER_SERVER: usize = 200;
+
+/// Записи из одних действий — запуск, остановка, разбор сообщений — считаются
+/// отдельно. Иначе две сотни перезапусков за день вытеснили бы вчерашнюю
+/// загрузку домена вместе с его копией, и отменить её было бы уже нечем.
+const KEEP_ACTIONS_PER_SERVER: usize = 300;
+
+/// Пустая запись — операция, которая ничего не поменяла или ещё идёт.
+/// Идущую трогать нельзя, поэтому пустые убираются только через сутки.
+const EMPTY_GRACE_HOURS: i64 = 24;
 
 const INDEX_FILE: &str = "index.json";
 const ITEMS_FILE: &str = "items.jsonl";
+/// Копия заголовка в папке записи: по ним индекс восстанавливается, если
+/// сам он испорчен.
+const HEAD_FILE: &str = "head.json";
 
 /// Индекс правят и операции, и отмены, иногда одновременно.
 static LOCK: Mutex<()> = Mutex::new(());
@@ -137,6 +149,10 @@ pub enum Change {
         /// Домен удалён, а не загружен.
         #[serde(default)]
         deleted: bool,
+        /// Имя домена в самой копии — под ним его и возвращают. Подпись
+        /// `name` берётся из операции и может быть именем источника.
+        #[serde(default)]
+        backup_name: Option<String>,
     },
     /// Действие, а не правка: запуск, остановка, сброс счётчиков, разбор
     /// сообщений. Отменять тут нечего, но знать, что оно было, нужно.
@@ -209,6 +225,11 @@ pub struct EntrySummary {
     pub failed: usize,
     /// Первые несколько объектов — чтобы запись узнавалась без раскрытия.
     pub targets: Vec<String>,
+    /// Все объекты записи — по ним ищут. В записи на двести СОПС нужный
+    /// может оказаться пятидесятым.
+    pub objects: Vec<String>,
+    /// Сколько правок уже отменено: отменить можно и часть записи.
+    pub undone: usize,
     /// Сколько объектов всего.
     pub total: usize,
     /// Виды изменений в записи: `routeTrace`, `constant`, `domain`, `action`.
@@ -254,9 +275,12 @@ fn index_path(dir: &Path) -> PathBuf {
 }
 
 /// Имя складывается из времени; всё прочее отбрасывается, чтобы из имени
-/// нельзя было построить путь за пределы папки.
+/// нельзя было построить путь за пределы папки. Точки в начале убираются:
+/// `..` и пустое имя указывали бы на саму папку журнала или выше.
 fn safe(id: &str) -> String {
-    id.chars().filter(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.')).collect()
+    let kept: String = id.chars().filter(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.')).collect();
+    let trimmed = kept.trim_start_matches('.');
+    if trimmed.is_empty() { "invalid".to_string() } else { trimmed.to_string() }
 }
 
 fn entry_dir(dir: &Path, id: &str) -> PathBuf {
@@ -264,8 +288,36 @@ fn entry_dir(dir: &Path, id: &str) -> PathBuf {
 }
 
 fn read_index(dir: &Path) -> Vec<EntryHead> {
-    let Ok(text) = fs::read_to_string(index_path(dir)) else { return Vec::new() };
-    serde_json::from_str(&text).unwrap_or_default()
+    let Ok(text) = fs::read_to_string(index_path(dir)) else { return rebuild_index(dir) };
+    match serde_json::from_str(&text) {
+        Ok(heads) => heads,
+        Err(_) => {
+            // Испорченный индекс не должен молча обнулить журнал: следующая
+            // запись переписала бы его одной строкой, а папки прежних записей
+            // остались бы сиротами. Откладываем его и собираем заново.
+            let aside = dir.join(format!("{INDEX_FILE}.broken-{}", chrono::Local::now().format("%Y%m%d%H%M%S")));
+            let _ = fs::rename(index_path(dir), aside);
+            rebuild_index(dir)
+        }
+    }
+}
+
+/// Индекс из заголовков, лежащих в папках записей.
+fn rebuild_index(dir: &Path) -> Vec<EntryHead> {
+    let Ok(entries) = fs::read_dir(dir) else { return Vec::new() };
+    let mut heads: Vec<EntryHead> = entries
+        .flatten()
+        .filter_map(|entry| fs::read_to_string(entry.path().join(HEAD_FILE)).ok())
+        .filter_map(|text| serde_json::from_str(&text).ok())
+        .collect();
+    heads.sort_by(|a, b| a.id.cmp(&b.id));
+    heads
+}
+
+fn write_head(dir: &Path, head: &EntryHead) {
+    if let Ok(body) = serde_json::to_string_pretty(head) {
+        let _ = fs::write(entry_dir(dir, &head.id).join(HEAD_FILE), body);
+    }
 }
 
 fn write_index(dir: &Path, heads: &[EntryHead]) -> Result<(), String> {
@@ -296,7 +348,7 @@ pub fn open(dir: &Path, server: &str, user: &str, origin: &str, undo_of: Option<
     fs::create_dir_all(entry_dir(dir, &id)).map_err(|err| format!("Cannot create the journal folder: {err}"))?;
 
     let mut heads = read_index(dir);
-    heads.push(EntryHead {
+    let head = EntryHead {
         id: id.clone(),
         server: server.to_string(),
         user: user.to_string(),
@@ -304,10 +356,20 @@ pub fn open(dir: &Path, server: &str, user: &str, origin: &str, undo_of: Option<
         started_at: stamp.format("%Y-%m-%dT%H:%M:%S").to_string(),
         undo_of: undo_of.map(str::to_string),
         undone_by: Vec::new(),
-    });
-    prune(dir, &mut heads);
+    };
+    write_head(dir, &head);
+    heads.push(head);
+    // Запись, которую сейчас отменяют, очистка не трогает: иначе отмена
+    // самой старой записи удалила бы её вместе с копиями доменов на полпути.
+    prune(dir, &mut heads, undo_of);
     write_index(dir, &heads)?;
     Ok(id)
+}
+
+/// Есть ли такая запись у этого сервера. Запись чужого стенда или
+/// выдуманный идентификатор писать нельзя — изменения ушли бы не туда.
+pub fn belongs(dir: &Path, id: &str, server: &str) -> bool {
+    read_index(dir).iter().any(|head| head.id == id && head.server == server)
 }
 
 pub fn append(dir: &Path, id: &str, item: &Item) -> Result<(), String> {
@@ -351,14 +413,32 @@ pub fn list(dir: &Path, server: &str) -> Vec<EntrySummary> {
         .filter(|head| head.server == server)
         .filter_map(|head| {
             let items = read_items(dir, &head.id);
-            (!items.is_empty()).then(|| summarize(head, &items))
+            if items.is_empty() {
+                return None;
+            }
+            let undone = undone_count(dir, &head);
+            Some(summarize(head, &items, undone))
         })
         .collect();
     rows.sort_by(|a, b| b.head.id.cmp(&a.head.id));
     rows
 }
 
-fn summarize(head: EntryHead, items: &[Item]) -> EntrySummary {
+/// Сколько разных правок записи вернули её отмены.
+fn undone_count(dir: &Path, head: &EntryHead) -> usize {
+    let mut indexes: Vec<usize> = head
+        .undone_by
+        .iter()
+        .flat_map(|id| read_items(dir, id))
+        .filter(|item| item.error.is_none())
+        .filter_map(|item| item.undoes)
+        .collect();
+    indexes.sort_unstable();
+    indexes.dedup();
+    indexes.len()
+}
+
+fn summarize(head: EntryHead, items: &[Item], undone: usize) -> EntrySummary {
     let failed = items.iter().filter(|item| item.error.is_some()).count();
     let actions = items.iter().filter(|item| item.error.is_none() && matches!(item.change, Change::Action { .. })).count();
     let mut kinds: Vec<String> = items.iter().map(|item| kind_of(&item.change).to_string()).collect();
@@ -369,6 +449,8 @@ fn summarize(head: EntryHead, items: &[Item]) -> EntrySummary {
         actions,
         failed,
         targets: items.iter().take(3).map(Item::title).collect(),
+        objects: items.iter().map(Item::title).collect(),
+        undone,
         total: items.len(),
         kinds,
         head,
@@ -402,19 +484,67 @@ pub fn mark_undone(dir: &Path, id: &str, by: &str) -> Result<(), String> {
     if !head.undone_by.iter().any(|item| item == by) {
         head.undone_by.push(by.to_string());
     }
+    let updated = head.clone();
+    write_head(dir, &updated);
     write_index(dir, &heads)
 }
 
+/// Чем запись ценна для очистки.
+#[derive(PartialEq)]
+enum Weight {
+    /// Есть правки — то, что можно отменить.
+    Changes,
+    /// Только действия: знать о них полезно, вернуть нечего.
+    Actions,
+    Empty,
+}
+
+fn weight_of(dir: &Path, id: &str) -> Weight {
+    let items = read_items(dir, id);
+    if items.is_empty() {
+        Weight::Empty
+    } else if items.iter().any(|item| !matches!(item.change, Change::Action { .. })) {
+        Weight::Changes
+    } else {
+        Weight::Actions
+    }
+}
+
 /// Убирает записи сверх предела по каждому серверу вместе с их папками.
-fn prune(dir: &Path, heads: &mut Vec<EntryHead>) {
+///
+/// Пределы у записей с правками и у записей из одних действий свои, пустые
+/// живут сутки, а запись `keep` не трогается вовсе.
+fn prune(dir: &Path, heads: &mut Vec<EntryHead>, keep: Option<&str>) {
     let mut servers: Vec<String> = heads.iter().map(|head| head.server.clone()).collect();
     servers.sort();
     servers.dedup();
+    let stale_before = (chrono::Local::now() - chrono::Duration::hours(EMPTY_GRACE_HOURS))
+        .format("%Y-%m-%dT%H:%M:%S")
+        .to_string();
     let mut doomed: Vec<String> = Vec::new();
     for server in servers {
-        let mut mine: Vec<&EntryHead> = heads.iter().filter(|head| head.server == server).collect();
+        let mut mine: Vec<&EntryHead> = heads
+            .iter()
+            .filter(|head| head.server == server && Some(head.id.as_str()) != keep)
+            .collect();
         mine.sort_by(|a, b| b.id.cmp(&a.id));
-        doomed.extend(mine.into_iter().skip(KEEP_PER_SERVER).map(|head| head.id.clone()));
+        let (mut changes, mut actions) = (0usize, 0usize);
+        for head in mine {
+            let over = match weight_of(dir, &head.id) {
+                Weight::Changes => {
+                    changes += 1;
+                    changes > KEEP_PER_SERVER
+                }
+                Weight::Actions => {
+                    actions += 1;
+                    actions > KEEP_ACTIONS_PER_SERVER
+                }
+                Weight::Empty => head.started_at < stale_before,
+            };
+            if over {
+                doomed.push(head.id.clone());
+            }
+        }
     }
     for id in &doomed {
         let _ = fs::remove_dir_all(entry_dir(dir, id));
@@ -523,16 +653,86 @@ mod tests {
         assert_eq!(read_backup(&dir, &id, &file).unwrap(), b"zip");
     }
 
+    fn action(name: &str) -> Item {
+        Item::now(Change::Action { target: "domain".into(), domain: None, name: name.into(), action: "restart".into(), detail: None })
+    }
+
     #[test]
-    fn old_entries_of_one_server_are_pruned_with_their_files() {
+    fn old_entries_with_changes_are_pruned_with_their_files() {
         let dir = scratch("prune");
         let first = open(&dir, "http://a/manager", "root", "routeTrace", None).unwrap();
         append(&dir, &first, &trace("ERP", true)).unwrap();
         for _ in 0..KEEP_PER_SERVER {
-            open(&dir, "http://a/manager", "root", "routeTrace", None).unwrap();
+            let id = open(&dir, "http://a/manager", "root", "routeTrace", None).unwrap();
+            append(&dir, &id, &trace("ERP", true)).unwrap();
         }
+        open(&dir, "http://a/manager", "root", "routeTrace", None).unwrap();
         assert!(!entry_dir(&dir, &first).exists());
-        assert_eq!(read_index(&dir).len(), KEEP_PER_SERVER);
+        assert_eq!(read_index(&dir).len(), KEEP_PER_SERVER + 1, "свежая пустая запись остаётся");
+    }
+
+    #[test]
+    fn actions_do_not_push_out_changes() {
+        let dir = scratch("weights");
+        let valuable = open(&dir, "http://a/manager", "root", "copy", None).unwrap();
+        append(&dir, &valuable, &trace("ERP", true)).unwrap();
+        for n in 0..KEEP_PER_SERVER + 5 {
+            let id = open(&dir, "http://a/manager", "root", "domains", None).unwrap();
+            append(&dir, &id, &action(&format!("D{n}"))).unwrap();
+        }
+        open(&dir, "http://a/manager", "root", "domains", None).unwrap();
+        assert!(entry_dir(&dir, &valuable).exists(), "перезапуски не вытесняют запись с правками");
+    }
+
+    #[test]
+    fn the_entry_being_undone_survives_pruning() {
+        let dir = scratch("keep");
+        let oldest = open(&dir, "http://a/manager", "root", "routeTrace", None).unwrap();
+        append(&dir, &oldest, &trace("ERP", true)).unwrap();
+        for _ in 0..KEEP_PER_SERVER {
+            let id = open(&dir, "http://a/manager", "root", "routeTrace", None).unwrap();
+            append(&dir, &id, &trace("ERP", true)).unwrap();
+        }
+        open(&dir, "http://a/manager", "root", "undo", Some(&oldest)).unwrap();
+        assert!(entry_dir(&dir, &oldest).exists());
+        assert!(read(&dir, &oldest).is_ok());
+    }
+
+    #[test]
+    fn a_damaged_index_is_rebuilt_from_the_entries() {
+        let dir = scratch("rebuild");
+        let id = open(&dir, "http://a/manager", "root", "routeTrace", None).unwrap();
+        append(&dir, &id, &trace("ERP", true)).unwrap();
+        fs::write(index_path(&dir), "{ broken").unwrap();
+        assert_eq!(list(&dir, "http://a/manager").len(), 1);
+        open(&dir, "http://a/manager", "root", "routeTrace", None).unwrap();
+        assert!(read(&dir, &id).is_ok(), "после новой записи старая на месте");
+    }
+
+    #[test]
+    fn entry_ids_cannot_point_outside_their_folder() {
+        assert_eq!(safe(".."), "invalid");
+        assert_eq!(safe(""), "invalid");
+        assert_eq!(safe("../journal-1"), "journal-1");
+        let dir = scratch("belongs");
+        let id = open(&dir, "http://a/manager", "root", "routeTrace", None).unwrap();
+        assert!(belongs(&dir, &id, "http://a/manager"));
+        assert!(!belongs(&dir, &id, "http://b/manager"));
+        assert!(!belongs(&dir, "..", "http://a/manager"));
+    }
+
+    #[test]
+    fn partial_undo_is_counted() {
+        let dir = scratch("partial");
+        let id = open(&dir, "http://a/manager", "root", "routeTrace", None).unwrap();
+        append(&dir, &id, &trace("ERP", true)).unwrap();
+        append(&dir, &id, &trace("WMS", true)).unwrap();
+        let undo = open(&dir, "http://a/manager", "root", "undo", Some(&id)).unwrap();
+        append(&dir, &undo, &trace("ERP", false).undoing(Some(0))).unwrap();
+        mark_undone(&dir, &id, &undo).unwrap();
+        let row = list(&dir, "http://a/manager").into_iter().find(|row| row.head.id == id).unwrap();
+        assert_eq!((row.undone, row.changes), (1, 2));
+        assert_eq!(row.objects.len(), 2);
     }
 
     impl Item {

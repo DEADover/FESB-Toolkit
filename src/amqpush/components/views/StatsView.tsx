@@ -479,7 +479,7 @@ function Sparkline({ buckets, label, color, rate, count, t }: { buckets: number[
         <SectionLabel>{label}</SectionLabel>
         <span className="text-[11.5px] font-mono text-t-ink2">
           <span className="text-[14px] font-bold text-t-ink">{rateLabel(rate)}</span>
-          <span className="text-t-ink5 ml-1">· {formatNumber(count)} total</span>
+          <span className="text-t-ink5 ml-1">· {t("stats.totalCount", { count: formatNumber(count) })}</span>
         </span>
       </div>
       <div className="flex items-end gap-px h-12">

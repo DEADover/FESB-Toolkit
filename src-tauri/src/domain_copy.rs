@@ -247,9 +247,23 @@ pub async fn run<F: FnMut(ApiProgress)>(
     for batch in pending.packed.chunks(GUIDS_PER_REQUEST) {
         on_progress(ApiProgress { phase: "upload", current: outcomes.len() as u64, total });
         // Копии перезаписываемых доменов ложатся в журнал до загрузки:
-        // без них отменить её будет нечем, и такую загрузку лучше не начинать.
+        // без них отменить её будет нечем, и такую пачку лучше не грузить.
+        // Остальные пачки при этом идут: каждая получает свой исход.
         let changes = match journal {
-            Some(sink) => Some(journal_changes(sink, batch, &pending)?),
+            Some(sink) => match journal_changes(sink, batch, &pending) {
+                Ok(changes) => Some(changes),
+                Err(err) => {
+                    for item in batch {
+                        outcomes.push(CopyOutcome {
+                            guid: item.domain.guid.clone(),
+                            name: item.domain.name.clone(),
+                            error: Some(err.clone()),
+                            message: None,
+                        });
+                    }
+                    continue;
+                }
+            },
             None => None,
         };
         let answer = upload(target, &client, batch, reload, remove_missing).await;
@@ -287,6 +301,12 @@ fn journal_changes(sink: &Sink, batch: &[Packed], pending: &Pending) -> Result<V
         .map(|item| {
             let guid = &item.domain.guid;
             let before = pending.theirs.get(guid);
+            // Был ли домен — по списку целевого сервера, а не по выгрузке:
+            // выгрузка молча пропускает домен, которого не отдала.
+            let existed = pending.active.contains_key(guid);
+            if existed && before.is_none() {
+                return Err(format!("Cannot take a copy of domain {} on the target before the upload", item.domain.name));
+            }
             let backup = match before {
                 Some(copy) => Some(sink.backup(guid, &copy.archive)?),
                 None => None,
@@ -294,12 +314,13 @@ fn journal_changes(sink: &Sink, batch: &[Packed], pending: &Pending) -> Result<V
             Ok(Change::Domain {
                 guid: guid.clone(),
                 name: item.domain.name.clone(),
-                existed: before.is_some(),
+                existed,
                 backup,
                 group: before.and_then(|copy| copy.domain.group.clone()),
                 mode: before.and_then(|copy| copy.domain.mode.clone()),
                 active_before: pending.active.get(guid).copied().unwrap_or(false),
                 deleted: false,
+                backup_name: before.map(|copy| copy.domain.name.clone()),
             })
         })
         .collect()

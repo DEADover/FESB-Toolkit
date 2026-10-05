@@ -85,6 +85,12 @@ export function PassportScreen({ connection, server, onGoToConnection, standName
   const [error, setError] = useState<string | null>(null)
   const [progress, setProgress] = useState<ApiProgress | null>(null)
   const current = useRef<StageId | null>(null)
+  /**
+   * Номер сборки. Сменили стенд или ушли с экрана — номер растёт, и шаги
+   * прежней сборки больше ничего не пишут на экран: иначе паспорт стенда A
+   * появился бы под стендом B.
+   */
+  const run = useRef(0)
   const summary = useRef<HTMLDivElement>(null)
 
   // Обход и выгрузка констант сообщают о ходе событиями — показываем их
@@ -102,9 +108,14 @@ export function PassportScreen({ connection, server, onGoToConnection, standName
 
   // Сменили стенд — собранный паспорт относится к прежнему.
   useEffect(() => {
+    run.current += 1
+    current.current = null
     setData(null)
     setStages(null)
+    setBuilding(false)
   }, [connection])
+
+  useEffect(() => () => { run.current += 1 }, [])
 
   const toggle = (section: PassportSection) => setSections((prev) => {
     const next = new Set(prev)
@@ -117,10 +128,12 @@ export function PassportScreen({ connection, server, onGoToConnection, standName
     if (!connection || !server) return
     const chosen = new Set(sections)
     const plan = stagesFor(chosen)
+    const ticket = ++run.current
+    const alive = () => run.current === ticket
     let list: Stage[] = plan.map((id) => ({ id, status: 'waiting' }))
     const update = (id: StageId, patch: Partial<Stage>) => {
       list = list.map((stage) => (stage.id === id ? { ...stage, ...patch } : stage))
-      setStages(list)
+      if (alive()) setStages(list)
     }
     setStages(list)
     setData(null)
@@ -136,6 +149,7 @@ export function PassportScreen({ connection, server, onGoToConnection, standName
 
     // Каждый шаг сам по себе: упавший раздел не должен стоить остальных.
     const step = async (id: StageId, work: () => Promise<string | undefined>, onFail: (message: string) => void) => {
+      if (!alive()) return
       current.current = id
       setProgress(null)
       update(id, { status: 'running' })
@@ -202,6 +216,7 @@ export function PassportScreen({ connection, server, onGoToConnection, standName
       }
     }
 
+    if (!alive()) return
     current.current = null
     setProgress(null)
     setData(result)

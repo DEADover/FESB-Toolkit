@@ -127,6 +127,7 @@ const REASON: Record<string, MessageKey> = {
   secured: 'journal.undo.reason.secured',
   noBackup: 'journal.undo.reason.noBackup',
   unreadable: 'journal.undo.reason.unreadable',
+  uncertain: 'journal.undo.reason.uncertain',
   ready: 'journal.undo.state.ready',
   done: 'journal.undo.state.done',
   conflict: 'journal.undo.state.conflict',

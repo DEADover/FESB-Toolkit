@@ -67,7 +67,7 @@ describe('changeTexts', () => {
 describe('строка записи', () => {
   const entry: JournalEntrySummary = {
     id: 'j', server: 's', user: 'root', origin: 'routeTrace', startedAt: '2026-10-05T13:05:04',
-    changes: 12, actions: 0, failed: 1, targets: ['ERP · A', 'ERP · B', 'WMS · C'], total: 13, kinds: ['routeTrace'],
+    changes: 12, actions: 0, failed: 1, targets: ['ERP · A', 'ERP · B', 'WMS · C'], objects: [], undone: 0, total: 13, kinds: ['routeTrace'],
   }
 
   it('итог и объекты', () => {

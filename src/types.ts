@@ -1062,6 +1062,10 @@ export interface JournalEntrySummary extends JournalHead {
   actions: number
   failed: number
   targets: string[]
+  /** Все объекты записи — по ним ищут. */
+  objects: string[]
+  /** Сколько правок уже отменено: отменить можно и часть записи. */
+  undone: number
   total: number
   kinds: JournalKind[]
 }
@@ -1102,6 +1106,7 @@ export type JournalChange =
       mode: string | null
       activeBefore: boolean
       deleted: boolean
+      backupName?: string | null
     }
   | {
       type: 'action'

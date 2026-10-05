@@ -2373,7 +2373,9 @@
               const actions = items.filter((item) => !item.error && item.type === 'action').length
               return {
                 ...head, changes: items.length - failed - actions, actions, failed,
-                targets: items.slice(0, 3).map(title), total: items.length, kinds: [...new Set(items.map((item) => item.type))],
+                targets: items.slice(0, 3).map(title), objects: items.map(title), total: items.length,
+                kinds: [...new Set(items.map((item) => item.type))],
+                undone: (head.undoneBy || []).length > 0 ? 1 : 0,
               }
             })
             const entry = entries[args.id] ?? entries['journal-3']

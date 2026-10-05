@@ -284,7 +284,36 @@ pub fn is_external(scheme: &str) -> bool {
 /// полторы тысячи символов, у адаптеров — десяток параметров подряд. Оставляем
 /// схему с адресом и только те параметры, которые говорят, куда идёт вызов;
 /// значения паролей и ключей заменяются, потому что отчёт уходит в переписку.
+/// Прячет логин и пароль в адресе: `ftp://user:pass@host` → `ftp://***@host`.
+///
+/// Секреты в параметрах запроса прячутся по их именам, но учётка бывает
+/// и прямо в адресе, перед `@`. В отчёт и в паспорт, которые пересылают
+/// по почте, ей попадать нельзя. Каждое `://` в строке проверяется отдельно:
+/// адрес бывает вложен в параметр другого адреса.
+pub fn hide_userinfo(uri: &str) -> String {
+    let mut out = String::with_capacity(uri.len());
+    let mut rest = uri;
+    while let Some(at) = rest.find("://") {
+        let (before, after) = rest.split_at(at + 3);
+        out.push_str(before);
+        let end = after.find(['/', '?', '&', '#']).unwrap_or(after.len());
+        let authority = &after[..end];
+        match authority.rfind('@') {
+            Some(cut) => {
+                out.push_str("***");
+                out.push_str(&authority[cut..]);
+            }
+            None => out.push_str(authority),
+        }
+        rest = &after[end..];
+    }
+    out.push_str(rest);
+    out
+}
+
 pub fn readable_uri(uri: &str) -> String {
+    let uri = hide_userinfo(uri);
+    let uri = uri.as_str();
     let (head, query) = match uri.split_once('?') {
         Some((head, query)) => (head, Some(query)),
         None => (uri, None),
@@ -758,6 +787,15 @@ mod tests {
         assert!(is_external("https"));
         assert!(is_external("cxf"));
         assert!(is_external("netty-http"));
+    }
+
+    #[test]
+    fn credentials_in_the_address_are_hidden() {
+        assert_eq!(hide_userinfo("ftp://admin:secret@files.corp/in"), "ftp://***@files.corp/in");
+        assert_eq!(hide_userinfo("amqp://u:p@host:5672/q?x=1"), "amqp://***@host:5672/q?x=1");
+        assert_eq!(hide_userinfo("https://host/path?url=ftp://a:b@h/x"), "https://host/path?url=ftp://***@h/x");
+        assert_eq!(hide_userinfo("direct:Orders.Save"), "direct:Orders.Save");
+        assert!(!readable_uri("sftp://root:p4ss@10.0.0.1/data").contains("p4ss"));
     }
 
     #[test]

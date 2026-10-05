@@ -891,7 +891,7 @@ export default function SubscriberView({ connected, defaultAddress, activeProfil
               className="w-full font-mono text-[12.5px] bg-t-field border border-t-line2 rounded-lg px-2.5 py-1.5 text-t-ink outline-none focus:border-accent-content focus:ring-1 focus:ring-accent-content/30 transition-all placeholder:text-t-ink5"
             />
             <p className="text-[10.5px] text-t-ink5 mt-1">
-              {t("recv.topic.applied")}
+              {t("recv.topic.applied")}{" "}
               {t("recv.topic.syntax")}
             </p>
           </div>
@@ -1268,7 +1268,7 @@ export default function SubscriberView({ connected, defaultAddress, activeProfil
                     title={t("recv.compareTo", { id: refMsg.meta.message_id ?? "ref" })}
                     className="flex items-center gap-1 h-7 px-2.5 rounded-lg text-[12px] font-medium text-accent hover:bg-accent/10 transition-colors"
                   >
-                    <GitCompare className="w-3 h-3" /> Diff
+                    <GitCompare className="w-3 h-3" /> {t("recv.diff.button")}
                   </button>
                 ) : (
                   <button

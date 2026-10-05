@@ -86,6 +86,10 @@ function pointText(point: ApiEndpoint): string {
   return `${point.kind} ${point.uri}`
 }
 
+function routeKey(domainGuid: string, id: string): string {
+  return `${domainGuid}|${id}`
+}
+
 function routeStateText(state: string | undefined, t: Translate): string {
   return state ? routeStateLabel(state, t) : t('passport.state.unknown')
 }
@@ -118,15 +122,21 @@ function domainsSheet(data: PassportData, t: Translate): Sheet | null {
 
 function routesSheet(data: PassportData, t: Translate): Sheet | null {
   if (!data.walk) return null
-  const live = new Map((data.routes ?? []).map((item) => [item.id, item]))
+  // СОПС узнаётся по домену и идентификатору вместе: скопированный домен
+  // приносит те же `route-…`, и по одному идентификатору строки чужого
+  // домена получали состояние и точки двойника.
+  const live = new Map((data.routes ?? []).map((item) => [routeKey(item.domainGuid, item.id), item]))
   const points = new Map<string, { in: string[]; out: string[] }>()
   for (const point of data.walk.endpoints) {
     // Точки дополнительных маршрутов (`route-1:part`) — точки их СОПС.
-    const id = point.routeId.split(':')[0]
-    const slot = points.get(id) ?? { in: [], out: [] }
+    const key = routeKey(point.domainGuid, point.routeId.split(':')[0])
+    const slot = points.get(key) ?? { in: [], out: [] }
     slot[point.direction].push(pointText(point))
-    points.set(id, slot)
+    points.set(key, slot)
   }
+  // Состояние не прочиталось — колонки пустые, а не «не загружен в шину»:
+  // иначе сбой одного шага выглядел бы как стенд без единого СОПС.
+  const known = data.routes !== null
   return {
     name: sectionTitle('routes', t),
     headers: [
@@ -136,13 +146,14 @@ function routesSheet(data: PassportData, t: Translate): Sheet | null {
       t('passport.col.routeId'),
     ],
     rows: data.walk.routes.map((route) => {
-      const row = route.id ? live.get(route.id) : undefined
-      const slot = (route.id && points.get(route.id)) || { in: [], out: [] }
+      const key = route.id ? routeKey(route.domainGuid, route.id) : null
+      const row = key ? live.get(key) : undefined
+      const slot = (key && points.get(key)) || { in: [], out: [] }
       return [
         route.domain,
         route.name ?? route.id ?? '',
         route.description ?? '',
-        row ? routeStateText(row.state, t) : t('passport.state.notDeployed'),
+        row ? routeStateText(row.state, t) : known ? t('passport.state.notDeployed') : '',
         row ? yesNo(row.trace, t) : '',
         row ? row.traceBeans.join(', ') : '',
         slot.in.join('\n'),

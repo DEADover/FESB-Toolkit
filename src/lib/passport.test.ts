@@ -103,3 +103,24 @@ describe('мелочи', () => {
     expect(passportFileName('http://esb.corp:8181/manager', '2026-10-05-1305')).toBe('fesb-passport-esb.corp-2026-10-05-1305.xlsx')
   })
 })
+
+describe('СОПС с одинаковыми идентификаторами', () => {
+  it('копия домена не получает состояние и точки оригинала', () => {
+    const base = data()
+    const copy = { ...base.walk!.routes[0], domainGuid: 'domain-2', domain: 'Orders.Copy' }
+    const sheets = buildSheets({
+      ...base,
+      walk: { ...base.walk!, routes: [base.walk!.routes[0], copy], domains: base.walk!.domains },
+    }, new Set<PassportSection>(['routes']), t)
+    const routes = sheets.find((sheet) => sheet.name === 'passport.section.routes')!
+    const copied = routes.rows.find((row) => row[0] === 'Orders.Copy')!
+    expect(copied[3]).toBe('passport.state.notDeployed')
+    expect(copied[6]).toBe('')
+  })
+
+  it('без состояния колонки пустые, а не «не загружен»', () => {
+    const sheets = buildSheets({ ...data(), routes: null }, new Set<PassportSection>(['routes']), t)
+    const routes = sheets.find((sheet) => sheet.name === 'passport.section.routes')!
+    expect(routes.rows.every((row) => row[3] === '')).toBe(true)
+  })
+})

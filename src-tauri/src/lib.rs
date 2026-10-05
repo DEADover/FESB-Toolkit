@@ -98,9 +98,11 @@ fn journal_dir(app: &AppHandle) -> Result<PathBuf, String> {
 /// ошибка папки данных — не повод отказывать в работе со стендом.
 fn journal_sink(app: &AppHandle, connection: &Connection, note: &Option<JournalNote>, origin: &str) -> Option<Sink> {
     let dir = journal_dir(app).ok()?;
+    // Запись от интерфейса принимается, только если она есть и заведена на
+    // этот же стенд: иначе правки легли бы в чужую запись или мимо журнала.
     match note.as_ref().and_then(|note| note.entry.clone()) {
-        Some(entry) => Some(Sink { dir, entry }),
-        None => journal_ops::open_entry(&dir, connection, origin).map_err(|err| eprintln!("journal: {err}")).ok(),
+        Some(entry) if change_journal::belongs(&dir, &entry, &connection.base()) => Some(Sink { dir, entry }),
+        _ => journal_ops::open_entry(&dir, connection, origin).map_err(|err| eprintln!("journal: {err}")).ok(),
     }
 }
 

@@ -75,23 +75,43 @@ pub async fn set_route_trace(
     comment: Option<&str>,
     note: &Note<'_>,
 ) -> Result<RouteTraceResult, String> {
-    let result = route_trace::set_route_trace(connection, domain, route, change, comment).await;
-    match &result {
-        Ok(done) if done.status == "changed" => note.record(Item::now(Change::RouteTrace {
-            domain_guid: domain.to_string(),
-            domain: note.domain.clone(),
-            route_id: route.to_string(),
-            route: note.name.clone(),
-            before: done.before.clone(),
-            after: done.after.clone(),
-        })),
-        Ok(_) => {}
-        Err(_) => {
-            let note = Note { name: note.name.clone().or_else(|| Some(route.to_string())), ..note.clone() };
-            note.action("route", "trace", Some(route_trace::comment_for(change)), &result);
+    let trace_change = |before: &TraceState, after: &TraceState| Change::RouteTrace {
+        domain_guid: domain.to_string(),
+        domain: note.domain.clone(),
+        route_id: route.to_string(),
+        route: note.name.clone(),
+        before: before.clone(),
+        after: after.clone(),
+    };
+    match route_trace::set_route_trace_tracked(connection, domain, route, change, comment).await {
+        Ok(done) => {
+            if done.status == "changed" {
+                note.record(Item::now(trace_change(&done.before, &done.after)));
+            }
+            Ok(done)
+        }
+        Err(failure) => {
+            // Запрос ушёл, а ответ не понравился — смотрим, что на сервере
+            // на самом деле. Если СОПС поменялся, это правка: её надо уметь
+            // отменить, а не записать безвозвратным «не вышло».
+            let applied = match (&failure.before, failure.sent) {
+                (Some(before), true) => match route_trace::current_state(connection, domain, route).await {
+                    Ok(now) if &now != before => Some((before.clone(), now)),
+                    _ => None,
+                },
+                _ => None,
+            };
+            match applied {
+                Some((before, now)) => note.record(Item::now(trace_change(&before, &now))),
+                None => {
+                    let note = Note { name: note.name.clone().or_else(|| Some(route.to_string())), ..note.clone() };
+                    let result: Result<(), String> = Err(failure.message.clone());
+                    note.action("route", "trace", Some(route_trace::comment_for(change)), &result);
+                }
+            }
+            Err(failure.message)
         }
     }
-    result
 }
 
 /// Сохраняет константу, запомнив, какой она была.
@@ -107,7 +127,13 @@ pub async fn save_constant(
     note: &Note<'_>,
 ) -> Result<(), String> {
     let before = match note.sink {
-        Some(_) => fesb_ops::property(connection, &scope, &property.key).await?,
+        Some(_) => match fesb_ops::property(connection, &scope, &property.key).await {
+            Ok(found) => found,
+            // Прежнее значение не прочиталось — правка всё равно идёт: отказ
+            // в записи из-за журнала был бы хуже. Но отменять её нечем, и она
+            // записывается действием, а не правкой с выдуманным «было».
+            Err(_) => return unrecorded_constant(connection, scope, property, create, comment, note).await,
+        },
         None => None,
     };
     let key = property.key.clone();
@@ -127,6 +153,22 @@ pub async fn save_constant(
     result
 }
 
+/// Константа, прежнее значение которой узнать не удалось.
+async fn unrecorded_constant(
+    connection: &Connection,
+    scope: PropertyScope,
+    property: PropertyRow,
+    create: bool,
+    comment: Option<String>,
+    note: &Note<'_>,
+) -> Result<(), String> {
+    let key = property.key.clone();
+    let result = fesb_ops::save_property(connection, scope, property, create, comment).await;
+    let note = Note { name: Some(key), ..note.clone() };
+    note.action("constant", if create { "create" } else { "save" }, None, &result);
+    result
+}
+
 pub async fn delete_constant(
     connection: &Connection,
     scope: PropertyScope,
@@ -134,7 +176,14 @@ pub async fn delete_constant(
     note: &Note<'_>,
 ) -> Result<(), String> {
     let before = match note.sink {
-        Some(_) => fesb_ops::property(connection, &scope, key).await?,
+        Some(_) => match fesb_ops::property(connection, &scope, key).await {
+            Ok(found) => found,
+            Err(_) => {
+                let result = fesb_ops::delete_property(connection, scope, key).await;
+                Note { name: Some(key.to_string()), ..note.clone() }.action("constant", "delete", None, &result);
+                return result;
+            }
+        },
         None => None,
     };
     let result = fesb_ops::delete_property(connection, scope.clone(), key).await;
@@ -190,6 +239,13 @@ pub async fn push<F: FnMut(ApiProgress)>(
     let mut changes = Vec::with_capacity(guids.len());
     for guid in guids {
         let copy = copies.get(guid);
+        // Был ли домен — по списку сервера, а не по выгрузке: выгрузка молча
+        // пропускает домен, которого не отдала, и тогда отмена удалила бы
+        // домен, который до загрузки был.
+        let existed = on_server.contains_key(guid.as_str());
+        if existed && copy.is_none() {
+            return Err(format!("Cannot take a copy of domain {guid} before the upload"));
+        }
         let backup = match copy {
             Some(copy) => Some(sink.backup(guid, &copy.archive)?),
             None => None,
@@ -197,12 +253,13 @@ pub async fn push<F: FnMut(ApiProgress)>(
         changes.push(Change::Domain {
             guid: guid.clone(),
             name: names.get(guid).cloned().or_else(|| copy.map(|item| item.domain.name.clone())).unwrap_or_else(|| guid.clone()),
-            existed: copy.is_some(),
+            existed,
             backup,
             group: copy.and_then(|item| item.domain.group.clone()),
             mode: copy.and_then(|item| item.domain.mode.clone()),
             active_before: on_server.get(guid.as_str()).copied().unwrap_or(false),
             deleted: false,
+            backup_name: copy.map(|item| item.domain.name.clone()),
         });
     }
 
@@ -356,7 +413,10 @@ async fn assess(
     live: &Live,
     assumed: Option<&Current>,
 ) -> UndoRow {
-    if item.error.is_some() {
+    // Ошибка загрузки домена не значит, что он не загрузился: шина могла
+    // дописать импорт после обрыва по времени. Копия до загрузки есть —
+    // значит, вернуть можно, только с пометкой, что исход неизвестен.
+    if item.error.is_some() && !matches!(item.change, Change::Domain { .. }) {
         return row(index, item, "impossible", Some("failed"), None);
     }
     match &item.change {
@@ -379,16 +439,18 @@ async fn assess(
             if live.undone.contains(&index) {
                 return row(index, item, "done", None, None);
             }
+            let note = item.error.as_ref().map(|_| "uncertain");
             if !existed {
                 // Домена не было: отмена — удалить его, если он ещё есть.
                 return if live.domains.contains_key(guid) {
-                    row(index, item, "ready", None, None)
+                    row(index, item, "ready", note, None)
                 } else {
                     row(index, item, "done", None, None)
                 };
             }
             match backup {
-                Some(file) if change_journal::has_backup(dir, entry, file) => row(index, item, "ready", None, None),
+                Some(file) if change_journal::has_backup(dir, entry, file) => row(index, item, "ready", note, None),
+                _ if item.error.is_some() => row(index, item, "impossible", Some("failed"), None),
                 _ => row(index, item, "impossible", Some("noBackup"), None),
             }
         }
@@ -496,8 +558,12 @@ pub async fn run<F: FnMut(ApiProgress)>(
     on_progress(ApiProgress { phase: "undo", current: total, total });
     outcomes.reverse();
 
+    // Отметка — уже после того, как стенд поменяли: её сбой не должен
+    // спрятать от человека итог отмены, которая на самом деле прошла.
     if outcomes.iter().any(|outcome| outcome.status == "undone") {
-        change_journal::mark_undone(dir, id, &undo_id)?;
+        if let Err(err) = change_journal::mark_undone(dir, id, &undo_id) {
+            eprintln!("journal: {err}");
+        }
     }
     Ok(UndoResult { entry: undo_id, outcomes })
 }
@@ -528,7 +594,7 @@ async fn revert(
                 (Some(old), Some(_)) => save_constant(connection, scope, old.to_row(key), false, Some(comment.to_string()), &note).await,
             }
         }
-        Change::Domain { guid, name, existed, backup, group, mode, active_before, .. } => {
+        Change::Domain { guid, name, existed, backup, group, mode, active_before, backup_name, .. } => {
             // Сначала — копия того, что на сервере сейчас: отмена тоже должна
             // отменяться, а без копии вернуть стёртое будет нечем.
             let present = live.domains.get(guid).copied();
@@ -536,6 +602,11 @@ async fn revert(
                 Some(_) => current_copies(connection, std::slice::from_ref(guid)).await?.remove(guid),
                 None => None,
             };
+            // Домен есть, а копия не снялась — трогать его нельзя: стёртое
+            // потом не вернуть ни отменой отмены, ни чем-то ещё.
+            if present.is_some() && current.is_none() {
+                return Err(format!("Cannot take a copy of domain {name} before changing it"));
+            }
             let current_backup = match &current {
                 Some(copy) => Some(sink.backup(guid, &copy.archive)?),
                 None => None,
@@ -549,13 +620,20 @@ async fn revert(
                 mode: current.as_ref().and_then(|copy| copy.domain.mode.clone()),
                 active_before: present.unwrap_or(false),
                 deleted: !existed,
+                backup_name: current.as_ref().map(|copy| copy.domain.name.clone()),
             };
 
             let result = if *existed {
                 let file = backup.as_deref().ok_or("The domain copy is missing")?;
                 let archive = change_journal::read_backup(dir, id, file)?;
                 let packed = Packed {
-                    domain: ManifestDomain { guid: guid.clone(), name: name.clone(), group: group.clone(), mode: mode.clone() },
+                    // Под тем именем, что было в копии, а не под подписью операции.
+                    domain: ManifestDomain {
+                        guid: guid.clone(),
+                        name: backup_name.clone().unwrap_or_else(|| name.clone()),
+                        group: group.clone(),
+                        mode: mode.clone(),
+                    },
                     archive,
                 };
                 let client = connection.client()?;

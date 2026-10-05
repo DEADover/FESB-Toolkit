@@ -1638,6 +1638,10 @@ export const en = {
   'routeState.started': 'Running',
   'routeState.stopped': 'Stopped',
   'routeState.suspended': 'Suspended',
+  'journal.expand': 'Expand the entry',
+  'journal.collapse': 'Collapse the entry',
+  'journal.badge.partly': 'Undone {done} of {total}',
+  'journal.undo.reason.uncertain': 'The upload reported an error but may have gone through — the domain comes back from the copy',
 } as const
 
 export type MessageKey = keyof typeof en

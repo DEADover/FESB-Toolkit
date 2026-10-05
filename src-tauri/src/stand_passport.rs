@@ -157,21 +157,44 @@ pub async fn walk<F: FnMut(ApiProgress)>(connection: &Connection, on_progress: F
     let graph = route_links::connect(link_parts);
     let label = |index: usize| {
         let route = &graph.routes[index];
-        (route.domain.clone(), route.name.clone().or_else(|| route.id.clone()).unwrap_or_default())
+        // Дополнительный маршрут подписывается своим СОПС.
+        let id = route.id.as_deref().map(parent_id);
+        (route.domain.clone(), route.name.clone().or(id).unwrap_or_default())
+    };
+    // СОПС, который вызывает собственный дополнительный маршрут, — это не
+    // связь между СОПС, а устройство одного из них.
+    let same_route = |from: usize, to: usize| {
+        let (a, b) = (&graph.routes[from], &graph.routes[to]);
+        a.domain_dir == b.domain_dir && a.id.as_deref().map(parent_id) == b.id.as_deref().map(parent_id)
     };
     let mut links: Vec<PassportLink> = graph
         .links
         .iter()
+        .filter(|link| !same_route(link.from, link.to))
         .map(|link| {
             let (from_domain, from_route) = label(link.from);
             let (to_domain, to_route) = label(link.to);
-            PassportLink { from_domain, from_route, to_domain, to_route, uri: link.uri.clone(), kind: link.kind.clone() }
+            PassportLink {
+                from_domain,
+                from_route,
+                to_domain,
+                to_route,
+                uri: crate::api_report::hide_userinfo(&link.uri),
+                kind: link.kind.clone(),
+            }
         })
         .collect();
-    links.sort_by(|a, b| {
-        (a.from_domain.to_lowercase(), a.from_route.to_lowercase(), a.to_domain.to_lowercase())
-            .cmp(&(b.from_domain.to_lowercase(), b.from_route.to_lowercase(), b.to_domain.to_lowercase()))
-    });
+    let key = |link: &PassportLink| {
+        (
+            link.from_domain.to_lowercase(),
+            link.from_route.to_lowercase(),
+            link.to_domain.to_lowercase(),
+            link.to_route.to_lowercase(),
+            link.uri.clone(),
+        )
+    };
+    // Полный ключ: иначе одинаковые строки разойдутся и `dedup` их не склеит.
+    links.sort_by_key(key);
     links.dedup_by(|a, b| a.from_domain == b.from_domain && a.from_route == b.from_route && a.to_domain == b.to_domain && a.to_route == b.to_route && a.uri == b.uri);
 
     domains.sort_by_key(|domain| domain.name.to_lowercase());
