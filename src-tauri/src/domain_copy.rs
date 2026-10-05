@@ -267,7 +267,16 @@ pub async fn run<F: FnMut(ApiProgress)>(
             None => None,
         };
         let answer = upload(target, &client, batch, reload, remove_missing).await;
-        if let (Some(sink), Some(changes)) = (journal, changes) {
+        if let (Some(sink), Some(mut changes)) = (journal, changes) {
+            // Каким домен стал после загрузки — по этому отмена поймёт,
+            // не поменял ли его потом кто-то ещё.
+            if answer.is_ok() {
+                let guids: Vec<String> = batch.iter().map(|item| item.domain.guid.clone()).collect();
+                let prints = fingerprints(target, &guids).await;
+                for change in &mut changes {
+                    change.set_after_print(&prints);
+                }
+            }
             for change in changes {
                 sink.record(match &answer {
                     Ok(_) => Item::now(change),
@@ -321,6 +330,7 @@ fn journal_changes(sink: &Sink, batch: &[Packed], pending: &Pending) -> Result<V
                 active_before: pending.active.get(guid).copied().unwrap_or(false),
                 deleted: false,
                 backup_name: before.map(|copy| copy.domain.name.clone()),
+                after_print: None,
             })
         })
         .collect()
@@ -497,6 +507,57 @@ fn read_domain(archive: &[u8]) -> Result<DomainFiles, String> {
     Ok(DomainFiles { settings, routes })
 }
 
+/// Строка настроек, которую шина переписывает при каждом запуске
+/// и остановке. Состояние домена сверяется отдельно, а в отпечатке оно
+/// выдавало бы за чужую правку обычную остановку.
+const START_FLAG: &str = "fesb.domain.start.active";
+
+/// Отпечаток домена: настройки и СОПС, как они лежат на сервере.
+///
+/// По нему отмена понимает, менял ли кто-то домен после операции. Две
+/// выгрузки неизменённого домена отличаются только строкой-комментарием
+/// со временем выгрузки и флагом запуска — оба сюда не входят. Хеш свой
+/// (FNV-1a), а не из стандартной библиотеки: отпечаток живёт в журнале
+/// между версиями приложения, и его алгоритм не должен меняться.
+pub(crate) fn fingerprint(archive: &[u8]) -> Result<String, String> {
+    let files = read_domain(archive)?;
+    let mut hash: u64 = 0xcbf2_9ce4_8422_2325;
+    let mut feed = |bytes: &[u8]| {
+        for byte in bytes.iter().chain(std::iter::once(&0xff)) {
+            hash ^= u64::from(*byte);
+            hash = hash.wrapping_mul(0x0000_0100_0000_01b3);
+        }
+    };
+    let mut settings = files.settings.clone();
+    settings.sort();
+    for (name, content) in &settings {
+        feed(name.as_bytes());
+        let kept: Vec<&str> = content.lines().filter(|line| !line.trim_start().starts_with(START_FLAG)).collect();
+        feed(kept.join("\n").as_bytes());
+    }
+    let mut routes: Vec<&(String, Option<String>, Vec<u8>)> = files.routes.iter().collect();
+    routes.sort_by(|a, b| a.0.cmp(&b.0));
+    for (id, _, content) in routes {
+        feed(id.as_bytes());
+        feed(content);
+    }
+    Ok(format!("{hash:016x}"))
+}
+
+/// Отпечатки доменов на сервере сейчас. Чего выгрузить не вышло, в ответе нет.
+pub(crate) async fn fingerprints(connection: &Connection, guids: &[String]) -> HashMap<String, String> {
+    let mut prints = HashMap::new();
+    for batch in guids.chunks(GUIDS_PER_REQUEST) {
+        let Ok(items) = export(connection, batch).await else { continue };
+        for item in items {
+            if let Ok(print) = fingerprint(&item.archive) {
+                prints.insert(item.domain.guid, print);
+            }
+        }
+    }
+    prints
+}
+
 fn compare_routes(ours: &DomainFiles, before: Option<&DomainFiles>) -> Vec<CopyRoute> {
     let old: HashMap<&str, &(String, Option<String>, Vec<u8>)> = before
         .map(|files| files.routes.iter().map(|item| (item.0.as_str(), item)).collect())
@@ -608,5 +669,24 @@ mod tests {
         assert_eq!(back.len(), 1);
         assert_eq!(back[0].domain.name, "One");
         assert_eq!(back[0].archive, packed[0].archive);
+    }
+
+    #[test]
+    fn the_fingerprint_ignores_export_time_and_the_start_flag() {
+        let route = r#"<routes><route id="route-1" factor-name="Orders.In"><from uri="direct:a"/></route></routes>"#;
+        let running = domain_zip(&[
+            ("settings.properties", "#Mon Oct 05 23:43:47 MSK 2026\nfesb.domain.name=Orders\nfesb.domain.start.active=true\n"),
+            ("routes/route-1.xml", route),
+        ]);
+        let stopped = domain_zip(&[
+            ("settings.properties", "#Mon Oct 05 23:59:01 MSK 2026\nfesb.domain.start.active=false\nfesb.domain.name=Orders\n"),
+            ("routes/route-1.xml", route),
+        ]);
+        let edited = domain_zip(&[
+            ("settings.properties", "fesb.domain.name=Orders\nfesb.domain.start.active=true\n"),
+            ("routes/route-1.xml", &route.replace("direct:a", "direct:b")),
+        ]);
+        assert_eq!(fingerprint(&running).unwrap(), fingerprint(&stopped).unwrap());
+        assert_ne!(fingerprint(&running).unwrap(), fingerprint(&edited).unwrap());
     }
 }

@@ -260,10 +260,17 @@ pub async fn push<F: FnMut(ApiProgress)>(
             active_before: on_server.get(guid.as_str()).copied().unwrap_or(false),
             deleted: false,
             backup_name: copy.map(|item| item.domain.name.clone()),
+            after_print: None,
         });
     }
 
     let result = fesb_api::push(connection, root, guids, reload, on_progress).await;
+    if result.is_ok() {
+        let prints = domain_copy::fingerprints(connection, guids).await;
+        for change in &mut changes {
+            change.set_after_print(&prints);
+        }
+    }
     for change in changes {
         sink.record(match &result {
             Ok(_) => Item::now(change),
@@ -320,6 +327,8 @@ pub struct UndoResult {
 /// Что на сервере сейчас — столько, сколько нужно для решения.
 struct Live {
     domains: HashMap<String, bool>,
+    /// Отпечатки доменов записи, которые сейчас есть на сервере.
+    prints: HashMap<String, String>,
     /// Изменения исходной записи, уже отменённые раньше.
     undone: BTreeSet<usize>,
 }
@@ -435,18 +444,34 @@ async fn assess(
                 Err(err) => row(index, item, "impossible", Some("unreadable"), Some(Value::String(err))),
             }
         }
-        Change::Domain { guid, existed, backup, .. } => {
+        Change::Domain { guid, existed, backup, deleted, after_print, .. } => {
             if live.undone.contains(&index) {
                 return row(index, item, "done", None, None);
             }
             let note = item.error.as_ref().map(|_| "uncertain");
-            if !existed {
+            let present = live.domains.contains_key(guid);
+            // Домен поменяли после операции: отпечаток не совпал с тем,
+            // что операция оставила. Старые записи без отпечатка не сверяются.
+            let changed = present
+                && after_print.as_ref().is_some_and(|print| live.prints.get(guid).is_some_and(|now| now != print));
+            if *deleted {
+                // Операция домен удалила; кто-то завёл его снова — не трогаем.
+                if present {
+                    return row(index, item, "conflict", Some("domainRecreated"), None);
+                }
+            } else if !existed {
                 // Домена не было: отмена — удалить его, если он ещё есть.
-                return if live.domains.contains_key(guid) {
-                    row(index, item, "ready", note, None)
-                } else {
+                return if !present {
                     row(index, item, "done", None, None)
+                } else if changed {
+                    row(index, item, "conflict", Some("domainChanged"), None)
+                } else {
+                    row(index, item, "ready", note, None)
                 };
+            } else if !present {
+                return row(index, item, "conflict", Some("domainDeleted"), None);
+            } else if changed {
+                return row(index, item, "conflict", Some("domainChanged"), None);
             }
             match backup {
                 Some(file) if change_journal::has_backup(dir, entry, file) => row(index, item, "ready", note, None),
@@ -458,18 +483,30 @@ async fn assess(
 }
 
 async fn live_state(connection: &Connection, dir: &Path, head: &EntryHead, items: &[Item]) -> Result<Live, String> {
-    let domains = if items.iter().any(|item| matches!(item.change, Change::Domain { .. })) {
+    let domains: HashMap<String, bool> = if items.iter().any(|item| matches!(item.change, Change::Domain { .. })) {
         fesb_api::domains(connection).await?.into_iter().map(|item| (item.guid, item.active)).collect()
     } else {
         HashMap::new()
     };
+    // Отпечатки нужны только тем доменам, у которых он записан и которые
+    // сейчас есть: с ними и сравниваем.
+    let mut wanted: Vec<String> = items
+        .iter()
+        .filter_map(|item| match &item.change {
+            Change::Domain { guid, after_print: Some(_), .. } if domains.contains_key(guid) => Some(guid.clone()),
+            _ => None,
+        })
+        .collect();
+    wanted.sort();
+    wanted.dedup();
+    let prints = domain_copy::fingerprints(connection, &wanted).await;
     let mut undone = BTreeSet::new();
     for id in &head.undone_by {
         if let Ok(undo) = change_journal::read(dir, id) {
             undone.extend(undo.items.iter().filter(|item| item.error.is_none()).filter_map(|item| item.undoes));
         }
     }
-    Ok(Live { domains, undone })
+    Ok(Live { domains, prints, undone })
 }
 
 fn ensure_same_server(connection: &Connection, head: &EntryHead) -> Result<(), String> {
@@ -621,8 +658,10 @@ async fn revert(
                 active_before: present.unwrap_or(false),
                 deleted: !existed,
                 backup_name: current.as_ref().map(|copy| copy.domain.name.clone()),
+                after_print: None,
             };
 
+            let mut change = change;
             let result = if *existed {
                 let file = backup.as_deref().ok_or("The domain copy is missing")?;
                 let archive = change_journal::read_backup(dir, id, file)?;
@@ -638,7 +677,24 @@ async fn revert(
                 };
                 let client = connection.client()?;
                 // Точная копия прежнего: СОПС, добавленные загрузкой, убираются.
-                domain_copy::upload(connection, &client, std::slice::from_ref(&packed), *active_before, true).await.map(|_| ())
+                // Импорт с перезапуском поднимает домен, даже остановленный, а без
+                // него работающий домен остаётся на старой конфигурации. Поэтому:
+                // работал до операции — перезапуск; не работал — без перезапуска,
+                // а если сейчас работает, его останавливают.
+                let restored = domain_copy::upload(connection, &client, std::slice::from_ref(&packed), *active_before, true)
+                    .await
+                    .map(|_| ());
+                let restored = match restored {
+                    Ok(()) if !active_before && present == Some(true) => {
+                        fesb_ops::domain_action(connection, guid, "stop").await.map(|_| ())
+                    }
+                    other => other,
+                };
+                if restored.is_ok() {
+                    let prints = domain_copy::fingerprints(connection, std::slice::from_ref(guid)).await;
+                    change.set_after_print(&prints);
+                }
+                restored
             } else {
                 fesb_ops::delete_domain(connection, guid).await
             };

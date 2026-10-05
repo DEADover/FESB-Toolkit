@@ -153,6 +153,10 @@ pub enum Change {
         /// `name` берётся из операции и может быть именем источника.
         #[serde(default)]
         backup_name: Option<String>,
+        /// Отпечаток домена сразу после операции (`domain_copy::fingerprint`).
+        /// Не совпал с тем, что на сервере при отмене, — домен меняли после.
+        #[serde(default)]
+        after_print: Option<String>,
     },
     /// Действие, а не правка: запуск, остановка, сброс счётчиков, разбор
     /// сообщений. Отменять тут нечего, но знать, что оно было, нужно.
@@ -178,6 +182,15 @@ pub struct Item {
     /// У отмены: какое изменение исходной записи она откатила.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub undoes: Option<usize>,
+}
+
+impl Change {
+    /// Дописывает отпечаток домена после операции.
+    pub fn set_after_print(&mut self, prints: &std::collections::HashMap<String, String>) {
+        if let Change::Domain { guid, after_print, .. } = self {
+            *after_print = prints.get(guid).cloned();
+        }
+    }
 }
 
 impl Item {

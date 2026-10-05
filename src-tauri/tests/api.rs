@@ -1213,3 +1213,84 @@ fn passport_book_opens() {
     write_book(std::path::Path::new(&output), &sheets).expect("книга");
     println!("книга: {output}, листов {}", sheets.len());
 }
+
+/// Отмена загрузки домена сверяется с сервером и возвращает его состояние.
+///
+/// ```sh
+/// FESB_URL=http://localhost:8181/manager FESB_TRACE_DOMAIN=domain-… FESB_TRACE_ROUTE=route-… \
+///   FESB_COPY_URL=http://localhost:8281/manager FESB_COPY_DEMO=domain-… \
+///   cargo test --test api journal_domain -- --ignored --nocapture
+/// ```
+#[test]
+#[ignore]
+fn journal_domain_undo_checks_the_server_and_restores_state() {
+    use fesb_toolkit_lib::testing::{
+        journal_entry, journaled_push, set_route_trace, undo_plan, undo_run, RouteTraceChange,
+    };
+
+    let (Some(connection), Ok(domain), Ok(route)) =
+        (connection(), std::env::var("FESB_TRACE_DOMAIN"), std::env::var("FESB_TRACE_ROUTE"))
+    else {
+        eprintln!("FESB_URL, FESB_TRACE_DOMAIN или FESB_TRACE_ROUTE не заданы — пропускаем");
+        return;
+    };
+    let unique = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
+    let dir = std::env::temp_dir().join(format!("fesb-journal-domain-{unique}"));
+    let plan_of = |connection: &Connection, entry: &str| {
+        block(undo_plan(connection, &dir, entry)).expect("предпросмотр").rows.into_iter().map(|row| (row.state, row.reason)).collect::<Vec<_>>()
+    };
+
+    // ── чужая правка после загрузки ──
+    let pulled = block(pull(&connection, Some(std::slice::from_ref(&domain)), |_| {})).expect("выгрузка");
+    let sink = journal_entry(&dir, &connection, "push").expect("запись");
+    block(journaled_push(&connection, std::path::Path::new(&pulled.root), std::slice::from_ref(&domain), false, Some(&sink), |_| {}))
+        .expect("загрузка");
+    assert_eq!(plan_of(&connection, &sink.entry), vec![("ready", None)]);
+
+    let before = block(routes_overview(&connection)).expect("СОПС").into_iter().find(|row| row.id == route).expect("СОПС");
+    let flip = RouteTraceChange { enabled: Some(!before.trace), config: None };
+    block(set_route_trace(&connection, &domain, &route, &flip, None)).expect("чужая правка");
+    assert_eq!(plan_of(&connection, &sink.entry), vec![("conflict", Some("domainChanged"))], "чужую правку видно");
+    let back = RouteTraceChange { enabled: Some(before.trace), config: None };
+    block(set_route_trace(&connection, &domain, &route, &back, None)).expect("правку вернули");
+    assert_eq!(plan_of(&connection, &sink.entry), vec![("ready", None)], "вернули как было — снова можно отменить");
+    println!("сверка: чужая правка видна, после возврата отмена доступна");
+
+    // ── состояние домена при возврате ──
+    let (Ok(copy_url), Ok(demo)) = (std::env::var("FESB_COPY_URL"), std::env::var("FESB_COPY_DEMO")) else {
+        eprintln!("FESB_COPY_URL или FESB_COPY_DEMO не заданы — состояние не проверяем");
+        return;
+    };
+    let target = Connection { url: copy_url, ..connection.clone() };
+    let active = |guid: &str| block(domains(&target)).expect("домены").into_iter().find(|item| item.guid == guid).map(|item| item.active);
+    let demo_pulled = block(pull(&target, Some(std::slice::from_ref(&demo)), |_| {})).expect("выгрузка");
+    block(fesb_toolkit_lib::testing::domain_action(&target, &demo, "stop")).expect("остановка");
+    assert_eq!(active(&demo), Some(false));
+
+    // Загрузка с перезапуском поднимает остановленный домен…
+    let sink = journal_entry(&dir, &target, "push").expect("запись");
+    block(journaled_push(&target, std::path::Path::new(&demo_pulled.root), std::slice::from_ref(&demo), true, Some(&sink), |_| {}))
+        .expect("загрузка");
+    std::thread::sleep(std::time::Duration::from_secs(3));
+    assert_eq!(active(&demo), Some(true), "импорт с перезапуском запустил домен");
+
+    // …а отмена возвращает и содержимое, и состояние «остановлен».
+    let done = block(undo_run(&target, &dir, &sink.entry, &[0], |_| {})).expect("отмена");
+    assert_eq!(done.outcomes[0].status, "undone", "{:?}", done.outcomes[0]);
+    assert_eq!(active(&demo), Some(false), "домен снова остановлен, как до загрузки");
+    println!("состояние: остановленный домен после отмены снова остановлен");
+
+    // Уборка: второй стенд остаётся каким был. Шине нужна пара секунд,
+    // чтобы закончить остановку, — запуск сразу за ней она не принимает.
+    std::thread::sleep(std::time::Duration::from_secs(3));
+    block(fesb_toolkit_lib::testing::domain_action(&target, &demo, "start")).expect("запуск");
+    let mut up = active(&demo);
+    for _ in 0..15 {
+        if up == Some(true) {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_secs(1));
+        up = active(&demo);
+    }
+    assert_eq!(up, Some(true), "Copy.Demo снова работает");
+}

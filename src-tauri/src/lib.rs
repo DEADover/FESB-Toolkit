@@ -1067,7 +1067,7 @@ pub mod testing {
         open_entry as journal_entry, plan as undo_plan, push as journaled_push, run as undo_run, save_constant,
         set_route_trace as journaled_route_trace, Note, UndoPlan,
     };
-    pub use crate::fesb_ops::delete_domain;
+    pub use crate::fesb_ops::{delete_domain, domain_action};
     pub use crate::stand_passport::walk as passport_walk;
     pub use crate::xlsx::{write_book, Sheet};
     pub use crate::fesb_api::domain_trace_beans;

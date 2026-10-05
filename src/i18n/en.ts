@@ -1499,7 +1499,7 @@ export const en = {
   'journal.undo.checking': 'Checking the stand…',
   'journal.undo.intro': 'The selected rows go back to how they were before the operation. Rows that someone changed afterwards stay as they are. Starts, stops and hidden constants are not reverted.',
   'journal.undo.prod': 'This is production. Undo writes to the stand just like the operation did.',
-  'journal.undo.domains': 'Domains come back from the copy taken before the operation: anything changed in them since will be lost. Domains that did not exist before the operation are deleted. A copy of the current state is taken first, so the undo can be undone too.',
+  'journal.undo.domains': 'Domains come back from the copy taken before the operation. A domain changed since is marked and left alone. Domains that did not exist before the operation are deleted. A copy of the current state is taken first, so the undo can be undone too.',
   'journal.undo.count.ready': 'Can Undo: {count}',
   'journal.undo.count.done': 'Already Reverted: {count}',
   'journal.undo.count.conflict': 'Changed After the Operation: {count}',
@@ -1642,6 +1642,9 @@ export const en = {
   'journal.collapse': 'Collapse the entry',
   'journal.badge.partly': 'Undone {done} of {total}',
   'journal.undo.reason.uncertain': 'The upload reported an error but may have gone through — the domain comes back from the copy',
+  'journal.undo.reason.domainChanged': 'The domain was changed after the operation',
+  'journal.undo.reason.domainDeleted': 'The domain was deleted after the operation',
+  'journal.undo.reason.domainRecreated': 'The domain was created again after the operation',
 } as const
 
 export type MessageKey = keyof typeof en
