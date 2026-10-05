@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import { ArrowCounterClockwise, CaretDown, CaretRight, ClockCounterClockwise } from '@phosphor-icons/react'
 
-import { useI18n } from '../i18n'
+import { formatNumber, useI18n } from '../i18n'
 import { errorText, journalList, journalRead, journalUndoPlan, journalUndoRun } from '../lib/api'
 import {
   canUndo, changeTexts, currentText, entryResult, entryTargets, formatStamp, formatTime, itemTitle, originLabel,
@@ -82,9 +82,9 @@ export function JournalScreen({ connection, server, onGoToConnection, prod }: Pr
   return (
     <ScreenBody>
       <StatsBar>
-        <Readout label={t('journal.entries')} value={totals.entries.toLocaleString()} />
-        <Readout label={t('journal.changes')} value={totals.changes.toLocaleString()} hint={t('journal.changes.hint')} />
-        <Readout label={t('journal.undone')} value={totals.undone.toLocaleString()} />
+        <Readout label={t('journal.entries')} value={formatNumber(totals.entries)} />
+        <Readout label={t('journal.changes')} value={formatNumber(totals.changes)} hint={t('journal.changes.hint')} />
+        <Readout label={t('journal.undone')} value={formatNumber(totals.undone)} />
         <div className="ml-auto flex items-center gap-2">
           <RefreshButton className="min-w-32" busy={loading} onClick={() => void reload()} />
         </div>
@@ -119,11 +119,11 @@ export function JournalScreen({ connection, server, onGoToConnection, prod }: Pr
           <colgroup>
             <col className="w-8" />
             <col className="w-32" />
-            <col className="w-52" />
+            <col className="w-48" />
             <col />
-            <col className="w-44" />
+            <col className="w-36" />
+            <col className="hidden w-28 xl:table-column" />
             <col className="w-28" />
-            <col className="w-32" />
           </colgroup>
           <THead>
             <Th />
@@ -131,7 +131,7 @@ export function JournalScreen({ connection, server, onGoToConnection, prod }: Pr
             <Th>{t('journal.col.operation')}</Th>
             <Th>{t('journal.col.objects')}</Th>
             <Th>{t('journal.col.result')}</Th>
-            <Th>{t('journal.col.user')}</Th>
+            <Th className="hidden xl:table-cell">{t('journal.col.user')}</Th>
             <Th />
           </THead>
           <tbody>
@@ -196,7 +196,7 @@ function EntryRows({ entry, open, onToggle, onUndo }: {
         </td>
         <td className="truncate px-3 py-1.5" title={entry.targets.join('\n')}>{entryTargets(entry, t)}</td>
         <td className={cx('px-3 py-1.5', entry.failed > 0 && 'text-caution')}>{entryResult(entry, t)}</td>
-        <td className="truncate px-3 py-1.5 text-content-muted">{entry.user}</td>
+        <td className="hidden truncate px-3 py-1.5 text-content-muted xl:table-cell">{entry.user}</td>
         <td className="px-3 py-1 text-right">
           {canUndo(entry) && (
             <Button size="sm" onClick={onUndo}>

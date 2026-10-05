@@ -2,7 +2,7 @@ import { useCallback, useMemo } from 'react'
 
 import { ArrowRight, FolderOpen, Plugs, type Icon } from '@phosphor-icons/react'
 
-import { useI18n } from '../i18n'
+import { formatNumber, useI18n } from '../i18n'
 import { apiServerUsage } from '../lib/api'
 import { formatUptime } from '../lib/format'
 import { useApiData } from './ApiShell'
@@ -75,9 +75,9 @@ export function WelcomeScreen({
             {files ? (
               <>
                 <div className="flex flex-wrap items-center gap-x-8 gap-y-3">
-                  <Readout label={t('stats.domains')} value={files.domains.toLocaleString()} />
-                  <Readout label={t('stats.traceBeans')} value={files.traces.toLocaleString()} />
-                  <Readout label={t('stats.routes')} value={files.routes.toLocaleString()} />
+                  <Readout label={t('stats.domains')} value={formatNumber(files.domains)} />
+                  <Readout label={t('stats.traceBeans')} value={formatNumber(files.traces)} />
+                  <Readout label={t('stats.routes')} value={formatNumber(files.routes)} />
                   {scan?.fesbVersion && (
                     <Readout label="FESB" value={scan.fesbVersion} hint={t('header.fesbVersion')} />
                   )}

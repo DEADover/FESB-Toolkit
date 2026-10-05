@@ -4,6 +4,7 @@ import {
   Pause, Play, Calendar, Download, ChevronUp, ChevronDown, ArrowDownToLine,
 } from "lucide-react";
 import { useAmqpText, type AmqpKey } from "../../i18n";
+import { formatNumber } from "../../../i18n";
 import { LogEntry } from "../../types";
 import ViewTopBar from "../ViewTopBar";
 import EmptyState from "../EmptyState";
@@ -280,8 +281,8 @@ export default function ConsoleView({ logs, onClear }: Props) {
       <ConfirmDialog
         open={confirmClear}
         title={t("console.clear")}
-        body={<p>{t("console.clear.body", { count: logs.length.toLocaleString() })}</p>}
-        confirmLabel={t("console.clear.confirm", { count: logs.length.toLocaleString() })}
+        body={<p>{t("console.clear.body", { count: formatNumber(logs.length) })}</p>}
+        confirmLabel={t("console.clear.confirm", { count: formatNumber(logs.length) })}
         onConfirm={() => { onClear(); setConfirmClear(false); }}
         onCancel={() => setConfirmClear(false)}
       />

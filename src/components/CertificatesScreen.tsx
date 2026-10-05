@@ -2,7 +2,7 @@ import { useCallback, useMemo, useState } from 'react'
 
 import { Certificate, DownloadSimple } from '@phosphor-icons/react'
 
-import { useI18n, type MessageKey, type Translate } from '../i18n'
+import { formatNumber, useI18n, type MessageKey, type Translate } from '../i18n'
 import { apiCertificates, errorText, revealPath, saveReport, saveXlsxAs } from '../lib/api'
 import { localStamp } from '../lib/paths'
 import type { ApiCertificate, CertificateReport, Connection, ServerInfo } from '../types'
@@ -190,17 +190,17 @@ export function CertificatesScreen({ connection, server, onGoToConnection }: Pro
   return (
     <ScreenBody>
       <StatsBar>
-        <Readout label={t('certificates.total')} value={totals.total.toLocaleString()} />
-        <Readout label={t('certificates.stores')} value={totals.stores.toLocaleString()} />
+        <Readout label={t('certificates.total')} value={formatNumber(totals.total)} />
+        <Readout label={t('certificates.stores')} value={formatNumber(totals.stores)} />
         <Readout
           label={t('certificates.expiring')}
-          value={totals.expiring.toLocaleString()}
+          value={formatNumber(totals.expiring)}
           tone={totals.expiring > 0 ? 'warn' : undefined}
           hint={t('certificates.expiring.hint')}
         />
         <Readout
           label={t('certificates.expired')}
-          value={totals.expired.toLocaleString()}
+          value={formatNumber(totals.expired)}
           tone={totals.expired > 0 ? 'danger' : undefined}
         />
         <div className="ml-auto flex items-center gap-2">

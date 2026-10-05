@@ -2,7 +2,7 @@ import { Fragment, useCallback, useEffect, useMemo, useState } from 'react'
 
 import { ArrowRight, ArrowsLeftRight } from '@phosphor-icons/react'
 
-import { useI18n, useRichText } from '../i18n'
+import { formatNumber, useI18n, useRichText } from '../i18n'
 import { errorText, routeLinks } from '../lib/api'
 import type { LinkGraph, ScanResult } from '../types'
 import { RouteViewer } from './RouteViewer'
@@ -145,10 +145,10 @@ export function DomainLinksScreen({ scan, isMac, onOpenFolder, onGoToDomains }: 
   return (
     <ScreenBody>
       <StatsBar>
-        <Readout label={t('domainLinks.total')} value={totals.links.toLocaleString()} />
-        <Readout label={t('domainLinks.cross')} value={totals.crossLinks.toLocaleString()} tone="accent" />
-        <Readout label={t('domainLinks.pairs')} value={totals.pairs.toLocaleString()} />
-        <Readout label={t('domainLinks.domains')} value={totals.domains.toLocaleString()} />
+        <Readout label={t('domainLinks.total')} value={formatNumber(totals.links)} />
+        <Readout label={t('domainLinks.cross')} value={formatNumber(totals.crossLinks)} tone="accent" />
+        <Readout label={t('domainLinks.pairs')} value={formatNumber(totals.pairs)} />
+        <Readout label={t('domainLinks.domains')} value={formatNumber(totals.domains)} />
         <RefreshButton className="ml-auto"
           busy={loading}
           disabled={loading}

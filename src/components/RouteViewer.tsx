@@ -2,10 +2,11 @@ import { useCallback, useEffect, useState, type ReactNode} from 'react'
 
 import { ArrowElbowUpRight, ArrowLineDown, ArrowLineRight, ArrowRight, ArrowsClockwise, ArrowsLeftRight, ArrowsMerge, ArrowsSplit, Backspace, Circle, Database, Diamond, Function as FunctionIcon, Funnel, Gear, NotePencil, Play, PlusSquare, ShareNetwork, ShieldCheck, Stop, Warning, XCircle, type Icon } from '@phosphor-icons/react'
 
-import { useI18n } from '../i18n'
+import { formatNumber, useI18n } from '../i18n'
 import { errorText, readRoute, revealPath } from '../lib/api'
 import type { RouteGraph, RouteNeighbours, RouteNode, RouteState } from '../types'
 import { byUri } from '../lib/links'
+import { routeStateLabel } from '../lib/routeState'
 import { kindLabel, RouteDiagram, scheme, shortUri } from './RouteDiagram'
 import { Badge, Button, cx, DataTable, Notice, Spinner, Th, THead } from './ui'
 
@@ -187,12 +188,12 @@ function LiveStrip({ live }: { live: RouteState }) {
     <div className="flex items-center gap-6 border-b border-line bg-surface-2/60 px-5 py-2">
       <span className="flex items-center gap-2">
         <span className={cx('size-2 rounded-full', started ? 'bg-positive' : 'bg-content-subtle/50')} />
-        <span className="text-[12px] font-medium">{live.state ?? '—'}</span>
+        <span className="text-[12px] font-medium">{routeStateLabel(live.state, t)}</span>
       </span>
-      <Metric label={t('routes.processed')} value={live.processed.toLocaleString()} />
-      <Metric label={t('map.errors')} value={live.failed.toLocaleString()} tone={live.failed > 0 ? 'danger' : undefined} />
-      <Metric label={t('routes.handled')} value={live.failuresHandled.toLocaleString()} />
-      <Metric label={t('map.inflight')} value={live.inflight.toLocaleString()} tone={live.inflight > 0 ? 'warn' : undefined} />
+      <Metric label={t('routes.processed')} value={formatNumber(live.processed)} />
+      <Metric label={t('map.errors')} value={formatNumber(live.failed)} tone={live.failed > 0 ? 'danger' : undefined} />
+      <Metric label={t('routes.handled')} value={formatNumber(live.failuresHandled)} />
+      <Metric label={t('map.inflight')} value={formatNumber(live.inflight)} tone={live.inflight > 0 ? 'warn' : undefined} />
       <Metric label={t('routes.time')} value={`${live.minMs} / ${live.meanMs} / ${live.maxMs} ${t('routes.ms')}`} />
       {live.lastProcessed && <Metric label={t('routes.last')} value={live.lastProcessed.replace('T', ' ').slice(0, 19)} />}
       {!live.autoStartup && (

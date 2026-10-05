@@ -14,6 +14,7 @@ import CollapsibleSection from "../CollapsibleSection";
 import PropsList from "../PropsList";
 import EmptyState from "../EmptyState";
 import { useAmqpText } from "../../i18n";
+import { formatNumber } from "../../../i18n";
 import SectionLabel from "../SectionLabel";
 import ViewTopBar from "../ViewTopBar";
 import ConfirmDialog from "../ConfirmDialog";
@@ -1123,11 +1124,11 @@ export default function SubscriberView({ connected, defaultAddress, activeProfil
         title={t("recv.clear")}
         body={
           <p>
-            {t("recv.clear.body", { count: messages.length.toLocaleString() })}
+            {t("recv.clear.body", { count: formatNumber(messages.length) })}
             {persistEnabled && t("recv.clear.persisted")}
           </p>
         }
-        confirmLabel={t("recv.clear.confirm", { count: messages.length.toLocaleString() })}
+        confirmLabel={t("recv.clear.confirm", { count: formatNumber(messages.length) })}
         onConfirm={() => { clearMessages(); setConfirmClearMsgs(false); }}
         onCancel={() => setConfirmClearMsgs(false)}
       />

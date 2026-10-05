@@ -2,12 +2,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { ArrowCounterClockwise, DownloadSimple, Play, Pulse, Stop } from '@phosphor-icons/react'
 
-import { useI18n, type MessageKey, type Translate } from '../i18n'
+import { formatNumber, useI18n, type MessageKey, type Translate } from '../i18n'
 import {
   apiRouteAction, apiRoutesOverview, apiRouteTrace, errorText, journalEntry, revealPath, saveReport, saveXlsxAs,
 } from '../lib/api'
 import type { RoutePlan } from '../lib/routeTrace'
 import { localStamp } from '../lib/paths'
+import { routeStateLabel } from '../lib/routeState'
 import type { Connection, RouteAction, RouteSummary, RouteTraceChange, ServerInfo } from '../types'
 import { RouteTraceDialog } from './RouteTraceDialog'
 import {
@@ -46,21 +47,25 @@ const COLUMNS: Array<{
   align?: 'right'
   /** Прячется, пока окно уже `xl`. */
   narrow?: boolean
+  /** Прячется, пока окно уже `2xl`: метки нужны реже, чем счётчики. */
+  wide?: boolean
   text: (row: RouteSummary, t: Translate) => string
 }> = [
-  { key: 'table.domain', width: 'w-40', text: (row) => row.domain },
+  { key: 'table.domain', width: 'w-36', text: (row) => row.domain },
   { key: 'table.route', width: '', text: (row) => row.name },
-  { key: 'tracing.state', width: 'w-24', text: (row) => row.state },
-  { key: 'tracing.bean', width: 'w-44', text: (row) => row.traceBeans.join(', ') },
-  { key: 'tracing.tags', width: 'w-28', narrow: true, text: (row) => row.tags.join(', ') },
-  { key: 'routes.processed', width: 'w-28', align: 'right', narrow: true, text: (row) => String(row.processed) },
-  { key: 'map.errors', width: 'w-24', align: 'right', narrow: true, text: (row) => String(row.failed) },
-  { key: 'map.inflight', width: 'w-24', align: 'right', narrow: true, text: (row) => String(row.inflight) },
+  { key: 'tracing.state', width: 'w-28', text: (row, t) => routeStateLabel(row.state, t) },
+  { key: 'tracing.bean', width: 'w-40', text: (row) => row.traceBeans.join(', ') },
+  { key: 'tracing.tags', width: 'w-28', wide: true, text: (row) => row.tags.join(', ') },
+  { key: 'routes.processed', width: 'w-24', align: 'right', narrow: true, text: (row) => String(row.processed) },
+  { key: 'map.errors', width: 'w-20', align: 'right', narrow: true, text: (row) => String(row.failed) },
+  { key: 'map.inflight', width: 'w-20', align: 'right', narrow: true, text: (row) => String(row.inflight) },
 ]
 
 /** Классы скрытия — одни и те же у `col`, `th` и `td`, иначе колонки разъедутся. */
 const HIDDEN_COL = 'hidden xl:table-column'
 const HIDDEN_CELL = 'hidden xl:table-cell'
+const HIDDEN_WIDE_COL = 'hidden 2xl:table-column'
+const HIDDEN_WIDE_CELL = 'hidden 2xl:table-cell'
 
 /**
  * Трассировка по всему серверу.
@@ -244,16 +249,16 @@ export function TracingScreen({ connection, server, onGoToConnection, onOpenRout
   return (
     <ScreenBody>
       <StatsBar>
-        <Readout label={t('tracing.routes')} value={totals.routes.toLocaleString()} />
-        <Readout label={t('tracing.traced')} value={totals.traced.toLocaleString()} tone="accent" />
+        <Readout label={t('tracing.routes')} value={formatNumber(totals.routes)} />
+        <Readout label={t('tracing.traced')} value={formatNumber(totals.traced)} tone="accent" />
         <Readout
           label={t('tracing.untraced')}
-          value={totals.untraced.toLocaleString()}
+          value={formatNumber(totals.untraced)}
           tone={totals.untraced > 0 ? 'warn' : undefined}
         />
         <Readout
           label={t('tracing.beans')}
-          value={totals.beans.toLocaleString()}
+          value={formatNumber(totals.beans)}
           hint={t('tracing.beans.hint')}
         />
         <div className="ml-auto flex items-center gap-2">
@@ -311,7 +316,7 @@ export function TracingScreen({ connection, server, onGoToConnection, onOpenRout
           <colgroup>
             <col className="w-9" />
             {COLUMNS.map((column) => (
-              <col key={column.key} className={cx(column.width, column.narrow && HIDDEN_COL)} />
+              <col key={column.key} className={cx(column.width, column.narrow && HIDDEN_COL, column.wide && HIDDEN_WIDE_COL)} />
             ))}
           </colgroup>
           <THead>
@@ -328,7 +333,7 @@ export function TracingScreen({ connection, server, onGoToConnection, onOpenRout
               <Th
                 key={column.key}
                 align={column.align}
-                className={cx('whitespace-nowrap', column.narrow && HIDDEN_CELL)}
+                className={cx('whitespace-nowrap', column.narrow && HIDDEN_CELL, column.wide && HIDDEN_WIDE_CELL)}
               >
                 {t(column.key)}
               </Th>
@@ -359,7 +364,7 @@ export function TracingScreen({ connection, server, onGoToConnection, onOpenRout
                 <td className="truncate px-3 py-1.5">{row.domain || '—'}</td>
                 <td className="truncate px-3 py-1.5 font-medium" title={row.name}>{row.name || '—'}</td>
                 <td className="px-3 py-1.5">
-                  <Badge tone={row.state === 'Started' ? 'ok' : 'neutral'}>{row.state || '—'}</Badge>
+                  <Badge tone={row.state === 'Started' ? 'ok' : 'neutral'}>{routeStateLabel(row.state, t)}</Badge>
                 </td>
                 <td className="truncate px-3 py-1.5" title={row.traceBeans.join(', ')}>
                   {row.traceBeans.length > 0 ? (
@@ -373,17 +378,17 @@ export function TracingScreen({ connection, server, onGoToConnection, onOpenRout
                     <span className="text-content-subtle">—</span>
                   )}
                 </td>
-                <td className={cx('truncate px-3 py-1.5 text-[11.5px] text-content-muted', HIDDEN_CELL)}>
+                <td className={cx('truncate px-3 py-1.5 text-[11.5px] text-content-muted', HIDDEN_WIDE_CELL)}>
                   {row.tags.join(', ') || '—'}
                 </td>
                 <td className={cx('px-3 py-1.5 text-right tabular-nums text-content-muted', HIDDEN_CELL)}>
-                  {row.processed.toLocaleString()}
+                  {formatNumber(row.processed)}
                 </td>
                 <td className={cx('px-3 py-1.5 text-right tabular-nums', HIDDEN_CELL, row.failed > 0 && 'font-medium text-negative')}>
-                  {row.failed.toLocaleString()}
+                  {formatNumber(row.failed)}
                 </td>
                 <td className={cx('px-3 py-1.5 text-right tabular-nums', HIDDEN_CELL, row.inflight > 0 && 'font-medium text-caution')}>
-                  {row.inflight.toLocaleString()}
+                  {formatNumber(row.inflight)}
                 </td>
               </tr>
             ))}

@@ -2,7 +2,7 @@ import { Fragment, useCallback, useEffect, useMemo, useState, type ReactNode } f
 
 import { CaretRight, DownloadSimple, Trash } from '@phosphor-icons/react'
 
-import { useI18n, type MessageKey, type Translate } from '../i18n'
+import { formatNumber, useI18n, type MessageKey, type Translate } from '../i18n'
 import {
   apiEndpointReport, deleteReportHistory, errorText, onApiProgress, readReportHistory, reportHistory,
   revealPath, saveReport, saveReportHistory, saveXlsxAs,
@@ -370,10 +370,10 @@ export function EndpointsScreen({ connection, server, onGoToConnection }: Props)
   return (
     <ScreenBody>
       <StatsBar>
-        <Readout label={t('endpoints.total')} value={totals.points.toLocaleString()} />
-        <Readout label={t('endpoints.in')} value={totals.inbound.toLocaleString()} tone="accent" />
-        <Readout label={t('endpoints.systems')} value={totals.systems.toLocaleString()} hint={t('endpoints.systems.hint')} />
-        <Readout label={t('endpoints.secured')} value={totals.secured.toLocaleString()} />
+        <Readout label={t('endpoints.total')} value={formatNumber(totals.points)} />
+        <Readout label={t('endpoints.in')} value={formatNumber(totals.inbound)} tone="accent" />
+        <Readout label={t('endpoints.systems')} value={formatNumber(totals.systems)} hint={t('endpoints.systems.hint')} />
+        <Readout label={t('endpoints.secured')} value={formatNumber(totals.secured)} />
         {openedAt && (
           <Readout
             label={t('endpoints.builtAt')}

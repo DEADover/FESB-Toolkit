@@ -3,7 +3,7 @@ import { useCallback, useMemo, useState } from 'react'
 import { CheckCircle, ListDashes } from '@phosphor-icons/react'
 
 import { SLOW_MS } from '../lib/health'
-import { useI18n, type MessageKey } from '../i18n'
+import { formatNumber, useI18n, type MessageKey } from '../i18n'
 import { apiInflight } from '../lib/api'
 import type { Connection, InflightExchange, ServerInfo } from '../types'
 import {
@@ -111,19 +111,19 @@ export function InflightScreen({ connection, server, onGoToConnection, onOpenRou
   return (
     <ScreenBody>
       <StatsBar>
-        <Readout label={t('inflight.total')} value={totals.total.toLocaleString()} tone="accent" />
+        <Readout label={t('inflight.total')} value={formatNumber(totals.total)} tone="accent" />
         <Readout
           label={t('inflight.slow')}
-          value={totals.slow.toLocaleString()}
+          value={formatNumber(totals.slow)}
           tone={totals.slow > 0 ? 'warn' : undefined}
           hint={t('inflight.slow.hint')}
         />
         <Readout
           label={t('inflight.interrupted')}
-          value={totals.interrupted.toLocaleString()}
+          value={formatNumber(totals.interrupted)}
           tone={totals.interrupted > 0 ? 'danger' : undefined}
         />
-        <Readout label={t('inflight.domains')} value={totals.domains.toLocaleString()} />
+        <Readout label={t('inflight.domains')} value={formatNumber(totals.domains)} />
         <div className="ml-auto flex items-center gap-2">
           <AutoRefreshToggle checked={auto} onChange={setAuto} />
           <RefreshButton className="min-w-32" busy={loading} onClick={() => void reload()} />
@@ -163,14 +163,17 @@ export function InflightScreen({ connection, server, onGoToConnection, onOpenRou
 
       <Panel className="flex-1">
         <DataTable>
+          {/* Колонка СОПС забирает остаток ширины. Раньше сумма остальных
+              была больше ширины панели на обычном окне, и СОПС схлопывалась
+              до нуля — её заголовок наезжал на соседний. */}
           <colgroup>
-            <col className="w-44" />
+            <col className="w-36" />
             <col />
-            <col className="w-48" />
-            <col className="w-48" />
-            <col className="hidden w-44 xl:table-column" />
-            <col className="w-24" />
-            <col className="w-24" />
+            <col className="w-40" />
+            <col className="w-40" />
+            <col className="hidden w-40 2xl:table-column" />
+            <col className="w-20" />
+            <col className="w-20" />
             <col className="w-12" />
           </colgroup>
           <THead>
@@ -178,7 +181,7 @@ export function InflightScreen({ connection, server, onGoToConnection, onOpenRou
             <Th>{t('table.route')}</Th>
             <Th>{t('inflight.at')}</Th>
             <Th>{t('inflight.node')}</Th>
-            <Th className="hidden xl:table-cell">{t('inflight.thread')}</Th>
+            <Th className="hidden 2xl:table-cell">{t('inflight.thread')}</Th>
             <Th align="right">{t('inflight.duration')}</Th>
             <Th align="right">{t('inflight.elapsed')}</Th>
             <Th><span className="sr-only">{t('inflight.log')}</span></Th>
@@ -216,7 +219,7 @@ export function InflightScreen({ connection, server, onGoToConnection, onOpenRou
                     {row.at ?? row.detail ?? '—'}
                   </td>
                   <td className="truncate px-3 py-1.5">{row.node ?? '—'}</td>
-                  <td className="hidden truncate px-3 py-1.5 font-mono text-[11px] text-content-subtle xl:table-cell">
+                  <td className="hidden truncate px-3 py-1.5 font-mono text-[11px] text-content-subtle 2xl:table-cell">
                     {row.thread ?? '—'}
                   </td>
                   <td className={cx('px-3 py-1.5 text-right tabular-nums', slow && 'font-medium text-caution')}>

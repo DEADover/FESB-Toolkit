@@ -75,7 +75,6 @@ export const API_GENERAL_SCREENS: ScreenEntry[] = [
   { id: 'api.audit', label: 'nav.api.audit', hint: 'welcome.hint.audit', icon: FingerprintSimple },
   { id: 'api.domains', label: 'nav.api.domains', hint: 'welcome.hint.domains', icon: Stack },
   { id: 'api.inflight', label: 'nav.api.inflight', hint: 'welcome.hint.inflight', icon: Broadcast },
-  { id: 'api.journal', label: 'nav.api.journal', title: 'nav.api.journal.title', hint: 'welcome.hint.journal', icon: Notebook },
   { id: 'api.logs', label: 'nav.api.logs', hint: 'welcome.hint.logs', icon: ListDashes },
   { id: 'api.modules', label: 'nav.api.modules', hint: 'welcome.hint.modules', icon: Cube },
   { id: 'api.properties', label: 'nav.api.properties', hint: 'welcome.hint.properties', icon: SlidersHorizontal },
@@ -86,6 +85,7 @@ export const API_GENERAL_SCREENS: ScreenEntry[] = [
 export const API_TASK_SCREENS: ScreenEntry[] = [
   { id: 'api.certificates', label: 'nav.api.certificates', hint: 'welcome.hint.certificates', icon: Certificate },
   { id: 'api.compare', label: 'nav.api.compare', title: 'nav.api.compare.title', hint: 'welcome.hint.compare', icon: ArrowsLeftRight },
+  { id: 'api.journal', label: 'nav.api.journal', title: 'nav.api.journal.title', hint: 'welcome.hint.journal', icon: Notebook },
   { id: 'api.keySearch', label: 'nav.api.keySearch', title: 'nav.api.keySearch.title', hint: 'welcome.hint.keySearch', icon: Footprints },
   { id: 'api.endpoints', label: 'nav.api.endpoints', title: 'nav.api.endpoints.title', hint: 'welcome.hint.endpoints', icon: Plugs },
   { id: 'api.passport', label: 'nav.api.passport', title: 'nav.api.passport.title', hint: 'welcome.hint.passport', icon: IdentificationCard },

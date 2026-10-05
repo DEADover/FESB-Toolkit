@@ -70,7 +70,7 @@ describe('buildSheets', () => {
   it('СОПС: состояние из списка сервера, входы и выходы из точек, незагруженный — так и сказано', () => {
     const routes = sheet('passport.section.routes')
     const first = routes.rows[0]
-    expect(first.slice(0, 4)).toEqual(['Orders', 'Orders.In', 'Приём', 'passport.state.started'])
+    expect(first.slice(0, 4)).toEqual(['Orders', 'Orders.In', 'Приём', 'routeState.started'])
     expect(first[6]).toBe('HTTP jetty:http://0.0.0.0:8080/orders')
     expect(first[7]).toBe('HTTP https://sap.corp/api')
     expect(routes.rows[1][3]).toBe('passport.state.notDeployed')

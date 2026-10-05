@@ -3,6 +3,7 @@ import { BarChart2, Send, Inbox, Clock, Zap, FileText, Layers, AlertTriangle, Tr
 import ViewTopBar from "../ViewTopBar";
 import SectionLabel from "../SectionLabel";
 import { useAmqpText, type AmqpTranslate } from "../../i18n";
+import { formatNumber } from "../../../i18n";
 import EmptyState from "../EmptyState";
 
 export interface QueueStat {
@@ -315,7 +316,7 @@ export default function StatsView({ statsByProfile, activeProfile }: Props) {
           </select>
         )}
         <span className="text-[11.5px] text-t-ink5 font-mono">
-          ↑{stats.sentCount.toLocaleString()} ↓{stats.receivedCount.toLocaleString()}
+          ↑{formatNumber(stats.sentCount)} ↓{formatNumber(stats.receivedCount)}
           {stats.sendErrorCount > 0 && <span className="text-negative ml-2">⚠ {stats.sendErrorCount}</span>}
         </span>
       </ViewTopBar>
@@ -326,10 +327,10 @@ export default function StatsView({ statsByProfile, activeProfile }: Props) {
         {/* OVERVIEW — 6 stat cards */}
         <div className="grid grid-cols-2 lg:grid-cols-6 gap-2">
           <Card icon={<Send  className="w-4 h-4 text-accent" />} label={t("stats.sent")}
-            value={stats.sentCount.toLocaleString()} sub={fmt(stats.sentBytes)}
+            value={formatNumber(stats.sentCount)} sub={fmt(stats.sentBytes)}
             footer={stats.lastSentAt ? t("stats.last", { ago: timeAgo(stats.lastSentAt) }) : undefined} />
           <Card icon={<Inbox className="w-4 h-4 text-positive" />} label={t("stats.received")}
-            value={stats.receivedCount.toLocaleString()} sub={fmt(stats.receivedBytes)}
+            value={formatNumber(stats.receivedCount)} sub={fmt(stats.receivedBytes)}
             footer={stats.lastReceivedAt ? t("stats.last", { ago: timeAgo(stats.lastReceivedAt) }) : undefined} />
           <Card icon={<Zap className="w-4 h-4 text-caution" />} label={t("stats.throughput")}
             value={`${rateLabel(sendRate)} ↑`} sub={`${rateLabel(recvRate)} ↓`}
@@ -478,7 +479,7 @@ function Sparkline({ buckets, label, color, rate, count, t }: { buckets: number[
         <SectionLabel>{label}</SectionLabel>
         <span className="text-[11.5px] font-mono text-t-ink2">
           <span className="text-[14px] font-bold text-t-ink">{rateLabel(rate)}</span>
-          <span className="text-t-ink5 ml-1">· {count.toLocaleString()} total</span>
+          <span className="text-t-ink5 ml-1">· {formatNumber(count)} total</span>
         </span>
       </div>
       <div className="flex items-end gap-px h-12">

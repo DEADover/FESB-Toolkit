@@ -166,7 +166,7 @@ export function QueuesScreen({ connection, server, onGoToConnection, initialMana
                 <span className="min-w-0 flex-1">
                   <span className="block truncate font-mono text-[12px]">{manager.broker}</span>
                   <span className="block truncate text-[10.5px] text-content-subtle">
-                    {manager.status}{manager.autoStart ? ` · ${t('queues.autoStart')}` : ''}
+                    {t(manager.running ? 'routeState.started' : 'routeState.stopped')}{manager.autoStart ? ` · ${t('queues.autoStart')}` : ''}
                   </span>
                 </span>
               </button>

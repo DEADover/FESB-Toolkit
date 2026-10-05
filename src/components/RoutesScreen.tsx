@@ -2,12 +2,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { ArrowCounterClockwise, Play, Stop } from '@phosphor-icons/react'
 
-import { useI18n } from '../i18n'
+import { formatNumber, useI18n } from '../i18n'
 import {
   apiDomainRoutes, apiDomainStatistics, apiRouteAction, apiRoutesOverview, apiRouteState, errorText,
   routeLinks,
 } from '../lib/api'
 import { neighboursOf } from '../lib/links'
+import { routeStateLabel } from '../lib/routeState'
 import type {
   Connection, DomainRouteNames, DomainRoutes, DomainStat, LinkGraph, RouteAction,
   RouteFile, RouteState, ServerInfo,
@@ -318,15 +319,15 @@ export function RoutesScreen({ connection, server, isMac, initialGuid, initialRo
                       </td>
                       <td className="px-3 py-1.5">
                         <Badge tone={started ? 'ok' : state ? 'neutral' : 'neutral'}>
-                          {state?.state ?? '—'}
+                          {routeStateLabel(state?.state, t)}
                         </Badge>
                       </td>
-                      <td className="px-3 py-1.5 text-right tabular-nums">{state?.processed ?? '—'}</td>
+                      <td className="px-3 py-1.5 text-right tabular-nums">{state ? formatNumber(state.processed) : '—'}</td>
                       <td className={cx('px-3 py-1.5 text-right tabular-nums', (state?.failed ?? 0) > 0 && 'font-medium text-negative')}>
-                        {state?.failed ?? '—'}
+                        {state ? formatNumber(state.failed) : '—'}
                       </td>
                       <td className={cx('hidden px-3 py-1.5 text-right tabular-nums xl:table-cell', (state?.inflight ?? 0) > 0 && 'font-medium text-caution')}>
-                        {state?.inflight ?? '—'}
+                        {state ? formatNumber(state.inflight) : '—'}
                       </td>
                       <td className="px-3 py-1.5">
                         <div className="flex items-center gap-1">

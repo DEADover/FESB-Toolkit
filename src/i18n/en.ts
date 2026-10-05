@@ -812,7 +812,7 @@ export const en = {
   'tracing.untraced': 'Without Tracing',
   'tracing.beans': 'Trace Objects',
   'tracing.beans.hint': 'Distinct trace objects the routes point at',
-  'tracing.search': 'Search by domain, route or trace object',
+  'tracing.search': 'Domain, route or trace bean',
   'tracing.bean': 'Trace Object',
   'tracing.onlyTraced': 'Only Traced',
   'tracing.started': 'Running',
@@ -1522,8 +1522,8 @@ export const en = {
   'journal.undo.domain.delete': 'Deleted',
   'journal.undo.run': 'Undo {count}',
   'journal.undo.done': 'Reverted: {count}',
-  'journal.undo.skipped': 'skipped: {count}',
-  'journal.undo.failed': 'errors: {count}',
+  'journal.undo.skipped': 'Skipped: {count}',
+  'journal.undo.failed': 'Errors: {count}',
   'journal.undo.recorded': 'The undo is recorded in the journal as a separate operation.',
 
   // ── stand passport ──
@@ -1635,6 +1635,9 @@ export const en = {
   'passport.summary.rows': '{count} rows',
   'passport.summary.failed': 'Not Collected: {name}',
   'passport.summary.warning': 'Note',
+  'routeState.started': 'Running',
+  'routeState.stopped': 'Stopped',
+  'routeState.suspended': 'Suspended',
 } as const
 
 export type MessageKey = keyof typeof en

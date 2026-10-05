@@ -39,6 +39,23 @@ function readLanguage(): Language {
   return stored === 'ru' || stored === 'en' ? stored : 'en'
 }
 
+/**
+ * Число по правилам языка интерфейса: «385 200» по-русски, «385,200» по-английски.
+ *
+ * `toLocaleString()` без языка берёт язык системы, и в русском интерфейсе
+ * на английской системе числа шли с запятыми — рядом с русскими подписями.
+ */
+export function formatNumber(value: number): string {
+  return value.toLocaleString(current === 'ru' ? 'ru-RU' : 'en-US')
+}
+
+/** Дата и время по правилам языка интерфейса. */
+export function formatDateTime(value: Date): string {
+  return value.toLocaleString(current === 'ru' ? 'ru-RU' : 'en-US', {
+    day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit',
+  })
+}
+
 export type Translate = (key: MessageKey, values?: Record<string, string | number>) => string
 
 interface I18nValue {
@@ -50,7 +67,12 @@ interface I18nValue {
 const I18nContext = createContext<I18nValue | null>(null)
 
 export function I18nProvider({ children }: { children: ReactNode }) {
-  const [language, setLanguageState] = useState<Language>(readLanguage)
+  const [language, setLanguageState] = useState<Language>(() => {
+    // Язык ставится до первой отрисовки: иначе числа первого кадра
+    // форматировались бы по-английски и перерисовывались.
+    current = readLanguage()
+    return current
+  })
 
   useEffect(() => {
     document.documentElement.lang = language
@@ -59,6 +81,7 @@ export function I18nProvider({ children }: { children: ReactNode }) {
 
   const setLanguage = useCallback((next: Language) => {
     keep(STORAGE_KEY, next)
+    current = next
     setLanguageState(next)
   }, [])
 

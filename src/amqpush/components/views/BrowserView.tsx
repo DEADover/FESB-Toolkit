@@ -10,6 +10,7 @@ import CollapsibleSection from "../CollapsibleSection";
 import PropsList from "../PropsList";
 import EmptyState from "../EmptyState";
 import { useAmqpText } from "../../i18n";
+import { formatNumber } from "../../../i18n";
 import ViewTopBar from "../ViewTopBar";
 import CopyButton from "../CopyButton";
 import CodeEditor from "../CodeEditor";
@@ -925,7 +926,7 @@ function PurgeConfirmModal({ queue, messageCount, purging, onConfirm, onCancel }
         </div>
 
         <div className="px-4 py-3 space-y-2 text-[13px] text-t-ink2">
-          <p>{t("browser.purge.body", { count: messageCount.toLocaleString(), queue })}</p>
+          <p>{t("browser.purge.body", { count: formatNumber(messageCount), queue })}</p>
           <p className="text-[11.5px] text-t-ink5">{t("browser.purge.note")}</p>
         </div>
 
@@ -943,7 +944,7 @@ function PurgeConfirmModal({ queue, messageCount, purging, onConfirm, onCancel }
             className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-negative hover:bg-negative text-white text-[11.5px] font-semibold transition-colors disabled:opacity-40"
           >
             {purging ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
-            {purging ? t("browser.purging") : t("browser.purge.confirm", { count: messageCount.toLocaleString() })}
+            {purging ? t("browser.purging") : t("browser.purge.confirm", { count: formatNumber(messageCount) })}
           </button>
         </div>
       </div>
@@ -981,7 +982,7 @@ function SelectivePurgeModal({ queue, ids, total, purging, onConfirm, onCancel }
           </button>
         </div>
         <div className="px-4 py-3 space-y-2 text-[13px] text-t-ink2">
-          <p>{t("browser.purgeSel.body", { count: ids.length.toLocaleString(), queue })}</p>
+          <p>{t("browser.purgeSel.body", { count: formatNumber(ids.length), queue })}</p>
           {ids.length !== total && (
             <p className="text-[11.5px] text-caution">
               {t("browser.purgeSel.partial", { count: total - ids.length, total })}
@@ -1003,7 +1004,7 @@ function SelectivePurgeModal({ queue, ids, total, purging, onConfirm, onCancel }
             className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-negative hover:bg-negative text-white text-[11.5px] font-semibold transition-colors disabled:opacity-40"
           >
             {purging ? <Spinner className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
-            {purging ? t("browser.deleting") : t("browser.purge.confirm", { count: ids.length.toLocaleString() })}
+            {purging ? t("browser.deleting") : t("browser.purge.confirm", { count: formatNumber(ids.length) })}
           </button>
         </div>
       </div>

@@ -3,6 +3,7 @@ import type {
   ApiEndpoint, CertificateReport, DomainStat, ModuleRow, PassportWalk, QueueManager, QueueRow, RouteSummary,
   ServerUsage, SweepRow,
 } from '../types'
+import { routeStateLabel } from './routeState'
 
 /** Разделы паспорта — по листу на каждый, плюс сводка первым листом. */
 export type PassportSection =
@@ -86,9 +87,7 @@ function pointText(point: ApiEndpoint): string {
 }
 
 function routeStateText(state: string | undefined, t: Translate): string {
-  if (state === 'Started') return t('passport.state.started')
-  if (state === 'Stopped') return t('passport.state.stopped')
-  return state ?? t('passport.state.unknown')
+  return state ? routeStateLabel(state, t) : t('passport.state.unknown')
 }
 
 function domainsSheet(data: PassportData, t: Translate): Sheet | null {

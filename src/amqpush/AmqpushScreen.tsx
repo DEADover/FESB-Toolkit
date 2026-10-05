@@ -13,6 +13,7 @@ import CommandPalette, { PaletteAction } from "./components/CommandPalette";
 import HelpModal from "./components/help/HelpModal";
 import ConfirmDialog from "./components/ConfirmDialog";
 import { useAmqpText } from "./i18n";
+import { formatNumber } from "../i18n";
 import { errorText } from "../lib/errors";
 import { LogEntry, View, Profile } from "./types";
 import { invoke } from "@tauri-apps/api/core";
@@ -544,12 +545,12 @@ export function AmqpushScreen({ view, visible, onView, stand, stands, onConfigur
         body={
           <p>
             Permanently delete{" "}
-            <span className="font-mono font-bold text-t-ink">{logs.length.toLocaleString()}</span>{" "}
+            <span className="font-mono font-bold text-t-ink">{formatNumber(logs.length)}</span>{" "}
             log entr{logs.length === 1 ? "y" : "ies"}? This wipes the in-memory
             buffer <i>and</i> the persisted copy in <code className="text-t-ink4">localStorage</code>.
           </p>
         }
-        confirmLabel={`Delete ${logs.length.toLocaleString()} entr${logs.length === 1 ? "y" : "ies"}`}
+        confirmLabel={`Delete ${formatNumber(logs.length)} entr${logs.length === 1 ? "y" : "ies"}`}
         onConfirm={() => { setLogs([]); setConfirmClearLogs(false); }}
         onCancel={() => setConfirmClearLogs(false)}
       />

@@ -5,6 +5,7 @@ import {
   MessageSquare, X, GitCompare,
 } from "lucide-react";
 import { useAmqpText } from "../../i18n";
+import { formatNumber } from "../../../i18n";
 import { HistoryEntry } from "../../types";
 import CollapsibleSection from "../CollapsibleSection";
 import PropsList from "../PropsList";
@@ -152,8 +153,8 @@ export default function HistoryView({ refreshVersion, onLog, onResend }: Props) 
       <ConfirmDialog
         open={confirmClear}
         title={t("history.clear")}
-        body={<p>{t("history.clear.body", { count: entries.length.toLocaleString() })}</p>}
-        confirmLabel={`Delete ${entries.length.toLocaleString()} entr${entries.length === 1 ? "y" : "ies"}`}
+        body={<p>{t("history.clear.body", { count: formatNumber(entries.length) })}</p>}
+        confirmLabel={`Delete ${formatNumber(entries.length)} entr${entries.length === 1 ? "y" : "ies"}`}
         busy={clearing}
         busyLabel="Deleting…"
         onConfirm={clearAllConfirmed}

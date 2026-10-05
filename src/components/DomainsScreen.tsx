@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import { ArrowsClockwise, CaretDown, Copy, Play, Stop, X } from '@phosphor-icons/react'
 
-import { useI18n, useRichText } from '../i18n'
+import { formatNumber, useI18n, useRichText } from '../i18n'
 import { apiDomainAction, apiDomains, apiDomainStatistics, errorText, journalEntry } from '../lib/api'
 import type { ConnectionStore } from '../lib/connection'
 import type { ApiDomain, ApiProgress, Connection, DomainAction, DomainStat, ServerInfo } from '../types'
@@ -273,9 +273,9 @@ export function DomainsScreen({ connection, server, pulling, progress, error: pu
       <StatsBar>
         <Readout label={t('map.domains')} value={`${totals.active} / ${totals.domains}`} hint={t('map.domains.hint')} />
         <Readout label={t('map.routes')} value={`${totals.running} / ${totals.routes}`} hint={t('map.routes.hint')} />
-        <Readout label={t('map.success')} value={totals.success.toLocaleString()} />
-        <Readout label={t('map.errors')} value={totals.errors.toLocaleString()} tone={totals.errors > 0 ? 'danger' : undefined} />
-        <Readout label={t('map.inflight')} value={totals.inflight.toLocaleString()} tone={totals.inflight > 0 ? 'warn' : undefined} />
+        <Readout label={t('map.success')} value={formatNumber(totals.success)} />
+        <Readout label={t('map.errors')} value={formatNumber(totals.errors)} tone={totals.errors > 0 ? 'danger' : undefined} />
+        <Readout label={t('map.inflight')} value={formatNumber(totals.inflight)} tone={totals.inflight > 0 ? 'warn' : undefined} />
         <div className="ml-auto flex items-center gap-2">
           <AutoRefreshToggle checked={auto} onChange={setAuto} />
           <RefreshButton busy={loading} disabled={loading || pulling} onClick={() => void load()} />
@@ -316,7 +316,8 @@ export function DomainsScreen({ connection, server, pulling, progress, error: pu
           <colgroup>
             <col className="w-10" />
             <col />
-            <col className="w-28" />
+            {/* «Не все запущены» — самая длинная капсула колонки. */}
+            <col className="w-36" />
             <col className="w-20" />
             <col className="w-20" />
             <col className="hidden w-20 xl:table-column" />
@@ -394,13 +395,13 @@ export function DomainsScreen({ connection, server, pulling, progress, error: pu
                   ) : '—'}
                 </td>
                 <td className={cx('px-3 py-1.5 text-right tabular-nums', domain.errors > 0 && 'font-medium text-negative')}>
-                  {domain.errors > 0 ? domain.errors.toLocaleString() : '—'}
+                  {domain.errors > 0 ? formatNumber(domain.errors) : '—'}
                 </td>
                 <td className={cx('hidden px-3 py-1.5 text-right tabular-nums xl:table-cell', domain.inflight > 0 && 'font-medium text-caution')}>
-                  {domain.inflight > 0 ? domain.inflight.toLocaleString() : '—'}
+                  {domain.inflight > 0 ? formatNumber(domain.inflight) : '—'}
                 </td>
                 <td className="hidden px-3 py-1.5 text-right tabular-nums text-content-muted xl:table-cell">
-                  {domain.success > 0 ? domain.success.toLocaleString() : '—'}
+                  {domain.success > 0 ? formatNumber(domain.success) : '—'}
                 </td>
                 <td className="px-3 py-1.5" onClick={(event) => event.stopPropagation()}>
                   <div className="flex items-center gap-1">

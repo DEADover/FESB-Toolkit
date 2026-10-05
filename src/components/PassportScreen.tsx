@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { CheckCircle, Circle, DownloadSimple, IdentificationCard, MinusCircle, WarningCircle } from '@phosphor-icons/react'
 
-import { useI18n, type MessageKey } from '../i18n'
+import { formatNumber, useI18n, type MessageKey } from '../i18n'
 import {
   apiCertificates, apiDomainStatistics, apiModules, apiPassportWalk, apiPropertiesSweep, apiQueueManagers, apiQueues,
   apiRoutesOverview, apiServerUsage, errorText, onApiProgress, revealPath, saveWorkbook, saveXlsxAs,
@@ -309,7 +309,7 @@ export function PassportScreen({ connection, server, onGoToConnection, standName
               )}
               <div className="flex flex-wrap items-end gap-x-8 gap-y-3">
                 {sheets.slice(1).map((sheet) => (
-                  <Readout key={sheet.name} label={sheet.name} value={sheet.rows.length.toLocaleString()} />
+                  <Readout key={sheet.name} label={sheet.name} value={formatNumber(sheet.rows.length)} />
                 ))}
                 <div className="ml-auto">
                   <Button variant="primary" className="min-w-52" disabled={saving} onClick={() => void save()}>

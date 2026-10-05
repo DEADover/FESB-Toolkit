@@ -23,6 +23,7 @@ import ViewTopBar from "../ViewTopBar";
 import EmptyState from "../EmptyState";
 import SectionLabel from "../SectionLabel";
 import { useAmqpText } from "../../i18n";
+import { formatNumber } from "../../../i18n";
 import Toggle from "../Toggle";
 import SegmentedControl from "../SegmentedControl";
 import Callout from "../Callout";
@@ -1682,7 +1683,7 @@ export default function PublisherView({ connected, latencyMs, defaultAddress, ac
                     <div className="flex-1 min-w-0">
                       <div className="text-[13px] text-t-ink truncate">{csvFileName}</div>
                       <div className="text-[10.5px] text-t-ink5">
-                        {csvRows.length.toLocaleString()} rows · {csvHeaders.length} columns
+                        {formatNumber(csvRows.length)} rows · {csvHeaders.length} columns
                       </div>
                     </div>
                     <button
@@ -1812,7 +1813,7 @@ export default function PublisherView({ connected, latencyMs, defaultAddress, ac
                             className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-[13px] font-semibold bg-accent-strong hover:bg-accent text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                           >
                             <Send className="w-3.5 h-3.5" />
-                            Send {csvRows.length.toLocaleString()} message{csvRows.length !== 1 ? "s" : ""}
+                            Send {formatNumber(csvRows.length)} message{csvRows.length !== 1 ? "s" : ""}
                           </button>
                         ) : (
                           <>
@@ -2429,7 +2430,7 @@ export default function PublisherView({ connected, latencyMs, defaultAddress, ac
       <ConfirmDialog
         open={confirmClearCsv}
         title={t("send.csv.clear")}
-        body={<p>{t("send.csv.clearBody", { file: csvFileName ?? "", count: csvRows.length.toLocaleString() })}</p>}
+        body={<p>{t("send.csv.clearBody", { file: csvFileName ?? "", count: formatNumber(csvRows.length) })}</p>}
         confirmLabel={t("send.csv.clear")}
         onConfirm={() => { clearCsv(); setConfirmClearCsv(false); }}
         onCancel={() => setConfirmClearCsv(false)}

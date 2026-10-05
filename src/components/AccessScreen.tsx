@@ -2,7 +2,7 @@ import { Fragment, useCallback, useMemo, useState } from 'react'
 
 import { ShieldWarning } from '@phosphor-icons/react'
 
-import { useI18n, type MessageKey } from '../i18n'
+import { formatDateTime, formatNumber, useI18n, type MessageKey } from '../i18n'
 import { apiAccess } from '../lib/api'
 import type { AccessReport, Connection, Scope, ServerInfo } from '../types'
 import {
@@ -106,15 +106,15 @@ export function AccessScreen({ connection, server, onGoToConnection }: Props) {
   return (
     <ScreenBody>
       <StatsBar>
-        <Readout label={t('access.roles')} value={totals.roles.toLocaleString()} />
-        <Readout label={t('access.permissions')} value={totals.permissions.toLocaleString()} />
+        <Readout label={t('access.roles')} value={formatNumber(totals.roles)} />
+        <Readout label={t('access.permissions')} value={formatNumber(totals.permissions)} />
         <Readout
           label={t('access.online')}
-          value={totals.online.toLocaleString()}
+          value={formatNumber(totals.online)}
           tone="accent"
           hint={t('access.online.hint')}
         />
-        <Readout label={t('access.sessions')} value={totals.sessions.toLocaleString()} />
+        <Readout label={t('access.sessions')} value={formatNumber(totals.sessions)} />
         <div className="ml-auto">
           <RefreshButton className="min-w-32" busy={loading} onClick={() => void reload()} />
         </div>
@@ -249,7 +249,7 @@ function Users({ report }: { report: AccessReport | null }) {
             <span className="min-w-0 truncate text-[12px] font-medium">{user.user}</span>
             {user.lastLogin !== null && (
               <span className="ml-auto shrink-0 text-[10.5px] tabular-nums text-content-subtle" title={t('access.lastLogin')}>
-                {new Date(user.lastLogin).toLocaleString()}
+                {formatDateTime(new Date(user.lastLogin))}
               </span>
             )}
           </div>
