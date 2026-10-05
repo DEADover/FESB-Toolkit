@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { formatBytes, formatEta, formatShare, formatUptime } from './format'
+import { displayVersion, formatBytes, formatEta, formatShare, formatUptime } from './format'
 import { folderBesideExport, localStamp, localTime } from './paths'
 
 describe('formatBytes', () => {
@@ -121,5 +121,13 @@ describe('formatEta', () => {
   it('округляет до пятёрки секунд: точнее оценка всё равно не бывает', () => {
     expect(formatEta(10_000, 20, 100, t)).toBe('40с')
     expect(formatEta(11_000, 20, 100, t)).toBe('45с')
+  })
+})
+
+describe('displayVersion', () => {
+  it('убирает букву перед номером версии', () => {
+    expect(displayVersion('V8.6.461')).toBe('8.6.461')
+    expect(displayVersion('8.6.524')).toBe('8.6.524')
+    expect(displayVersion(' v8.6 ')).toBe('8.6')
   })
 })

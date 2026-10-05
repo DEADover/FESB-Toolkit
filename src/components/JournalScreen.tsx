@@ -123,7 +123,8 @@ export function JournalScreen({ connection, server, onGoToConnection, prod }: Pr
             <col />
             <col className="w-36" />
             <col className="hidden w-28 xl:table-column" />
-            <col className="w-28" />
+            {/* Под кнопку «Отменить…» с её отступами. */}
+            <col className="w-32" />
           </colgroup>
           <THead>
             <Th />

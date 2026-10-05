@@ -85,6 +85,7 @@ export function PassportScreen({ connection, server, onGoToConnection, standName
   const [error, setError] = useState<string | null>(null)
   const [progress, setProgress] = useState<ApiProgress | null>(null)
   const current = useRef<StageId | null>(null)
+  const summary = useRef<HTMLDivElement>(null)
 
   // Обход и выгрузка констант сообщают о ходе событиями — показываем их
   // у того шага, который сейчас идёт.
@@ -92,6 +93,12 @@ export function PassportScreen({ connection, server, onGoToConnection, standName
     const stop = onApiProgress((event) => { if (current.current) setProgress(event) })
     return () => { void stop.then((off) => off()) }
   }, [])
+
+  // Готовый паспорт оказывается под шагами, ниже края окна: подводим к нему,
+  // иначе кнопку сохранения приходится искать прокруткой.
+  useEffect(() => {
+    if (data) summary.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+  }, [data])
 
   // Сменили стенд — собранный паспорт относится к прежнему.
   useEffect(() => {
@@ -302,25 +309,27 @@ export function PassportScreen({ connection, server, onGoToConnection, standName
         )}
 
         {data && (
-          <Panel>
-            <div className="space-y-3 p-4">
-              {data.failures.length > 0 && (
-                <Notice tone="warn" small>{t('passport.partial', { count: data.failures.length })}</Notice>
-              )}
-              <div className="flex flex-wrap items-end gap-x-8 gap-y-3">
-                {sheets.slice(1).map((sheet) => (
-                  <Readout key={sheet.name} label={sheet.name} value={formatNumber(sheet.rows.length)} />
-                ))}
-                <div className="ml-auto">
-                  <Button variant="primary" className="min-w-52" disabled={saving} onClick={() => void save()}>
-                    <ButtonGlyph busy={saving}><DownloadSimple size={14} weight="bold" /></ButtonGlyph>
-                    {t('passport.export')}
-                  </Button>
+          <div ref={summary}>
+            <Panel>
+              <div className="space-y-3 p-4">
+                {data.failures.length > 0 && (
+                  <Notice tone="warn" small>{t('passport.partial', { count: data.failures.length })}</Notice>
+                )}
+                <div className="flex flex-wrap items-end gap-x-8 gap-y-3">
+                  {sheets.slice(1).map((sheet) => (
+                    <Readout key={sheet.name} label={sheet.name} value={formatNumber(sheet.rows.length)} />
+                  ))}
+                  <div className="ml-auto">
+                    <Button variant="primary" className="min-w-52" disabled={saving} onClick={() => void save()}>
+                      <ButtonGlyph busy={saving}><DownloadSimple size={14} weight="bold" /></ButtonGlyph>
+                      {t('passport.export')}
+                    </Button>
+                  </div>
                 </div>
+                <p className="text-[11.5px] text-content-subtle">{t('passport.exportNote', { count: sheets.length })}</p>
               </div>
-              <p className="text-[11.5px] text-content-subtle">{t('passport.exportNote', { count: sheets.length })}</p>
-            </div>
-          </Panel>
+            </Panel>
+          </div>
         )}
       </div>
     </ScreenBody>

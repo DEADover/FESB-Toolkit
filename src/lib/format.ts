@@ -61,3 +61,13 @@ export function formatEta(
   if (remaining < 90_000) return t('job.eta.seconds', { count: Math.round(remaining / 5000) * 5 })
   return t('job.eta.minutes', { count: Math.round(remaining / 60_000) })
 }
+
+/**
+ * Версия шины для показа: `V8.6.461` → `8.6.461`.
+ *
+ * В файле `version` выгрузки версия записана с буквой, а сервер отдаёт её
+ * без буквы, и на «Начале» рядом стояли «V8.6.0» и «8.6.524».
+ */
+export function displayVersion(version: string): string {
+  return version.trim().replace(/^v(?=\d)/i, '')
+}

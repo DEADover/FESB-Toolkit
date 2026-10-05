@@ -30,6 +30,7 @@ import { CommandPalette } from './components/CommandPalette'
 import { useStandWatch } from './components/useStandWatch'
 import { UpdateDialog, useUpdates } from './components/Updates'
 import { exchangeLogFocus, type Focus } from './lib/focus'
+import { displayVersion } from './lib/format'
 import { JobStatus } from './components/JobStatus'
 import { useToast } from './components/Toaster'
 import { Badge, Button, ButtonGlyph, cx, Notice, Spinner } from './components/ui'
@@ -418,7 +419,7 @@ export default function App() {
               <h1 className="shrink-0 text-[15px] font-semibold leading-tight">{screenTitle}</h1>
               {scan?.fesbVersion && !isApiScreen && !isWelcome && (
                 <Badge tone="accent" className="font-mono">
-                  <span title={t('header.fesbVersion')}>FESB {scan.fesbVersion}</span>
+                  <span title={t('header.fesbVersion')}>FESB {displayVersion(scan.fesbVersion)}</span>
                 </Badge>
               )}
               {/* Открытое подключение — здесь же, в строке заголовка: своей

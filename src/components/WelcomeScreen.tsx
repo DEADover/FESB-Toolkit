@@ -4,7 +4,7 @@ import { ArrowRight, FolderOpen, Plugs, type Icon } from '@phosphor-icons/react'
 
 import { formatNumber, useI18n } from '../i18n'
 import { apiServerUsage } from '../lib/api'
-import { formatUptime } from '../lib/format'
+import { displayVersion, formatUptime } from '../lib/format'
 import { useApiData } from './ApiShell'
 import { byEnvironment, type ConnectionProfile, type ConnectionStore } from '../lib/connection'
 import type { Connection, ScanResult, ServerInfo, ServerUsage } from '../types'
@@ -79,7 +79,7 @@ export function WelcomeScreen({
                   <Readout label={t('stats.traceBeans')} value={formatNumber(files.traces)} />
                   <Readout label={t('stats.routes')} value={formatNumber(files.routes)} />
                   {scan?.fesbVersion && (
-                    <Readout label="FESB" value={scan.fesbVersion} hint={t('header.fesbVersion')} />
+                    <Readout label="FESB" value={displayVersion(scan.fesbVersion)} hint={t('header.fesbVersion')} />
                   )}
                 </div>
                 <Actions>

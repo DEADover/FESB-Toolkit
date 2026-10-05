@@ -75,10 +75,11 @@ export function TraceTable({
           <col />
           <col className="w-36" />
           <col className="w-36" />
-          <col className="w-40" />
-          <col className="w-24" />
+          <col className="w-36" />
+          {/* «ASYNC_NEW» в капсуле целиком, а «Показать» — без вылета за край. */}
+          <col className="w-28" />
           <col className="w-20" />
-          <col className="w-16" />
+          <col className="w-20" />
         </colgroup>
 
         <thead className="sticky top-0 z-10">

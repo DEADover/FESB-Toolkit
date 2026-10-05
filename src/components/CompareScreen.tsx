@@ -237,7 +237,8 @@ export function CompareScreen({ connection, server, store, activeProfileId, onGo
 
       {mode === 'stands' ? (
         <div className="flex flex-wrap items-center gap-2">
-          <Badge tone="accent">{server.baseUrl}</Badge>
+          {/* Стенд называется так же, как в списке справа, — именем, а адрес виден при наведении. */}
+          <Badge tone="accent" title={server.baseUrl}>{activeProfile?.name ?? server.baseUrl}</Badge>
           <ArrowsLeftRight size={14} className="text-content-subtle" />
           <Select<string>
             ariaLabel={t('compare.other')}
