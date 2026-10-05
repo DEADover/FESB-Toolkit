@@ -154,9 +154,9 @@ export default function HistoryView({ refreshVersion, onLog, onResend }: Props) 
         open={confirmClear}
         title={t("history.clear")}
         body={<p>{t("history.clear.body", { count: formatNumber(entries.length) })}</p>}
-        confirmLabel={`Delete ${formatNumber(entries.length)} entr${entries.length === 1 ? "y" : "ies"}`}
+        confirmLabel={t("history.clear.confirm", { count: formatNumber(entries.length) })}
         busy={clearing}
-        busyLabel="Deleting…"
+        busyLabel={t("history.clearing")}
         onConfirm={clearAllConfirmed}
         onCancel={() => setConfirmClear(false)}
       />

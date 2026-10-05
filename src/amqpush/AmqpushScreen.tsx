@@ -543,14 +543,9 @@ export function AmqpushScreen({ view, visible, onView, stand, stands, onConfigur
         open={confirmClearLogs}
         title={t("shell.logs.clear")}
         body={
-          <p>
-            Permanently delete{" "}
-            <span className="font-mono font-bold text-t-ink">{formatNumber(logs.length)}</span>{" "}
-            log entr{logs.length === 1 ? "y" : "ies"}? This wipes the in-memory
-            buffer <i>and</i> the persisted copy in <code className="text-t-ink4">localStorage</code>.
-          </p>
+          <p>{t("console.clear.body", { count: formatNumber(logs.length) })}</p>
         }
-        confirmLabel={`Delete ${formatNumber(logs.length)} entr${logs.length === 1 ? "y" : "ies"}`}
+        confirmLabel={t("console.clear.confirm", { count: formatNumber(logs.length) })}
         onConfirm={() => { setLogs([]); setConfirmClearLogs(false); }}
         onCancel={() => setConfirmClearLogs(false)}
       />

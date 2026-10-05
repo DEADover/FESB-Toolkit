@@ -78,6 +78,7 @@ const en = {
 
 
   'picker.clear': 'Clear',
+  'picker.toggle': 'Show queue list',
   'picker.broker': 'Broker queues',
   'picker.notConnected': 'Not connected',
   'picker.refresh': 'Refresh queue list',
@@ -700,6 +701,34 @@ const en = {
   'history.diff.close': 'close',
   'console.follow.off': 'Follow off — your place stays put when new records arrive. Click to follow the newest again.',
 
+
+  // ── добавлено при полировке: то, что раньше было вписано в разметку ──
+  'shell.latency': '{ms} ms',
+  'history.clear.confirm': 'Delete {count} entries',
+  'history.clearing': 'Deleting…',
+  'browser.live': 'live',
+  'browser.live.hint': 'Refreshed every {s} s',
+  'browser.edit.prevSkipped': '○ Skipped earlier',
+  'console.resetFilters': 'Reset filters',
+  'send.csv.size': '{rows} rows · {columns} columns',
+  'send.csv.tokens': 'Column Tokens',
+  'send.csv.tokens.hint': ' — paste into Body or Properties; values come from the current row',
+  'send.csv.copyToken': 'Copy {token} to the clipboard',
+  'send.csv.delay': 'Delay Between Rows',
+  'send.csv.delay.hint': ' — milliseconds, 0 = as fast as possible',
+  'send.csv.sendAll': 'Send {count} Messages',
+  'send.reply.address': 'Reply-To Address',
+  'send.reply.address.hint': ' — the queue we listen on',
+  'send.reply.timeout': 'Timeout',
+  'send.reply.timeout.hint': ' — milliseconds before giving up',
+  'recv.saved.title': 'Saved Selectors',
+  'recv.topic.syntax': 'Wildcard syntax depends on the broker: Artemis multicast uses * for one word and # for zero or more words, Solace uses * and >. Works together with the selector if both are set.',
+  'recv.fromQueue': 'From queue: {queue}',
+  'recv.compareTo': 'Compare with “{id}”',
+  'recv.replay.summary': '{count} messages · {size}',
+  'recv.replay.capturedFrom': ' · recorded from ',
+  'recv.replay.speed': 'Speed',
+  'recv.replay.speed.hint': ' — 1 = real time, 0 = no delays',
 }
 
 const ru: Record<keyof typeof en, string> = {
@@ -766,6 +795,7 @@ const ru: Record<keyof typeof en, string> = {
 
 
   'picker.clear': 'Очистить',
+  'picker.toggle': 'Показать список очередей',
   'picker.broker': 'Очереди брокера',
   'picker.notConnected': 'Нет подключения',
   'picker.refresh': 'Обновить список очередей',
@@ -1388,6 +1418,34 @@ const ru: Record<keyof typeof en, string> = {
   'history.diff.close': 'закрыть',
   'console.follow.off': 'Слежение выключено — при новых записях место не меняется. Нажмите, чтобы снова следить за последней.',
 
+
+  // ── добавлено при полировке: то, что раньше было вписано в разметку ──
+  'shell.latency': '{ms} мс',
+  'history.clear.confirm': 'Удалить записей: {count}',
+  'history.clearing': 'Удаляю…',
+  'browser.live': 'онлайн',
+  'browser.live.hint': 'Обновляется каждые {s} с',
+  'browser.edit.prevSkipped': '○ Пропущено раньше',
+  'console.resetFilters': 'Сбросить фильтры',
+  'send.csv.size': 'Строк: {rows} · Столбцов: {columns}',
+  'send.csv.tokens': 'Переменные столбцов',
+  'send.csv.tokens.hint': ' — вставляются в тело и свойства; значения берутся из текущей строки',
+  'send.csv.copyToken': 'Скопировать {token}',
+  'send.csv.delay': 'Пауза между строками',
+  'send.csv.delay.hint': ' — в миллисекундах, 0 — без пауз',
+  'send.csv.sendAll': 'Отправить сообщений: {count}',
+  'send.reply.address': 'Адрес для ответа',
+  'send.reply.address.hint': ' — очередь, которую слушаем',
+  'send.reply.timeout': 'Ожидание',
+  'send.reply.timeout.hint': ' — в миллисекундах, потом ждать перестаём',
+  'recv.saved.title': 'Сохранённые селекторы',
+  'recv.topic.syntax': 'Синтаксис масок зависит от брокера: у Artemis multicast * — одно слово, # — ноль и больше слов; у Solace — * и >. Работает вместе с селектором, если заданы оба.',
+  'recv.fromQueue': 'Из очереди: {queue}',
+  'recv.compareTo': 'Сравнить с «{id}»',
+  'recv.replay.summary': 'Сообщений: {count} · {size}',
+  'recv.replay.capturedFrom': ' · записано из ',
+  'recv.replay.speed': 'Скорость',
+  'recv.replay.speed.hint': ' — 1 — как было, 0 — без пауз',
 }
 
 export type AmqpKey = keyof typeof en

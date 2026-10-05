@@ -136,6 +136,7 @@ export default function QueuePicker({
             tabIndex={-1}
             onClick={() => { onChange(""); setOpen(true); }}
             title={t("picker.clear")}
+            aria-label={t("picker.clear")}
             className="absolute right-6 top-1/2 -translate-y-1/2 text-t-ink5 hover:text-t-ink2 transition-colors"
           >
             <X className="w-3 h-3" />
@@ -146,6 +147,8 @@ export default function QueuePicker({
             type="button"
             tabIndex={-1}
             onClick={() => setOpen(o => !o)}
+            title={t("picker.toggle")}
+            aria-label={t("picker.toggle")}
             className="absolute right-1.5 top-1/2 -translate-y-1/2 text-t-ink4 hover:text-t-ink2 transition-colors"
           >
             <ChevronDown className={`w-3.5 h-3.5 transition-transform ${open ? "rotate-180" : ""}`} />

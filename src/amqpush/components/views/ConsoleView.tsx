@@ -386,7 +386,7 @@ export default function ConsoleView({ logs, onClear }: Props) {
             action={filtersActive && (
               <button onClick={resetFilters}
                 className="text-[11.5px] text-accent hover:text-accent-content transition-colors">
-                Reset filters
+                {t("console.resetFilters")}
               </button>
             )}
           />

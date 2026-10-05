@@ -1683,7 +1683,7 @@ export default function PublisherView({ connected, latencyMs, defaultAddress, ac
                     <div className="flex-1 min-w-0">
                       <div className="text-[13px] text-t-ink truncate">{csvFileName}</div>
                       <div className="text-[10.5px] text-t-ink5">
-                        {formatNumber(csvRows.length)} rows · {csvHeaders.length} columns
+                        {t("send.csv.size", { rows: formatNumber(csvRows.length), columns: csvHeaders.length })}
                       </div>
                     </div>
                     <button
@@ -1720,9 +1720,9 @@ export default function PublisherView({ connected, latencyMs, defaultAddress, ac
                       {/* Column tokens — clicking copies `{{name}}` into clipboard for paste into Body. */}
                       <div>
                         <SectionLabel className="block mb-2">
-                          Column tokens
+                          {t("send.csv.tokens")}
                           <span className="text-t-ink5 normal-case font-normal">
-                            {" — paste into Body / Properties; values come from the current row"}
+                            {t("send.csv.tokens.hint")}
                           </span>
                         </SectionLabel>
                         <div className="flex items-center gap-1.5 flex-wrap">
@@ -1735,7 +1735,7 @@ export default function PublisherView({ connected, latencyMs, defaultAddress, ac
                                 () => {/* clipboard might be denied — silently ignore */}
                               )}
                               className="font-mono text-[11.5px] px-2 py-0.5 rounded-md border border-t-line2 bg-t-card hover:border-accent/40 hover:text-accent hover:bg-accent/5 text-t-ink2 transition-colors"
-                              title={`Click to copy {{${h}}} to clipboard`}
+                              title={t("send.csv.copyToken", { token: `{{${h}}}` })}
                             >
                               {`{{${h}}}`}
                             </button>
@@ -1795,8 +1795,8 @@ export default function PublisherView({ connected, latencyMs, defaultAddress, ac
                         <SectionLabel className="block mb-2">{t("send.params")}</SectionLabel>
                         <div className="bg-t-card border border-t-line rounded-xl p-3">
                           <label className="block text-[10px] uppercase tracking-wide text-content-subtle mb-1.5">
-                            Delay between rows
-                            <span className="text-t-ink5 normal-case font-normal"> — milliseconds, 0 = as fast as possible</span>
+                            {t("send.csv.delay")}
+                            <span className="text-t-ink5 normal-case font-normal">{t("send.csv.delay.hint")}</span>
                           </label>
                           <input type="number" min="0" value={csvDelay} onChange={e => setCsvDelay(e.target.value)}
                             className={`${INPUT} w-32`} />
@@ -1813,7 +1813,7 @@ export default function PublisherView({ connected, latencyMs, defaultAddress, ac
                             className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-[13px] font-semibold bg-accent-strong hover:bg-accent text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                           >
                             <Send className="w-3.5 h-3.5" />
-                            Send {formatNumber(csvRows.length)} message{csvRows.length !== 1 ? "s" : ""}
+                            {t("send.csv.sendAll", { count: formatNumber(csvRows.length) })}
                           </button>
                         ) : (
                           <>
@@ -1898,8 +1898,8 @@ export default function PublisherView({ connected, latencyMs, defaultAddress, ac
                 <div className={"bg-t-card border border-t-line rounded-xl p-3 space-y-3"}>
                   <div>
                     <label className="block text-[10px] uppercase tracking-wide text-content-subtle mb-1.5">
-                      Reply-to address
-                      <span className="text-t-ink5 normal-case font-normal"> — queue we'll listen on</span>
+                      {t("send.reply.address")}
+                      <span className="text-t-ink5 normal-case font-normal">{t("send.reply.address.hint")}</span>
                     </label>
                     <QueuePicker
                       value={rrAddress}
@@ -1912,8 +1912,8 @@ export default function PublisherView({ connected, latencyMs, defaultAddress, ac
                   </div>
                   <div>
                     <label className="block text-[10px] uppercase tracking-wide text-content-subtle mb-1.5">
-                      Timeout
-                      <span className="text-t-ink5 normal-case font-normal"> — milliseconds before giving up</span>
+                      {t("send.reply.timeout")}
+                      <span className="text-t-ink5 normal-case font-normal">{t("send.reply.timeout.hint")}</span>
                     </label>
                     <input type="number" min="500" value={rrTimeout} onChange={e => setRrTimeout(e.target.value)} disabled={!rrEnabled}
                       className={`${INPUT} w-32`} />
@@ -1926,12 +1926,12 @@ export default function PublisherView({ connected, latencyMs, defaultAddress, ac
                   variant="info"
                   icon={<Loader2 className="w-3.5 h-3.5 animate-spin" />}
                 >
-                  Waiting for reply on <span className="font-mono">{rrAddress}</span>…
+                  {t("send.reply.waiting")} <span className="font-mono">{rrAddress}</span>…
                 </Callout>
               )}
               {rrTimedOut && !rrWaiting && (
                 <Callout variant="warn" icon={<Clock className="w-3.5 h-3.5" />}>
-                  Timed out — no reply received within {rrTimeout}ms
+                  {t("send.status.timeout", { ms: rrTimeout })}
                 </Callout>
               )}
               {rrReply !== null && !rrWaiting && (
@@ -2398,14 +2398,14 @@ export default function PublisherView({ connected, latencyMs, defaultAddress, ac
               <span className="text-t-ink3 truncate max-w-[200px]" title={address}>{address}</span>
             </>
           )}
-          {connected && latencyMs !== null && latencyMs !== undefined && (
+          {connected && typeof latencyMs === "number" && (
             <span
               className={`font-mono ${
                 latencyMs < 100 ? "text-t-ink5" : latencyMs < 500 ? "text-caution" : "text-negative"
               }`}
               title={t("shell.latency.hint")}
             >
-              {latencyMs}ms
+              {t("shell.latency", { ms: latencyMs })}
             </span>
           )}
           <span className={`w-1.5 h-1.5 rounded-full ${connected ? "bg-positive" : "bg-t-ink5"}`} />

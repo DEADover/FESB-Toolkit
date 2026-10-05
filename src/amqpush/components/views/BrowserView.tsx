@@ -402,9 +402,9 @@ export default function BrowserView({ connected, visible, onLog, onPublishTo, on
             {t("browser.pollError")}
           </span>
         ) : connected && autoOn && loaded ? (
-          <span className="flex items-center gap-1 text-[10.5px] text-t-ink5 font-mono" title={`Auto-refresh every ${QUEUE_POLL_INTERVAL_MS / 1000}s`}>
+          <span className="flex items-center gap-1 text-[10.5px] text-t-ink5 font-mono" title={t("browser.live.hint", { s: QUEUE_POLL_INTERVAL_MS / 1000 })}>
             <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
-            live
+            {t("browser.live")}
           </span>
         ) : null}
       >
@@ -1519,7 +1519,7 @@ function EditRequeueModal({ messages, onResubmit, onLog, onClose }: {
             {results[step] && (
               <div className="text-[11.5px] flex items-center gap-1">
                 {results[step] === "sent" && <span className="text-positive">{t("browser.edit.already")}</span>}
-                {results[step] === "skipped" && <span className="text-t-ink4">○ Previously skipped</span>}
+                {results[step] === "skipped" && <span className="text-t-ink4">{t("browser.edit.prevSkipped")}</span>}
                 {results[step] === "failed" && <span className="text-negative">{t("browser.edit.prevFailed")}</span>}
               </div>
             )}

@@ -785,7 +785,7 @@ export default function SubscriberView({ connected, defaultAddress, activeProfil
             {savedSelectorsOpen && (
               <div className="absolute right-0 top-full mt-1 z-50 bg-t-card border border-t-line rounded-lg shadow-lg overflow-hidden w-72">
                 <div className="px-3 py-1.5 border-b border-t-line bg-t-panel text-[10px] uppercase tracking-wide text-content-subtle">
-                  Saved selectors
+                  {t("recv.saved.title")}
                 </div>
                 <div className="max-h-56 overflow-y-auto">
                   {savedSelectors.length === 0 ? (
@@ -892,8 +892,7 @@ export default function SubscriberView({ connected, defaultAddress, activeProfil
             />
             <p className="text-[10.5px] text-t-ink5 mt-1">
               {t("recv.topic.applied")}
-              Wildcard syntax is broker-specific — Artemis multicast: <span className="font-mono">*</span> (one word) / <span className="font-mono">#</span> (zero+ words).
-              Solace: <span className="font-mono">*</span> / <span className="font-mono">&gt;</span>. Works alongside Selector if both are set.
+              {t("recv.topic.syntax")}
             </p>
           </div>
           {topicPattern && (
@@ -1219,7 +1218,7 @@ export default function SubscriberView({ connected, defaultAddress, activeProfil
                     <div className="flex items-center gap-2 text-[10.5px] pl-5">
                       {/* Queue chip — only show when multiple queues are subscribed */}
                       {queues.length > 1 && (
-                        <span className="px-1 rounded-md bg-accent/15 text-accent font-mono font-medium" title={`From queue: ${msg.queue}`}>
+                        <span className="px-1 rounded-md bg-accent/15 text-accent font-mono font-medium" title={t("recv.fromQueue", { queue: msg.queue })}>
                           {msg.queue}
                         </span>
                       )}
@@ -1266,7 +1265,7 @@ export default function SubscriberView({ connected, defaultAddress, activeProfil
                 {refMsg && refMsg.id !== selected.id ? (
                   <button
                     onClick={() => setDiffOpen(true)}
-                    title={`Compare to '${refMsg.meta.message_id ?? "ref"}'`}
+                    title={t("recv.compareTo", { id: refMsg.meta.message_id ?? "ref" })}
                     className="flex items-center gap-1 h-7 px-2.5 rounded-lg text-[12px] font-medium text-accent hover:bg-accent/10 transition-colors"
                   >
                     <GitCompare className="w-3 h-3" /> Diff
@@ -1965,8 +1964,8 @@ function ReplayModal({ connected, activeProfile, onLog, onClose }: {
                   <div className="text-[10px] uppercase tracking-wide text-content-subtle mb-1">{t("recv.replay.recording")}</div>
                   <div className="text-[13px] text-t-ink font-mono truncate">{sel.name}</div>
                   <div className="text-[11.5px] text-t-ink5 mt-0.5">
-                    {sel.message_count} message{sel.message_count === 1 ? "" : "s"} · {fmtBytes(sel.bytes)}
-                    {sel.source_queue && <> · captured from <span className="font-mono text-t-ink4">{sel.source_queue}</span></>}
+                    {t("recv.replay.summary", { count: formatNumber(sel.message_count), size: fmtBytes(sel.bytes) })}
+                    {sel.source_queue && <>{t("recv.replay.capturedFrom")}<span className="font-mono text-t-ink4">{sel.source_queue}</span></>}
                   </div>
                 </div>
 
@@ -1977,8 +1976,8 @@ function ReplayModal({ connected, activeProfile, onLog, onClose }: {
 
                 <div>
                   <label className="block text-[10px] uppercase tracking-wide text-content-subtle mb-1">
-                    Speed
-                    <span className="text-t-ink5 normal-case font-normal"> — 1 = real-time, 0 = max speed (no delays)</span>
+                    {t("recv.replay.speed")}
+                    <span className="text-t-ink5 normal-case font-normal">{t("recv.replay.speed.hint")}</span>
                   </label>
                   <div className="flex items-center gap-1">
                     {["0.5", "1", "2", "5", "0"].map(s => (
