@@ -1208,7 +1208,7 @@ const ru: Record<keyof typeof en, string> = {
   'browser.close': 'Закрыть просмотр',
   'browser.dlq': 'Очередь недоставленных.',
   'browser.dlq.note': 'У сообщений здесь обычно есть свойство с исходным адресом — _AMQ_ORIG_ADDRESS у Artemis, originalDestination у Classic. «Вернуть все» отправляет каждое туда, откуда оно пришло, чтобы получатель попробовал ещё раз.',
-  'browser.peeking': 'Подсматриваем сообщения…',
+  'browser.peeking': 'Смотрим сообщения…',
   'browser.peeking.hint': 'Читаем очередь, не забирая из неё',
   'browser.peekFailed': 'Не удалось подсмотреть',
   'browser.empty': 'Очередь пуста',
@@ -1426,7 +1426,7 @@ const ru: Record<keyof typeof en, string> = {
   // ── добавлено при полировке: то, что раньше было вписано в разметку ──
   'shell.latency': '{ms} мс',
   'history.clear.confirm': 'Удалить записей: {count}',
-  'history.clearing': 'Удаляю…',
+  'history.clearing': 'Удаляем…',
   'browser.live': 'обновляется',
   'browser.live.hint': 'Обновляется каждые {s} с',
   'browser.edit.prevSkipped': '○ Пропущено раньше',
