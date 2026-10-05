@@ -82,7 +82,7 @@ describe('buildSheets', () => {
     expect(constants.rows[1]).toEqual(['passport.scope.domain', 'Orders', 'password', 'passport.hidden', ''])
   })
 
-  it('служебные очереди в паспорт не идут', () => {
+  it('служебные очереди в отчёт не идут', () => {
     expect(sheet('passport.section.queues').rows.map((row) => row[2])).toEqual(['Orders.In'])
   })
 
@@ -100,7 +100,7 @@ describe('мелочи', () => {
   })
 
   it('имя файла — по хосту стенда', () => {
-    expect(passportFileName('http://esb.corp:8181/manager', '2026-10-05-1305')).toBe('fesb-passport-esb.corp-2026-10-05-1305.xlsx')
+    expect(passportFileName('http://esb.corp:8181/manager', '2026-10-05-1305')).toBe('fesb-stand-report-esb.corp-2026-10-05-1305.xlsx')
   })
 })
 

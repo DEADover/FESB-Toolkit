@@ -1,4 +1,4 @@
-//! Паспорт стенда: всё, что нужно сопровождению, одним обходом.
+//! Отчёт о стенде (в коде — passport): всё, что нужно сопровождению, одним обходом.
 //!
 //! Описание стенда для передачи на сопровождение собирается из того, что
 //! уже есть по разным экранам: домены, СОПС, их связи, точки входа и выхода,
@@ -99,7 +99,7 @@ fn read_part(dir: &Path, manifest: &ManifestDomain, server_manager: Option<&str>
         for path in paths {
             let Ok(xml) = fs::read_to_string(&path) else { continue };
             // Один СОПС — один файл. Дополнительные маршруты внутри него
-            // (`route-…:…`) FESB считает частями того же СОПС, и в паспорте
+            // (`route-…:…`) FESB считает частями того же СОПС, и в отчёте
             // они складываются в его строку, а не идут отдельными.
             let mut graphs = parse_route_graphs(&xml).into_iter();
             let Some(main) = graphs.next() else { continue };
@@ -138,7 +138,7 @@ fn read_part(dir: &Path, manifest: &ManifestDomain, server_manager: Option<&str>
     }
 }
 
-/// Обходит весь стенд и собирает конфигурационную часть паспорта.
+/// Обходит весь стенд и собирает конфигурационную часть отчёта о стенде.
 pub async fn walk<F: FnMut(ApiProgress)>(connection: &Connection, on_progress: F) -> Result<PassportWalk, String> {
     let server_manager = crate::api_report::server_queue_manager(connection).await;
     let parts = walk_domains(connection, on_progress, |dir, domain| read_part(dir, domain, server_manager.as_deref())).await?;

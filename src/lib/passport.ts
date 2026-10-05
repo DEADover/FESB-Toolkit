@@ -5,7 +5,7 @@ import type {
 } from '../types'
 import { routeStateLabel } from './routeState'
 
-/** Разделы паспорта — по листу на каждый, плюс сводка первым листом. */
+/** Разделы отчёта о стенде — по листу на каждый, плюс сводка первым листом. */
 export type PassportSection =
   | 'domains'
   | 'routes'
@@ -35,7 +35,7 @@ export interface PassportData {
   queues: Array<{ manager: QueueManager; rows: QueueRow[] }> | null
   certificates: CertificateReport | null
   modules: ModuleRow[] | null
-  /** Что собрать не удалось — попадает в сводку, а не обрывает паспорт. */
+  /** Что собрать не удалось — попадает в сводку, а не обрывает отчёт. */
   failures: Array<{ section: PassportSection; error: string }>
   /** Что собралось не целиком: лист есть, но части колонок не хватает. */
   warnings: string[]
@@ -219,7 +219,7 @@ function queuesSheet(data: PassportData, t: Translate): Sheet | null {
       t('passport.col.manager'), t('passport.col.managerState'), t('passport.col.queue'), t('passport.col.messages'),
       t('passport.col.consumers'), t('passport.col.producers'), t('passport.col.durable'), t('passport.col.paused'),
     ],
-    // Служебные очереди менеджера в паспорт не идут: их заводит сама шина,
+    // Служебные очереди менеджера в отчёт не идут: их заводит сама шина,
     // и сопровождению они ничего не говорят.
     rows: data.queues.flatMap(({ manager, rows }) => rows.filter((row) => !row.internal).map((row) => [
       manager.broker,
@@ -298,7 +298,7 @@ function modulesSheet(data: PassportData, t: Translate): Sheet | null {
   }
 }
 
-/** Первый лист: что это за стенд и что в паспорте. */
+/** Первый лист: что это за стенд и что в отчёте. */
 function summarySheet(data: PassportData, sheets: Array<{ section: PassportSection; sheet: Sheet }>, t: Translate, now: number): Sheet {
   const rows: string[][] = [
     [t('passport.summary.stand'), data.stand.name],
@@ -332,7 +332,7 @@ function summarySheet(data: PassportData, sheets: Array<{ section: PassportSecti
 }
 
 /**
- * Книга паспорта: сводка и по листу на каждый собранный раздел.
+ * Книга отчёта о стенде: сводка и по листу на каждый собранный раздел.
  *
  * Раздел, который выбрали, но собрать не смогли, листа не получает — его
  * причина стоит в сводке. Пустой лист читался бы как «на стенде ничего нет».
@@ -358,8 +358,8 @@ export function buildSheets(data: PassportData, sections: Set<PassportSection>, 
   return [summarySheet(data, sheets, t, now), ...sheets.map((item) => item.sheet)]
 }
 
-/** Имя файла: хост стенда и время — паспорта разных стендов не путаются. */
+/** Имя файла: хост стенда и время — отчёты разных стендов не путаются. */
 export function passportFileName(url: string, stamp: string): string {
   const host = url.replace(/^https?:\/\//, '').split(/[/:]/)[0].replace(/[^A-Za-z0-9.-]/g, '-') || 'fesb'
-  return `fesb-passport-${host}-${stamp}.xlsx`
+  return `fesb-stand-report-${host}-${stamp}.xlsx`
 }

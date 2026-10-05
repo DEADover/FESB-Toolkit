@@ -744,7 +744,7 @@ fn settings_write(app: AppHandle, key: String, value: Option<String>) -> Result<
     settings_store::write(&settings_dir(&app)?, &key, value.as_deref())
 }
 
-/// Конфигурационная часть паспорта стенда: описания, точки и связи СОПС.
+/// Конфигурационная часть отчёта о стенде: описания, точки и связи СОПС.
 #[tauri::command]
 async fn api_passport_walk(app: AppHandle, connection: Connection) -> Result<stand_passport::PassportWalk, String> {
     stand_passport::walk(&connection, |progress| {
@@ -753,7 +753,7 @@ async fn api_passport_walk(app: AppHandle, connection: Connection) -> Result<sta
     .await
 }
 
-/// Книга Excel из нескольких листов — для паспорта стенда.
+/// Книга Excel из нескольких листов — для отчёта о стенде.
 #[tauri::command]
 async fn save_workbook(path: String, sheets: Vec<xlsx::Sheet>) -> Result<(), String> {
     xlsx::write_book(std::path::Path::new(&path), &sheets)

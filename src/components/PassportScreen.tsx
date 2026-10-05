@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
-import { CheckCircle, Circle, DownloadSimple, IdentificationCard, MinusCircle, WarningCircle } from '@phosphor-icons/react'
+import { CheckCircle, Circle, DownloadSimple, ClipboardText, MinusCircle, WarningCircle } from '@phosphor-icons/react'
 
 import { formatNumber, useI18n, type MessageKey } from '../i18n'
 import {
@@ -21,7 +21,7 @@ interface Props {
   connection: Connection | null
   server: ServerInfo | null
   onGoToConnection: () => void
-  /** Имя стенда из подключений — им паспорт и подписан. */
+  /** Имя стенда из подключений — им отчёт и подписан. */
   standName: string | null
 }
 
@@ -67,9 +67,9 @@ function stagesFor(sections: Set<PassportSection>): StageId[] {
 }
 
 /**
- * Паспорт стенда: описание для передачи на сопровождение одним файлом.
+ * Отчёт о стенде: описание для передачи на сопровождение одним файлом.
  *
- * Всё это по отдельности уже есть на других экранах, но паспорт нужен целиком
+ * Всё это по отдельности уже есть на других экранах, но отчёт нужен целиком
  * и в одном месте: его отдают дежурной смене или заказчику при сдаче проекта.
  * Значения скрытых констант в файл не попадают.
  */
@@ -87,7 +87,7 @@ export function PassportScreen({ connection, server, onGoToConnection, standName
   const current = useRef<StageId | null>(null)
   /**
    * Номер сборки. Сменили стенд или ушли с экрана — номер растёт, и шаги
-   * прежней сборки больше ничего не пишут на экран: иначе паспорт стенда A
+   * прежней сборки больше ничего не пишут на экран: иначе отчёт о стенде A
    * появился бы под стендом B.
    */
   const run = useRef(0)
@@ -100,13 +100,13 @@ export function PassportScreen({ connection, server, onGoToConnection, standName
     return () => { void stop.then((off) => off()) }
   }, [])
 
-  // Готовый паспорт оказывается под шагами, ниже края окна: подводим к нему,
+  // Готовый отчёт оказывается под шагами, ниже края окна: подводим к нему,
   // иначе кнопку сохранения приходится искать прокруткой.
   useEffect(() => {
     if (data) summary.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
   }, [data])
 
-  // Сменили стенд — собранный паспорт относится к прежнему.
+  // Сменили стенд — собранный отчёт относится к прежнему.
   useEffect(() => {
     run.current += 1
     current.current = null
@@ -260,7 +260,7 @@ export function PassportScreen({ connection, server, onGoToConnection, standName
         <Panel>
           <div className="space-y-4 p-4">
             <div className="flex items-start gap-3">
-              <IdentificationCard size={22} className="mt-0.5 shrink-0 text-accent-content" />
+              <ClipboardText size={22} className="mt-0.5 shrink-0 text-accent-content" />
               <div className="min-w-0">
                 <h2 className="text-[14px] font-semibold">{t('passport.intro.title')}</h2>
                 <p className="mt-1 max-w-3xl text-[12.5px] leading-relaxed text-content-muted">{t('passport.intro.text')}</p>
@@ -293,7 +293,7 @@ export function PassportScreen({ connection, server, onGoToConnection, standName
                 disabled={building || sections.size === 0}
                 onClick={() => void build()}
               >
-                <ButtonGlyph busy={building}><IdentificationCard size={14} weight="bold" /></ButtonGlyph>
+                <ButtonGlyph busy={building}><ClipboardText size={14} weight="bold" /></ButtonGlyph>
                 {data ? t('passport.rebuild') : t('passport.build')}
               </Button>
               <p className="text-[11.5px] text-content-subtle">

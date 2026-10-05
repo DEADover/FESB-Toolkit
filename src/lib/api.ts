@@ -578,7 +578,7 @@ export function journalUndoRun(connection: Connection, id: string, indexes: numb
 }
 
 /**
- * Конфигурационная часть паспорта стенда: описания доменов и СОПС, точки
+ * Конфигурационная часть отчёта о стенде: описания доменов и СОПС, точки
  * входа и выхода, связи. Стенд обходится целиком — на крупном это минуты.
  */
 export function apiPassportWalk(connection: Connection): Promise<PassportWalk> {

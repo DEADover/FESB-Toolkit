@@ -1157,7 +1157,7 @@ export interface UndoResult {
   outcomes: UndoOutcome[]
 }
 
-// ───────────────────────────── паспорт стенда ─────────────────────────────
+// ───────────────────────────── отчёт о стенде ─────────────────────────────
 
 export interface PassportDomain {
   guid: string
@@ -1188,7 +1188,7 @@ export interface PassportLink {
   kind: 'call' | 'queue'
 }
 
-/** Конфигурационная часть паспорта: то, для чего стенд обходится целиком. */
+/** Конфигурационная часть отчёта о стенде: то, для чего стенд обходится целиком. */
 export interface PassportWalk {
   domains: PassportDomain[]
   routes: PassportRoute[]
