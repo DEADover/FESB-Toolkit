@@ -809,7 +809,16 @@ pub async fn endpoint_report<F: FnMut(ApiProgress)>(
     })
     .await?;
 
-    let mut points: Vec<crate::api_report::Endpoint> = per_domain.into_iter().flatten().collect();
+    let points: Vec<crate::api_report::Endpoint> = per_domain.into_iter().flatten().collect();
+    Ok(finish_endpoints(connection, points).await)
+}
+
+/// Дополняет точки из СОПС тем, что знает только сервер: REST-домены,
+/// TLS и авторизацию портов, слушается ли порт, — и сортирует.
+pub(crate) async fn finish_endpoints(
+    connection: &Connection,
+    mut points: Vec<crate::api_report::Endpoint>,
+) -> Vec<crate::api_report::Endpoint> {
     // REST-домены живут отдельно от СОПС, но слушают свои порты так же.
     points.extend(crate::api_report::rest_endpoints(connection).await);
     let guids: Vec<String> = points.iter().map(|point| point.domain_guid.clone()).collect();
@@ -839,7 +848,7 @@ pub async fn endpoint_report<F: FnMut(ApiProgress)>(
             .then_with(|| a.route.to_lowercase().cmp(&b.route.to_lowercase()))
             .then_with(|| a.direction.cmp(&b.direction))
     });
-    Ok(points)
+    points
 }
 
 /// Выкачивает все домены пачками и отдаёт каждый распакованный домен разборщику.
@@ -847,7 +856,7 @@ pub async fn endpoint_report<F: FnMut(ApiProgress)>(
 /// Забирать сервер целиком дорого, поэтому пачки идут параллельно, а папка
 /// домена удаляется сразу после разбора: на диске никогда не лежит больше
 /// одной волны. Этим живут и указатель имён СОПС, и отчёт по точкам входа.
-async fn walk_domains<T, F, R>(
+pub(crate) async fn walk_domains<T, F, R>(
     connection: &Connection,
     on_progress: F,
     read: R,

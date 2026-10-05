@@ -2290,6 +2290,33 @@
             if (args.change.config !== null) row.traceBeans = args.change.config ? args.change.config.split(',') : []
             return { status: 'changed', before, after: { trace: row.trace, config: row.traceBeans.join(',') || null } }
           }
+          // Паспорт стенда: обход идёт три секунды и сообщает о ходе — так
+          // видно, как шаг показывает «120 из 256».
+          if (key === 'api_passport_walk') {
+            const emit = (current) => window.emitPreview('api:progress', { phase: 'domains', current, total: 256 })
+            for (const current of [0, 60, 120, 190, 256]) { emit(current); await new Promise((resolve) => setTimeout(resolve, 600)) }
+            const routes = DATA.api_routes_overview
+            const domains = [...new Map(routes.map((row) => [row.domainGuid, row.domain])).entries()]
+            return {
+              domains: domains.map(([guid, name], i) => ({
+                guid, name, description: i % 2 ? null : `CR ${4800 + i} · интеграция ${name}`, tags: null, group: null,
+                routes: routes.filter((row) => row.domainGuid === guid).length,
+              })),
+              routes: routes.map((row, i) => ({
+                domainGuid: row.domainGuid, domain: row.domain, id: row.id, name: row.name,
+                description: i % 3 ? null : 'Приём и передача документов', steps: 4 + (i % 7), transacted: i % 5 === 0,
+              })),
+              endpoints: DATA.api_endpoint_report,
+              links: routes.slice(1, 9).map((row, i) => ({
+                fromDomain: routes[i].domain, fromRoute: routes[i].name, toDomain: row.domain, toRoute: row.name,
+                uri: i % 2 ? `localmq:${row.name}` : `direct-vm:${row.name}`, kind: i % 2 ? 'queue' : 'call',
+              })),
+            }
+          }
+          if (key === 'api_properties_sweep') {
+            return DATA.api_properties.map((row, i) => ({ ...row, scope: i % 3 ? 'application' : 'broker', domain: null }))
+          }
+          if (key === 'save_workbook') return null
           // Журнал изменений: три записи — трассировка, константы с отменой,
           // копирование домена — и запуск доменов, который не отменяется.
           if (key === 'journal_open') return `journal-preview-${Date.now()}`

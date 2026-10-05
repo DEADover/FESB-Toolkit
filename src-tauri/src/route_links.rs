@@ -120,55 +120,73 @@ fn parse(xml: &str) -> Vec<Parsed> {
     routes
 }
 
+/// Маршруты одного домена вместе с их адресами — сырьё для связей.
+pub(crate) struct DomainRoutes {
+    pub(crate) routes: Vec<LinkedRoute>,
+    entries: Vec<Vec<String>>,
+    exits: Vec<Vec<String>>,
+}
+
+/// Читает маршруты одной папки домена.
+pub(crate) fn read_domain(dir: &Path) -> DomainRoutes {
+    let mut part = DomainRoutes { routes: Vec::new(), entries: Vec::new(), exits: Vec::new() };
+    let domain_dir = dir.file_name().map(|name| name.to_string_lossy().to_string()).unwrap_or_default();
+    // Имя домена лежит в его settings.properties; без него остаётся папка.
+    let domain = fs::read_to_string(dir.join("settings.properties"))
+        .ok()
+        .and_then(|text| crate::properties::parse_properties(&text).get("fesb.domain.name").cloned())
+        .filter(|name| !name.is_empty())
+        .unwrap_or_else(|| domain_dir.clone());
+
+    let routes_dir = dir.join("routes");
+    let Ok(files) = fs::read_dir(&routes_dir) else { return part };
+    let mut paths: Vec<PathBuf> = files
+        .flatten()
+        .map(|entry| entry.path())
+        .filter(|path| {
+            path.extension().is_some_and(|ext| ext == "xml")
+                && path.file_name().is_some_and(|name| name.to_string_lossy().starts_with("route-"))
+        })
+        .collect();
+    paths.sort();
+
+    for path in paths {
+        let Ok(xml) = fs::read_to_string(&path) else { continue };
+        for parsed in parse(&xml) {
+            part.routes.push(LinkedRoute {
+                id: parsed.id,
+                name: parsed.name,
+                domain: domain.clone(),
+                domain_dir: domain_dir.clone(),
+                path: path.to_string_lossy().to_string(),
+            });
+            part.entries.push(parsed.entries);
+            part.exits.push(parsed.exits);
+        }
+    }
+    part
+}
+
 /// Читает все маршруты выгрузки и связывает их по совпадению адресов.
 pub fn build_links(root: &Path) -> LinkGraph {
     let domains_dir = if root.join("domains").is_dir() { root.join("domains") } else { root.to_path_buf() };
-
-    let mut routes: Vec<LinkedRoute> = Vec::new();
-    let mut entries: Vec<Vec<String>> = Vec::new();
-    let mut exits: Vec<Vec<String>> = Vec::new();
-
     let Ok(domain_dirs) = fs::read_dir(&domains_dir) else {
-        return LinkGraph { routes, links: Vec::new() };
+        return LinkGraph { routes: Vec::new(), links: Vec::new() };
     };
     let mut dirs: Vec<PathBuf> = domain_dirs.flatten().map(|entry| entry.path()).filter(|path| path.is_dir()).collect();
     dirs.sort();
+    connect(dirs.iter().map(|dir| read_domain(dir)).collect())
+}
 
-    for dir in dirs {
-        let domain_dir = dir.file_name().map(|name| name.to_string_lossy().to_string()).unwrap_or_default();
-        // Имя домена лежит в его settings.properties; без него остаётся папка.
-        let domain = fs::read_to_string(dir.join("settings.properties"))
-            .ok()
-            .and_then(|text| crate::properties::parse_properties(&text).get("fesb.domain.name").cloned())
-            .filter(|name| !name.is_empty())
-            .unwrap_or_else(|| domain_dir.clone());
-
-        let routes_dir = dir.join("routes");
-        let Ok(files) = fs::read_dir(&routes_dir) else { continue };
-        let mut paths: Vec<PathBuf> = files
-            .flatten()
-            .map(|entry| entry.path())
-            .filter(|path| {
-                path.extension().is_some_and(|ext| ext == "xml")
-                    && path.file_name().is_some_and(|name| name.to_string_lossy().starts_with("route-"))
-            })
-            .collect();
-        paths.sort();
-
-        for path in paths {
-            let Ok(xml) = fs::read_to_string(&path) else { continue };
-            for parsed in parse(&xml) {
-                routes.push(LinkedRoute {
-                    id: parsed.id,
-                    name: parsed.name,
-                    domain: domain.clone(),
-                    domain_dir: domain_dir.clone(),
-                    path: path.to_string_lossy().to_string(),
-                });
-                entries.push(parsed.entries);
-                exits.push(parsed.exits);
-            }
-        }
+/// Сводит маршруты всех доменов и связывает их по совпадению адресов.
+pub(crate) fn connect(parts: Vec<DomainRoutes>) -> LinkGraph {
+    let mut routes: Vec<LinkedRoute> = Vec::new();
+    let mut entries: Vec<Vec<String>> = Vec::new();
+    let mut exits: Vec<Vec<String>> = Vec::new();
+    for part in parts {
+        routes.extend(part.routes);
+        entries.extend(part.entries);
+        exits.extend(part.exits);
     }
 
     // Кто каким адресом начинается — по нему и ищутся вызывающие.

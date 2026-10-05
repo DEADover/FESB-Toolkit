@@ -13,6 +13,7 @@ import { WelcomeScreen } from './components/WelcomeScreen'
 import { AccessScreen } from './components/AccessScreen'
 import { CertificatesScreen } from './components/CertificatesScreen'
 import { JournalScreen } from './components/JournalScreen'
+import { PassportScreen } from './components/PassportScreen'
 import { CompareScreen } from './components/CompareScreen'
 import { EndpointsScreen } from './components/EndpointsScreen'
 import { KeySearchScreen } from './components/KeySearchScreen'
@@ -363,6 +364,7 @@ export default function App() {
     'files.links': 'nav.files.links.title',
     'api.audit': 'nav.api.audit.title',
     'api.journal': 'nav.api.journal.title',
+    'api.passport': 'nav.api.passport.title',
     'api.access': 'nav.api.access.title',
     'api.routes': 'nav.api.routes.title',
     'api.endpoints': 'nav.api.endpoints.title',
@@ -592,6 +594,8 @@ export default function App() {
           <LogsScreen key={logFocus ? focus?.seq : undefined} {...apiScreenProps} exchange={logFocus} />
         ) : screen === 'api.audit' ? (
           <AuditScreen {...apiScreenProps} />
+        ) : screen === 'api.passport' ? (
+          <PassportScreen {...apiScreenProps} standName={session?.profile.name ?? null} />
         ) : screen === 'api.journal' ? (
           <JournalScreen {...apiScreenProps} prod={session?.profile.environment === 'prod'} />
         ) : screen === 'api.access' ? (

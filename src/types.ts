@@ -1151,3 +1151,42 @@ export interface UndoResult {
   entry: string
   outcomes: UndoOutcome[]
 }
+
+// ───────────────────────────── паспорт стенда ─────────────────────────────
+
+export interface PassportDomain {
+  guid: string
+  name: string
+  description: string | null
+  tags: string | null
+  group: string | null
+  routes: number
+}
+
+export interface PassportRoute {
+  domainGuid: string
+  domain: string
+  id: string | null
+  name: string | null
+  /** Комментарий автора схемы — ближайшее к «назначению» СОПС, что есть в конфиге. */
+  description: string | null
+  steps: number
+  transacted: boolean
+}
+
+export interface PassportLink {
+  fromDomain: string
+  fromRoute: string
+  toDomain: string
+  toRoute: string
+  uri: string
+  kind: 'call' | 'queue'
+}
+
+/** Конфигурационная часть паспорта: то, для чего стенд обходится целиком. */
+export interface PassportWalk {
+  domains: PassportDomain[]
+  routes: PassportRoute[]
+  endpoints: ApiEndpoint[]
+  links: PassportLink[]
+}

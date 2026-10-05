@@ -1139,3 +1139,77 @@ fn journal_undoes_what_the_toolkit_changed() {
     assert!(!present(&domain));
     println!("копирование: отмена отменена, домен убран");
 }
+
+/// Паспорт стенда: один обход даёт домены, СОПС, точки и связи.
+///
+/// ```sh
+/// FESB_URL=http://localhost:8181/manager cargo test --test api passport -- --ignored --nocapture
+/// ```
+#[test]
+#[ignore]
+fn passport_walks_the_stand() {
+    use fesb_toolkit_lib::testing::passport_walk;
+
+    let Some(connection) = connection() else {
+        eprintln!("FESB_URL не задан — пропускаем");
+        return;
+    };
+    let started = std::time::Instant::now();
+    let walk = block(passport_walk(&connection, |_| {})).expect("обход");
+    println!(
+        "доменов {} · СОПС {} · точек {} · связей {} · {:.1} с",
+        walk.domains.len(),
+        walk.routes.len(),
+        walk.endpoints.len(),
+        walk.links.len(),
+        started.elapsed().as_secs_f32()
+    );
+    let described = walk.domains.iter().filter(|domain| domain.description.is_some()).count();
+    let commented = walk.routes.iter().filter(|route| route.description.is_some()).count();
+    let calls = walk.links.iter().filter(|link| link.kind == "call").count();
+    println!("с описанием: доменов {described}, СОПС {commented}; прямых вызовов {calls}, через очереди {}", walk.links.len() - calls);
+    assert!(!walk.domains.is_empty());
+    assert_eq!(walk.routes.len(), walk.domains.iter().map(|domain| domain.routes).sum::<usize>());
+    // Сверка с отдельным списком СОПС сервера: обход видит те же маршруты.
+    let overview = block(routes_overview(&connection)).expect("список СОПС");
+    println!("СОПС по списку сервера: {}", overview.len());
+    // Дополнительные маршруты внутри СОПС складываются в свой СОПС —
+    // значит, обход и список сервера считают одно и то же.
+    assert_eq!(walk.routes.len(), overview.len(), "обход и список сервера разошлись в числе СОПС");
+
+    // С PASSPORT_OUT данные ложатся в файл: из них интерфейсный код строит
+    // листы, и по ним проверяется настоящая книга (см. passport_book_opens).
+    if let Ok(out) = std::env::var("PASSPORT_OUT") {
+        let stats = block(domain_statistics(&connection)).expect("сводка доменов");
+        let constants = block(fesb_toolkit_lib::testing::properties_sweep(&connection, |_| {})).expect("константы");
+        let certificates = block(certificates(&connection)).expect("сертификаты");
+        let modules = block(modules(&connection)).expect("модули");
+        let managers = block(queue_managers(&connection)).expect("менеджеры");
+        let mut queues = Vec::new();
+        for manager in managers.iter().filter(|manager| manager.running) {
+            let rows = block(fesb_toolkit_lib::testing::queues(&connection, manager.kind, &manager.id)).expect("очереди");
+            queues.push(serde_json::json!({ "manager": manager, "rows": rows }));
+        }
+        let usage = block(server_usage(&connection)).expect("сведения");
+        let dump = serde_json::json!({
+            "walk": walk, "routes": overview, "stats": stats, "constants": constants,
+            "certificates": certificates, "modules": modules, "queues": queues, "usage": usage,
+        });
+        std::fs::write(&out, serde_json::to_string(&dump).unwrap()).expect("запись");
+        println!("данные паспорта: {out}");
+    }
+}
+
+/// Пишет книгу из листов, построенных интерфейсным кодом (`SHEETS_IN`).
+#[test]
+#[ignore]
+fn passport_book_opens() {
+    use fesb_toolkit_lib::testing::{write_book, Sheet};
+    let (Ok(input), Ok(output)) = (std::env::var("SHEETS_IN"), std::env::var("BOOK_OUT")) else {
+        eprintln!("SHEETS_IN или BOOK_OUT не заданы — пропускаем");
+        return;
+    };
+    let sheets: Vec<Sheet> = serde_json::from_str(&std::fs::read_to_string(input).unwrap()).unwrap();
+    write_book(std::path::Path::new(&output), &sheets).expect("книга");
+    println!("книга: {output}, листов {}", sheets.len());
+}

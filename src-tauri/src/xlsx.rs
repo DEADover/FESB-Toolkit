@@ -95,16 +95,54 @@ fn cell(column: usize, row: usize, value: &str) -> String {
     }
 }
 
+/// Лист книги: первая строка — шапка, дальше данные.
+#[derive(Debug, Clone, serde::Deserialize)]
+pub struct Sheet {
+    pub name: String,
+    pub headers: Vec<String>,
+    pub rows: Vec<Vec<String>>,
+}
+
 /// Пишет одну таблицу в файл Excel: первая строка — шапка, дальше данные.
-///
-/// Шапка закреплена и снабжена автофильтром: отчёт на несколько тысяч строк
-/// без этого нечитаем.
 pub fn write_sheet(
     path: &Path,
     sheet_name: &str,
     headers: &[String],
     rows: &[Vec<String>],
 ) -> Result<(), String> {
+    let sheet = Sheet { name: sheet_name.to_string(), headers: headers.to_vec(), rows: rows.to_vec() };
+    write_book(path, std::slice::from_ref(&sheet))
+}
+
+/// Имена листов без повторов: Excel не открывает книгу с двумя одинаковыми
+/// листами, а имена сравнивает без учёта регистра.
+fn unique_titles(sheets: &[Sheet]) -> Vec<String> {
+    let mut taken: Vec<String> = Vec::new();
+    sheets
+        .iter()
+        .map(|sheet| {
+            let base = sheet_title(&sheet.name);
+            let mut title = base.clone();
+            let mut n = 2;
+            while taken.iter().any(|other| other.to_lowercase() == title.to_lowercase()) {
+                let suffix = format!(" ({n})");
+                title = format!("{}{suffix}", base.chars().take(31 - suffix.chars().count()).collect::<String>());
+                n += 1;
+            }
+            taken.push(title.clone());
+            title
+        })
+        .collect()
+}
+
+/// Пишет книгу из нескольких листов.
+///
+/// У каждого листа шапка закреплена и снабжена автофильтром: отчёт на
+/// несколько тысяч строк без этого нечитаем.
+pub fn write_book(path: &Path, sheets: &[Sheet]) -> Result<(), String> {
+    if sheets.is_empty() {
+        return Err("Nothing to write".into());
+    }
     let file = std::fs::File::create(path).map_err(|err| format!("Cannot create the file: {err}"))?;
     let mut zip = ZipWriter::new(file);
     let options = SimpleFileOptions::default().compression_method(zip::CompressionMethod::Deflated);
@@ -114,18 +152,24 @@ pub fn write_sheet(
         zip.write_all(body.as_bytes()).map_err(|err| format!("Cannot write {name}: {err}"))
     };
 
+    let overrides: String = (1..=sheets.len())
+        .map(|n| format!(r#"<Override PartName="/xl/worksheets/sheet{n}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>"#))
+        .collect::<Vec<_>>()
+        .join("\n");
     put(
         "[Content_Types].xml",
-        r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+        &format!(
+            r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
 <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
 <Default Extension="xml" ContentType="application/xml"/>
 <Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
-<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
+{overrides}
 <Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>
 <Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>
 <Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/>
-</Types>"#,
+</Types>"#
+        ),
     )?;
 
     put(
@@ -134,30 +178,56 @@ pub fn write_sheet(
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
 <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>
 <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/>
-<Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties" Target="docProps/app.xml"/>
+<Relationship Id="rId3" Type="http://schemas.openxmlformats.org/package/2006/relationships/extended-properties" Target="docProps/app.xml"/>
 </Relationships>"#,
     )?;
 
-    let last_column = column_name(headers.len().saturating_sub(1));
-    let last_row = rows.len() + 1;
+    let titles = unique_titles(sheets);
+    // Автофильтр в Excel — это скрытое имя `_xlnm._FilterDatabase` на каждом
+    // листе. Без него один лист фильтр показывает и так, а в книге из
+    // нескольких Excel при открытии ругается и чинит файл.
+    let filters: String = sheets
+        .iter()
+        .enumerate()
+        .map(|(index, sheet)| {
+            let last_column = column_name(sheet.headers.len().saturating_sub(1));
+            let last_row = sheet.rows.len() + 1;
+            let title = titles[index].replace('\'', "''");
+            format!(
+                r#"<definedName name="_xlnm._FilterDatabase" localSheetId="{index}" hidden="1">'{}'!$A$1:${last_column}${last_row}</definedName>"#,
+                escape(&title)
+            )
+        })
+        .collect();
+    let listed: String = titles
+        .iter()
+        .enumerate()
+        .map(|(index, title)| format!(r#"<sheet name="{}" sheetId="{}" r:id="rId{}"/>"#, escape(title), index + 1, index + 1))
+        .collect();
     put(
         "xl/workbook.xml",
         &format!(
             r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
-<sheets><sheet name="{}" sheetId="1" r:id="rId1"/></sheets>
-</workbook>"#,
-            escape(&sheet_title(sheet_name)),
+<sheets>{listed}</sheets>
+<definedNames>{filters}</definedNames>
+</workbook>"#
         ),
     )?;
 
+    let relations: String = (1..=sheets.len())
+        .map(|n| format!(r#"<Relationship Id="rId{n}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet{n}.xml"/>"#))
+        .collect();
     put(
         "xl/_rels/workbook.xml.rels",
-        r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+        &format!(
+            r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
-<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>
-<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
+{relations}
+<Relationship Id="rId{}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
 </Relationships>"#,
+            sheets.len() + 1
+        ),
     )?;
 
     // Один стиль сверх обычного: жирная шапка.
@@ -190,6 +260,21 @@ pub fn write_sheet(
 </Properties>"#,
     )?;
 
+    for (index, sheet) in sheets.iter().enumerate() {
+        put(&format!("xl/worksheets/sheet{}.xml", index + 1), &sheet_xml(sheet, index == 0))?;
+    }
+
+    zip.finish().map_err(|err| format!("Cannot finish the file: {err}"))?;
+    Ok(())
+}
+
+/// Разметка одного листа.
+fn sheet_xml(source: &Sheet, active: bool) -> String {
+    let headers = &source.headers;
+    let rows = &source.rows;
+    let last_column = column_name(headers.len().saturating_sub(1));
+    let last_row = rows.len() + 1;
+
     let mut sheet = String::with_capacity(rows.len() * 256);
     sheet.push_str(
         r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
@@ -200,7 +285,10 @@ pub fn write_sheet(
     // Перепутанные местами cols и sheetViews он считает книгу испорченной,
     // хотя другие читатели такой файл открывают без единого слова.
     sheet.push_str(&format!(r#"<dimension ref="A1:{last_column}{last_row}"/>"#));
-    sheet.push_str(r#"<sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/><selection pane="bottomLeft" activeCell="A2" sqref="A2"/></sheetView></sheetViews>"#);
+    // Выбранным может быть только один лист: два выбранных Excel
+    // открывает сгруппированными, и правка одного меняет оба.
+    let selected = if active { r#" tabSelected="1""# } else { "" };
+    sheet.push_str(&format!(r#"<sheetViews><sheetView{selected} workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/><selection pane="bottomLeft" activeCell="A2" sqref="A2"/></sheetView></sheetViews>"#));
     sheet.push_str(r#"<sheetFormatPr defaultRowHeight="15"/>"#);
 
     // Ширина колонки — по её содержимому, а не по заголовку.
@@ -251,10 +339,7 @@ pub fn write_sheet(
     sheet.push_str("</sheetData>");
     sheet.push_str(&format!(r#"<autoFilter ref="A1:{last_column}{last_row}"/>"#));
     sheet.push_str("</worksheet>");
-    put("xl/worksheets/sheet1.xml", &sheet)?;
-
-    zip.finish().map_err(|err| format!("Cannot finish the file: {err}"))?;
-    Ok(())
+    sheet
 }
 
 #[cfg(test)]
@@ -384,5 +469,39 @@ mod numeric_tests {
         for text in ["inf", "nan", "1e5", "00123", "+5", "5.", ".5", "1234567890123456", "QME:EQM", ""] {
             assert!(!looks_numeric(text), "{text}");
         }
+    }
+}
+
+#[cfg(test)]
+mod book_tests {
+    use super::*;
+    use std::io::Read;
+
+    fn sheet(name: &str) -> Sheet {
+        Sheet { name: name.into(), headers: vec!["A".into()], rows: vec![vec!["1".into()]] }
+    }
+
+    #[test]
+    fn a_book_gets_a_sheet_per_table_with_unique_names() {
+        let dir = std::env::temp_dir().join(format!("fesb-xlsx-book-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("book.xlsx");
+        write_book(&path, &[sheet("Сводка"), sheet("Домены"), sheet("домены")]).unwrap();
+
+        let mut zip = zip::ZipArchive::new(std::fs::File::open(&path).unwrap()).unwrap();
+        let mut workbook = String::new();
+        zip.by_name("xl/workbook.xml").unwrap().read_to_string(&mut workbook).unwrap();
+        assert!(workbook.contains(r#"<sheet name="Сводка" sheetId="1" r:id="rId1"/>"#));
+        assert!(workbook.contains(r#"name="домены (2)""#), "повтор имени без учёта регистра получает номер");
+        assert_eq!(workbook.matches("_xlnm._FilterDatabase").count(), 3);
+        for n in 1..=3 {
+            assert!(zip.by_name(&format!("xl/worksheets/sheet{n}.xml")).is_ok());
+        }
+        let mut first = String::new();
+        zip.by_name("xl/worksheets/sheet1.xml").unwrap().read_to_string(&mut first).unwrap();
+        let mut second = String::new();
+        zip.by_name("xl/worksheets/sheet2.xml").unwrap().read_to_string(&mut second).unwrap();
+        assert!(first.contains("tabSelected") && !second.contains("tabSelected"), "выбран только первый лист");
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

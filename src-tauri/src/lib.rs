@@ -29,6 +29,7 @@ mod route_xml;
 mod routes_overview;
 mod scanner;
 mod snapshot_store;
+mod stand_passport;
 mod security;
 mod settings_store;
 mod trace_options;
@@ -741,6 +742,21 @@ fn settings_write(app: AppHandle, key: String, value: Option<String>) -> Result<
     settings_store::write(&settings_dir(&app)?, &key, value.as_deref())
 }
 
+/// Конфигурационная часть паспорта стенда: описания, точки и связи СОПС.
+#[tauri::command]
+async fn api_passport_walk(app: AppHandle, connection: Connection) -> Result<stand_passport::PassportWalk, String> {
+    stand_passport::walk(&connection, |progress| {
+        let _ = app.emit(API_PROGRESS_EVENT, progress);
+    })
+    .await
+}
+
+/// Книга Excel из нескольких листов — для паспорта стенда.
+#[tauri::command]
+async fn save_workbook(path: String, sheets: Vec<xlsx::Sheet>) -> Result<(), String> {
+    xlsx::write_book(std::path::Path::new(&path), &sheets)
+}
+
 /// Список стендов в файл — путь выбран человеком в окне сохранения.
 #[tauri::command]
 async fn stands_file_write(path: String, text: String) -> Result<(), String> {
@@ -984,6 +1000,8 @@ pub fn run() {
             journal_read,
             journal_undo_plan,
             journal_undo_run,
+            api_passport_walk,
+            save_workbook,
             api_log_files,
             api_log,
             api_audit,
@@ -1048,9 +1066,11 @@ pub mod testing {
         set_route_trace as journaled_route_trace, Note, UndoPlan,
     };
     pub use crate::fesb_ops::delete_domain;
+    pub use crate::stand_passport::walk as passport_walk;
+    pub use crate::xlsx::{write_book, Sheet};
     pub use crate::fesb_api::domain_trace_beans;
     pub use crate::fesb_ops::{
-        delete_property, domain_statistics, log_entries, log_files, modules, properties,
+        delete_property, domain_statistics, log_entries, log_files, modules, properties, properties_sweep,
         audit, queue_managers, queue_message, queue_messages, queue_search, queues, route_state,
         save_property,
         LogRequest, ManagerKind, PropertyRow,

@@ -9,7 +9,7 @@ import type {
   ApplyTarget, ArchiveProgress, ArchiveResult, AuditEntry, BrokerAccessReport, BrokerEndpoint,
   CertificateReport, Comparison, Connection, CopyPlan, CopyResult, DomainAction,
   DomainActionResult, DomainRoutes, DomainStat, DomainTraceBeans, DumpScan, ExtractResult, InflightExchange,
-  JournalEntry, JournalEntrySummary, JournalNote,
+  JournalEntry, JournalEntrySummary, JournalNote, PassportWalk,
   KeyTrace, LinkGraph, LogEntry, LogFileRow, LogRequest, ManagerKind, MessageAction,
   MessageActionResult, ModuleAction, ModuleRow, MqConfigAudit, MqConfigKind, MqStoreOutcome,
   PropertyRow, PropertyScope, PullResult, PushResult, QueueManager, QueueMatch, QueueMessage,
@@ -575,6 +575,19 @@ export function journalUndoPlan(connection: Connection, id: string): Promise<Und
 
 export function journalUndoRun(connection: Connection, id: string, indexes: number[]): Promise<UndoResult> {
   return invoke<UndoResult>('journal_undo_run', { connection, id, indexes })
+}
+
+/**
+ * Конфигурационная часть паспорта стенда: описания доменов и СОПС, точки
+ * входа и выхода, связи. Стенд обходится целиком — на крупном это минуты.
+ */
+export function apiPassportWalk(connection: Connection): Promise<PassportWalk> {
+  return invoke<PassportWalk>('api_passport_walk', { connection })
+}
+
+/** Книга Excel из нескольких листов. */
+export function saveWorkbook(path: string, sheets: Array<{ name: string; headers: string[]; rows: string[][] }>): Promise<void> {
+  return invoke<void>('save_workbook', { path, sheets })
 }
 
 export function apiLogFiles(connection: Connection): Promise<LogFileRow[]> {
