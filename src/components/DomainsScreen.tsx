@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { ArrowsClockwise, CaretDown, Copy, Play, Stop, X } from '@phosphor-icons/react'
 
 import { useI18n, useRichText } from '../i18n'
-import { apiDomainAction, apiDomains, apiDomainStatistics, errorText } from '../lib/api'
+import { apiDomainAction, apiDomains, apiDomainStatistics, errorText, journalEntry } from '../lib/api'
 import type { ConnectionStore } from '../lib/connection'
 import type { ApiDomain, ApiProgress, Connection, DomainAction, DomainStat, ServerInfo } from '../types'
 import {
@@ -183,7 +183,7 @@ export function DomainsScreen({ connection, server, pulling, progress, error: pu
     setPending(`${domain.guid}:${action}`)
     setListError(null)
     try {
-      const result = await apiDomainAction(connection, domain.guid, action)
+      const result = await apiDomainAction(connection, domain.guid, action, { name: domain.name })
       if (!result.done) setRefused(domain)
       await load()
     } catch (err) {
@@ -215,12 +215,13 @@ export function DomainsScreen({ connection, server, pulling, progress, error: pu
 
     setBulk({ action, total: targets.length, done: 0, results: [], finished: false })
     setListError(null)
+    const entry = await journalEntry(connection, 'domains')
 
     for (const domain of targets) {
       let done = false
       let error: string | null = null
       try {
-        done = (await apiDomainAction(connection, domain.guid, action)).done
+        done = (await apiDomainAction(connection, domain.guid, action, { entry, name: domain.name })).done
       } catch (err) {
         error = errorText(err)
       }

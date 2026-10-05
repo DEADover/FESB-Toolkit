@@ -1,4 +1,4 @@
-import { ArrowCircleUp, FolderOpen, FolderSimple, ArrowsLeftRight, Broadcast, CaretDown, CaretLeft, PaperPlaneTilt, CaretRight, Certificate, CircleHalf, Crosshair, CrosshairSimple, Cube, FingerprintSimple, FloppyDisk, FlowArrow, Footprints, Key, GithubLogo, House, ListDashes, Moon, Plugs, PlugsConnected, Queue, SlidersHorizontal, Stack, Sun, Tray, ChartBar, ClockCounterClockwise, UsersThree, Binoculars, Terminal, type Icon } from '@phosphor-icons/react'
+import { ArrowCircleUp, FolderOpen, FolderSimple, ArrowsLeftRight, Broadcast, CaretDown, CaretLeft, PaperPlaneTilt, CaretRight, Certificate, CircleHalf, Crosshair, CrosshairSimple, Cube, FingerprintSimple, FloppyDisk, FlowArrow, Footprints, Key, GithubLogo, House, ListDashes, Moon, Notebook, Plugs, PlugsConnected, Queue, SlidersHorizontal, Stack, Sun, Tray, ChartBar, ClockCounterClockwise, UsersThree, Binoculars, Terminal, type Icon } from '@phosphor-icons/react'
 
 import { useEffect, useState } from 'react'
 
@@ -27,6 +27,7 @@ export type ScreenId =
   | 'api.properties'
   | 'api.logs'
   | 'api.audit'
+  | 'api.journal'
   | 'api.access'
   | 'amqp.publisher'
   | 'amqp.subscriber'
@@ -73,6 +74,7 @@ export const API_GENERAL_SCREENS: ScreenEntry[] = [
   { id: 'api.audit', label: 'nav.api.audit', hint: 'welcome.hint.audit', icon: FingerprintSimple },
   { id: 'api.domains', label: 'nav.api.domains', hint: 'welcome.hint.domains', icon: Stack },
   { id: 'api.inflight', label: 'nav.api.inflight', hint: 'welcome.hint.inflight', icon: Broadcast },
+  { id: 'api.journal', label: 'nav.api.journal', title: 'nav.api.journal.title', hint: 'welcome.hint.journal', icon: Notebook },
   { id: 'api.logs', label: 'nav.api.logs', hint: 'welcome.hint.logs', icon: ListDashes },
   { id: 'api.modules', label: 'nav.api.modules', hint: 'welcome.hint.modules', icon: Cube },
   { id: 'api.properties', label: 'nav.api.properties', hint: 'welcome.hint.properties', icon: SlidersHorizontal },

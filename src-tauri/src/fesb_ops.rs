@@ -381,6 +381,23 @@ pub enum PropertyScope {
 }
 
 impl PropertyScope {
+    /// Уровень одной строкой — так он лежит в журнале.
+    pub fn as_key(&self) -> String {
+        match self {
+            PropertyScope::Application => "application".into(),
+            PropertyScope::Broker => "broker".into(),
+            PropertyScope::Domain(guid) => guid.clone(),
+        }
+    }
+
+    pub fn from_key(key: &str) -> Self {
+        match key {
+            "application" => PropertyScope::Application,
+            "broker" => PropertyScope::Broker,
+            guid => PropertyScope::Domain(guid.to_string()),
+        }
+    }
+
     fn list_path(&self) -> String {
         match self {
             PropertyScope::Application => "/api/properties/application".into(),
@@ -533,6 +550,24 @@ pub async fn properties_sweep<F: FnMut(ApiProgress)>(
     }
 
     Ok(rows)
+}
+
+/// Одна константа, как она лежит на сервере сейчас; `None` — её нет.
+pub async fn property(connection: &Connection, scope: &PropertyScope, key: &str) -> Result<Option<PropertyRow>, String> {
+    Ok(properties(connection, scope.clone()).await?.into_iter().find(|row| row.key == key))
+}
+
+/// Удаляет домен целиком — так же, как кнопка «Удалить» в FESB.
+pub async fn delete_domain(connection: &Connection, guid: &str) -> Result<(), String> {
+    let client = connection.client()?;
+    let response = connection
+        .delete(&client, &format!("/api/domain/{guid}"))
+        .timeout(Duration::from_secs(300))
+        .send()
+        .await
+        .map_err(transport_error)?;
+    ensure_ok(response, "Cannot delete the domain").await?;
+    Ok(())
 }
 
 pub async fn delete_property(connection: &Connection, scope: PropertyScope, key: &str) -> Result<(), String> {

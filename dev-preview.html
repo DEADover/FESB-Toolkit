@@ -2290,6 +2290,82 @@
             if (args.change.config !== null) row.traceBeans = args.change.config ? args.change.config.split(',') : []
             return { status: 'changed', before, after: { trace: row.trace, config: row.traceBeans.join(',') || null } }
           }
+          // Журнал изменений: три записи — трассировка, константы с отменой,
+          // копирование домена — и запуск доменов, который не отменяется.
+          if (key === 'journal_open') return `journal-preview-${Date.now()}`
+          if (key === 'journal_list' || key === 'journal_read' || key === 'journal_undo_plan' || key === 'journal_undo_run') {
+            const server = DATA.api_connect.baseUrl
+            const trace = (domain, route, before, after) => ({
+              type: 'routeTrace', at: '2026-10-05T13:05:12', domainGuid: `domain-${domain}`, domain, routeId: `route-${route}`, route,
+              before: { trace: before, config: before ? 'TraceToQueue' : null }, after: { trace: after, config: 'MC.TRACE' },
+            })
+            const constant = (domain, key, before, after, error) => ({
+              type: 'constant', at: '2026-10-05T11:42:03', scope: domain ? `domain-${domain}` : 'application', domain, key,
+              before: before === null ? null : { value: before, description: null, secured: false, vault: false },
+              after: after === null ? null : { value: after, description: null, secured: false, vault: false },
+              ...(error ? { error } : {}),
+            })
+            const entries = {
+              'journal-3': {
+                head: { id: 'journal-3', server, user: 'root', origin: 'routeTrace', startedAt: '2026-10-05T13:05:10' },
+                items: [
+                  trace('Orders', 'Orders.Receive', false, true),
+                  trace('Orders', 'Orders.Confirm', false, true),
+                  trace('Payments.Gateway', 'Payments.In', true, true),
+                  trace('Warehouse', 'Warehouse.Stock', false, true),
+                ],
+              },
+              'journal-2': {
+                head: { id: 'journal-2', server, user: 'root', origin: 'constants', startedAt: '2026-10-05T11:42:01', undoneBy: ['journal-2u'] },
+                items: [
+                  constant('Orders', 'url.sap', 'https://sap-old.corp/api', 'https://sap.corp/api'),
+                  constant('Payments.Gateway', 'url.sap', 'https://sap-old.corp/api', 'https://sap.corp/api'),
+                  constant(null, 'timeout.sap', null, '30000'),
+                  constant('Warehouse', 'url.sap', 'https://sap-old.corp/api', 'https://sap.corp/api', 'HTTP 403: Access denied'),
+                ],
+              },
+              'journal-2u': {
+                head: { id: 'journal-2u', server, user: 'root', origin: 'undo', startedAt: '2026-10-05T11:50:44', undoOf: 'journal-2' },
+                items: [{ ...constant('Orders', 'url.sap', 'https://sap.corp/api', 'https://sap-old.corp/api'), undoes: 0 }],
+              },
+              'journal-1': {
+                head: { id: 'journal-1', server, user: 'root', origin: 'copy', startedAt: '2026-10-04T18:20:33' },
+                items: [
+                  { type: 'domain', at: '2026-10-04T18:20:41', guid: 'domain-orders', name: 'Orders', existed: true, backup: 'domain-orders.zip', group: null, mode: null, activeBefore: true, deleted: false },
+                  { type: 'domain', at: '2026-10-04T18:20:41', guid: 'domain-pay', name: 'Payments.Gateway', existed: false, backup: null, group: null, mode: null, activeBefore: false, deleted: false },
+                ],
+              },
+              'journal-0': {
+                head: { id: 'journal-0', server, user: 'operator', origin: 'domains', startedAt: '2026-10-04T09:02:15' },
+                items: ['Orders', 'Warehouse', 'Payments.Gateway'].map((name) => ({ type: 'action', at: '2026-10-04T09:02:16', target: 'domain', domain: null, name, action: 'restart', detail: null })),
+              },
+            }
+            const title = (item) => [item.domain, item.route ?? item.key ?? item.name].filter(Boolean).join(' · ')
+            if (key === 'journal_list') return Object.values(entries).map(({ head, items }) => {
+              const failed = items.filter((item) => item.error).length
+              const actions = items.filter((item) => !item.error && item.type === 'action').length
+              return {
+                ...head, changes: items.length - failed - actions, actions, failed,
+                targets: items.slice(0, 3).map(title), total: items.length, kinds: [...new Set(items.map((item) => item.type))],
+              }
+            })
+            const entry = entries[args.id] ?? entries['journal-3']
+            if (key === 'journal_read') return { ...entry.head, items: entry.items }
+            await new Promise((resolve) => setTimeout(resolve, 400))
+            const states = {
+              'journal-3': [['ready'], ['ready'], ['done'], ['conflict', null, { trace: false, config: null }]],
+              'journal-2': [['done'], ['ready'], ['ready'], ['impossible', 'failed']],
+              'journal-1': [['ready'], ['ready']],
+            }[entry.head.id] ?? entry.items.map(() => ['impossible', 'action'])
+            const rows = entry.items.map((item, index) => ({
+              index, item, state: states[index][0], reason: states[index][1] ?? null, current: states[index][2] ?? null,
+            }))
+            if (key === 'journal_undo_plan') return { entry: entry.head, rows }
+            return {
+              entry: 'journal-undo',
+              outcomes: args.indexes.map((index) => ({ index, title: title(entry.items[index]), status: 'undone', reason: null, error: null })),
+            }
+          }
           if (key in DATA) return DATA[key]
           return []
         },

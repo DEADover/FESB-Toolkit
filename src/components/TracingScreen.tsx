@@ -3,7 +3,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowCounterClockwise, DownloadSimple, Play, Pulse, Stop } from '@phosphor-icons/react'
 
 import { useI18n, type MessageKey, type Translate } from '../i18n'
-import { apiRouteAction, apiRoutesOverview, apiRouteTrace, errorText, revealPath, saveReport, saveXlsxAs } from '../lib/api'
+import {
+  apiRouteAction, apiRoutesOverview, apiRouteTrace, errorText, journalEntry, revealPath, saveReport, saveXlsxAs,
+} from '../lib/api'
 import type { RoutePlan } from '../lib/routeTrace'
 import { localStamp } from '../lib/paths'
 import type { Connection, RouteAction, RouteSummary, RouteTraceChange, ServerInfo } from '../types'
@@ -12,6 +14,7 @@ import {
   ErrorBar, NotConnected, Panel, RefreshButton, ScreenBody, StatsBar, TableMessage, useApiData,
   useDebounced,
 } from './ApiShell'
+import { JournalHint } from './JournalHint'
 import { useToast } from './Toaster'
 import {
   Badge, Button, ButtonGlyph, Checkbox, CodePill, cx, DataTable, Modal, MultiSelect, Notice, Readout, rowClick,
@@ -23,6 +26,7 @@ interface Props {
   server: ServerInfo | null
   onGoToConnection: () => void
   onOpenRoutes: (domainGuid: string) => void
+  onOpenJournal?: () => void
 }
 
 type State = 'all' | 'started' | 'stopped'
@@ -69,7 +73,7 @@ const HIDDEN_CELL = 'hidden xl:table-cell'
  * Поэтому здесь нет кнопки «собрать»: список читается при открытии экрана
  * и обновляется по кнопке, как везде.
  */
-export function TracingScreen({ connection, server, onGoToConnection, onOpenRoutes }: Props) {
+export function TracingScreen({ connection, server, onGoToConnection, onOpenRoutes, onOpenJournal }: Props) {
   const { t } = useI18n()
   const toast = useToast()
   const load = useCallback((open: Connection) => apiRoutesOverview(open), [])
@@ -162,10 +166,11 @@ export function TracingScreen({ connection, server, onGoToConnection, onOpenRout
 
     const failures: Array<{ row: RouteSummary; error: string }> = []
     let done = 0
+    const entry = await journalEntry(connection, 'routes')
     for (const row of targets) {
       if (cancelled.current) break
       try {
-        await apiRouteAction(connection, row.domainGuid, row.id, action)
+        await apiRouteAction(connection, row.domainGuid, row.id, action, { entry, domain: row.domain, name: row.name || row.id })
         done += 1
       } catch (err) {
         failures.push({ row, error: errorText(err) })
@@ -195,10 +200,11 @@ export function TracingScreen({ connection, server, onGoToConnection, onOpenRout
 
     const failures: Array<{ row: RouteSummary; error: string }> = []
     let done = 0
+    const entry = await journalEntry(connection, 'routeTrace')
     for (const row of targets) {
       if (cancelled.current) break
       try {
-        await apiRouteTrace(connection, row.domainGuid, row.id, change)
+        await apiRouteTrace(connection, row.domainGuid, row.id, change, { entry, domain: row.domain, name: row.name || row.id })
         done += 1
       } catch (err) {
         failures.push({ row, error: errorText(err) })
@@ -466,10 +472,13 @@ export function TracingScreen({ connection, server, onGoToConnection, onOpenRout
         {bulk && (
           <div className="space-y-3">
             {bulk.finished ? (
-              <Notice tone={bulk.failures.length > 0 ? 'warn' : 'ok'} small>
-                {t('tracing.bulk.done', { done: bulk.done })}
-                {bulk.failures.length > 0 && ` · ${t('tracing.bulk.failed', { count: bulk.failures.length })}`}
-              </Notice>
+              <>
+                <Notice tone={bulk.failures.length > 0 ? 'warn' : 'ok'} small>
+                  {t('tracing.bulk.done', { done: bulk.done })}
+                  {bulk.failures.length > 0 && ` · ${t('tracing.bulk.failed', { count: bulk.failures.length })}`}
+                </Notice>
+                {bulk.skipped && bulk.done > 0 && <JournalHint onOpenJournal={onOpenJournal} />}
+              </>
             ) : (
               <div className="flex items-center gap-2 text-[12px] text-content-muted">
                 <Spinner className="size-4" />

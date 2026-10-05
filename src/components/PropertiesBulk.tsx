@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { useI18n } from '../i18n'
-import { apiSaveProperty, errorText } from '../lib/api'
+import { apiSaveProperty, errorText, journalEntry } from '../lib/api'
 import type { Connection, PropertyScope, SweepRow } from '../types'
+import { JournalHint } from './JournalHint'
 import { Button, Modal, Notice, Segmented, Spinner, TextInput } from './ui'
 
 /** Что заменяем: вхождение внутри значения или значение целиком. */
@@ -15,8 +16,11 @@ interface Props {
   rows: SweepRow[]
   /** Чем заполнить поле поиска: обычно тем, что искали в таблице. */
   initialFrom?: string
+  /** Имя домена, когда таблица открыта на одном домене: у строк его нет. */
+  domainName?: string | null
   onClose: () => void
   onDone: () => void
+  onOpenJournal?: () => void
 }
 
 /** Строка, которая действительно изменится, и её будущее значение. */
@@ -35,7 +39,9 @@ interface Change {
  * Замена показывается до записи построчно: «было → станет». Без предпросмотра
  * массовая правка живого стенда — это выстрел вслепую.
  */
-export function PropertiesBulk({ open, connection, rows, initialFrom, onClose, onDone }: Props) {
+export function PropertiesBulk({
+  open, connection, rows, initialFrom, domainName, onClose, onDone, onOpenJournal,
+}: Props) {
   const { t } = useI18n()
   const [from, setFrom] = useState(initialFrom ?? '')
   const [to, setTo] = useState('')
@@ -88,6 +94,7 @@ export function PropertiesBulk({ open, connection, rows, initialFrom, onClose, o
     cancelled.current = false
     const errors: Array<{ row: SweepRow; error: string }> = []
     let done = 0
+    const entry = await journalEntry(connection, 'constants')
 
     // Последовательно, а не пачками: это запись в живую шину, и порядок
     // «одна константа — один ответ» делает ошибку видимой сразу, а не
@@ -101,6 +108,7 @@ export function PropertiesBulk({ open, connection, rows, initialFrom, onClose, o
           { ...plain(change.row), value: change.next },
           false,
           comment.trim() || t('properties.replace.commentDefault'),
+          { entry, domain: change.row.domain ?? domainName ?? null, name: change.row.key },
         )
         done += 1
       } catch (err) {
@@ -245,6 +253,7 @@ export function PropertiesBulk({ open, connection, rows, initialFrom, onClose, o
             {t('properties.replace.done', { done: finished })}
             {failures.length > 0 && ` · ${t('properties.replace.failed', { count: failures.length })}`}
           </Notice>
+          {finished > 0 && <JournalHint onOpenJournal={onOpenJournal} />}
           {failures.length > 0 && (
             <div className="max-h-64 overflow-y-auto rounded-lg border border-line">
               {failures.map((failure) => (

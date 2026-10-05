@@ -20,6 +20,7 @@ use serde::Serialize;
 use zip::write::SimpleFileOptions;
 use zip::{CompressionMethod, ZipArchive, ZipWriter};
 
+use crate::change_journal::{Change, Item, Sink};
 use crate::fesb_api::{
     api_message, coded, connect, domains, ensure_ok, transport_error, ApiProgress, Connection, ManifestDomain,
     ServerInfo,
@@ -104,10 +105,10 @@ pub struct CopyResult {
     pub finished_at: String,
 }
 
-/// Домен, выгруженный с исходного сервера: опись и его вложенный архив.
-struct Packed {
-    domain: ManifestDomain,
-    archive: Vec<u8>,
+/// Домен, выгруженный с сервера: опись и его вложенный архив.
+pub(crate) struct Packed {
+    pub(crate) domain: ManifestDomain,
+    pub(crate) archive: Vec<u8>,
 }
 
 struct Pending {
@@ -115,6 +116,11 @@ struct Pending {
     /// Адрес целевого сервера: загрузить архив в другой было бы подменой.
     target: String,
     packed: Vec<Packed>,
+    /// Копии тех же доменов на целевом сервере, снятые в предпросмотре:
+    /// они уходят в журнал, и по ним загрузка отменяется.
+    theirs: HashMap<String, Packed>,
+    /// Работал ли домен на целевом сервере до загрузки.
+    active: HashMap<String, bool>,
 }
 
 /// Последний предпросмотр. Хранится один: новый вытесняет старый, и память
@@ -161,11 +167,11 @@ pub async fn plan<F: FnMut(ApiProgress)>(
 
     // Копии на целевом сервере нужны только для тех доменов, что там уже есть.
     let existing: Vec<String> = guids.iter().filter(|guid| by_guid.contains_key(guid.as_str())).cloned().collect();
-    let mut theirs: HashMap<String, Vec<u8>> = HashMap::new();
+    let mut theirs: HashMap<String, Packed> = HashMap::new();
     for batch in existing.chunks(GUIDS_PER_REQUEST) {
         on_progress(ApiProgress { phase: "verify", current: theirs.len() as u64, total: existing.len() as u64 });
         for item in export(target, batch).await? {
-            theirs.insert(item.domain.guid, item.archive);
+            theirs.insert(item.domain.guid.clone(), item);
         }
     }
 
@@ -174,7 +180,7 @@ pub async fn plan<F: FnMut(ApiProgress)>(
         let ours = read_domain(&item.archive)?;
         let on_target = by_guid.get(item.domain.guid.as_str());
         let before = match theirs.get(&item.domain.guid) {
-            Some(bytes) => Some(read_domain(bytes)?),
+            Some(copy) => Some(read_domain(&copy.archive)?),
             None => None,
         };
         let name_taken_by = present
@@ -196,10 +202,13 @@ pub async fn plan<F: FnMut(ApiProgress)>(
 
     let bytes = packed.iter().map(|item| item.archive.len() as u64).sum();
     let id = format!("copy-{}", chrono::Local::now().timestamp_nanos_opt().unwrap_or_default());
+    let active = present.iter().map(|item| (item.guid.clone(), item.active)).collect();
     *PENDING.lock().map_err(|_| "Copy state is unavailable".to_string())? = Some(Pending {
         id: id.clone(),
         target: target.base(),
         packed,
+        theirs,
+        active,
     });
 
     Ok(CopyPlan { id, target: server, domains: rows, bytes })
@@ -214,6 +223,7 @@ pub async fn run<F: FnMut(ApiProgress)>(
     plan_id: &str,
     reload: bool,
     remove_missing: bool,
+    journal: Option<&Sink>,
     mut on_progress: F,
 ) -> Result<CopyResult, String> {
     let pending = {
@@ -236,7 +246,21 @@ pub async fn run<F: FnMut(ApiProgress)>(
 
     for batch in pending.packed.chunks(GUIDS_PER_REQUEST) {
         on_progress(ApiProgress { phase: "upload", current: outcomes.len() as u64, total });
+        // Копии перезаписываемых доменов ложатся в журнал до загрузки:
+        // без них отменить её будет нечем, и такую загрузку лучше не начинать.
+        let changes = match journal {
+            Some(sink) => Some(journal_changes(sink, batch, &pending)?),
+            None => None,
+        };
         let answer = upload(target, &client, batch, reload, remove_missing).await;
+        if let (Some(sink), Some(changes)) = (journal, changes) {
+            for change in changes {
+                sink.record(match &answer {
+                    Ok(_) => Item::now(change),
+                    Err(err) => Item::failed(change, err),
+                });
+            }
+        }
         for item in batch {
             outcomes.push(CopyOutcome {
                 guid: item.domain.guid.clone(),
@@ -256,8 +280,33 @@ pub async fn run<F: FnMut(ApiProgress)>(
     })
 }
 
+/// Записи журнала для пачки: прежние копии доменов — на диск.
+fn journal_changes(sink: &Sink, batch: &[Packed], pending: &Pending) -> Result<Vec<Change>, String> {
+    batch
+        .iter()
+        .map(|item| {
+            let guid = &item.domain.guid;
+            let before = pending.theirs.get(guid);
+            let backup = match before {
+                Some(copy) => Some(sink.backup(guid, &copy.archive)?),
+                None => None,
+            };
+            Ok(Change::Domain {
+                guid: guid.clone(),
+                name: item.domain.name.clone(),
+                existed: before.is_some(),
+                backup,
+                group: before.and_then(|copy| copy.domain.group.clone()),
+                mode: before.and_then(|copy| copy.domain.mode.clone()),
+                active_before: pending.active.get(guid).copied().unwrap_or(false),
+                deleted: false,
+            })
+        })
+        .collect()
+}
+
 /// Выгружает пачку доменов в память и раскладывает архив по доменам.
-async fn export(connection: &Connection, guids: &[String]) -> Result<Vec<Packed>, String> {
+pub(crate) async fn export(connection: &Connection, guids: &[String]) -> Result<Vec<Packed>, String> {
     let client = connection.client()?;
     let mut request = connection
         .get(&client, "/api/domains/export/archive")
@@ -316,7 +365,7 @@ fn split_export(bytes: &[u8]) -> Result<Vec<Packed>, String> {
 }
 
 /// Отправляет пачку доменов в формате, в котором их отдаёт выгрузка.
-async fn upload(
+pub(crate) async fn upload(
     target: &Connection,
     client: &reqwest::Client,
     batch: &[Packed],

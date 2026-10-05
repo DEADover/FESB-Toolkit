@@ -1333,7 +1333,7 @@ pub async fn push<F: FnMut(ApiProgress)>(
 }
 
 /// Опись лежит рядом с папкой выгрузки — так она не попадает в собранные архивы.
-fn read_manifest(root: &Path) -> Result<Manifest, String> {
+pub(crate) fn read_manifest(root: &Path) -> Result<Manifest, String> {
     let path = root
         .parent()
         .map(|parent| parent.join(MANIFEST_FILE))

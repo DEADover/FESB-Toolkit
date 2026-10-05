@@ -10,11 +10,13 @@ mod archive;
 mod broker_access;
 mod amqpush;
 mod certificates;
+mod change_journal;
 mod compare;
 mod domain_copy;
 mod domain_xml;
 mod fesb_api;
 mod fesb_ops;
+mod journal_ops;
 mod key_trace;
 mod properties;
 mod queue_dump;
@@ -35,9 +37,11 @@ mod xml;
 
 use std::path::PathBuf;
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter, Manager};
 
+use change_journal::Sink;
+use journal_ops::Note;
 use applier::{apply_trace_change, ApplyReport, ApplyRequest};
 use archive::{create_archive, extract_archive, ArchiveResult, ExtractResult};
 use fesb_api::{
@@ -67,6 +71,45 @@ pub struct AppInfo {
     /// Портативная сборка: exe без установщика. Установщик меняет его на
     /// свою установку, поэтому такой exe обновляется скачиванием нового файла.
     portable: bool,
+}
+
+/// Как правку записать в журнал: в какую запись и под какими именами.
+///
+/// Без записи (`entry`) команда заводит свою — на одно изменение. Массовая
+/// операция заводит запись сама (`journal_open`) и передаёт её в каждый вызов:
+/// так двести СОПС оказываются одной строкой журнала, а не двумястами.
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct JournalNote {
+    #[serde(default)]
+    entry: Option<String>,
+    #[serde(default)]
+    domain: Option<String>,
+    #[serde(default)]
+    name: Option<String>,
+}
+
+fn journal_dir(app: &AppHandle) -> Result<PathBuf, String> {
+    Ok(settings_dir(app)?.join("journal"))
+}
+
+/// Запись журнала для правки. Если журнал недоступен, правка всё равно идёт:
+/// ошибка папки данных — не повод отказывать в работе со стендом.
+fn journal_sink(app: &AppHandle, connection: &Connection, note: &Option<JournalNote>, origin: &str) -> Option<Sink> {
+    let dir = journal_dir(app).ok()?;
+    match note.as_ref().and_then(|note| note.entry.clone()) {
+        Some(entry) => Some(Sink { dir, entry }),
+        None => journal_ops::open_entry(&dir, connection, origin).map_err(|err| eprintln!("journal: {err}")).ok(),
+    }
+}
+
+fn note_for<'a>(sink: &'a Option<Sink>, note: &Option<JournalNote>) -> Note<'a> {
+    Note {
+        sink: sink.as_ref(),
+        domain: note.as_ref().and_then(|note| note.domain.clone()),
+        name: note.as_ref().and_then(|note| note.name.clone()),
+        undoes: None,
+    }
 }
 
 #[tauri::command]
@@ -182,7 +225,8 @@ async fn api_push(
     reload: bool,
 ) -> Result<PushResult, String> {
     let root = PathBuf::from(root);
-    fesb_api::push(&connection, &root, &guids, reload, |progress| {
+    let sink = journal_sink(&app, &connection, &None, "push");
+    journal_ops::push(&connection, &root, &guids, reload, sink.as_ref(), |progress| {
         let _ = app.emit(API_PROGRESS_EVENT, progress);
     })
     .await
@@ -211,7 +255,8 @@ async fn api_copy_run(
     reload: bool,
     remove_missing: bool,
 ) -> Result<domain_copy::CopyResult, String> {
-    domain_copy::run(&target, &plan_id, reload, remove_missing, |progress| {
+    let sink = journal_sink(&app, &target, &None, "copy");
+    domain_copy::run(&target, &plan_id, reload, remove_missing, sink.as_ref(), |progress| {
         let _ = app.emit(API_PROGRESS_EVENT, progress);
     })
     .await
@@ -230,12 +275,31 @@ async fn api_mq_config(
 /// Включает объектам менеджера очередей «Хранить в конфигурации».
 #[tauri::command]
 async fn api_mq_store(
+    app: AppHandle,
     connection: Connection,
     manager: ManagerKind,
     server: String,
     items: Vec<mq_config::StoreRequest>,
 ) -> Result<Vec<mq_config::StoreOutcome>, String> {
-    mq_config::store(&connection, manager, &server, &items).await
+    let result = mq_config::store(&connection, manager, &server, &items).await;
+    let sink = journal_sink(&app, &connection, &None, "mqConfig");
+    match &result {
+        Ok(outcomes) => {
+            for outcome in outcomes {
+                let note = Note { sink: sink.as_ref(), domain: Some(server.clone()), name: Some(outcome.id.clone()), undoes: None };
+                let request = items.iter().find(|item| item.id == outcome.id && item.kind == outcome.kind);
+                let action = if request.is_none_or(|item| item.stored) { "store" } else { "unstore" };
+                let done: Result<(), String> = match &outcome.error {
+                    Some(err) => Err(err.clone()),
+                    None => Ok(()),
+                };
+                note.action("queueObject", action, serde_json::to_value(outcome.kind).ok().and_then(|v| v.as_str().map(str::to_string)), &done);
+            }
+        }
+        Err(_) => Note { sink: sink.as_ref(), domain: Some(server.clone()), name: None, undoes: None }
+            .action("queueObject", "store", None, &result),
+    }
+    result
 }
 
 /// Разбирает файл СОПС в дерево шагов — из него рисуется схема.
@@ -287,18 +351,28 @@ async fn api_modules(connection: Connection) -> Result<Vec<ModuleRow>, String> {
 
 /// Запуск, остановка или перезапуск модуля.
 #[tauri::command]
-async fn api_module_action(connection: Connection, module: String, action: String) -> Result<(), String> {
-    fesb_ops::module_action(&connection, &module, &action).await
+async fn api_module_action(app: AppHandle, connection: Connection, module: String, action: String) -> Result<(), String> {
+    let result = fesb_ops::module_action(&connection, &module, &action).await;
+    let sink = journal_sink(&app, &connection, &None, "modules");
+    Note { sink: sink.as_ref(), name: Some(module), ..Note::default() }.action("module", &action, None, &result);
+    result
 }
 
 /// Запуск, остановка или перезапуск домена.
 #[tauri::command]
 async fn api_domain_action(
+    app: AppHandle,
     connection: Connection,
     guid: String,
     action: String,
+    journal: Option<JournalNote>,
 ) -> Result<DomainActionResult, String> {
-    fesb_ops::domain_action(&connection, &guid, &action).await
+    let result = fesb_ops::domain_action(&connection, &guid, &action).await;
+    let sink = journal_sink(&app, &connection, &journal, "domains");
+    let mut note = note_for(&sink, &journal);
+    note.name = note.name.or_else(|| note.domain.take()).or(Some(guid));
+    note.action("domain", &action, None, &result);
+    result
 }
 
 /// Сводка по всем доменам сервера: СОПС, ошибки, незавершённые сообщения.
@@ -423,24 +497,34 @@ async fn api_route_state(
 /// Запуск, остановка или сброс счётчиков СОПС.
 #[tauri::command]
 async fn api_route_action(
+    app: AppHandle,
     connection: Connection,
     domain: String,
     route: String,
     action: String,
+    journal: Option<JournalNote>,
 ) -> Result<(), String> {
-    fesb_ops::route_action(&connection, &domain, &route, &action).await
+    let result = fesb_ops::route_action(&connection, &domain, &route, &action).await;
+    let sink = journal_sink(&app, &connection, &journal, "routes");
+    let mut note = note_for(&sink, &journal);
+    note.name = note.name.or(Some(route));
+    note.action("route", &action, None, &result);
+    result
 }
 
 /// Трассировка одного СОПС. Приложение зовёт по одному СОПС за раз:
 /// так видно движение и можно остановиться посередине.
 #[tauri::command]
 async fn api_route_trace(
+    app: AppHandle,
     connection: Connection,
     domain: String,
     route: String,
     change: route_trace::RouteTraceChange,
+    journal: Option<JournalNote>,
 ) -> Result<route_trace::RouteTraceResult, String> {
-    route_trace::set_route_trace(&connection, &domain, &route, &change).await
+    let sink = journal_sink(&app, &connection, &journal, "routeTrace");
+    journal_ops::set_route_trace(&connection, &domain, &route, &change, None, &note_for(&sink, &journal)).await
 }
 
 #[tauri::command]
@@ -457,18 +541,29 @@ async fn api_save_points(connection: Connection) -> Result<Vec<SavePoint>, Strin
 }
 
 #[tauri::command]
-async fn api_create_save_point(connection: Connection) -> Result<(), String> {
-    fesb_ops::create_save_point(&connection).await
+async fn api_create_save_point(app: AppHandle, connection: Connection) -> Result<(), String> {
+    let result = fesb_ops::create_save_point(&connection).await;
+    let sink = journal_sink(&app, &connection, &None, "savePoints");
+    Note { sink: sink.as_ref(), ..Note::default() }.action("savePoint", "create", None, &result);
+    result
 }
 
 #[tauri::command]
-async fn api_delete_save_point(connection: Connection, point: SavePoint) -> Result<(), String> {
-    fesb_ops::delete_save_point(&connection, point).await
+async fn api_delete_save_point(app: AppHandle, connection: Connection, point: SavePoint) -> Result<(), String> {
+    let name = point.filename.clone();
+    let result = fesb_ops::delete_save_point(&connection, point).await;
+    let sink = journal_sink(&app, &connection, &None, "savePoints");
+    Note { sink: sink.as_ref(), name: Some(name), ..Note::default() }.action("savePoint", "delete", None, &result);
+    result
 }
 
 #[tauri::command]
-async fn api_rollback_save_point(connection: Connection, point: SavePoint) -> Result<(), String> {
-    fesb_ops::rollback_save_point(&connection, point).await
+async fn api_rollback_save_point(app: AppHandle, connection: Connection, point: SavePoint) -> Result<(), String> {
+    let name = point.filename.clone();
+    let result = fesb_ops::rollback_save_point(&connection, point).await;
+    let sink = journal_sink(&app, &connection, &None, "savePoints");
+    Note { sink: sink.as_ref(), name: Some(name), ..Note::default() }.action("savePoint", "rollback", None, &result);
+    result
 }
 
 /// Менеджеры очередей всех трёх видов.
@@ -527,6 +622,7 @@ async fn api_queue_message(
 /// Переотправка, перенос, копирование или удаление отмеченных сообщений.
 #[tauri::command]
 async fn api_queue_messages_action(
+    app: AppHandle,
     connection: Connection,
     kind: ManagerKind,
     id: String,
@@ -534,7 +630,23 @@ async fn api_queue_messages_action(
     ids: Vec<String>,
     action: fesb_ops::MessageAction,
 ) -> Result<fesb_ops::MessageActionResult, String> {
-    fesb_ops::queue_messages_action(&connection, kind, &id, &queue, ids, action).await
+    let count = ids.len();
+    let (verb, to) = match &action {
+        fesb_ops::MessageAction::Retry => ("retry", None),
+        fesb_ops::MessageAction::Move { to } => ("move", Some(to.clone())),
+        fesb_ops::MessageAction::Copy { to } => ("copy", Some(to.clone())),
+        fesb_ops::MessageAction::Delete => ("delete", None),
+    };
+    let result = fesb_ops::queue_messages_action(&connection, kind, &id, &queue, ids, action).await;
+    let sink = journal_sink(&app, &connection, &None, "messages");
+    let manager = serde_json::to_value(kind).ok().and_then(|v| v.as_str().map(str::to_uppercase)).unwrap_or_default();
+    let detail = match to {
+        Some(to) => format!("{count} → {to}"),
+        None => count.to_string(),
+    };
+    Note { sink: sink.as_ref(), domain: Some(format!("{manager}:{id}")), name: Some(queue), undoes: None }
+        .action("messages", verb, Some(detail), &result);
+    result
 }
 
 /// Поиск обмена по бизнес-ключу: журналы, незавершённые обмены и очереди.
@@ -708,22 +820,66 @@ async fn api_properties_sweep(
 
 #[tauri::command]
 async fn api_save_property(
+    app: AppHandle,
     connection: Connection,
     scope: PropertyScope,
     property: PropertyRow,
     create: bool,
     comment: Option<String>,
+    journal: Option<JournalNote>,
 ) -> Result<(), String> {
-    fesb_ops::save_property(&connection, scope, property, create, comment).await
+    let sink = journal_sink(&app, &connection, &journal, "constants");
+    journal_ops::save_constant(&connection, scope, property, create, comment, &note_for(&sink, &journal)).await
 }
 
 #[tauri::command]
 async fn api_delete_property(
+    app: AppHandle,
     connection: Connection,
     scope: PropertyScope,
     key: String,
+    journal: Option<JournalNote>,
 ) -> Result<(), String> {
-    fesb_ops::delete_property(&connection, scope, &key).await
+    let sink = journal_sink(&app, &connection, &journal, "constants");
+    journal_ops::delete_constant(&connection, scope, &key, &note_for(&sink, &journal)).await
+}
+
+/// Заводит запись журнала под массовую операцию.
+#[tauri::command]
+fn journal_open(app: AppHandle, connection: Connection, origin: String) -> Result<String, String> {
+    journal_ops::open_entry(&journal_dir(&app)?, &connection, &origin).map(|sink| sink.entry)
+}
+
+/// Записи журнала по стенду, свежие сверху.
+#[tauri::command]
+async fn journal_list(app: AppHandle, connection: Connection) -> Result<Vec<change_journal::EntrySummary>, String> {
+    Ok(change_journal::list(&journal_dir(&app)?, &connection.base()))
+}
+
+#[tauri::command]
+async fn journal_read(app: AppHandle, id: String) -> Result<change_journal::Entry, String> {
+    change_journal::read(&journal_dir(&app)?, &id)
+}
+
+/// Что из записи можно вернуть и что на сервере сейчас.
+#[tauri::command]
+async fn journal_undo_plan(app: AppHandle, connection: Connection, id: String) -> Result<journal_ops::UndoPlan, String> {
+    journal_ops::plan(&connection, &journal_dir(&app)?, &id).await
+}
+
+/// Возвращает выбранные изменения записи.
+#[tauri::command]
+async fn journal_undo_run(
+    app: AppHandle,
+    connection: Connection,
+    id: String,
+    indexes: Vec<usize>,
+) -> Result<journal_ops::UndoResult, String> {
+    let dir = journal_dir(&app)?;
+    journal_ops::run(&connection, &dir, &id, &indexes, |progress| {
+        let _ = app.emit(API_PROGRESS_EVENT, progress);
+    })
+    .await
 }
 
 /// Список файлов журналов сервера.
@@ -823,6 +979,11 @@ pub fn run() {
             snapshot_compare,
             api_save_property,
             api_delete_property,
+            journal_open,
+            journal_list,
+            journal_read,
+            journal_undo_plan,
+            journal_undo_run,
             api_log_files,
             api_log,
             api_audit,
@@ -881,6 +1042,12 @@ pub mod testing {
     pub use crate::security::access;
     pub use crate::routes_overview::routes_overview;
     pub use crate::route_trace::{set_route_trace, RouteTraceChange};
+    pub use crate::change_journal::{list as journal_list, open as journal_open, read as journal_read, Change, Sink};
+    pub use crate::journal_ops::{
+        open_entry as journal_entry, plan as undo_plan, push as journaled_push, run as undo_run, save_constant,
+        set_route_trace as journaled_route_trace, Note, UndoPlan,
+    };
+    pub use crate::fesb_ops::delete_domain;
     pub use crate::fesb_api::domain_trace_beans;
     pub use crate::fesb_ops::{
         delete_property, domain_statistics, log_entries, log_files, modules, properties,

@@ -335,7 +335,7 @@ export interface CopyResult {
 
 export interface ApiProgress {
   /** `domains` при выгрузке, `pack` и `upload` при отправке, `verify` при сверке, `messages` при поиске в очереди, остальные — при поиске по ключу. */
-  phase: 'domains' | 'pack' | 'upload' | 'verify' | 'messages' | 'logs' | 'inflight' | 'queues' | 'download'
+  phase: 'domains' | 'pack' | 'upload' | 'verify' | 'messages' | 'logs' | 'inflight' | 'queues' | 'download' | 'undo'
   current: number
   total: number
 }
@@ -1030,4 +1030,124 @@ export interface DumpScan {
   bytes: number
   /** Выгрузка больше предела — прочитана не вся очередь. */
   truncated: boolean
+}
+
+// ───────────────────────────── журнал изменений ─────────────────────────────
+
+/** Как правку записать в журнал: в общую запись операции и под какими именами. */
+export interface JournalNote {
+  /** Запись массовой операции; без неё команда заводит свою. */
+  entry?: string | null
+  /** Имя домена — guid в журнале читать невозможно. */
+  domain?: string | null
+  /** Имя объекта: СОПС, константы. */
+  name?: string | null
+}
+
+export interface JournalHead {
+  id: string
+  server: string
+  user: string
+  /** Откуда операция: `routeTrace`, `constants`, `transfer`, `copy`, `undo`… */
+  origin: string
+  startedAt: string
+  undoOf?: string
+  undoneBy?: string[]
+}
+
+export type JournalKind = 'routeTrace' | 'constant' | 'domain' | 'action'
+
+export interface JournalEntrySummary extends JournalHead {
+  changes: number
+  actions: number
+  failed: number
+  targets: string[]
+  total: number
+  kinds: JournalKind[]
+}
+
+/** Константа в журнале: без значения, если оно скрыто. */
+export interface JournalConstant {
+  value: string | null
+  description: string | null
+  secured: boolean
+  vault: boolean
+}
+
+export type JournalChange =
+  | {
+      type: 'routeTrace'
+      domainGuid: string
+      domain: string | null
+      routeId: string
+      route: string | null
+      before: RouteTraceState
+      after: RouteTraceState
+    }
+  | {
+      type: 'constant'
+      scope: string
+      domain: string | null
+      key: string
+      before: JournalConstant | null
+      after: JournalConstant | null
+    }
+  | {
+      type: 'domain'
+      guid: string
+      name: string
+      existed: boolean
+      backup: string | null
+      group: string | null
+      mode: string | null
+      activeBefore: boolean
+      deleted: boolean
+    }
+  | {
+      type: 'action'
+      target: string
+      domain: string | null
+      name: string
+      action: string
+      detail: string | null
+    }
+
+export type JournalItem = JournalChange & {
+  at: string
+  error?: string
+  undoes?: number
+}
+
+export interface JournalEntry extends JournalHead {
+  items: JournalItem[]
+}
+
+export type UndoState = 'ready' | 'done' | 'conflict' | 'impossible'
+
+export interface UndoRow {
+  index: number
+  item: JournalItem
+  state: UndoState
+  /** Почему нельзя: `failed`, `action`, `secured`, `noBackup`, `unreadable`. */
+  reason: string | null
+  /** Что на сервере сейчас — у расхождений. */
+  current: RouteTraceState | JournalConstant | string | null
+}
+
+export interface UndoPlan {
+  entry: JournalHead
+  rows: UndoRow[]
+}
+
+export interface UndoOutcome {
+  index: number
+  title: string
+  status: 'undone' | 'skipped' | 'failed'
+  reason: string | null
+  error: string | null
+}
+
+export interface UndoResult {
+  entry: string
+  outcomes: UndoOutcome[]
 }

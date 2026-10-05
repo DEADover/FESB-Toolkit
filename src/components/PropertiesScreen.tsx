@@ -17,6 +17,7 @@ interface Props {
   onGoToConnection: () => void
   /** Константа из палитры: ищется сразу по всему стенду. */
   initialQuery?: string | null
+  onOpenJournal?: () => void
 }
 
 type ScopeId = 'application' | 'broker' | 'domain' | 'all'
@@ -30,7 +31,7 @@ const EMPTY: PropertyRow = { key: '', value: '', secured: false, vault: false, e
  * константы маршрут падает на старте — поэтому смотреть и править их полезно
  * прямо здесь, не открывая веб-интерфейс.
  */
-export function PropertiesScreen({ connection, server, onGoToConnection, initialQuery = null }: Props) {
+export function PropertiesScreen({ connection, server, onGoToConnection, initialQuery = null, onOpenJournal }: Props) {
   const { t } = useI18n()
 
   const [scopeId, setScopeId] = useState<ScopeId>(initialQuery ? 'all' : 'application')
@@ -90,7 +91,8 @@ export function PropertiesScreen({ connection, server, onGoToConnection, initial
     setSaving(true)
     setError(null)
     try {
-      await apiSaveProperty(connection, scope, adding, true)
+      const domain = scopeId === 'domain' ? domains.data?.find((item) => item.guid === domainGuid)?.name : null
+      await apiSaveProperty(connection, scope, adding, true, undefined, { domain, name: adding.key })
       setAdding(null)
       await reload()
     } catch (err) {
@@ -98,7 +100,7 @@ export function PropertiesScreen({ connection, server, onGoToConnection, initial
     } finally {
       setSaving(false)
     }
-  }, [connection, scope, adding, reload, setError])
+  }, [connection, scope, scopeId, domainGuid, domains.data, adding, reload, setError])
 
   /**
    * Сохранение прямо из таблицы.
@@ -111,14 +113,15 @@ export function PropertiesScreen({ connection, server, onGoToConnection, initial
     setPending(row.key)
     setError(null)
     try {
-      await apiSaveProperty(connection, scopeOf(row), { ...plain(row), ...patch }, false)
+      const domain = row.domain ?? domains.data?.find((item) => item.guid === row.scope)?.name ?? null
+      await apiSaveProperty(connection, scopeOf(row), { ...plain(row), ...patch }, false, undefined, { domain, name: row.key })
       await reload()
     } catch (err) {
       setError(errorText(err))
     } finally {
       setPending(null)
     }
-  }, [connection, reload, setError])
+  }, [connection, domains.data, reload, setError])
 
   if (!connection || !server) return <NotConnected onGoToConnection={onGoToConnection} />
 
@@ -307,6 +310,8 @@ export function PropertiesScreen({ connection, server, onGoToConnection, initial
           connection={connection}
           rows={chosen}
           initialFrom={query.trim()}
+          domainName={scopeId === 'domain' ? (domains.data ?? []).find((item) => item.guid === domainGuid)?.name ?? null : null}
+          onOpenJournal={onOpenJournal}
           onClose={() => setReplacing(false)}
           onDone={() => { setSelected(new Set()); void reload() }}
         />

@@ -29,7 +29,7 @@ pub struct RouteTraceChange {
     pub config: Option<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TraceState {
     pub trace: bool,
@@ -83,11 +83,21 @@ pub fn comment_for(change: &RouteTraceChange) -> String {
     format!("FESB Toolkit: {}", parts.join(", "))
 }
 
+/// Трассировка СОПС, как она стоит на сервере сейчас.
+pub async fn current_state(connection: &Connection, domain: &str, route: &str) -> Result<TraceState, String> {
+    let client = connection.client()?;
+    let model = get_json(connection, &client, &format!("/api/broker/domain/{domain}/route/{route}")).await?;
+    Ok(state_of(&model))
+}
+
+/// Сохраняет трассировку СОПС. `comment` — своя строка для истории СОПС;
+/// без неё комментарий складывается из самой правки.
 pub async fn set_route_trace(
     connection: &Connection,
     domain: &str,
     route: &str,
     change: &RouteTraceChange,
+    comment: Option<&str>,
 ) -> Result<RouteTraceResult, String> {
     if change.enabled.is_none() && change.config.is_none() {
         return Err("Nothing to change".into());
@@ -104,7 +114,8 @@ pub async fn set_route_trace(
     object.insert("trace".into(), Value::Bool(after.trace));
     object.insert("traceConfig".into(), after.config.clone().map(Value::String).unwrap_or(Value::Null));
 
-    let body = serde_json::json!({ "data": model, "comment": comment_for(change) });
+    let comment = comment.map(str::to_string).unwrap_or_else(|| comment_for(change));
+    let body = serde_json::json!({ "data": model, "comment": comment });
     let response = connection
         .post(&client, &format!("/api/broker/domain/{domain}/route/saveRoute"))
         .timeout(Duration::from_secs(120))

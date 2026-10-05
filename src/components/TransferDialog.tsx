@@ -3,9 +3,10 @@ import { useCallback, useEffect, useState } from 'react'
 import { ArrowRight, CheckCircle, Copy, WarningCircle } from '@phosphor-icons/react'
 
 import { useI18n, type MessageKey } from '../i18n'
-import { apiDomains, apiProperties, apiSaveProperty, errorText } from '../lib/api'
+import { apiDomains, apiProperties, apiSaveProperty, errorText, journalEntry } from '../lib/api'
 import type { ConstantMove, ConstantScope, Direction, SkipReason, TransferPlan } from '../lib/transfer'
 import type { Connection, PropertyRow, PropertyScope } from '../types'
+import { JournalHint } from './JournalHint'
 import { Badge, Button, ButtonGlyph, cx, Modal, Notice } from './ui'
 
 /** Стенд одной из сторон переноса. */
@@ -73,6 +74,7 @@ export function TransferDialog({ open, onClose, plan, direction, source, target,
       const existing = new Map<string, PropertyRow[]>()
       const comment = t('transfer.comment', { source: source.name })
       const results: Outcome[] = []
+      const entry = await journalEntry(target.connection, 'transfer')
       for (const move of plan.constants) {
         results.push(await write(move))
         setOutcomes([...results])
@@ -97,7 +99,8 @@ export function TransferDialog({ open, onClose, plan, direction, source, target,
           const row: PropertyRow = there
             ? { ...there, value: move.value, empty: move.value === '' }
             : { key: move.key, value: move.value, secured: false, vault: false, empty: move.value === '', description: null }
-          await apiSaveProperty(target.connection, scope, row, !there, comment)
+          const domain = typeof move.scope === 'object' ? move.scope.domainName : null
+          await apiSaveProperty(target.connection, scope, row, !there, comment, { entry, domain, name: move.key })
           return { ok: true }
         } catch (err) {
           return { ok: false, error: errorText(err) }
@@ -150,6 +153,7 @@ export function TransferDialog({ open, onClose, plan, direction, source, target,
             {failed > 0 ? t('transfer.done.partly', { failed, total: plan.constants.length }) : t('transfer.done', { count: plan.constants.length })}
           </Notice>
         )}
+        {done && failed < plan.constants.length && <JournalHint />}
 
         {plan.constants.length > 0 && (
           <div className="max-h-80 overflow-auto rounded-lg border border-line">

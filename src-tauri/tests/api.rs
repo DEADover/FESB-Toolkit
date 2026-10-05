@@ -1005,7 +1005,7 @@ fn route_trace_switches_and_reads_back() {
     println!("объекты домена: {names:?}");
     assert!(names.contains(&"TraceToQueue"));
 
-    let step = |change: RouteTraceChange| block(set_route_trace(&connection, &domain, &route, &change)).expect("сохранение СОПС");
+    let step = |change: RouteTraceChange| block(set_route_trace(&connection, &domain, &route, &change, None)).expect("сохранение СОПС");
     let off = step(RouteTraceChange { enabled: Some(false), config: Some("TraceToQueue".into()) });
     println!("{:?} → {:?}", off.before, off.after);
     assert!(!off.after.trace);
@@ -1023,4 +1023,119 @@ fn route_trace_switches_and_reads_back() {
 
     let back = step(RouteTraceChange { enabled: Some(true), config: Some("TraceToQueue".into()) });
     println!("{:?} → {:?}", back.before, back.after);
+}
+
+/// Журнал и отмена по нему: трассировка СОПС, константа, созданная и потом
+/// изменённая в одной операции, и копирование домена на второй стенд.
+///
+/// ```sh
+/// FESB_URL=http://localhost:8181/manager FESB_TRACE_DOMAIN=domain-… FESB_TRACE_ROUTE=route-… \
+///   FESB_COPY_URL=http://localhost:8281/manager [FESB_COPY_RELOAD=1] \
+///   cargo test --test api journal -- --ignored --nocapture
+/// ```
+#[test]
+#[ignore]
+fn journal_undoes_what_the_toolkit_changed() {
+    use fesb_toolkit_lib::testing::{
+        copy_plan, copy_run, delete_domain, journal_entry, journal_list, journal_read, journaled_push, journaled_route_trace,
+        save_constant, undo_plan, undo_run, Note, RouteTraceChange, UndoPlan,
+    };
+
+    let (Some(connection), Ok(domain), Ok(route)) =
+        (connection(), std::env::var("FESB_TRACE_DOMAIN"), std::env::var("FESB_TRACE_ROUTE"))
+    else {
+        eprintln!("FESB_URL, FESB_TRACE_DOMAIN или FESB_TRACE_ROUTE не заданы — пропускаем");
+        return;
+    };
+    let unique = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
+    let dir = std::env::temp_dir().join(format!("fesb-journal-live-{unique}"));
+    let states = |plan: &UndoPlan| plan.rows.iter().map(|row| row.state).collect::<Vec<_>>();
+
+    // ── трассировка ──
+    let before = block(routes_overview(&connection)).expect("список СОПС").into_iter().find(|row| row.id == route).expect("СОПС");
+    let sink = journal_entry(&dir, &connection, "routeTrace").expect("запись");
+    let entry = sink.entry.clone();
+    let note = Note { sink: Some(&sink), domain: Some("TOOLKIT.TRACE".into()), name: Some("Toolkit.TraceProbe".into()), undoes: None };
+    let change = RouteTraceChange { enabled: Some(!before.trace), config: Some("TraceToMemory".into()) };
+    block(journaled_route_trace(&connection, &domain, &route, &change, None, &note)).expect("трассировка");
+    let plan = block(undo_plan(&connection, &dir, &entry)).expect("предпросмотр");
+    assert_eq!(states(&plan), vec!["ready"]);
+    let done = block(undo_run(&connection, &dir, &entry, &[0], |_| {})).expect("отмена");
+    assert_eq!(done.outcomes[0].status, "undone", "{:?}", done.outcomes[0]);
+    let after = block(routes_overview(&connection)).expect("список СОПС").into_iter().find(|row| row.id == route).expect("СОПС");
+    assert_eq!((after.trace, after.trace_beans.clone()), (before.trace, before.trace_beans.clone()));
+    assert_eq!(states(&block(undo_plan(&connection, &dir, &entry)).expect("повтор")), vec!["done"]);
+    println!("трассировка: {} → отменено", before.trace);
+
+    // ── константа: создать и поменять в одной операции ──
+    let scope = PropertyScope::Domain(domain.clone());
+    let key = format!("toolkit.journal.{unique}");
+    let sink = journal_entry(&dir, &connection, "constants").expect("запись");
+    let entry = sink.entry.clone();
+    let note = Note { sink: Some(&sink), domain: Some("TOOLKIT.TRACE".into()), name: Some(key.clone()), undoes: None };
+    let row = |value: &str| PropertyRow { key: key.clone(), value: Some(value.into()), secured: false, vault: false, empty: false, description: None };
+    block(save_constant(&connection, scope.clone(), row("a"), true, None, &note)).expect("создание");
+    block(save_constant(&connection, scope.clone(), row("b"), false, None, &note)).expect("правка");
+    let plan = block(undo_plan(&connection, &dir, &entry)).expect("предпросмотр");
+    assert_eq!(states(&plan), vec!["ready", "ready"], "ранняя правка сверяется с тем, что оставит поздняя");
+    let done = block(undo_run(&connection, &dir, &entry, &[0, 1], |_| {})).expect("отмена");
+    assert!(done.outcomes.iter().all(|outcome| outcome.status == "undone"), "{:?}", done.outcomes);
+    let left = block(properties(&connection, scope.clone())).expect("константы");
+    assert!(!left.iter().any(|item| item.key == key), "созданная константа удалена отменой");
+    println!("константа: создана, изменена, отменена целиком");
+
+    // ── загрузка из файлового режима: перед ней снимается копия домена ──
+    let pulled = block(pull(&connection, Some(std::slice::from_ref(&domain)), |_| {})).expect("выгрузка");
+    let sink = journal_entry(&dir, &connection, "push").expect("запись");
+    block(journaled_push(&connection, std::path::Path::new(&pulled.root), std::slice::from_ref(&domain), false, Some(&sink), |_| {}))
+        .expect("загрузка");
+    let plan = block(undo_plan(&connection, &dir, &sink.entry)).expect("предпросмотр");
+    assert_eq!(states(&plan), vec!["ready"], "домен был — значит, есть копия");
+    let done = block(undo_run(&connection, &dir, &sink.entry, &[0], |_| {})).expect("возврат из копии");
+    assert_eq!(done.outcomes[0].status, "undone", "{:?}", done.outcomes[0]);
+    println!("загрузка: домен возвращён из копии");
+
+    // Отмена — тоже запись, и её видно в журнале.
+    let listed = journal_list(&dir, &journal_read(&dir, &entry).expect("запись").head.server);
+    assert!(listed.iter().any(|item| item.head.origin == "undo"));
+    assert!(listed.iter().any(|item| !item.head.undone_by.is_empty()));
+
+    // ── копирование домена на второй стенд ──
+    let Ok(copy_url) = std::env::var("FESB_COPY_URL") else {
+        eprintln!("FESB_COPY_URL не задан — копирование не проверяем");
+        return;
+    };
+    let target = Connection { url: copy_url.clone(), ..connection.clone() };
+    let present = |guid: &str| block(domains(&target)).expect("домены").iter().any(|item| item.guid == guid);
+    assert!(!present(&domain), "на втором стенде домена быть не должно");
+
+    let plan = block(copy_plan(&connection, &target, &[domain.clone()], |_| {})).expect("предпросмотр копирования");
+    let sink = journal_entry(&dir, &target, "copy").expect("запись");
+    let entry = sink.entry.clone();
+    // С FESB_COPY_RELOAD домен на втором стенде запускается: отмена должна
+    // убрать и работающий домен.
+    let reload = std::env::var("FESB_COPY_RELOAD").is_ok();
+    block(copy_run(&target, &plan.id, reload, false, Some(&sink), |_| {})).expect("копирование");
+    assert!(present(&domain));
+
+    let undo = block(undo_plan(&target, &dir, &entry)).expect("предпросмотр отмены");
+    assert_eq!(states(&undo), vec!["ready"]);
+    let done = block(undo_run(&target, &dir, &entry, &[0], |_| {})).expect("отмена копирования");
+    assert_eq!(done.outcomes[0].status, "undone", "{:?}", done.outcomes[0]);
+    assert!(!present(&domain), "новый домен отмена удаляет");
+    println!("копирование: домен удалён отменой");
+
+    // Отмену отмены — вернуть домен из копии, снятой перед удалением.
+    let back = block(undo_plan(&target, &dir, &done.entry)).expect("предпросмотр");
+    assert_eq!(states(&back), vec!["ready"]);
+    let restored = block(undo_run(&target, &dir, &done.entry, &[0], |_| {})).expect("возврат");
+    assert_eq!(restored.outcomes[0].status, "undone", "{:?}", restored.outcomes[0]);
+    assert!(present(&domain), "домен вернулся из копии");
+    let entry_after = journal_read(&dir, &done.entry).expect("запись");
+    assert_eq!(entry_after.head.undone_by, vec![restored.entry.clone()]);
+
+    // Уборка: второй стенд остаётся таким, каким был.
+    block(delete_domain(&target, &domain)).expect("уборка");
+    assert!(!present(&domain));
+    println!("копирование: отмена отменена, домен убран");
 }

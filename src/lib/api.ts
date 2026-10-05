@@ -9,13 +9,14 @@ import type {
   ApplyTarget, ArchiveProgress, ArchiveResult, AuditEntry, BrokerAccessReport, BrokerEndpoint,
   CertificateReport, Comparison, Connection, CopyPlan, CopyResult, DomainAction,
   DomainActionResult, DomainRoutes, DomainStat, DomainTraceBeans, DumpScan, ExtractResult, InflightExchange,
+  JournalEntry, JournalEntrySummary, JournalNote,
   KeyTrace, LinkGraph, LogEntry, LogFileRow, LogRequest, ManagerKind, MessageAction,
   MessageActionResult, ModuleAction, ModuleRow, MqConfigAudit, MqConfigKind, MqStoreOutcome,
   PropertyRow, PropertyScope, PullResult, PushResult, QueueManager, QueueMatch, QueueMessage,
   QueueRow, ReportEntry, RouteAction, RouteGraph, RouteState, RouteSummary, RouteTraceChange,
   RouteTraceResult, SavePoint,
   ScanProgress, ScanResult, ServerInfo, ServerUsage, SnapshotEntry, StoredReport, SweepRow,
-  TraceUpdate, VerifyResult,
+  TraceUpdate, UndoPlan, UndoResult, VerifyResult,
 } from '../types'
 
 /** Единственная точка соприкосновения интерфейса с бэкендом на Rust. */
@@ -320,8 +321,9 @@ export function apiDomainAction(
   connection: Connection,
   guid: string,
   action: DomainAction,
+  journal?: JournalNote,
 ): Promise<DomainActionResult> {
-  return invoke<DomainActionResult>('api_domain_action', { connection, guid, action })
+  return invoke<DomainActionResult>('api_domain_action', { connection, guid, action, journal: journal ?? null })
 }
 
 /** Сводка по всем доменам сервера. */
@@ -366,8 +368,9 @@ export function apiRouteTrace(
   domain: string,
   route: string,
   change: RouteTraceChange,
+  journal?: JournalNote,
 ): Promise<RouteTraceResult> {
-  return invoke<RouteTraceResult>('api_route_trace', { connection, domain, route, change })
+  return invoke<RouteTraceResult>('api_route_trace', { connection, domain, route, change, journal: journal ?? null })
 }
 
 /** Объекты трассировки, заведённые в доменах: списка в API нет, он берётся из выгрузки. */
@@ -380,8 +383,9 @@ export function apiRouteAction(
   domain: string,
   route: string,
   action: RouteAction,
+  journal?: JournalNote,
 ): Promise<void> {
-  return invoke<void>('api_route_action', { connection, domain, route, action })
+  return invoke<void>('api_route_action', { connection, domain, route, action, journal: journal ?? null })
 }
 
 export function apiSavePoints(connection: Connection): Promise<SavePoint[]> {
@@ -522,12 +526,55 @@ export function apiSaveProperty(
   create: boolean,
   /** Попадает в историю изменений шины: по нему потом видно, чья это правка. */
   comment?: string,
+  journal?: JournalNote,
 ): Promise<void> {
-  return invoke<void>('api_save_property', { connection, scope, property, create, comment: comment ?? null })
+  return invoke<void>('api_save_property', {
+    connection, scope, property, create, comment: comment ?? null, journal: journal ?? null,
+  })
 }
 
-export function apiDeleteProperty(connection: Connection, scope: PropertyScope, key: string): Promise<void> {
-  return invoke<void>('api_delete_property', { connection, scope, key })
+export function apiDeleteProperty(
+  connection: Connection,
+  scope: PropertyScope,
+  key: string,
+  journal?: JournalNote,
+): Promise<void> {
+  return invoke<void>('api_delete_property', { connection, scope, key, journal: journal ?? null })
+}
+
+// ───────────────────────────── журнал изменений ─────────────────────────────
+
+/**
+ * Заводит запись журнала под массовую операцию: её id передаётся в каждый
+ * вызов, и двести СОПС оказываются одной строкой журнала.
+ */
+export function journalOpen(connection: Connection, origin: string): Promise<string> {
+  return invoke<string>('journal_open', { connection, origin })
+}
+
+/** Открывает запись под операцию; если журнал недоступен, операция идёт без него. */
+export async function journalEntry(connection: Connection, origin: string): Promise<string | null> {
+  try {
+    return await journalOpen(connection, origin)
+  } catch {
+    return null
+  }
+}
+
+export function journalList(connection: Connection): Promise<JournalEntrySummary[]> {
+  return invoke<JournalEntrySummary[]>('journal_list', { connection })
+}
+
+export function journalRead(id: string): Promise<JournalEntry> {
+  return invoke<JournalEntry>('journal_read', { id })
+}
+
+export function journalUndoPlan(connection: Connection, id: string): Promise<UndoPlan> {
+  return invoke<UndoPlan>('journal_undo_plan', { connection, id })
+}
+
+export function journalUndoRun(connection: Connection, id: string, indexes: number[]): Promise<UndoResult> {
+  return invoke<UndoResult>('journal_undo_run', { connection, id, indexes })
 }
 
 export function apiLogFiles(connection: Connection): Promise<LogFileRow[]> {

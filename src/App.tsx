@@ -12,6 +12,7 @@ import { MqConfigScreen } from './components/MqConfigScreen'
 import { WelcomeScreen } from './components/WelcomeScreen'
 import { AccessScreen } from './components/AccessScreen'
 import { CertificatesScreen } from './components/CertificatesScreen'
+import { JournalScreen } from './components/JournalScreen'
 import { CompareScreen } from './components/CompareScreen'
 import { EndpointsScreen } from './components/EndpointsScreen'
 import { KeySearchScreen } from './components/KeySearchScreen'
@@ -361,6 +362,7 @@ export default function App() {
     'api.domains': 'nav.api.domains.title',
     'files.links': 'nav.files.links.title',
     'api.audit': 'nav.api.audit.title',
+    'api.journal': 'nav.api.journal.title',
     'api.access': 'nav.api.access.title',
     'api.routes': 'nav.api.routes.title',
     'api.endpoints': 'nav.api.endpoints.title',
@@ -541,6 +543,7 @@ export default function App() {
           <TracingScreen
             {...apiScreenProps}
             onOpenRoutes={(guid) => { setRoutesDomain(guid); setScreen('api.routes') }}
+            onOpenJournal={() => setScreen('api.journal')}
           />
         ) : screen === 'api.keySearch' ? (
           <KeySearchScreen
@@ -583,11 +586,14 @@ export default function App() {
             key={propertyFocus ? focus?.seq : undefined}
             {...apiScreenProps}
             initialQuery={propertyFocus?.query ?? null}
+            onOpenJournal={() => setScreen('api.journal')}
           />
         ) : screen === 'api.logs' ? (
           <LogsScreen key={logFocus ? focus?.seq : undefined} {...apiScreenProps} exchange={logFocus} />
         ) : screen === 'api.audit' ? (
           <AuditScreen {...apiScreenProps} />
+        ) : screen === 'api.journal' ? (
+          <JournalScreen {...apiScreenProps} prod={session?.profile.environment === 'prod'} />
         ) : screen === 'api.access' ? (
           <AccessScreen {...apiScreenProps} />
         ) : isLinksScreen ? (

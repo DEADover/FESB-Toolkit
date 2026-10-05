@@ -161,7 +161,7 @@ export function RoutesScreen({ connection, server, isMac, initialGuid, initialRo
     setPending(`${route.id}:${action}`)
     setError(null)
     try {
-      await apiRouteAction(connection, selected.guid, route.id, action)
+      await apiRouteAction(connection, selected.guid, route.id, action, { domain: selected.name, name: route.name ?? route.id })
       const fresh = await apiRouteState(connection, selected.guid, route.id)
       setStates((prev) => ({ ...prev, [route.id!]: fresh }))
     } catch (err) {
