@@ -42,7 +42,7 @@ fn a_copied_domain_matches_its_source() {
         }
     }
 
-    let result = block(copy_run(&target, &before.id, true, true, |_| {})).expect("загрузка");
+    let result = block(copy_run(&target, &before.id, true, true, None, |_| {})).expect("загрузка");
     assert!(result.domains.iter().all(|item| item.error.is_none()), "{:?}", result.domains);
 
     // Повторный предпросмотр — проверка сразу двух вещей: домен дошёл целиком,
@@ -56,6 +56,6 @@ fn a_copied_domain_matches_its_source() {
     }
 
     // Второй предпросмотр занял место первого: старый id больше не действует.
-    let stale = block(copy_run(&target, &before.id, true, true, |_| {}));
+    let stale = block(copy_run(&target, &before.id, true, true, None, |_| {}));
     assert!(stale.is_err(), "загрузка по устаревшему предпросмотру не проходит");
 }
