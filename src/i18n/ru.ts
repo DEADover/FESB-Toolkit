@@ -57,10 +57,10 @@ export const ru: Record<keyof typeof en, string> = {
   'welcome.hint.domains': 'Запустить, остановить и забрать домены, увидеть, где проблемы',
   'welcome.hint.routes': 'Схемы СОПС с живыми счётчиками',
   'welcome.hint.endpoints': 'Адреса, через которые FESB обменивается с внешними системами',
-  'nav.files': 'Файлы Конфигурации',
-  'nav.files.trace': 'Настройки Трассировки',
-  'nav.files.links': 'Связи Доменов',
-  'nav.files.links.title': 'Связи между Доменами',
+  'nav.files': 'Файлы конфигурации',
+  'nav.files.trace': 'Настройки трассировки',
+  'nav.files.links': 'Связи доменов',
+  'nav.files.links.title': 'Связи между доменами',
 
   'domainLinks.noScan': 'Конфигурация не открыта',
   'domainLinks.noScan.text': 'Связи считаются по всей выгрузке. Перетащите папку или zip в окно, {folder} или {domains} с сервера.',
@@ -78,7 +78,7 @@ export const ru: Record<keyof typeof en, string> = {
 
   'nav.api': 'API',
   'nav.api.general': 'Общее',
-  'nav.api.tasks': 'Точечные Задачи',
+  'nav.api.tasks': 'Точечные задачи',
   'nav.api.domains': 'Домены',
 
   'action.selectFolder': 'Выбрать папку',
@@ -411,7 +411,7 @@ export const ru: Record<keyof typeof en, string> = {
   'opt.propertyPrefix': 'Префикс переменных',
   'confirm.option': '{label} → {value}',
 
-  'nav.api.domains.title': 'Домены Сервера',
+  'nav.api.domains.title': 'Домены сервера',
 
   'header.server': 'Сервер',
 
@@ -654,7 +654,7 @@ export const ru: Record<keyof typeof en, string> = {
   'server.hours': '{count} ч',
   'server.minutes': '{count} мин',
   'nav.api.inflight': 'Обмены',
-  'nav.api.inflight.title': 'Незавершённые Обмены',
+  'nav.api.inflight.title': 'Незавершённые обмены',
   'inflight.empty': 'Ничего не застряло',
   'inflight.empty.text': 'FESB довёл до конца всё, за что брался. Так и выглядит здоровый сервер.',
   'inflight.total': 'В работе',
@@ -678,7 +678,7 @@ export const ru: Record<keyof typeof en, string> = {
   'welcome.hint.inflight': 'Над чем FESB работает прямо сейчас',
 
   'nav.api.access': 'Доступ',
-  'nav.api.access.title': 'Роли и Доступ',
+  'nav.api.access.title': 'Роли и доступ',
   'welcome.hint.access': 'Кто что может и кто сейчас в системе',
   'access.roles': 'Ролей',
   'access.permissions': 'Прав',
@@ -749,10 +749,10 @@ export const ru: Record<keyof typeof en, string> = {
   'endpoints.fromHistory': 'Отчёт собран раньше — с тех пор на сервере могло измениться.',
 
   'nav.api.tracing': 'Трассировка',
-  'nav.api.tracing.title': 'Трассировка по Серверу',
+  'nav.api.tracing.title': 'Трассировка по серверу',
   'welcome.hint.tracing': 'Какие СОПС трассируются и через что',
-  'nav.api.keySearch': 'Поиск Обмена',
-  'nav.api.keySearch.title': 'Поиск Обмена по Ключу',
+  'nav.api.keySearch': 'Поиск обмена',
+  'nav.api.keySearch.title': 'Поиск обмена по ключу',
   'welcome.hint.keySearch': 'Где сейчас обмен по номеру заказа, ИНН или ID документа',
   'keySearch.placeholder': 'Номер заказа, ИНН, ID документа — что есть в сообщении',
   'keySearch.run': 'Найти',
@@ -858,7 +858,7 @@ export const ru: Record<keyof typeof en, string> = {
   'palette.pick': 'Открыть',
 
   'nav.api.mqConfig': 'Настройки МО',
-  'nav.api.mqConfig.title': 'Хранение Настроек Менеджеров Очередей',
+  'nav.api.mqConfig.title': 'Хранение настроек менеджеров очередей',
   'welcome.hint.mqConfig': 'Настройки менеджеров очередей без галочки «Хранить в конфигурации»',
   'mqConfig.intro': 'Объекты без галочки «Хранить в конфигурации» живут только в хранилище брокера и не переедут вместе с конфигурацией.',
   'mqConfig.manager': 'Менеджер',
@@ -923,13 +923,13 @@ export const ru: Record<keyof typeof en, string> = {
   'error.qme.passwordRequired': 'Для пользователя нужен пароль',
   'error.qme.notStored': 'FESB принял запись, но галочка не встала',
   'nav.api.queues': 'Очереди',
-  'nav.api.queues.title': 'Менеджеры Очередей',
+  'nav.api.queues.title': 'Менеджеры очередей',
   'nav.api.modules': 'Модули',
   'nav.api.modules.title': 'Модули FESB',
   'nav.api.properties': 'Константы',
   'nav.api.properties.title': 'Константы',
   'nav.api.logs': 'Журналы',
-  'nav.api.logs.title': 'Журналы Сервера',
+  'nav.api.logs.title': 'Журналы сервера',
 
   'domains.confirm.stopMany': 'Остановить выбранные домены?',
   'domains.confirm.restartMany': 'Перезапустить выбранные домены?',
@@ -981,10 +981,10 @@ export const ru: Record<keyof typeof en, string> = {
   'domains.confirm.restart': 'Перезапустить домен?',
   'domains.confirm.text': 'СОПС домена перестанут обрабатывать сообщения, пока он не запустится снова.',
   'nav.api.routes': 'СОПС',
-  'nav.api.routes.title': 'СОПС Сервера',
+  'nav.api.routes.title': 'СОПС сервера',
 
   'nav.api.audit': 'Аудит',
-  'nav.api.audit.title': 'Журнал Аудита',
+  'nav.api.audit.title': 'Журнал аудита',
 
   'audit.search': 'Поиск по аудиту',
   'audit.ip': 'Адрес',
@@ -1194,7 +1194,7 @@ export const ru: Record<keyof typeof en, string> = {
   'property.part.rest': 'REST',
   'property.part.store': 'Хранилище',
 
-  'nav.amqp': 'AMQP Client',
+  'nav.amqp': 'Клиент AMQP',
   'nav.connection': 'Подключения',
   'welcome.hint.connection': 'Стенды: адрес FESB, учётные данные и брокер AMQP',
   'broker.section': 'AMQP',
@@ -1297,7 +1297,7 @@ export const ru: Record<keyof typeof en, string> = {
   'welcome.hint.amqp.console': 'Что делал раздел — одним списком',
   'amqp.loading': 'Открываем раздел AMQP…',
   'nav.api.compare': 'Сравнение',
-  'nav.api.compare.title': 'Сравнение Стендов',
+  'nav.api.compare.title': 'Сравнение стендов',
   'welcome.hint.compare': 'Что есть на тесте и нет в продуктиве, и наоборот',
   'compare.intro': 'Выберите второй стенд — оба только читаются: домены, СОПС и константы всех трёх уровней.',
   'compare.intro.time': 'Снимок запоминает домены, СОПС и константы стенда. Потом его сравнивают со стендом сейчас или с другим снимком.',
@@ -1420,7 +1420,7 @@ export const ru: Record<keyof typeof en, string> = {
 
   // ── журнал изменений ──
   'nav.api.journal': 'Изменения',
-  'nav.api.journal.title': 'Журнал Изменений',
+  'nav.api.journal.title': 'Журнал изменений',
   'welcome.hint.journal': 'Что приложение поменяло на стенде и как это отменить',
   'job.api.undo': 'Отмена изменений',
   'error.journal.otherServer': 'Эта запись журнала изменений сделана на другом стенде — подключитесь к нему',
@@ -1527,8 +1527,8 @@ export const ru: Record<keyof typeof en, string> = {
   'journal.undo.recorded': 'Отмена тоже записана в журнал отдельной операцией.',
 
   // ── отчёт о стенде (в коде — passport) ──
-  'nav.api.passport': 'Отчёт о Стенде',
-  'nav.api.passport.title': 'Отчёт о Стенде',
+  'nav.api.passport': 'Отчёт о стенде',
+  'nav.api.passport.title': 'Отчёт о стенде',
   'welcome.hint.passport': 'Описание стенда одним файлом — для сопровождения и сдачи проекта',
   'passport.intro.title': 'Что войдёт в отчёт',
   'passport.intro.text': 'Отчёт собирает описание стенда в одну книгу Excel: первым листом — сводка, дальше по листу на раздел. Его передают сопровождению или заказчику при сдаче проекта.',
