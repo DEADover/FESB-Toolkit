@@ -661,27 +661,134 @@ async fn download_batch(
     guids: &[String],
     path: &Path,
 ) -> Result<u64, String> {
-    let mut request = connection
-        .get(client, "/api/domains/export/archive")
-        .timeout(DOWNLOAD_TIMEOUT)
-        .query(&[("exclude", EXPORT_EXCLUDE)]);
-    for guid in guids {
-        request = request.query(&[("domains", guid.as_str())]);
+    let bytes = fetch_archive(connection, client, guids, EXPORT_EXCLUDE).await?;
+    fs::write(path, &bytes).map_err(|err| format!("Cannot write the download: {err}"))?;
+    Ok(bytes.len() as u64)
+}
+
+/// Сколько раз дочитывать домены, которых не оказалось в архиве.
+const EXPORT_ATTEMPTS: usize = 4;
+
+/// Выгрузка доменов архивом — с проверкой, что пришли все.
+///
+/// FESB время от времени отдаёт на выгрузку одного домена пустой архив:
+/// ответ 200, а внутри ни одного файла. На стенде из 260 доменов так ведут
+/// себя семнадцать, и не каждый раз — четверть, а то и половина попыток.
+/// Пачки из двух и больше доменов приходят целиком. Молча принять пустой
+/// архив значило бы показать «СОПС: 0» у домена с двадцатью двумя СОПС,
+/// а журналу — решить, что копии домена нет.
+///
+/// Поэтому недостающие домены запрашиваются снова, а одиночный — в паре
+/// с любым другим доменом сервера, который потом отбрасывается. Отдельный
+/// метод `/api/domain/{guid}/export` надёжен, но не отдаёт ни констант
+/// домена, ни моделей, и для копий не годится.
+pub(crate) async fn fetch_archive(
+    connection: &Connection,
+    client: &reqwest::Client,
+    guids: &[String],
+    exclude: &str,
+) -> Result<Vec<u8>, String> {
+    let mut found: Vec<(ManifestDomain, Vec<u8>)> = Vec::new();
+    let mut wanted: Vec<String> = guids.to_vec();
+    let mut companion: Option<String> = None;
+
+    for attempt in 0..EXPORT_ATTEMPTS {
+        if wanted.is_empty() {
+            break;
+        }
+        let mut request_guids = wanted.clone();
+        if attempt > 0 && request_guids.len() == 1 {
+            if companion.is_none() {
+                companion = domains(connection)
+                    .await
+                    .ok()
+                    .and_then(|list| list.into_iter().map(|item| item.guid).find(|guid| !guids.contains(guid)));
+            }
+            if let Some(other) = &companion {
+                request_guids.push(other.clone());
+            }
+        }
+
+        let mut request = connection
+            .get(client, "/api/domains/export/archive")
+            .timeout(DOWNLOAD_TIMEOUT)
+            .query(&[("exclude", exclude)]);
+        for guid in &request_guids {
+            request = request.query(&[("domains", guid.as_str())]);
+        }
+        let response = request.send().await.map_err(transport_error)?;
+        let bytes = ensure_ok(response, "Cannot export domains").await?.bytes().await.map_err(transport_error)?;
+
+        for (domain, inner) in split_archive(&bytes)? {
+            if let Some(position) = wanted.iter().position(|guid| guid == &domain.guid) {
+                wanted.remove(position);
+                found.push((domain, inner));
+            }
+        }
+    }
+    if !wanted.is_empty() {
+        return Err(format!("The server returned an empty export for {}", wanted.join(", ")));
     }
 
-    let response = request.send().await.map_err(transport_error)?;
-    let mut response = ensure_ok(response, "Cannot export domains").await?;
+    // Порядок — как просили: от него зависит и опись, и то, что увидит человек.
+    found.sort_by_key(|(domain, _)| guids.iter().position(|guid| guid == &domain.guid).unwrap_or(usize::MAX));
+    pack_archive(&found)
+}
 
-    let mut file = BufWriter::new(
-        File::create(path).map_err(|err| format!("Cannot write the download: {err}"))?,
-    );
-    let mut bytes = 0u64;
-    while let Some(chunk) = response.chunk().await.map_err(transport_error)? {
-        file.write_all(&chunk).map_err(|err| format!("Cannot write the download: {err}"))?;
-        bytes += chunk.len() as u64;
+/// Домены архива выгрузки: опись `domains.json` и вложенный архив каждого.
+fn split_archive(bytes: &[u8]) -> Result<Vec<(ManifestDomain, Vec<u8>)>, String> {
+    let mut outer = ZipArchive::new(Cursor::new(bytes)).map_err(|err| format!("The server did not return a zip: {err}"))?;
+    let mut listed: std::collections::HashMap<String, ManifestDomain> = std::collections::HashMap::new();
+    if let Ok(mut entry) = outer.by_name("domains.json") {
+        let mut text = String::new();
+        if entry.read_to_string(&mut text).is_ok() {
+            if let Some(items) = serde_json::from_str::<serde_json::Value>(&text)
+                .ok()
+                .and_then(|value| value.get("domains").and_then(|item| item.as_array()).cloned())
+            {
+                for item in items {
+                    if let Ok(domain) = serde_json::from_value::<ManifestDomain>(item) {
+                        listed.insert(domain.guid.clone(), domain);
+                    }
+                }
+            }
+        }
     }
-    file.flush().map_err(|err| format!("Cannot write the download: {err}"))?;
-    Ok(bytes)
+    let mut out = Vec::new();
+    for index in 0..outer.len() {
+        let mut entry = outer.by_index(index).map_err(|err| err.to_string())?;
+        let name = entry.name().to_string();
+        let Some(guid) = name.strip_suffix(".zip").filter(|guid| !guid.contains('/')) else { continue };
+        let guid = guid.to_string();
+        let mut inner = Vec::with_capacity(entry.size() as usize);
+        entry.read_to_end(&mut inner).map_err(|err| format!("{name}: {err}"))?;
+        let domain = listed.remove(&guid).unwrap_or_else(|| ManifestDomain { guid: guid.clone(), name: guid.clone(), group: None, mode: None });
+        out.push((domain, inner));
+    }
+    Ok(out)
+}
+
+/// Собирает архив выгрузки обратно — в том виде, в каком его отдаёт сервер.
+fn pack_archive(domains: &[(ManifestDomain, Vec<u8>)]) -> Result<Vec<u8>, String> {
+    let mut buffer: Vec<u8> = Vec::new();
+    {
+        let mut outer = ZipWriter::new(Cursor::new(&mut buffer));
+        let stored = SimpleFileOptions::default().compression_method(CompressionMethod::Stored);
+        for (domain, inner) in domains {
+            outer.start_file(format!("{}.zip", domain.guid), stored).map_err(|err| err.to_string())?;
+            outer.write_all(inner).map_err(|err| err.to_string())?;
+        }
+        let listing = serde_json::json!({
+            "domains": domains.iter().map(|(domain, _)| domain).collect::<Vec<_>>(),
+            "rootDomain": serde_json::Value::Null,
+        });
+        outer.start_file("domains.json", SimpleFileOptions::default()).map_err(|err| err.to_string())?;
+        outer
+            .write_all(&serde_json::to_vec(&listing).map_err(|err| err.to_string())?)
+            .map_err(|err| err.to_string())?;
+        outer.finish().map_err(|err| format!("Cannot pack the export: {err}"))?;
+    }
+    Ok(buffer)
 }
 
 struct Unpacked {

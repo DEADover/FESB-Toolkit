@@ -358,7 +358,9 @@ export function RoutesScreen({ connection, server, isMac, initialGuid, initialRo
                   )
                 })}
                 {routes.length === 0 && (
-                  <TableMessage colSpan={6} busy={loading}>{loading ? t('empty.scanning') : t('routes.pickDomain')}</TableMessage>
+                  <TableMessage colSpan={6} busy={loading}>
+                    {loading ? t('empty.scanning') : selected ? t('copy.noRoutes') : t('routes.pickDomain')}
+                  </TableMessage>
                 )}
               </tbody>
             </DataTable>

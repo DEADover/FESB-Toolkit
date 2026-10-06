@@ -1294,3 +1294,26 @@ fn journal_domain_undo_checks_the_server_and_restores_state() {
     }
     assert_eq!(up, Some(true), "Copy.Demo снова работает");
 }
+
+/// Домен, который FESB время от времени выгружает пустым архивом, всё равно
+/// читается целиком.
+///
+/// ```sh
+/// FESB_URL=http://localhost:8181/manager FESB_FLAKY_DOMAIN=domain-… \
+///   cargo test --test api flaky -- --ignored --nocapture
+/// ```
+#[test]
+#[ignore]
+fn a_flaky_single_domain_export_still_gives_its_routes() {
+    let (Some(connection), Ok(domain)) = (connection(), std::env::var("FESB_FLAKY_DOMAIN")) else {
+        eprintln!("FESB_URL или FESB_FLAKY_DOMAIN не заданы — пропускаем");
+        return;
+    };
+    let mut counts = Vec::new();
+    for _ in 0..8 {
+        let routes = block(fetch_domain_routes(&connection, &domain)).expect("СОПС домена");
+        counts.push(routes.routes.len());
+    }
+    println!("СОПС по попыткам: {counts:?}");
+    assert!(counts.iter().all(|count| *count == counts[0] && *count > 0), "{counts:?}");
+}

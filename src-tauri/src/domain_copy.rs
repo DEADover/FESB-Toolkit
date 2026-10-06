@@ -339,19 +339,9 @@ fn journal_changes(sink: &Sink, batch: &[Packed], pending: &Pending) -> Result<V
 /// Выгружает пачку доменов в память и раскладывает архив по доменам.
 pub(crate) async fn export(connection: &Connection, guids: &[String]) -> Result<Vec<Packed>, String> {
     let client = connection.client()?;
-    let mut request = connection
-        .get(&client, "/api/domains/export/archive")
-        .timeout(TRANSFER_TIMEOUT)
-        .query(&[("exclude", EXPORT_EXCLUDE)]);
-    for guid in guids {
-        request = request.query(&[("domains", guid.as_str())]);
-    }
-    let response = request.send().await.map_err(transport_error)?;
-    let bytes = ensure_ok(response, "Cannot export domains")
-        .await?
-        .bytes()
-        .await
-        .map_err(transport_error)?;
+    // Через общую выгрузку: она дочитывает домены, которые FESB иногда
+    // отдаёт пустым архивом, — без этого копия домена молча пропадала бы.
+    let bytes = crate::fesb_api::fetch_archive(connection, &client, guids, EXPORT_EXCLUDE).await?;
     split_export(&bytes)
 }
 
